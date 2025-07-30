@@ -1,1 +1,1 @@
-web: python comprehensive_evolution_system.py
+web: python app.py
