@@ -1678,6 +1678,53 @@ if __name__ == "__main__":
   }}
 }}'''
 
+    def get_system_stats(self):
+        """Get comprehensive system statistics"""
+        # Count files from evolution data
+        main_files = len(self.evolution_data.get('created_files', []))
+        
+        # Count completed tasks
+        completed_tasks = len([t for t in self.evolution_data.get('completed_tasks', []) if t.get('status') == 'completed'])
+        
+        # Count autonomous improvements
+        autonomous_files = 0
+        for improvement in self.evolution_data.get('comprehensive_improvements', []):
+            autonomous_files += len(improvement.get('files_created', []))
+        
+        # Count current task files
+        current_task_files = 0
+        if self.evolution_data.get('current_task'):
+            current_task_files = len(self.evolution_data['current_task'].get('created_files', []))
+        
+        # Calculate total files
+        total_files = main_files + autonomous_files + current_task_files
+        
+        # Calculate uptime (use a default start time if not set)
+        if not hasattr(self, 'start_time'):
+            self.start_time = time.time()
+        
+        return {
+            'total_files': total_files,
+            'main_task_files': main_files,
+            'autonomous_files': autonomous_files,
+            'current_task_files': current_task_files,
+            'completed_tasks': completed_tasks,
+            'evolution_cycle': self.evolution_data.get('generation', 0),
+            'active_tasks': len(self.evolution_data.get('evolution_goals', {}).get('active_tasks', [])),
+            'task_mode': self.evolution_data.get('task_mode', False),
+            'current_task': self.evolution_data.get('current_task', {}).get('description', 'None') if self.evolution_data.get('current_task') else 'None',
+            'improvement_count': len(self.evolution_data.get('comprehensive_improvements', [])),
+            'metrics': self.evolution_data.get('metrics', {}),
+            'last_update': self.evolution_data.get('last_update', 'Unknown'),
+            # Add fields expected by web interface
+            'components_created': self.evolution_data.get('metrics', {}).get('components_created', 0),
+            'features_implemented': self.evolution_data.get('metrics', {}).get('features_implemented', 0),
+            'pages_upgraded': self.evolution_data.get('metrics', {}).get('pages_upgraded', 0),
+            'generation': self.evolution_data.get('generation', 0),
+            'uptime': time.time() - self.start_time,
+            'improvements': len(self.evolution_data.get('comprehensive_improvements', []))
+        }
+
     def _generate_documentation(self, description):
         """Generate documentation"""
         return f'''# 📚 Implementation Documentation
@@ -3249,38 +3296,6 @@ This will run a demo with 5 sample tasks and display results.
     def _generate_general_demo(self, description):
         """Generate general demo page"""
         return f'<!DOCTYPE html><html><head><title>General Implementation Demo</title></head><body><h1>Implementation Demo</h1><p>{description}</p><p>This is a general implementation demo page.</p></body></html>'
-
-    def get_system_stats(self):
-        """Get comprehensive system statistics"""
-        # Count files from evolution data
-        main_files = len(self.evolution_data.get('created_files', []))
-        
-        # Count completed tasks
-        completed_tasks = len([t for t in self.evolution_data.get('completed_tasks', []) if t.get('status') == 'completed'])
-        
-        # Count autonomous improvements
-        autonomous_files = 0
-        for improvement in self.evolution_data.get('comprehensive_improvements', []):
-            autonomous_files += len(improvement.get('files_created', []))
-        
-        # Count current task files
-        current_task_files = 0
-        if self.evolution_data.get('current_task'):
-            current_task_files = len(self.evolution_data['current_task'].get('created_files', []))
-        
-        # Total file count
-        total_files = main_files + autonomous_files + current_task_files
-        
-        return {
-            'total_files': total_files,
-            'components_created': self.evolution_data['metrics']['components_created'],
-            'features_implemented': self.evolution_data['metrics']['features_implemented'],
-            'pages_upgraded': self.evolution_data['metrics']['pages_upgraded'],
-            'generation': self.evolution_data['generation'],
-            'task_mode': self.evolution_data['task_mode'],
-            'uptime': time.time() - self.start_time,
-            'improvements': len(self.evolution_data.get('comprehensive_improvements', []))
-        }
 
 
 # Web server handler for task management
