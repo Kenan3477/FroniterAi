@@ -53,6 +53,14 @@ railway up
 - ✅ `railway.json` - Railway configuration
 - ✅ `Procfile` - Process definition
 - ✅ `requirements.txt` - Python dependencies
+- ✅ `Dockerfile` - Container configuration
+- ✅ `.dockerignore` - Build optimization
+
+### Deployment Options:
+Railway will automatically choose the best deployment method:
+1. **Dockerfile** (Recommended) - Uses container for consistent environment
+2. **Nixpacks** - Automatic buildpack detection
+3. **Buildpacks** - Traditional buildpack approach
 
 ### Expected Deployment:
 - **Build Time**: ~2-3 minutes
@@ -74,7 +82,35 @@ Railway provides built-in monitoring:
 - **Metrics**: CPU, Memory, Network usage
 - **Deployments**: History and rollback options
 
-## 🚨 Troubleshooting
+## � Local Docker Testing (Optional)
+
+Before deploying to Railway, you can test locally with Docker:
+
+### Quick Docker Test:
+```bash
+# Build the image
+docker build -t frontier-ai .
+
+# Run the container
+docker run -p 8889:8889 frontier-ai
+
+# Test the deployment
+curl http://localhost:8889
+```
+
+### Full Stack with Docker Compose:
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f frontier-ai
+
+# Stop services
+docker-compose down
+```
+
+## �🚨 Troubleshooting
 
 ### Common Issues:
 1. **Build Fails**: Check `requirements.txt` dependencies

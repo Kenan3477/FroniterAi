@@ -1,6 +1,30 @@
 version: '3.8'
 
 services:
+  # Frontier AI Main Application
+  frontier-ai:
+    build: .
+    container_name: frontier_ai
+    restart: unless-stopped
+    ports:
+      - "8889:8889"
+    environment:
+      - PORT=8889
+      - PYTHONUNBUFFERED=1
+      - RAILWAY_ENVIRONMENT=development
+    volumes:
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+      - ./.comprehensive_backups:/app/.comprehensive_backups
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8889/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Redis for caching and model state
   redis:
     image: redis:7.2-alpine
