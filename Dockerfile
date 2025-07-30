@@ -1,40 +1,23 @@
-# Multi-stage Dockerfile for AI Model Serving with GPU Support
+# Railway-compatible Dockerfile for Frontier AI Evolution System
 
-# Base stage with CUDA support
-FROM nvidia/cuda:12.2-devel-ubuntu22.04 as base
+# Use official Python image compatible with Railway
+FROM python:3.11-slim as base
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-ENV CUDA_VISIBLE_DEVICES=0
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
-    python3-pip \
     curl \
     wget \
     git \
     build-essential \
     libssl-dev \
     libffi-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    libncurses5-dev \
-    libncursesw5-dev \
-    xz-utils \
-    tk-dev \
-    libxml2-dev \
-    libxmlsec1-dev \
-    liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Create symbolic link for python
-RUN ln -s /usr/bin/python3.11 /usr/bin/python
 
 # Upgrade pip
 RUN python -m pip install --upgrade pip
@@ -67,11 +50,11 @@ RUN mkdir -p /app/models /app/logs /app/cache /app/data
 # Set permissions
 RUN chmod +x /app/api/models/initialize_models.py
 
-# Expose ports
-EXPOSE 8000 8888
+# Expose port (Railway will assign the PORT dynamically)
+EXPOSE $PORT
 
 # Development command
-CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["python", "comprehensive_evolution_system.py"]
 
 # Production stage
 FROM base as production
@@ -99,25 +82,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/ai/system/health || exit 1
+    CMD curl -f http://localhost:$PORT/ || exit 1
 
-# Production command
-CMD ["gunicorn", "api.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
-
-# TensorRT optimized stage (optional)
-FROM production as tensorrt
-
-USER root
-
-# Install TensorRT
-RUN apt-get update && \
-    apt-get install -y libnvinfer8 libnvinfer-plugin8 libnvinfer-dev libnvinfer-plugin-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install TensorRT Python bindings
-RUN pip install --no-cache-dir nvidia-tensorrt
-
-USER appuser
-
-# TensorRT optimized command
-CMD ["gunicorn", "api.main:app", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120"]
+# Production command - Use PORT environment variable from Railway
+CMD ["python", "comprehensive_evolution_system.py"]
