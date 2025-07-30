@@ -1678,6 +1678,95 @@ if __name__ == "__main__":
   }}
 }}'''
 
+    def process_chat_message(self, message):
+        """Process chat messages from the conversational AI interface"""
+        message_lower = message.lower()
+        
+        # Business Operations responses
+        if any(keyword in message_lower for keyword in ['financial', 'analyze', 'finance', 'ratio', 'valuation']):
+            return {
+                'text': "I'll help you with financial analysis! I can perform comprehensive financial statement analysis, calculate key ratios, create valuation models, and generate forecasts. Would you like to upload your financial data or specify what type of analysis you need?",
+                'suggestions': [
+                    "Upload financial statements for analysis",
+                    "Calculate financial ratios", 
+                    "Perform business valuation",
+                    "Create financial forecasts"
+                ],
+                'capabilities': ['ratio_analysis', 'valuation', 'forecasting', 'benchmarking']
+            }
+        
+        elif any(keyword in message_lower for keyword in ['business', 'company', 'start', 'incorporate', 'llc', 'corporation']):
+            return {
+                'text': "I can help you form your business! I'll guide you through entity selection, jurisdiction analysis, and complete the formation process. I need to understand your business goals, planned operations, and location preferences to recommend the optimal structure.",
+                'suggestions': [
+                    "Choose business entity type",
+                    "Select jurisdiction", 
+                    "Generate formation documents",
+                    "Setup compliance calendar"
+                ],
+                'capabilities': ['entity_formation', 'compliance', 'documentation', 'jurisdiction_analysis']
+            }
+        
+        elif any(keyword in message_lower for keyword in ['website', 'web', 'site', 'development', 'app', 'application']):
+            return {
+                'text': "I'll create a professional website for you! I can build everything from simple landing pages to complex web applications with modern design, responsive layouts, and full functionality. What type of website do you need?",
+                'suggestions': [
+                    "Business landing page",
+                    "E-commerce website",
+                    "Corporate website", 
+                    "Web application"
+                ],
+                'capabilities': ['web_development', 'ui_design', 'responsive_design', 'deployment']
+            }
+        
+        elif any(keyword in message_lower for keyword in ['compliance', 'regulation', 'legal', 'gdpr', 'hipaa', 'policy']):
+            return {
+                'text': "I'll ensure your business stays compliant! I can check regulatory requirements, generate policies, monitor changes, and create compliance documentation for multiple jurisdictions and industries.",
+                'suggestions': [
+                    "Check compliance requirements",
+                    "Generate policies and procedures",
+                    "Setup regulatory monitoring",
+                    "Create compliance documentation"
+                ],
+                'capabilities': ['compliance_checking', 'policy_generation', 'regulatory_monitoring', 'risk_assessment']
+            }
+        
+        elif any(keyword in message_lower for keyword in ['marketing', 'campaign', 'content', 'seo', 'advertising']):
+            return {
+                'text': "Let's boost your marketing! I can create comprehensive marketing strategies, generate content, optimize for SEO, and set up automated campaigns across multiple channels.",
+                'suggestions': [
+                    "Create marketing strategy",
+                    "Generate content",
+                    "Setup SEO optimization", 
+                    "Launch advertising campaigns"
+                ],
+                'capabilities': ['strategy_development', 'content_generation', 'seo_optimization', 'campaign_management']
+            }
+        
+        elif any(keyword in message_lower for keyword in ['help', 'what', 'can', 'do', 'capabilities']):
+            return {
+                'text': "I'm Frontier AI - your comprehensive business operations assistant! I can help with financial analysis, business formation, web development, compliance management, marketing automation, and strategic planning. I have advanced capabilities across all business functions.",
+                'suggestions': [
+                    "Financial Analysis & Modeling",
+                    "Business Formation & Compliance",
+                    "Web Development & Design",
+                    "Marketing & Content Creation"
+                ],
+                'capabilities': ['financial_analysis', 'business_formation', 'web_development', 'compliance', 'marketing', 'analytics']
+            }
+        
+        else:
+            return {
+                'text': f"I understand you're asking about: '{message}'. I can help with financial analysis, business formation, web development, compliance, marketing, and strategic planning. Could you be more specific about what you'd like to accomplish?",
+                'suggestions': [
+                    "Analyze financial data",
+                    "Start a business", 
+                    "Create a website",
+                    "Check compliance requirements"
+                ],
+                'capabilities': ['general_assistance', 'business_consulting', 'technical_support']
+            }
+
     def get_system_stats(self):
         """Get comprehensive system statistics"""
         # Count files from evolution data
@@ -3306,6 +3395,20 @@ class ComprehensiveHandler(SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/':
+            # Serve the new Frontier AI dashboard
+            try:
+                dashboard_path = self.evolution_system.workspace_path / 'frontend' / 'frontier-ai-dashboard.html'
+                if dashboard_path.exists():
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/html')
+                    self.end_headers()
+                    with open(dashboard_path, 'r', encoding='utf-8') as f:
+                        self.wfile.write(f.read().encode('utf-8'))
+                    return
+            except Exception as e:
+                print(f"Error serving dashboard: {e}")
+            
+            # Fallback to stats page
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
@@ -3485,6 +3588,45 @@ class ComprehensiveHandler(SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({'status': 'success'}).encode())
+            
+        elif self.path == '/api/chat':
+            # Handle chat API for conversational AI
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                message = data.get('message', '')
+                
+                # Process the message through Frontier AI
+                response = self.evolution_system.process_chat_message(message)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                self.wfile.write(json.dumps({
+                    'response': response,
+                    'timestamp': datetime.now().isoformat()
+                }).encode('utf-8'))
+                return
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+        
+        elif self.path == '/api/stats':
+            # API endpoint for system stats
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            stats = self.evolution_system.get_system_stats()
+            self.wfile.write(json.dumps(stats).encode('utf-8'))
+            return
             
         elif self.path == '/force_complete_task':
             # Force complete stuck task

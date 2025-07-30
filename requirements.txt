@@ -1,4 +1,32 @@
-# Ultra-minimal Railway-compatible requirements
+# Frontier AI - Railway Deployment Requirements
+# Core Web Framework
 flask==2.3.3
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# HTTP and Networking
 requests==2.31.0
+httpx==0.25.2
+websockets==12.0
+
+# Data Processing
+pandas==2.0.3
+numpy==1.24.3
+
+# Environment and Configuration
 python-dotenv==1.0.0
+
+# JSON and Data Handling
+pydantic==2.5.0
+
+# File and Path Handling
+pathlib2==2.3.7
+
+# Date and Time
+python-dateutil==2.8.2
+
+# Async Support
+asyncio-mqtt==0.13.0
+
+# Lightweight and Railway-compatible
+gunicorn==21.2.0
