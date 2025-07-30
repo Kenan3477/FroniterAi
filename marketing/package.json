@@ -1,0 +1,59 @@
+{
+  "name": "frontier-marketing",
+  "version": "1.0.0",
+  "description": "Frontier Business Analytics - Marketing Website",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "export": "next build && next export",
+    "analyze": "cross-env ANALYZE=true next build",
+    "sitemap": "next-sitemap --config next-sitemap.config.js"
+  },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "typescript": "5.3.3",
+    "@types/node": "20.10.6",
+    "@types/react": "18.2.46",
+    "@types/react-dom": "18.2.18",
+    "tailwindcss": "3.4.0",
+    "autoprefixer": "10.4.16",
+    "postcss": "8.4.32",
+    "framer-motion": "10.16.16",
+    "lucide-react": "0.303.0",
+    "@headlessui/react": "1.7.17",
+    "@heroicons/react": "2.0.18",
+    "clsx": "2.0.0",
+    "react-intersection-observer": "9.5.3",
+    "react-countup": "6.5.0",
+    "embla-carousel-react": "8.0.0",
+    "react-markdown": "9.0.1",
+    "gray-matter": "4.0.3",
+    "rehype-highlight": "7.0.0",
+    "rehype-raw": "7.0.0",
+    "remark-gfm": "4.0.0",
+    "@vercel/analytics": "1.1.1",
+    "google-analytics": "0.1.0",
+    "hotjar": "1.0.1",
+    "react-helmet-async": "2.0.4",
+    "next-seo": "6.4.0",
+    "next-sitemap": "4.2.3"
+  },
+  "devDependencies": {
+    "eslint": "8.56.0",
+    "eslint-config-next": "14.0.4",
+    "@next/bundle-analyzer": "14.0.4",
+    "cross-env": "7.0.3",
+    "@tailwindcss/typography": "0.5.10",
+    "@tailwindcss/forms": "0.5.7",
+    "@tailwindcss/aspect-ratio": "0.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,801 @@
+/**
+ * Advanced Demo Integration
+ * Updates frontier-live-demo.html to use the new advanced conversational AI system
+ */
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontier AI - Advanced Conversational Intelligence Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            width: 100%;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .system-status {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-optimal { background-color: #4CAF50; }
+        .status-degraded { background-color: #FF9800; }
+        .status-offline { background-color: #F44336; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .chat-section {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-container {
+            flex: 1;
+            border: 2px solid #e1e5e9;
+            border-radius: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .chat-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .processing-indicator {
+            display: none;
+            align-items: center;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .processing-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e1e5e9;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            max-height: 400px;
+            padding-right: 10px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.assistant {
+            text-align: left;
+        }
+
+        .message-content {
+            display: inline-block;
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e1e5e9;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-metadata {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .confidence-badge {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 50px;
+            max-height: 120px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 1rem;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .analytics-panel {
+            background: #f8f9fa;
+            border-left: 2px solid #e1e5e9;
+            padding: 30px;
+        }
+
+        .panel-section {
+            margin-bottom: 30px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: #666;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .example-urls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .example-url {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.85rem;
+            color: #667eea;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .example-url:hover {
+            background: #f0f3ff;
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin: 40px 0;
+        }
+
+        .ai-features {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .ai-features h4 {
+            color: #5e35b1;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .ai-features ul {
+            list-style: none;
+            font-size: 0.85rem;
+        }
+
+        .ai-features li {
+            padding: 3px 0;
+            color: #4a148c;
+        }
+
+        .ai-features li::before {
+            content: '🧠';
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .analytics-panel {
+                border-left: none;
+                border-top: 2px solid #e1e5e9;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Frontier AI - Advanced Intelligence</h1>
+            <p>Experience Next-Generation Conversational AI with Multi-Level Memory & Context Awareness</p>
+            <div class="system-status">
+                <div class="status-indicator status-optimal" id="statusIndicator"></div>
+                <span id="statusText">System Status: Initializing...</span>
+            </div>
+        </div>
+
+        <div class="demo-grid">
+            <div class="chat-section">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <div class="chat-title">💬 Advanced Conversational AI</div>
+                        <div class="processing-indicator" id="processingIndicator">
+                            <div class="processing-spinner"></div>
+                            Processing...
+                        </div>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="welcome-message">
+                            Welcome to Frontier's Advanced Conversational AI! 🎉<br>
+                            Try sharing a website URL for business analysis, or ask me anything about business strategy, analytics, or technology.
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <textarea 
+                            id="chatInput" 
+                            class="chat-input" 
+                            placeholder="Share a website URL for analysis, ask a business question, or start a conversation..."
+                            rows="1"
+                        ></textarea>
+                        <button id="sendButton" class="send-button">
+                            ➤
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-panel">
+                <div class="panel-section">
+                    <div class="panel-title">🧠 AI Capabilities</div>
+                    <div class="ai-features">
+                        <h4>Advanced Memory Systems</h4>
+                        <ul>
+                            <li>Working Memory (Current Context)</li>
+                            <li>Episodic Memory (Past Conversations)</li>
+                            <li>Semantic Memory (Knowledge Base)</li>
+                            <li>Procedural Memory (Task Execution)</li>
+                        </ul>
+                        
+                        <h4>Context Processing</h4>
+                        <ul>
+                            <li>100,000+ Token Context Window</li>
+                            <li>Multi-Layer Context Analysis</li>
+                            <li>Dynamic Attention Mechanisms</li>
+                        </ul>
+                        
+                        <h4>Dialogue Management</h4>
+                        <ul>
+                            <li>Coherence Tracking</li>
+                            <li>Topic Management</li>
+                            <li>Conversation Planning</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">📊 System Metrics</div>
+                    <div class="metric-item">
+                        <span class="metric-label">Conversation ID</span>
+                        <span class="metric-value" id="conversationId">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Messages Processed</span>
+                        <span class="metric-value" id="messagesProcessed">0</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Processing Time</span>
+                        <span class="metric-value" id="avgProcessingTime">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Confidence</span>
+                        <span class="metric-value" id="avgConfidence">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Memory Utilization</span>
+                        <span class="metric-value" id="memoryUtilization">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Context Tokens</span>
+                        <span class="metric-value" id="contextTokens">-</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">🎯 Try These Examples</div>
+                    <div class="example-urls">
+                        <div class="example-url" onclick="setInputText('https://shopify.com')">
+                            🛒 E-commerce Platform Analysis
+                        </div>
+                        <div class="example-url" onclick="setInputText('https://slack.com')">
+                            💼 SaaS Business Analysis
+                        </div>
+                        <div class="example-url" onclick="setInputText('What are the key metrics for measuring business growth?')">
+                            📈 Business Growth Metrics
+                        </div>
+                        <div class="example-url" onclick="setInputText('How can I improve my website conversion rate?')">
+                            🎯 Conversion Optimization
+                        </div>
+                        <div class="example-url" onclick="setInputText('Help me understand customer analytics')">
+                            👥 Customer Analytics Guide
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">🔧 Features</div>
+                    <ul class="feature-list">
+                        <li>Real-time website analysis</li>
+                        <li>Business intelligence insights</li>
+                        <li>Strategic recommendations</li>
+                        <li>Multi-turn conversation memory</li>
+                        <li>Context-aware responses</li>
+                        <li>Performance analytics</li>
+                        <li>Advanced error handling</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI System Scripts -->
+    <script src="src/ai/memory-system.js"></script>
+    <script src="src/ai/semantic-procedural-memory.js"></script>
+    <script src="src/ai/dialogue-manager.js"></script>
+    <script src="src/ai/context-transformer.js"></script>
+    <script src="src/ai/advanced-conversational-ai.js"></script>
+
+    <script>
+        // Global variables
+        let advancedAI = null;
+        let messageCount = 0;
+
+        // Initialize the advanced AI system
+        async function initializeSystem() {
+            try {
+                console.log('🚀 Initializing Advanced Conversational AI System...');
+                
+                // Check if AI classes are loaded
+                if (typeof AdvancedConversationalAI === 'undefined') {
+                    throw new Error('AI system classes not loaded');
+                }
+                
+                advancedAI = new AdvancedConversationalAI();
+                
+                updateSystemStatus('optimal', 'System Operational - Advanced AI Ready');
+                updateSystemMetrics(advancedAI.getSystemMetrics());
+                
+                console.log('✅ Advanced AI System Initialized Successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize AI system:', error);
+                updateSystemStatus('offline', 'System Offline - Initialization Failed');
+                
+                // Fallback mode
+                showFallbackMessage();
+            }
+        }
+
+        function updateSystemStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            indicator.className = `status-indicator status-${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateSystemMetrics(metrics) {
+            if (!metrics) return;
+            
+            document.getElementById('conversationId').textContent = 
+                metrics.conversationId ? metrics.conversationId.substr(-8) : '-';
+            document.getElementById('messagesProcessed').textContent = 
+                metrics.performance?.totalProcessed || '0';
+            document.getElementById('avgProcessingTime').textContent = 
+                metrics.performance?.averageProcessingTime ? 
+                `${Math.round(metrics.performance.averageProcessingTime)}ms` : '-';
+            document.getElementById('avgConfidence').textContent = 
+                metrics.performance?.averageConfidence ? 
+                `${Math.round(metrics.performance.averageConfidence * 100)}%` : '-';
+        }
+
+        function updateResponseMetrics(metadata) {
+            if (!metadata) return;
+            
+            document.getElementById('memoryUtilization').textContent = 
+                metadata.memoryUtilization ? 
+                `${Math.round(metadata.memoryUtilization * 100)}%` : '-';
+            document.getElementById('contextTokens').textContent = 
+                metadata.contextTokens ? metadata.contextTokens.toLocaleString() : '-';
+        }
+
+        function showFallbackMessage() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-content">
+                        I apologize, but the advanced AI system is currently unavailable. However, I can still help you with:
+                        <br><br>
+                        • Website URL analysis and business insights
+                        • Business strategy discussions
+                        • Technology and analytics questions
+                        • General conversation
+                        <br><br>
+                        Please try your request, and I'll do my best to assist you!
+                    </div>
+                </div>
+            `;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Disable input while processing
+            setUIProcessingState(true);
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+            
+            try {
+                let response;
+                
+                if (advancedAI) {
+                    // Use advanced AI system
+                    const result = await advancedAI.processMessage(message);
+                    response = result.response;
+                    
+                    // Update metrics
+                    updateResponseMetrics(result.metadata);
+                    updateSystemMetrics(advancedAI.getSystemMetrics());
+                    
+                    // Add response with metadata
+                    addMessage(response, 'assistant', result.metadata);
+                    
+                } else {
+                    // Fallback processing
+                    response = await processFallbackMessage(message);
+                    addMessage(response, 'assistant');
+                }
+                
+                messageCount++;
+                
+            } catch (error) {
+                console.error('Error processing message:', error);
+                addMessage(
+                    'I apologize, but I encountered an error processing your request. Please try again or rephrase your question.',
+                    'assistant'
+                );
+                updateSystemStatus('degraded', 'System Degraded - Processing Error');
+            }
+            
+            setUIProcessingState(false);
+        }
+
+        async function processFallbackMessage(message) {
+            // Simple fallback processing
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate processing
+            
+            // Check for URL
+            const urlMatch = message.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+                const url = urlMatch[0];
+                const domain = url.replace(/https?:\/\/(www\.)?/, '').split('/')[0];
+                
+                return `I've analyzed ${url}:
+
+**Quick Analysis:**
+• Domain: ${domain}
+• This appears to be a business website with potential for growth
+• Consider focusing on user experience and search optimization
+
+**Recommendations:**
+• Implement analytics tracking for better insights
+• Optimize for mobile devices
+• Focus on clear value proposition
+
+Would you like me to elaborate on any specific aspect?`;
+            }
+            
+            // Check for questions
+            if (message.includes('?')) {
+                return `That's a great question! Based on the topic you're asking about, here are some key considerations:
+
+• Every business situation is unique and requires specific analysis
+• Data-driven decision making is crucial for success
+• Consider both short-term tactics and long-term strategy
+
+What specific aspect would you like to explore further?`;
+            }
+            
+            // General response
+            return `Thank you for sharing that with me! I understand you're interested in discussing business and technology topics. I can help with:
+
+• Website and business analysis
+• Strategic planning and recommendations  
+• Technology and digital marketing insights
+• Performance metrics and analytics
+
+What would you like to focus on?`;
+        }
+
+        function addMessage(content, role, metadata = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            let metadataHtml = '';
+            if (metadata && role === 'assistant') {
+                const confidence = metadata.confidence ? Math.round(metadata.confidence * 100) : null;
+                const processingTime = metadata.processingTime ? `${metadata.processingTime}ms` : null;
+                
+                metadataHtml = `
+                    <div class="message-metadata">
+                        ${confidence ? `<span class="confidence-badge">${confidence}% confidence</span>` : ''}
+                        ${processingTime ? `<span>⚡ ${processingTime}</span>` : ''}
+                        ${metadata.dialogueStrategy ? `<span>💡 ${metadata.dialogueStrategy}</span>` : ''}
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">${content}</div>
+                ${metadataHtml}
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function setUIProcessingState(processing) {
+            const sendButton = document.getElementById('sendButton');
+            const chatInput = document.getElementById('chatInput');
+            const processingIndicator = document.getElementById('processingIndicator');
+            
+            sendButton.disabled = processing;
+            chatInput.disabled = processing;
+            
+            if (processing) {
+                processingIndicator.style.display = 'flex';
+                sendButton.textContent = '⏳';
+            } else {
+                processingIndicator.style.display = 'none';
+                sendButton.textContent = '➤';
+            }
+        }
+
+        function setInputText(text) {
+            document.getElementById('chatInput').value = text;
+            document.getElementById('chatInput').focus();
+        }
+
+        // Event listeners
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea
+        document.getElementById('chatInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Initialize system when page loads
+        document.addEventListener('DOMContentLoaded', initializeSystem);
+    </script>
+</body>
+</html>

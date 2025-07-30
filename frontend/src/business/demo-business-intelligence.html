@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontier AI - Superior Business Intelligence Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 3em;
+            background: linear-gradient(45deg, #00d4ff, #ff00d4, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+
+        .header p {
+            font-size: 1.3em;
+            color: #b0c4de;
+            margin-bottom: 10px;
+        }
+
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .capability-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .capability-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .capability-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+
+        .capability-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .capability-card li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .capability-card li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #ff00d4;
+            font-weight: bold;
+        }
+
+        .demo-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+
+        .demo-section h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #ffff00;
+            text-align: center;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #b0c4de;
+            font-weight: bold;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-size: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .input-group input::placeholder,
+        .input-group textarea::placeholder {
+            color: #8899aa;
+        }
+
+        .demo-button {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00d4ff, #ff00d4);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .demo-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .results-container h4 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .results-container pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loading {
+            text-align: center;
+            color: #00d4ff;
+            font-style: italic;
+        }
+
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .success {
+            color: #51cf66;
+            background: rgba(81, 207, 102, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #51cf66;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #00d4ff, #ff00d4);
+            color: white;
+        }
+
+        .tab:not(.active) {
+            color: #b0c4de;
+        }
+
+        .tab:not(.active):hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .metric-label {
+            color: #b0c4de;
+            margin-top: 5px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b0c4de;
+            font-style: italic;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #b0c4de;
+        }
+        
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 2px rgba(0,212,255,0.25);
+        }
+        
+        .form-group option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        
+        .success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.4);
+            color: #28a745;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        
+        .error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.4);
+            color: #dc3545;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        
+        .loading {
+            color: #00d4ff;
+            font-weight: 500;
+            padding: 20px;
+            text-align: center;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        
+        .results-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .results-container h4 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .results-container pre {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 15px;
+            color: #b0c4de;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Frontier AI Business Intelligence</h1>
+            <p>Superior Enterprise-Grade Business Analysis Platform</p>
+            <p>Monte Carlo Simulations • Strategic Intelligence • Operational Excellence</p>
+        </div>
+
+        <div class="capabilities-grid">
+            <div class="capability-card">
+                <h3>💰 Financial Intelligence</h3>
+                <ul>
+                    <li>Monte Carlo Financial Simulations (10,000 iterations)</li>
+                    <li>Causal Inference Analysis</li>
+                    <li>Dynamic Scenario Modeling</li>
+                    <li>Risk Metrics (VaR, CVaR)</li>
+                    <li>Advanced Visualization</li>
+                    <li>Financial Forecasting</li>
+                </ul>
+            </div>
+
+            <div class="capability-card">
+                <h3>🎯 Strategic Intelligence</h3>
+                <ul>
+                    <li>Comprehensive Competitor Analysis</li>
+                    <li>Predictive Market Modeling</li>
+                    <li>Strategic Positioning Analysis</li>
+                    <li>Opportunity Identification</li>
+                    <li>SWOT Analysis Framework</li>
+                    <li>Market Trend Prediction</li>
+                </ul>
+            </div>
+
+            <div class="capability-card">
+                <h3>⚙️ Operational Excellence</h3>
+                <ul>
+                    <li>Process Optimization Algorithms</li>
+                    <li>Resource Allocation Optimization</li>
+                    <li>Efficiency Analysis Engine</li>
+                    <li>Operational Risk Assessment</li>
+                    <li>Bottleneck Identification</li>
+                    <li>Six Sigma Opportunities</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🎯 Business Intelligence Demonstration</h2>
+            
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab(event, 'financial')">Financial Analysis</div>
+            <div class="tab" onclick="switchTab(event, 'strategic')">Strategic Intelligence</div>
+            <div class="tab" onclick="switchTab(event, 'operational')">Operational Excellence</div>
+            <div class="tab" onclick="switchTab(event, 'url')">URL Business Analysis</div>
+            <div class="tab" onclick="switchTab(event, 'integration')">Unified Integration Hub</div>
+        </div>            <!-- Financial Intelligence Tab -->
+            <div id="financial" class="tab-content active">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label>Initial Investment ($)</label>
+                        <input type="number" id="initialInvestment" value="1000000" placeholder="Enter initial investment">
+                    </div>
+                    <div class="input-group">
+                        <label>Expected Return (%)</label>
+                        <input type="number" id="expectedReturn" value="12" step="0.1" placeholder="Expected annual return">
+                    </div>
+                    <div class="input-group">
+                        <label>Risk Level (%)</label>
+                        <input type="number" id="riskLevel" value="15" step="0.1" placeholder="Volatility/Risk percentage">
+                    </div>
+                    <div class="input-group">
+                        <label>Time Horizon (years)</label>
+                        <input type="number" id="timeHorizon" value="5" placeholder="Investment time horizon">
+                    </div>
+                </div>
+                <button class="demo-button" onclick="runFinancialAnalysis()">Run Monte Carlo Financial Analysis</button>
+                <div id="financialResults"></div>
+            </div>
+
+            <!-- Strategic Intelligence Tab -->
+            <div id="strategic" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label>Company/Industry</label>
+                        <input type="text" id="companyName" value="Tesla" placeholder="Enter company or industry name">
+                    </div>
+                    <div class="input-group">
+                        <label>Market Sector</label>
+                        <select id="marketSector">
+                            <option value="technology">Technology</option>
+                            <option value="automotive">Automotive</option>
+                            <option value="finance">Finance</option>
+                            <option value="healthcare">Healthcare</option>
+                            <option value="retail">Retail</option>
+                            <option value="energy">Energy</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Analysis Focus</label>
+                        <select id="analysisFocus">
+                            <option value="competitors">Competitor Analysis</option>
+                            <option value="market">Market Prediction</option>
+                            <option value="positioning">Strategic Positioning</option>
+                            <option value="opportunities">Opportunity Identification</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="demo-button" onclick="runStrategicAnalysis()">Perform Strategic Intelligence Analysis</button>
+                <div id="strategicResults"></div>
+            </div>
+
+            <!-- Operational Excellence Tab -->
+            <div id="operational" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label>Business Process</label>
+                        <select id="businessProcess">
+                            <option value="manufacturing">Manufacturing Process</option>
+                            <option value="customer_service">Customer Service</option>
+                            <option value="supply_chain">Supply Chain</option>
+                            <option value="sales">Sales Process</option>
+                            <option value="marketing">Marketing Operations</option>
+                            <option value="hr">Human Resources</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Current Efficiency (%)</label>
+                        <input type="number" id="currentEfficiency" value="75" min="1" max="100" placeholder="Current process efficiency">
+                    </div>
+                    <div class="input-group">
+                        <label>Resource Budget ($)</label>
+                        <input type="number" id="resourceBudget" value="500000" placeholder="Available optimization budget">
+                    </div>
+                    <div class="input-group">
+                        <label>Optimization Goal</label>
+                        <select id="optimizationGoal">
+                            <option value="efficiency">Maximize Efficiency</option>
+                            <option value="cost">Minimize Costs</option>
+                            <option value="quality">Improve Quality</option>
+                            <option value="speed">Increase Speed</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="demo-button" onclick="runOperationalAnalysis()">Optimize Operational Excellence</button>
+                <div id="operationalResults"></div>
+            </div>
+
+            <!-- URL Business Analysis Tab -->
+            <div id="url" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label>Business Website URL</label>
+                        <input type="url" id="businessUrl" value="https://tesla.com" placeholder="Enter business website URL">
+                    </div>
+                    <div class="input-group">
+                        <label>Analysis Depth</label>
+                        <select id="analysisDepth">
+                            <option value="comprehensive">Comprehensive Analysis</option>
+                            <option value="financial">Financial Focus</option>
+                            <option value="strategic">Strategic Focus</option>
+                            <option value="operational">Operational Focus</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="demo-button" onclick="runUrlBusinessAnalysis()">Analyze Business Website</button>
+                <div id="urlResults"></div>
+            </div>
+
+            <!-- Unified Integration Hub Tab -->
+            <div id="integration" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label>Integration Type</label>
+                        <select id="integrationType">
+                            <option value="data_source">Connect Data Source</option>
+                            <option value="application">Connect Application</option>
+                            <option value="workflow">Create Workflow</option>
+                            <option value="webhook">Setup Webhook</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>System Name</label>
+                        <input type="text" id="systemName" value="Salesforce CRM" placeholder="Enter system name">
+                    </div>
+                    <div class="input-group">
+                        <label>Connection Type</label>
+                        <select id="connectionType">
+                            <option value="salesforce">Salesforce</option>
+                            <option value="hubspot">HubSpot</option>
+                            <option value="stripe">Stripe</option>
+                            <option value="slack">Slack</option>
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="mongodb">MongoDB</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Automation Level</label>
+                        <select id="automationLevel">
+                            <option value="basic">Basic Integration</option>
+                            <option value="advanced">Advanced Workflows</option>
+                            <option value="intelligent">AI-Powered Automation</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="demo-button" onclick="setupIntegration()">Setup Integration</button>
+                <div id="integrationResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../ai/advanced-conversational-ai.js"></script>
+    <script src="../integration/unified-integration-hub.js"></script>
+    <script src="../integration/data-integration-layer.js"></script>
+    <script src="../integration/application-integration-framework.js"></script>
+    <script src="../integration/workflow-automation-system.js"></script>
+    <script src="business-intelligence-hub.js"></script>
+    <script src="financial-intelligence.js"></script>
+    <script src="strategic-intelligence.js"></script>
+    <script src="operational-excellence.js"></script>
+    
+    <script>
+        // Initialize Business Intelligence System with Unified Integration Hub
+        let businessIntelligence;
+        let integrationHub;
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                businessIntelligence = new BusinessIntelligenceHub();
+                integrationHub = new UnifiedIntegrationHub();
+                console.log('✅ Business Intelligence & Integration Hub Demo System Initialized');
+            } catch (error) {
+                console.error('❌ Failed to initialize systems:', error);
+            }
+        });
+
+        function switchTab(event, tabName) {
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        async function runFinancialAnalysis() {
+            const button = event.target;
+            const resultsDiv = document.getElementById('financialResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Running Monte Carlo Analysis...';
+                resultsDiv.innerHTML = '<div class="loading">🔄 Performing 10,000 Monte Carlo simulations...</div>';
+
+                const params = {
+                    initialInvestment: parseFloat(document.getElementById('initialInvestment').value),
+                    expectedReturn: parseFloat(document.getElementById('expectedReturn').value) / 100,
+                    riskLevel: parseFloat(document.getElementById('riskLevel').value) / 100,
+                    timeHorizon: parseInt(document.getElementById('timeHorizon').value)
+                };
+
+                const analysis = await businessIntelligence.performFinancialAnalysis(params);
+                
+                resultsDiv.innerHTML = `
+                    <div class="results-container">
+                        <h4>💰 Monte Carlo Financial Analysis Results</h4>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">$${analysis.metrics.expectedValue.toLocaleString()}</div>
+                                <div class="metric-label">Expected Value</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${(analysis.metrics.confidence * 100).toFixed(1)}%</div>
+                                <div class="metric-label">Success Probability</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">$${analysis.metrics.var.toLocaleString()}</div>
+                                <div class="metric-label">Value at Risk (95%)</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${(analysis.metrics.volatility * 100).toFixed(1)}%</div>
+                                <div class="metric-label">Portfolio Volatility</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            📊 Monte Carlo Simulation Results:<br>
+                            ${analysis.scenarios.length} scenarios analyzed<br>
+                            Best Case: $${Math.max(...analysis.scenarios).toLocaleString()}<br>
+                            Worst Case: $${Math.min(...analysis.scenarios).toLocaleString()}<br>
+                            Median: $${analysis.scenarios.sort((a,b) => a-b)[Math.floor(analysis.scenarios.length/2)].toLocaleString()}
+                        </div>
+                        <pre>${JSON.stringify(analysis.analysis, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Run Monte Carlo Financial Analysis';
+            }
+        }
+
+        async function runStrategicAnalysis() {
+            const button = event.target;
+            const resultsDiv = document.getElementById('strategicResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Analyzing Strategic Intelligence...';
+                resultsDiv.innerHTML = '<div class="loading">🎯 Performing strategic analysis...</div>';
+
+                const params = {
+                    company: document.getElementById('companyName').value,
+                    sector: document.getElementById('marketSector').value,
+                    focus: document.getElementById('analysisFocus').value
+                };
+
+                const analysis = await businessIntelligence.performStrategicAnalysis(params);
+                
+                resultsDiv.innerHTML = `
+                    <div class="results-container">
+                        <h4>🎯 Strategic Intelligence Analysis</h4>
+                        <div class="success">Strategic analysis completed for ${params.company} in ${params.sector} sector</div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.marketScore}</div>
+                                <div class="metric-label">Market Position Score</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.competitiveAdvantage}%</div>
+                                <div class="metric-label">Competitive Advantage</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.growthPotential}%</div>
+                                <div class="metric-label">Growth Potential</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.riskLevel}</div>
+                                <div class="metric-label">Strategic Risk Level</div>
+                            </div>
+                        </div>
+                        <pre>${JSON.stringify(analysis.analysis, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Perform Strategic Intelligence Analysis';
+            }
+        }
+
+        async function runOperationalAnalysis() {
+            const button = event.target;
+            const resultsDiv = document.getElementById('operationalResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Optimizing Operations...';
+                resultsDiv.innerHTML = '<div class="loading">⚙️ Analyzing operational excellence opportunities...</div>';
+
+                const params = {
+                    process: document.getElementById('businessProcess').value,
+                    currentEfficiency: parseFloat(document.getElementById('currentEfficiency').value) / 100,
+                    budget: parseFloat(document.getElementById('resourceBudget').value),
+                    goal: document.getElementById('optimizationGoal').value
+                };
+
+                const analysis = await businessIntelligence.performOperationalAnalysis(params);
+                
+                resultsDiv.innerHTML = `
+                    <div class="results-container">
+                        <h4>⚙️ Operational Excellence Analysis</h4>
+                        <div class="success">Optimization analysis completed for ${params.process} process</div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">${(analysis.metrics.efficiencyGain * 100).toFixed(1)}%</div>
+                                <div class="metric-label">Efficiency Improvement</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">$${analysis.metrics.costSavings.toLocaleString()}</div>
+                                <div class="metric-label">Annual Cost Savings</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.roi}%</div>
+                                <div class="metric-label">ROI</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.implementationTime}</div>
+                                <div class="metric-label">Implementation Timeline</div>
+                            </div>
+                        </div>
+                        <pre>${JSON.stringify(analysis.analysis, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Optimize Operational Excellence';
+            }
+        }
+
+        async function runUrlBusinessAnalysis() {
+            const button = event.target;
+            const resultsDiv = document.getElementById('urlResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Analyzing Business Website...';
+                resultsDiv.innerHTML = '<div class="loading">🌐 Performing comprehensive business analysis...</div>';
+
+                const params = {
+                    url: document.getElementById('businessUrl').value,
+                    depth: document.getElementById('analysisDepth').value
+                };
+
+                const analysis = await businessIntelligence.analyzeBusinessUrl(params.url, { depth: params.depth });
+                
+                resultsDiv.innerHTML = `
+                    <div class="results-container">
+                        <h4>🌐 URL Business Intelligence Analysis</h4>
+                        <div class="success">Comprehensive business analysis completed for ${params.url}</div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.businessScore}</div>
+                                <div class="metric-label">Business Score</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.digitalMaturity}%</div>
+                                <div class="metric-label">Digital Maturity</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.competitivePosition}</div>
+                                <div class="metric-label">Market Position</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${analysis.metrics.growthIndicators}</div>
+                                <div class="metric-label">Growth Indicators</div>
+                            </div>
+                        </div>
+                        <pre>${JSON.stringify(analysis.analysis, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Analyze Business Website';
+            }
+        }
+
+        async function setupIntegration() {
+            const button = event.target;
+            const resultsDiv = document.getElementById('integrationResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Setting up Integration...';
+                resultsDiv.innerHTML = '<div class="loading">🔗 Configuring unified integration...</div>';
+
+                const params = {
+                    type: document.getElementById('integrationType').value,
+                    systemName: document.getElementById('systemName').value,
+                    connectionType: document.getElementById('connectionType').value,
+                    automationLevel: document.getElementById('automationLevel').value
+                };
+
+                const integration = await setupUnifiedIntegration(params);
+                
+                resultsDiv.innerHTML = `
+                    <div class="results-container">
+                        <h4>🔗 Unified Integration Setup Complete</h4>
+                        <div class="success">Successfully configured ${params.systemName} integration with ${params.automationLevel} automation</div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">${integration.connectedSources}</div>
+                                <div class="metric-label">Connected Data Sources</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${integration.activeWorkflows}</div>
+                                <div class="metric-label">Active Workflows</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${integration.webhooksConfigured}</div>
+                                <div class="metric-label">Webhooks Configured</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${integration.automationLevel}</div>
+                                <div class="metric-label">Automation Level</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            🎯 Integration Capabilities:<br>
+                            ✅ Real-time data synchronization<br>
+                            ✅ Bidirectional API integration<br>
+                            ✅ Event-driven workflow automation<br>
+                            ✅ Embedded widget system<br>
+                            ✅ Advanced business intelligence
+                        </div>
+                        <pre>${JSON.stringify(integration.configuration, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Setup Integration';
+            }
+        }
+
+        async function setupUnifiedIntegration(params) {
+            const { type, systemName, connectionType, automationLevel } = params;
+            
+            console.log('🔗 Setting up unified integration...', params);
+            
+            // Simulate integration setup
+            const integration = {
+                id: 'integration_' + Date.now(),
+                systemName,
+                connectionType,
+                automationLevel,
+                connectedSources: Math.floor(Math.random() * 5) + 1,
+                activeWorkflows: Math.floor(Math.random() * 10) + 1,
+                webhooksConfigured: Math.floor(Math.random() * 8) + 1,
+                configuration: {
+                    dataIntegration: {
+                        syncInterval: '5 minutes',
+                        qualityMonitoring: 'enabled',
+                        realTimeSync: true
+                    },
+                    applicationIntegration: {
+                        webhooksEnabled: true,
+                        bidirectionalAPI: true,
+                        rateLimiting: 'configured'
+                    },
+                    workflowAutomation: {
+                        triggerBased: true,
+                        conditionalLogic: 'advanced',
+                        approvalWorkflows: automationLevel === 'intelligent'
+                    },
+                    businessIntelligence: {
+                        monteCarloEnabled: true,
+                        strategicAnalysis: true,
+                        operationalOptimization: true
+                    }
+                }
+            };
+            
+            // Simulate processing time
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            return integration;
+        }
+    </script>
+</body>
+</html>

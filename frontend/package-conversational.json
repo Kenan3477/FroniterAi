@@ -1,0 +1,73 @@
+{
+  "name": "frontier-conversational-dashboard",
+  "version": "1.0.0",
+  "description": "Conversational AI Dashboard for Frontier Business Operations",
+  "private": true,
+  "dependencies": {
+    "@reduxjs/toolkit": "^1.9.7",
+    "@types/node": "^16.18.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^8.1.3",
+    "react-router-dom": "^6.8.0",
+    "react-scripts": "5.0.1",
+    "typescript": "^4.9.5",
+    "tailwindcss": "^3.3.0",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "axios": "^1.6.0",
+    "socket.io-client": "^4.7.2",
+    "framer-motion": "^10.16.0",
+    "react-hot-toast": "^2.4.1",
+    "lucide-react": "^0.263.1",
+    "recharts": "^2.8.0",
+    "react-markdown": "^8.0.7",
+    "react-syntax-highlighter": "^15.5.0",
+    "react-virtualized-auto-sizer": "^1.0.20",
+    "react-window": "^1.8.8",
+    "fuse.js": "^6.6.2",
+    "date-fns": "^2.30.0",
+    "classnames": "^2.3.2",
+    "zustand": "^4.4.1",
+    "openai": "^4.20.0",
+    "chromadb": "^1.5.12",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/react-syntax-highlighter": "^15.5.7",
+    "@types/react-window": "^1.8.5",
+    "@types/uuid": "^9.0.0",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.33.0",
+    "prettier": "^3.0.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write src/**/*.{ts,tsx,css,md}"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:8000"
+}

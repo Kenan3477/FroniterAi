@@ -1,0 +1,389 @@
+"""
+Training Configuration Template
+
+Default configuration for Frontier-1 business operations model training.
+This template provides comprehensive settings for all training parameters.
+"""
+
+# Base model configuration
+model_name: "microsoft/DialoGPT-large"
+
+# Data configuration
+data:
+  raw_data_dir: "./data/raw"
+  processed_data_dir: "./data/processed"
+  
+  # Data preprocessing parameters
+  preprocessing:
+    chunk_size: 512
+    overlap_size: 50
+    min_text_length: 50
+    max_text_length: 2048
+    quality_threshold: 0.7
+    parallel_processing: true
+    num_workers: 4
+    
+    # Document type specific settings
+    pdf_settings:
+      extract_tables: true
+      extract_images: false
+      ocr_enabled: false
+    
+    word_settings:
+      extract_tables: true
+      extract_headers: true
+    
+    excel_settings:
+      extract_formulas: true
+      include_hidden_sheets: false
+  
+  # Data split ratios
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  # Data augmentation (optional)
+  augmentation:
+    enabled: false
+    techniques:
+      - paraphrase
+      - back_translation
+    augmentation_ratio: 0.2
+
+# Training configuration
+training_config:
+  # Basic training parameters
+  learning_rate: 5e-5
+  batch_size: 16
+  num_epochs: 5
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  
+  # Optimization parameters
+  optimizer_name: "adamw"
+  scheduler_type: "cosine"
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 2
+  
+  # LoRA configuration for efficient fine-tuning
+  use_lora: true
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.1
+  lora_target_modules:
+    - "c_attn"
+    - "c_proj"
+    - "c_fc"
+  
+  # Mixed precision training
+  fp16: true
+  bf16: false  # Set to true if using newer GPUs
+  
+  # Regularization
+  dropout_rate: 0.1
+  attention_dropout: 0.1
+  
+  # Checkpointing and saving
+  save_strategy: "epoch"
+  save_steps: 500
+  save_total_limit: 3
+  
+  # Evaluation
+  evaluation_strategy: "epoch"
+  eval_steps: 500
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  load_best_model_at_end: true
+  
+  # Logging
+  logging_steps: 50
+  logging_strategy: "steps"
+  report_to: ["wandb", "tensorboard"]
+  
+  # Data loading
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+  
+  # Training stability
+  seed: 42
+  data_seed: 42
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 3
+    threshold: 0.001
+
+# Distributed training configuration
+distributed_training:
+  enabled: false
+  world_size: 1
+  rank: 0
+  backend: "nccl"
+  find_unused_parameters: false
+  gradient_as_bucket_view: true
+
+# Hyperparameter optimization configuration
+hyperparameter_optimization:
+  enabled: false
+  method: "bayesian"  # Options: "bayesian", "grid", "random"
+  n_trials: 50
+  timeout: 7200  # 2 hours in seconds
+  
+  # Search space for Bayesian optimization
+  search_space:
+    learning_rate:
+      min: 1e-6
+      max: 1e-3
+      log: true
+    
+    batch_size:
+      choices: [8, 16, 32, 64]
+    
+    num_epochs:
+      min: 3
+      max: 10
+    
+    warmup_ratio:
+      min: 0.0
+      max: 0.2
+    
+    weight_decay:
+      min: 0.0
+      max: 0.1
+    
+    lora_r:
+      choices: [4, 8, 16, 32]
+    
+    lora_alpha:
+      choices: [8, 16, 32, 64]
+  
+  # Parameter grid for grid search
+  param_grid:
+    learning_rate: [1e-5, 5e-5, 1e-4]
+    batch_size: [16, 32]
+    num_epochs: [3, 5]
+    lora_r: [8, 16]
+    lora_alpha: [16, 32]
+
+# Model evaluation configuration
+evaluation:
+  # Business-specific evaluation metrics
+  business_metrics:
+    financial_accuracy:
+      enabled: true
+      weight: 1.5
+    
+    business_coherence:
+      enabled: true
+      weight: 1.2
+    
+    regulatory_compliance:
+      enabled: true
+      weight: 2.0
+    
+    strategic_insight:
+      enabled: true
+      weight: 1.3
+  
+  # Standard NLP metrics
+  nlp_metrics:
+    rouge: true
+    bleu: true
+    meteor: true
+    bert_score: true
+  
+  # Evaluation data
+  test_data_path: "./data/processed/test.json"
+  
+  # Output settings
+  generate_report: true
+  save_predictions: true
+  report_format: ["json", "html"]
+
+# Monitoring and logging configuration
+monitoring:
+  # Weights & Biases configuration
+  wandb:
+    enabled: false
+    project: "frontier-business-ops"
+    entity: null
+    name: null
+    tags: ["frontier", "business", "fine-tuning"]
+    group: null
+    job_type: "training"
+    notes: "Frontier-1 business operations model training"
+    
+    # Hyperparameters to log
+    config:
+      model_name: true
+      learning_rate: true
+      batch_size: true
+      num_epochs: true
+      lora_config: true
+  
+  # TensorBoard configuration
+  tensorboard:
+    enabled: true
+    log_dir: "./logs/tensorboard"
+    
+    # What to log
+    log_scalars: true
+    log_histograms: false
+    log_images: false
+    log_graphs: true
+  
+  # Custom monitoring
+  custom_callbacks:
+    - name: "MemoryCallback"
+      enabled: true
+    - name: "TimeCallback"
+      enabled: true
+    - name: "MetricsCallback"
+      enabled: true
+
+# Hardware and performance configuration
+hardware:
+  # GPU configuration
+  gpu_memory_fraction: 0.9
+  allow_memory_growth: true
+  
+  # CPU configuration
+  num_cpu_threads: null  # Auto-detect
+  
+  # Memory optimization
+  gradient_checkpointing: false  # Enable for large models
+  use_cpu_offload: false
+  
+  # Batch processing
+  max_batch_size: null  # Auto-detect based on GPU memory
+
+# Model versioning and deployment
+versioning:
+  # Model registry
+  model_registry:
+    enabled: false
+    registry_type: "mlflow"  # Options: "mlflow", "wandb", "custom"
+    registry_uri: null
+  
+  # Model metadata
+  metadata:
+    author: "Frontier Team"
+    description: "Business operations fine-tuned model"
+    tags: ["business", "operations", "frontier"]
+    license: "MIT"
+    
+  # Model packaging
+  packaging:
+    format: "pytorch"  # Options: "pytorch", "onnx", "tensorrt"
+    compression: false
+    quantization: false
+
+# Incremental training configuration
+incremental_training:
+  # When to trigger incremental training
+  triggers:
+    new_data_threshold: 1000  # Number of new documents
+    performance_degradation: 0.05  # Drop in performance metric
+    time_interval: 30  # Days since last training
+  
+  # Incremental training parameters
+  base_model_path: null  # Path to existing model
+  learning_rate_multiplier: 0.1  # Reduce learning rate for stability
+  freeze_layers: 
+    - "transformer.h.0"
+    - "transformer.h.1"
+  max_incremental_epochs: 3
+  
+  # Data mixing
+  mix_old_data: true
+  old_data_ratio: 0.3  # 30% old data, 70% new data
+
+# Debugging and development
+debug:
+  # Development mode settings
+  dev_mode: false
+  small_dataset: false  # Use small subset for quick testing
+  fast_dev_run: false   # Single batch for debugging
+  
+  # Profiling
+  profile_memory: false
+  profile_compute: false
+  
+  # Debugging outputs
+  save_intermediate_outputs: false
+  verbose_logging: false
+  
+  # Override settings for development
+  dev_overrides:
+    num_epochs: 1
+    batch_size: 4
+    logging_steps: 1
+    eval_steps: 10
+    save_steps: 10
+
+# Environment and dependencies
+environment:
+  # Python environment
+  python_version: ">=3.8"
+  
+  # Required packages with versions
+  dependencies:
+    torch: ">=2.0.0"
+    transformers: ">=4.21.0"
+    datasets: ">=2.0.0"
+    tokenizers: ">=0.13.0"
+    accelerate: ">=0.20.0"
+    peft: ">=0.4.0"
+    wandb: ">=0.15.0"
+    optuna: ">=3.0.0"
+    
+  # Optional packages
+  optional_dependencies:
+    deepspeed: ">=0.9.0"
+    apex: ">=0.1"
+    tensorboard: ">=2.11.0"
+    mlflow: ">=2.0.0"
+  
+  # Environment variables
+  env_vars:
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "max_split_size_mb:512"
+    WANDB_DISABLED: "false"
+
+# Output configuration
+output:
+  # Directory structure
+  base_output_dir: "./outputs"
+  subdirs:
+    models: "models"
+    logs: "logs"
+    evaluation: "evaluation"
+    checkpoints: "checkpoints"
+    reports: "reports"
+  
+  # File naming
+  model_name_template: "{model_name}_{timestamp}"
+  checkpoint_name_template: "checkpoint-{step}"
+  
+  # Cleanup
+  cleanup_temp_files: true
+  keep_best_n_checkpoints: 3
+  
+  # Compression
+  compress_outputs: false
+  compression_format: "zip"
+
+# Security and privacy
+security:
+  # Data privacy
+  anonymize_data: false
+  remove_pii: false
+  
+  # Model security
+  encrypt_model: false
+  model_fingerprinting: false
+  
+  # Access control
+  access_logging: false
+  user_authentication: false

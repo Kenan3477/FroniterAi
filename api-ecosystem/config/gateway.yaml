@@ -1,0 +1,520 @@
+# API Gateway Configuration
+# Central routing and security layer for all Frontier APIs
+
+version: '1.0'
+name: 'frontier-api-gateway'
+
+# Server Configuration
+server:
+  host: '0.0.0.0'
+  port: 3000
+  cors:
+    enabled: true
+    origins: 
+      - 'https://frontier.ai'
+      - 'https://*.frontier.ai'
+      - 'http://localhost:*'
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+    headers: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Client-Version']
+  
+  # Security Headers
+  security_headers:
+    strict_transport_security: 'max-age=31536000; includeSubDomains'
+    content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'"
+    x_frame_options: 'DENY'
+    x_content_type_options: 'nosniff'
+
+# Load Balancing
+load_balancer:
+  strategy: 'round_robin'  # round_robin, least_connections, ip_hash
+  health_check:
+    enabled: true
+    interval: 30
+    timeout: 5
+    retries: 3
+    path: '/health'
+  
+  upstream_servers:
+    - host: 'api-server-1'
+      port: 3001
+      weight: 1
+    - host: 'api-server-2'
+      port: 3001
+      weight: 1
+    - host: 'api-server-3'
+      port: 3001
+      weight: 1
+
+# Authentication Configuration
+authentication:
+  providers:
+    api_key:
+      enabled: true
+      header_name: 'X-API-Key'
+      query_param: 'api_key'
+      prefix: 'fk_'
+      
+    jwt:
+      enabled: true
+      algorithm: 'RS256'
+      issuer: 'https://auth.frontier.ai'
+      audience: 'frontier-api'
+      leeway: 60  # seconds
+      
+    oauth2:
+      enabled: true
+      authorization_url: 'https://auth.frontier.ai/oauth/authorize'
+      token_url: 'https://auth.frontier.ai/oauth/token'
+      userinfo_url: 'https://auth.frontier.ai/oauth/userinfo'
+      scopes: ['read', 'write', 'admin']
+
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: true
+  storage: 'redis'  # redis, memory
+  
+  # Global limits (fallback)
+  global:
+    requests_per_minute: 1000
+    requests_per_hour: 50000
+    requests_per_day: 1000000
+  
+  # Tier-based limits
+  tiers:
+    free:
+      requests_per_minute: 10
+      requests_per_hour: 100
+      requests_per_day: 1000
+      burst_capacity: 20
+      
+    developer:
+      requests_per_minute: 100
+      requests_per_hour: 1000
+      requests_per_day: 10000
+      burst_capacity: 200
+      
+    professional:
+      requests_per_minute: 500
+      requests_per_hour: 10000
+      requests_per_day: 100000
+      burst_capacity: 1000
+      
+    enterprise:
+      requests_per_minute: 2000
+      requests_per_hour: 50000
+      requests_per_day: 1000000
+      burst_capacity: 5000
+  
+  # Endpoint-specific limits
+  endpoints:
+    '/api/v1/image-generation/*':
+      requests_per_minute: 5
+      requests_per_hour: 50
+      
+    '/api/v1/audio-video/transcription':
+      requests_per_minute: 2
+      requests_per_hour: 20
+      
+    '/api/v1/business/financial-analysis':
+      requests_per_minute: 10
+      requests_per_hour: 100
+
+# API Routing Configuration
+routes:
+  # REST API Routes
+  rest:
+    base_path: '/api'
+    version: 'v1'
+    
+    # Visual Design Module
+    visual_design:
+      path: '/visual-design'
+      upstream: 'visual-design-service'
+      endpoints:
+        - path: '/brand-identity'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['visual-design:create']
+          timeout: 30
+          
+        - path: '/ui-layout'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['visual-design:create']
+          timeout: 45
+          
+        - path: '/mockup'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['visual-design:create']
+          timeout: 60
+          
+        - path: '/assets/optimize'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['visual-design:process']
+          timeout: 30
+    
+    # Code Quality Module
+    code_quality:
+      path: '/code-quality'
+      upstream: 'code-quality-service'
+      endpoints:
+        - path: '/analyze'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['code-quality:analyze']
+          timeout: 45
+          
+        - path: '/security-scan'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['code-quality:security']
+          timeout: 60
+          
+        - path: '/refactor'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['code-quality:refactor']
+          timeout: 30
+          
+        - path: '/metrics'
+          methods: ['GET']
+          auth_required: true
+          scopes: ['code-quality:read']
+          timeout: 15
+    
+    # Image Generation Module
+    image_generation:
+      path: '/image-generation'
+      upstream: 'image-generation-service'
+      endpoints:
+        - path: '/create'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['image-generation:create']
+          timeout: 120
+          
+        - path: '/product-photo'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['image-generation:create']
+          timeout: 90
+          
+        - path: '/optimize'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['image-generation:process']
+          timeout: 30
+          
+        - path: '/mockup-to-code'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['image-generation:convert']
+          timeout: 60
+    
+    # Audio/Video Processing Module
+    audio_video:
+      path: '/audio-video'
+      upstream: 'audio-video-service'
+      endpoints:
+        - path: '/script-generation'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['audio-video:create']
+          timeout: 45
+          
+        - path: '/voiceover'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['audio-video:create']
+          timeout: 180
+          
+        - path: '/transcription'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['audio-video:transcribe']
+          timeout: 300
+          
+        - path: '/analysis'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['audio-video:analyze']
+          timeout: 120
+    
+    # Business Operations Module
+    business_operations:
+      path: '/business'
+      upstream: 'business-operations-service'
+      endpoints:
+        - path: '/financial-analysis'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['business:financial']
+          timeout: 60
+          
+        - path: '/strategic-planning'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['business:strategic']
+          timeout: 45
+          
+        - path: '/compliance-check'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['business:compliance']
+          timeout: 30
+          
+        - path: '/market-intelligence'
+          methods: ['POST']
+          auth_required: true
+          scopes: ['business:market']
+          timeout: 30
+  
+  # GraphQL Route
+  graphql:
+    path: '/graphql'
+    upstream: 'graphql-service'
+    auth_required: true
+    timeout: 60
+    
+  # WebSocket Routes
+  websocket:
+    path: '/ws'
+    upstream: 'websocket-service'
+    auth_required: true
+
+# Caching Configuration
+caching:
+  enabled: true
+  provider: 'redis'
+  
+  # Cache strategies
+  strategies:
+    # GET endpoints cache
+    get_cache:
+      ttl: 300  # 5 minutes
+      patterns:
+        - '/api/v1/*/metrics'
+        - '/api/v1/business/market-intelligence'
+    
+    # Heavy computation cache
+    computation_cache:
+      ttl: 3600  # 1 hour
+      patterns:
+        - '/api/v1/code-quality/analyze'
+        - '/api/v1/business/financial-analysis'
+    
+    # Static content cache
+    static_cache:
+      ttl: 86400  # 24 hours
+      patterns:
+        - '/docs/*'
+        - '/static/*'
+
+# Request/Response Transformation
+transformations:
+  # Request preprocessing
+  request:
+    # Add correlation ID
+    add_correlation_id: true
+    
+    # Request validation
+    validation:
+      max_request_size: '10MB'
+      max_file_size: '100MB'
+      allowed_content_types:
+        - 'application/json'
+        - 'application/x-www-form-urlencoded'
+        - 'multipart/form-data'
+        - 'text/plain'
+    
+    # Request sanitization
+    sanitization:
+      strip_html: true
+      normalize_unicode: true
+      trim_whitespace: true
+  
+  # Response postprocessing
+  response:
+    # Add standard headers
+    headers:
+      'X-API-Version': 'v1'
+      'X-Response-Time': '${response_time}ms'
+      'X-Correlation-ID': '${correlation_id}'
+    
+    # Response compression
+    compression:
+      enabled: true
+      threshold: 1024  # bytes
+      algorithms: ['gzip', 'deflate', 'br']
+
+# Monitoring & Observability
+monitoring:
+  # Metrics collection
+  metrics:
+    enabled: true
+    endpoint: '/metrics'
+    format: 'prometheus'
+    
+    # Custom metrics
+    custom_metrics:
+      - name: 'api_requests_total'
+        type: 'counter'
+        labels: ['method', 'endpoint', 'status_code', 'user_tier']
+        
+      - name: 'api_request_duration_seconds'
+        type: 'histogram'
+        labels: ['method', 'endpoint']
+        buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        
+      - name: 'api_rate_limit_hits_total'
+        type: 'counter'
+        labels: ['user_id', 'tier', 'endpoint']
+  
+  # Distributed tracing
+  tracing:
+    enabled: true
+    provider: 'jaeger'
+    sampling_rate: 0.1
+    
+  # Health checks
+  health_checks:
+    enabled: true
+    interval: 30
+    endpoints:
+      - name: 'database'
+        type: 'database'
+        connection_string: '${DATABASE_URL}'
+        
+      - name: 'redis'
+        type: 'redis'
+        connection_string: '${REDIS_URL}'
+        
+      - name: 'upstream_services'
+        type: 'http'
+        urls:
+          - 'http://visual-design-service/health'
+          - 'http://code-quality-service/health'
+          - 'http://image-generation-service/health'
+
+# Security Configuration
+security:
+  # Web Application Firewall
+  waf:
+    enabled: true
+    rules:
+      # SQL injection protection
+      - name: 'sql_injection'
+        pattern: '(?i)(union|select|insert|delete|update|drop|create|alter|exec|declare)'
+        action: 'block'
+        
+      # XSS protection
+      - name: 'xss'
+        pattern: '(?i)(<script|javascript:|on\w+\s*=)'
+        action: 'block'
+        
+      # Path traversal protection
+      - name: 'path_traversal'
+        pattern: '(\.\.\/|\.\.\\)'
+        action: 'block'
+  
+  # DDoS protection
+  ddos_protection:
+    enabled: true
+    threshold: 1000  # requests per minute from single IP
+    window: 60  # seconds
+    action: 'rate_limit'  # block, rate_limit, captcha
+  
+  # IP filtering
+  ip_filtering:
+    enabled: false  # Enable for production
+    whitelist: []
+    blacklist: []
+    
+  # Geofencing
+  geofencing:
+    enabled: false  # Enable if required
+    allowed_countries: ['US', 'CA', 'GB', 'EU']
+    blocked_countries: []
+
+# Error Handling
+error_handling:
+  # Custom error pages
+  error_pages:
+    400: '/errors/400.html'
+    401: '/errors/401.html'
+    403: '/errors/403.html'
+    404: '/errors/404.html'
+    429: '/errors/429.html'
+    500: '/errors/500.html'
+    502: '/errors/502.html'
+    503: '/errors/503.html'
+  
+  # Error response format
+  error_format:
+    include_details: false  # Set to true for development
+    include_stack_trace: false
+    include_correlation_id: true
+
+# Upstream Services
+upstream_services:
+  visual-design-service:
+    servers:
+      - url: 'http://visual-design-1:3001'
+        weight: 1
+      - url: 'http://visual-design-2:3001'
+        weight: 1
+    health_check: '/health'
+    
+  code-quality-service:
+    servers:
+      - url: 'http://code-quality-1:3002'
+        weight: 1
+      - url: 'http://code-quality-2:3002'
+        weight: 1
+    health_check: '/health'
+    
+  image-generation-service:
+    servers:
+      - url: 'http://image-generation-1:3003'
+        weight: 1
+      - url: 'http://image-generation-2:3003'
+        weight: 1
+    health_check: '/health'
+    
+  audio-video-service:
+    servers:
+      - url: 'http://audio-video-1:3004'
+        weight: 1
+      - url: 'http://audio-video-2:3004'
+        weight: 1
+    health_check: '/health'
+    
+  business-operations-service:
+    servers:
+      - url: 'http://business-ops-1:3005'
+        weight: 1
+      - url: 'http://business-ops-2:3005'
+        weight: 1
+    health_check: '/health'
+    
+  graphql-service:
+    servers:
+      - url: 'http://graphql-1:3006'
+        weight: 1
+    health_check: '/health'
+    
+  websocket-service:
+    servers:
+      - url: 'http://websocket-1:3007'
+        weight: 1
+    health_check: '/health'
+
+# Feature Flags
+feature_flags:
+  graphql_introspection: true
+  swagger_ui: true
+  rate_limit_bypass_admin: true
+  detailed_error_responses: false
+  experimental_endpoints: false

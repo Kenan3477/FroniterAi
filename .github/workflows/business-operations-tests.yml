@@ -1,0 +1,391 @@
+"""
+CI Pipeline Configuration for Business Operations Testing
+
+GitHub Actions workflow for comprehensive testing:
+- Unit tests with coverage
+- Integration tests
+- End-to-end tests
+- Performance benchmarks
+- Security scanning
+- Compliance validation
+"""
+
+name: Business Operations Testing Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'modules/business_operations/**'
+      - 'tests/business_operations/**'
+      - '.github/workflows/business-operations-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'modules/business_operations/**'
+      - 'tests/business_operations/**'
+
+env:
+  PYTHON_VERSION: '3.11'
+  PYTEST_WORKERS: 4
+  COVERAGE_THRESHOLD: 85
+
+jobs:
+  # Static analysis and code quality
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality & Static Analysis
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 mypy black isort bandit safety
+          pip install -r requirements.txt
+          
+      - name: Code formatting check
+        run: |
+          black --check modules/business_operations tests/business_operations
+          isort --check-only modules/business_operations tests/business_operations
+          
+      - name: Linting
+        run: |
+          flake8 modules/business_operations tests/business_operations --max-line-length=100 --ignore=E203,W503
+          
+      - name: Type checking
+        run: |
+          mypy modules/business_operations --ignore-missing-imports --no-strict-optional
+          
+      - name: Security scanning
+        run: |
+          bandit -r modules/business_operations -f json -o security-report.json
+          safety check --json --output safety-report.json
+          
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            security-report.json
+            safety-report.json
+
+  # Unit tests with coverage
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests & Coverage
+    needs: code-quality
+    strategy:
+      matrix:
+        test-group: [financial, strategic, operations, decision, compliance]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-xdist pytest-mock
+          pip install -r requirements.txt
+          
+      - name: Run unit tests
+        run: |
+          pytest tests/business_operations/unit/test_${{ matrix.test-group }}*.py \
+            -v \
+            --cov=modules.business_operations \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-branch \
+            --junit-xml=junit-${{ matrix.test-group }}.xml \
+            -n ${{ env.PYTEST_WORKERS }}
+            
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unit-tests-${{ matrix.test-group }}
+          name: unit-coverage-${{ matrix.test-group }}
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results-${{ matrix.test-group }}
+          path: |
+            junit-${{ matrix.test-group }}.xml
+            htmlcov/
+
+  # Integration tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-mock
+          pip install -r requirements.txt
+          
+      - name: Run integration tests
+        run: |
+          pytest tests/business_operations/integration/ \
+            -v \
+            --junit-xml=junit-integration.xml \
+            -m "integration and not slow" \
+            --timeout=300
+            
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: junit-integration.xml
+
+  # End-to-end tests
+  e2e-tests:
+    runs-on: ubuntu-latest
+    name: End-to-End Tests
+    needs: integration-tests
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-timeout
+          pip install -r requirements.txt
+          
+      - name: Run E2E tests
+        run: |
+          pytest tests/business_operations/e2e/ \
+            -v \
+            --junit-xml=junit-e2e.xml \
+            -m "e2e" \
+            --timeout=1800 \
+            --maxfail=3
+            
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: junit-e2e.xml
+
+  # Performance benchmarks
+  performance-tests:
+    runs-on: ubuntu-latest
+    name: Performance Benchmarks
+    needs: integration-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-benchmark psutil memory-profiler
+          pip install -r requirements.txt
+          
+      - name: Run performance tests
+        run: |
+          pytest tests/business_operations/performance/ \
+            -v \
+            --benchmark-json=benchmark-results.json \
+            --junit-xml=junit-performance.xml \
+            -m "performance and not stress"
+            
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: |
+            benchmark-results.json
+            junit-performance.xml
+
+  # Compliance validation
+  compliance-tests:
+    runs-on: ubuntu-latest
+    name: Compliance Validation
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install -r requirements.txt
+          
+      - name: Run compliance tests
+        run: |
+          pytest tests/business_operations/ \
+            -v \
+            --junit-xml=junit-compliance.xml \
+            -m "compliance" \
+            -k "test_compliance or test_ethical or test_privacy"
+            
+      - name: Upload compliance results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: compliance-test-results
+          path: junit-compliance.xml
+
+  # Accuracy validation
+  accuracy-tests:
+    runs-on: ubuntu-latest
+    name: Accuracy Validation
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy scipy
+          pip install -r requirements.txt
+          
+      - name: Run accuracy tests
+        run: |
+          pytest tests/business_operations/ \
+            -v \
+            --junit-xml=junit-accuracy.xml \
+            -m "accuracy" \
+            -k "test_accuracy or test_calculation or test_validation"
+            
+      - name: Upload accuracy results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: accuracy-test-results
+          path: junit-accuracy.xml
+
+  # Test results consolidation
+  test-results:
+    runs-on: ubuntu-latest
+    name: Consolidate Test Results
+    needs: [unit-tests, integration-tests, e2e-tests, compliance-tests, accuracy-tests]
+    if: always()
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v3
+        
+      - name: Consolidate test reports
+        run: |
+          # Create consolidated test report
+          mkdir -p test-reports
+          find . -name "junit-*.xml" -exec cp {} test-reports/ \;
+          
+          # Generate summary
+          echo "# Test Results Summary" > test-summary.md
+          echo "" >> test-summary.md
+          echo "## Test Categories" >> test-summary.md
+          
+          for category in unit integration e2e compliance accuracy; do
+            if ls test-reports/junit-${category}*.xml 1> /dev/null 2>&1; then
+              echo "- ✅ ${category} tests completed" >> test-summary.md
+            else
+              echo "- ❌ ${category} tests failed or skipped" >> test-summary.md
+            fi
+          done
+          
+      - name: Upload consolidated results
+        uses: actions/upload-artifact@v3
+        with:
+          name: consolidated-test-results
+          path: |
+            test-reports/
+            test-summary.md
+
+  # Coverage check
+  coverage-check:
+    runs-on: ubuntu-latest
+    name: Coverage Validation
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download coverage reports
+        uses: actions/download-artifact@v3
+        with:
+          pattern: unit-test-results-*
+          merge-multiple: true
+          
+      - name: Check coverage threshold
+        run: |
+          # Combine coverage reports and check threshold
+          if [ -f coverage.xml ]; then
+            # Extract coverage percentage from XML
+            coverage_percent=$(grep -o 'line-rate="[^"]*"' coverage.xml | head -1 | grep -o '[0-9.]*')
+            coverage_int=$(echo "$coverage_percent * 100" | bc -l | cut -d. -f1)
+            
+            echo "Coverage: ${coverage_int}%"
+            
+            if [ $coverage_int -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
+              echo "❌ Coverage ${coverage_int}% is below threshold ${{ env.COVERAGE_THRESHOLD }}%"
+              exit 1
+            else
+              echo "✅ Coverage ${coverage_int}% meets threshold ${{ env.COVERAGE_THRESHOLD }}%"
+            fi
+          else
+            echo "⚠️ No coverage report found"
+          fi
+
+  # Notification
+  notify:
+    runs-on: ubuntu-latest
+    name: Test Notification
+    needs: [test-results, coverage-check]
+    if: always()
+    steps:
+      - name: Notify on success
+        if: ${{ needs.test-results.result == 'success' && needs.coverage-check.result == 'success' }}
+        run: |
+          echo "✅ All tests passed successfully!"
+          echo "Business Operations module is ready for deployment."
+          
+      - name: Notify on failure
+        if: ${{ needs.test-results.result == 'failure' || needs.coverage-check.result == 'failure' }}
+        run: |
+          echo "❌ Tests failed!"
+          echo "Please check the test results and fix issues before merging."
+          exit 1

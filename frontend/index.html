@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/frontier-icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Frontier - AI-Powered Business Intelligence Platform" />
+    <meta name="theme-color" content="#2563eb" />
+    <title>Frontier - Conversational Business Intelligence</title>
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Load fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+      /* Loading spinner styles */
+      .loading-spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 4px solid #2563eb;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading when React takes over */
+      #initial-loading.hidden {
+        display: none;
+      }
+      
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #111827;
+          color: #f9fafb;
+        }
+      }
+    </style>
+  </head>
+  <body class="font-sans antialiased">
+    <div id="root">
+      <!-- Initial loading state -->
+      <div id="initial-loading" class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div class="text-center">
+          <div class="loading-spinner mx-auto mb-4"></div>
+          <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Loading Frontier
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400">
+            Initializing your intelligent business dashboard...
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <script type="module" src="/src/index.tsx"></script>
+    
+    <!-- Hide initial loading once React loads -->
+    <script>
+      // Hide loading screen once the page is fully loaded
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          const loading = document.getElementById('initial-loading');
+          if (loading) {
+            loading.classList.add('hidden');
+          }
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

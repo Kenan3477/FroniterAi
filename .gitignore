@@ -1,0 +1,131 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+goldenv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows
+NTUSER.DAT*
+ntuser.dat*
+ntuser.ini
+
+# Personal directories
+AppData/
+Application Data/
+Contacts/
+Cookies/
+Documents/My Music/
+Documents/My Pictures/
+Documents/My Videos/
+Downloads/
+Favorites/
+Links/
+Local Settings/
+Music/
+My Documents/
+NetHood/
+OneDrive/
+PrintHood/
+Recent/
+Saved Games/
+SendTo/
+Start Menu/
+Templates/
+Videos/
+
+# Cache directories
+.cache/
+.keras/
+.matplotlib/
+.streamlit/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# API Keys and tokens
+token.json
+credentials.json
+
+# Specific to this project
+gmail_attachments/
+formatted_exports/
+processed_files.log
+*.zip
+
+# Node modules (if any)
+node_modules/
+
+# Build outputs
+dist/
+build/

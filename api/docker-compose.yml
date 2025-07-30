@@ -1,0 +1,228 @@
+# API Gateway Configuration
+# Kong-based API gateway with authentication, rate limiting, and routing
+
+version: '3.8'
+
+services:
+  # Kong API Gateway
+  kong-database:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+    volumes:
+      - kong_data:/var/lib/postgresql/data
+    networks:
+      - frontier-api
+
+  kong-migration:
+    image: kong/kong-gateway:3.4
+    command: "kong migrations bootstrap"
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    depends_on:
+      - kong-database
+    networks:
+      - frontier-api
+
+  kong:
+    image: kong/kong-gateway:3.4
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_PLUGINS: bundled,jwt,rate-limiting,cors,prometheus,request-validator
+    ports:
+      - "8000:8000"  # Proxy port
+      - "8001:8001"  # Admin API port
+      - "8002:8002"  # Admin GUI port
+    depends_on:
+      - kong-migration
+    networks:
+      - frontier-api
+    volumes:
+      - ./kong/plugins:/usr/local/share/lua/5.1/kong/plugins/custom
+
+  # Redis for rate limiting and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-frontier-redis}
+    volumes:
+      - redis_data:/data
+    networks:
+      - frontier-api
+
+  # PostgreSQL for API metadata
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${DB_USER:-frontier}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-frontier}
+      POSTGRES_DB: ${DB_NAME:-frontier_api}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - frontier-api
+
+  # REST API Service
+  rest-api:
+    build:
+      context: ./services/rest-api
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=postgresql://${DB_USER:-frontier}:${DB_PASSWORD:-frontier}@postgres:5432/${DB_NAME:-frontier_api}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-frontier-redis}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret}
+      - API_PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/rest-api:/app
+      - /app/node_modules
+    networks:
+      - frontier-api
+
+  # GraphQL API Service
+  graphql-api:
+    build:
+      context: ./services/graphql-api
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=postgresql://${DB_USER:-frontier}:${DB_PASSWORD:-frontier}@postgres:5432/${DB_NAME:-frontier_api}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-frontier-redis}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret}
+      - API_PORT=4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/graphql-api:/app
+      - /app/node_modules
+    networks:
+      - frontier-api
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=postgresql://${DB_USER:-frontier}:${DB_PASSWORD:-frontier}@postgres:5432/${DB_NAME:-frontier_api}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-frontier-redis}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret}
+      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+      - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+      - API_PORT=3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - frontier-api
+
+  # Rate Limiting Service
+  rate-limiter:
+    build:
+      context: ./services/rate-limiter
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-frontier-redis}@redis:6379
+      - API_PORT=3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      - redis
+    networks:
+      - frontier-api
+
+  # API Documentation Service
+  docs-service:
+    build:
+      context: ./services/docs
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - API_PORT=3003
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./docs:/app/docs
+    networks:
+      - frontier-api
+
+  # Metrics and Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - frontier-api
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3004:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - frontier-api
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.49
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - frontier-api
+
+volumes:
+  kong_data:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  frontier-api:
+    driver: bridge

@@ -1,0 +1,414 @@
+# Multi-Region Kubernetes Infrastructure
+# Production deployment with high availability across multiple regions
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontier-production
+  labels:
+    environment: production
+    tier: application
+
+---
+# Primary Region (US-East-1) - Main cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-api-primary
+  namespace: frontier-production
+  labels:
+    app: frontier-api
+    region: us-east-1
+    tier: primary
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-api
+      region: us-east-1
+  template:
+    metadata:
+      labels:
+        app: frontier-api
+        region: us-east-1
+        tier: primary
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - frontier-api
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                - c5.large
+                - c5.xlarge
+                - c5.2xlarge
+      containers:
+      - name: frontier-api
+        image: frontier/business-api:1.0.0
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8080
+          name: metrics
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: REGION
+          value: "us-east-1"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: primary-db-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: primary-redis-url
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: jwt-secret
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: stripe-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+        - name: logs
+          mountPath: /var/log/frontier
+      - name: log-forwarder
+        image: fluent/fluent-bit:2.1.8
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/frontier
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc
+      volumes:
+      - name: app-config
+        configMap:
+          name: frontier-config
+      - name: logs
+        emptyDir: {}
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+
+---
+# Secondary Region (US-West-2) - Backup cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-api-secondary
+  namespace: frontier-production
+  labels:
+    app: frontier-api
+    region: us-west-2
+    tier: secondary
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-api
+      region: us-west-2
+  template:
+    metadata:
+      labels:
+        app: frontier-api
+        region: us-west-2
+        tier: secondary
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - frontier-api
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: frontier-api
+        image: frontier/business-api:1.0.0
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8080
+          name: metrics
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: REGION
+          value: "us-west-2"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: secondary-db-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: secondary-redis-url
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: jwt-secret
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: stripe-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Europe Region (EU-West-1) - European cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-api-europe
+  namespace: frontier-production
+  labels:
+    app: frontier-api
+    region: eu-west-1
+    tier: regional
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: frontier-api
+      region: eu-west-1
+  template:
+    metadata:
+      labels:
+        app: frontier-api
+        region: eu-west-1
+        tier: regional
+    spec:
+      containers:
+      - name: frontier-api
+        image: frontier/business-api:1.0.0
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: REGION
+          value: "eu-west-1"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: europe-db-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: europe-redis-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Load Balancer Service with Global Traffic Distribution
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontier-api-service
+  namespace: frontier-production
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/health"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8000
+    protocol: TCP
+    name: https
+  selector:
+    app: frontier-api
+
+---
+# Horizontal Pod Autoscaler for Auto-scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontier-api-hpa
+  namespace: frontier-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontier-api-primary
+  minReplicas: 5
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+---
+# Pod Disruption Budget for High Availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontier-api-pdb
+  namespace: frontier-production
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-api
+
+---
+# Network Policy for Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontier-api-network-policy
+  namespace: frontier-production
+spec:
+  podSelector:
+    matchLabels:
+      app: frontier-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS

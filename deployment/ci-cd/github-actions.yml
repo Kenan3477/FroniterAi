@@ -1,0 +1,442 @@
+# GitHub Actions CI/CD Pipeline for Frontier
+
+name: Frontier CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+  AWS_REGION: us-west-2
+  EKS_CLUSTER_NAME: frontier-production
+  
+jobs:
+  # Code Quality and Testing
+  test:
+    name: Test and Quality Checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11]
+        node-version: [18.x]
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: frontier_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: 'web/package-lock.json'
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          .venv
+        key: ${{ runner.os }}-python-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-python-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Install Node.js dependencies
+      working-directory: ./web
+      run: npm ci
+
+    - name: Run Python linting
+      run: |
+        flake8 api/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 api/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        black --check api/
+        isort --check-only api/
+
+    - name: Run JavaScript/TypeScript linting
+      working-directory: ./web
+      run: |
+        npm run lint
+        npm run type-check
+
+    - name: Run Python security checks
+      run: |
+        bandit -r api/ -f json -o bandit-report.json || true
+        safety check --json --output safety-report.json || true
+
+    - name: Run Python tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frontier_test
+        REDIS_URL: redis://localhost:6379
+        SECRET_KEY: test-secret-key
+        ENVIRONMENT: testing
+      run: |
+        pytest api/tests/ -v --cov=api --cov-report=xml --cov-report=html
+        pytest tests/compliance/ -v --cov-append
+
+    - name: Run JavaScript tests
+      working-directory: ./web
+      run: |
+        npm run test:ci
+
+    - name: Run E2E tests
+      working-directory: ./web
+      run: |
+        npm run test:e2e:ci
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        flags: backend
+        name: backend-coverage
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          htmlcov/
+          bandit-report.json
+          safety-report.json
+          web/coverage/
+
+  # Security Scanning
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        languages: python, javascript
+
+  # Build Docker Images
+  build:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push'
+    
+    outputs:
+      api-image: ${{ steps.meta-api.outputs.tags }}
+      web-image: ${{ steps.meta-web.outputs.tags }}
+      ml-image: ${{ steps.meta-ml.outputs.tags }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Extract metadata for API
+      id: meta-api
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ steps.login-ecr.outputs.registry }}/frontier/api
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+
+    - name: Extract metadata for Web
+      id: meta-web
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ steps.login-ecr.outputs.registry }}/frontier/web
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+
+    - name: Extract metadata for ML
+      id: meta-ml
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ steps.login-ecr.outputs.registry }}/frontier/ml
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+
+    - name: Build and push API image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./api/Dockerfile
+        push: true
+        tags: ${{ steps.meta-api.outputs.tags }}
+        labels: ${{ steps.meta-api.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Build and push Web image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./web
+        file: ./web/Dockerfile
+        push: true
+        tags: ${{ steps.meta-web.outputs.tags }}
+        labels: ${{ steps.meta-web.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Build and push ML image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ml
+        file: ./ml/Dockerfile
+        push: true
+        tags: ${{ steps.meta-ml.outputs.tags }}
+        labels: ${{ steps.meta-ml.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64
+
+    - name: Scan images for vulnerabilities
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL \
+          ${{ steps.meta-api.outputs.tags }}
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name frontier-staging
+
+    - name: Deploy to staging
+      run: |
+        # Update image tags in manifests
+        sed -i "s|REGISTRY_URL/frontier/api:latest|${{ needs.build.outputs.api-image }}|g" deployment/kubernetes/manifests/frontier-app.yaml
+        sed -i "s|REGISTRY_URL/frontier/web:latest|${{ needs.build.outputs.web-image }}|g" deployment/kubernetes/manifests/frontier-app.yaml
+        sed -i "s|REGISTRY_URL/frontier/ml:latest|${{ needs.build.outputs.ml-image }}|g" deployment/kubernetes/manifests/frontier-app.yaml
+        
+        # Apply manifests
+        kubectl apply -f deployment/kubernetes/manifests/ -n frontier-staging
+        
+        # Wait for rollout
+        kubectl rollout status deployment/frontier-api -n frontier-staging --timeout=600s
+        kubectl rollout status deployment/frontier-web -n frontier-staging --timeout=600s
+        kubectl rollout status deployment/frontier-ml -n frontier-staging --timeout=600s
+
+    - name: Run smoke tests
+      run: |
+        # Wait for services to be ready
+        kubectl wait --for=condition=ready pod -l app=frontier-api -n frontier-staging --timeout=300s
+        
+        # Get service URL
+        API_URL=$(kubectl get ingress frontier-ingress -n frontier-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        
+        # Run basic health checks
+        curl -f http://${API_URL}/health || exit 1
+        
+        # Run comprehensive smoke tests
+        python deployment/scripts/smoke_tests.py --environment staging --api-url http://${API_URL}
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+    - name: Blue-Green Deployment
+      run: |
+        # Run blue-green deployment script
+        python deployment/scripts/blue_green_deploy.py \
+          --api-image ${{ needs.build.outputs.api-image }} \
+          --web-image ${{ needs.build.outputs.web-image }} \
+          --ml-image ${{ needs.build.outputs.ml-image }} \
+          --namespace frontier \
+          --timeout 600
+
+    - name: Run production health checks
+      run: |
+        # Get production URL
+        API_URL=$(kubectl get ingress frontier-ingress -n frontier -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        
+        # Run comprehensive health checks
+        python deployment/scripts/health_checks.py --environment production --api-url https://${API_URL}
+
+    - name: Performance testing
+      run: |
+        # Run performance tests against production
+        python deployment/scripts/performance_tests.py --environment production --duration 300
+
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        echo "Deployment failed, initiating rollback..."
+        python deployment/scripts/rollback.py --namespace frontier --previous-version
+
+  # Cleanup old images
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Cleanup old ECR images
+      run: |
+        # Keep only last 10 images for each repository
+        for repo in frontier/api frontier/web frontier/ml; do
+          aws ecr describe-images --repository-name $repo \
+            --image-ids imageTag=main \
+            --query 'sort_by(imageDetails,&imagePushedAt)[:-10].[imageDigest]' \
+            --output text | \
+          while read digest; do
+            if [ "$digest" != "None" ]; then
+              aws ecr batch-delete-image --repository-name $repo --image-ids imageDigest=$digest
+            fi
+          done
+        done
+
+  # Notification
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

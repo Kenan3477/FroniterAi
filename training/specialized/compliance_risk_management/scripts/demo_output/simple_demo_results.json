@@ -1,0 +1,485 @@
+{
+  "demo_info": {
+    "name": "Simple Compliance Training Demo",
+    "version": "1.0",
+    "started_at": "2025-07-24T20:51:07.030026"
+  },
+  "training_data": {
+    "metadata": {
+      "generated_at": "2025-07-24T20:51:07.031025",
+      "total_samples": 32,
+      "regulations": [
+        "sox",
+        "gdpr",
+        "basel_iii",
+        "hipaa"
+      ],
+      "jurisdictions": [
+        "us_federal",
+        "eu",
+        "uk",
+        "singapore"
+      ],
+      "task_types": [
+        "compliance_analysis",
+        "risk_assessment",
+        "policy_generation",
+        "regulatory_change_detection"
+      ]
+    },
+    "samples": [
+      {
+        "id": 1,
+        "input": "Analyze SOX compliance requirements for us_federal jurisdiction",
+        "output": "The SOX regulation in us_federal requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 63,
+          "output_length": 142
+        }
+      },
+      {
+        "id": 2,
+        "input": "Analyze SOX compliance requirements for us_federal jurisdiction",
+        "output": "The SOX regulation in us_federal requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 63,
+          "output_length": 142
+        }
+      },
+      {
+        "id": 3,
+        "input": "Assess compliance risk for SOX violation in us_federal",
+        "output": "Risk Level: medium, Likelihood: 0.69, Impact: 0.48, Mitigation required",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 54,
+          "output_length": 71
+        }
+      },
+      {
+        "id": 4,
+        "input": "Assess compliance risk for SOX violation in us_federal",
+        "output": "Risk Level: low, Likelihood: 0.7, Impact: 0.1, Mitigation required",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 54,
+          "output_length": 66
+        }
+      },
+      {
+        "id": 5,
+        "input": "Generate SOX compliance policy for us_federal organization",
+        "output": "Policy: All employees must comply with SOX requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 58,
+          "output_length": 150
+        }
+      },
+      {
+        "id": 6,
+        "input": "Generate SOX compliance policy for us_federal organization",
+        "output": "Policy: All employees must comply with SOX requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 58,
+          "output_length": 150
+        }
+      },
+      {
+        "id": 7,
+        "input": "Detect regulatory changes in SOX for us_federal",
+        "output": "Change Type: new_requirement, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 47,
+          "output_length": 114
+        }
+      },
+      {
+        "id": 8,
+        "input": "Detect regulatory changes in SOX for us_federal",
+        "output": "Change Type: clarification, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "sox",
+        "jurisdiction": "us_federal",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 47,
+          "output_length": 112
+        }
+      },
+      {
+        "id": 9,
+        "input": "Analyze SOX compliance requirements for eu jurisdiction",
+        "output": "The SOX regulation in eu requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 55,
+          "output_length": 134
+        }
+      },
+      {
+        "id": 10,
+        "input": "Analyze SOX compliance requirements for eu jurisdiction",
+        "output": "The SOX regulation in eu requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 55,
+          "output_length": 134
+        }
+      },
+      {
+        "id": 11,
+        "input": "Assess compliance risk for SOX violation in eu",
+        "output": "Risk Level: low, Likelihood: 0.35, Impact: 0.13, Mitigation required",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 46,
+          "output_length": 68
+        }
+      },
+      {
+        "id": 12,
+        "input": "Assess compliance risk for SOX violation in eu",
+        "output": "Risk Level: medium, Likelihood: 0.6, Impact: 0.51, Mitigation required",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 46,
+          "output_length": 70
+        }
+      },
+      {
+        "id": 13,
+        "input": "Generate SOX compliance policy for eu organization",
+        "output": "Policy: All employees must comply with SOX requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 50,
+          "output_length": 150
+        }
+      },
+      {
+        "id": 14,
+        "input": "Generate SOX compliance policy for eu organization",
+        "output": "Policy: All employees must comply with SOX requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 50,
+          "output_length": 150
+        }
+      },
+      {
+        "id": 15,
+        "input": "Detect regulatory changes in SOX for eu",
+        "output": "Change Type: new_requirement, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 39,
+          "output_length": 114
+        }
+      },
+      {
+        "id": 16,
+        "input": "Detect regulatory changes in SOX for eu",
+        "output": "Change Type: clarification, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "sox",
+        "jurisdiction": "eu",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 39,
+          "output_length": 112
+        }
+      },
+      {
+        "id": 17,
+        "input": "Analyze GDPR compliance requirements for us_federal jurisdiction",
+        "output": "The GDPR regulation in us_federal requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 64,
+          "output_length": 143
+        }
+      },
+      {
+        "id": 18,
+        "input": "Analyze GDPR compliance requirements for us_federal jurisdiction",
+        "output": "The GDPR regulation in us_federal requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 64,
+          "output_length": 143
+        }
+      },
+      {
+        "id": 19,
+        "input": "Assess compliance risk for GDPR violation in us_federal",
+        "output": "Risk Level: high, Likelihood: 0.41, Impact: 0.39, Mitigation required",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 55,
+          "output_length": 69
+        }
+      },
+      {
+        "id": 20,
+        "input": "Assess compliance risk for GDPR violation in us_federal",
+        "output": "Risk Level: low, Likelihood: 0.19, Impact: 0.12, Mitigation required",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 55,
+          "output_length": 68
+        }
+      },
+      {
+        "id": 21,
+        "input": "Generate GDPR compliance policy for us_federal organization",
+        "output": "Policy: All employees must comply with GDPR requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 59,
+          "output_length": 151
+        }
+      },
+      {
+        "id": 22,
+        "input": "Generate GDPR compliance policy for us_federal organization",
+        "output": "Policy: All employees must comply with GDPR requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 59,
+          "output_length": 151
+        }
+      },
+      {
+        "id": 23,
+        "input": "Detect regulatory changes in GDPR for us_federal",
+        "output": "Change Type: amendment, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 48,
+          "output_length": 108
+        }
+      },
+      {
+        "id": 24,
+        "input": "Detect regulatory changes in GDPR for us_federal",
+        "output": "Change Type: clarification, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "gdpr",
+        "jurisdiction": "us_federal",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 48,
+          "output_length": 112
+        }
+      },
+      {
+        "id": 25,
+        "input": "Analyze GDPR compliance requirements for eu jurisdiction",
+        "output": "The GDPR regulation in eu requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 56,
+          "output_length": 135
+        }
+      },
+      {
+        "id": 26,
+        "input": "Analyze GDPR compliance requirements for eu jurisdiction",
+        "output": "The GDPR regulation in eu requires: 1) Regular compliance assessments, 2) Documentation of procedures, 3) Risk monitoring and reporting",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "compliance_analysis",
+        "metadata": {
+          "input_length": 56,
+          "output_length": 135
+        }
+      },
+      {
+        "id": 27,
+        "input": "Assess compliance risk for GDPR violation in eu",
+        "output": "Risk Level: medium, Likelihood: 0.9, Impact: 0.38, Mitigation required",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 47,
+          "output_length": 70
+        }
+      },
+      {
+        "id": 28,
+        "input": "Assess compliance risk for GDPR violation in eu",
+        "output": "Risk Level: low, Likelihood: 0.45, Impact: 0.17, Mitigation required",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "risk_assessment",
+        "metadata": {
+          "input_length": 47,
+          "output_length": 68
+        }
+      },
+      {
+        "id": 29,
+        "input": "Generate GDPR compliance policy for eu organization",
+        "output": "Policy: All employees must comply with GDPR requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 51,
+          "output_length": 151
+        }
+      },
+      {
+        "id": 30,
+        "input": "Generate GDPR compliance policy for eu organization",
+        "output": "Policy: All employees must comply with GDPR requirements. Regular training is mandatory. Violations must be reported immediately to compliance officer.",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "policy_generation",
+        "metadata": {
+          "input_length": 51,
+          "output_length": 151
+        }
+      },
+      {
+        "id": 31,
+        "input": "Detect regulatory changes in GDPR for eu",
+        "output": "Change Type: new_requirement, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 40,
+          "output_length": 114
+        }
+      },
+      {
+        "id": 32,
+        "input": "Detect regulatory changes in GDPR for eu",
+        "output": "Change Type: new_requirement, Impact Level: medium, Effective Date: 2024-01-01, Action Required: Update procedures",
+        "regulation": "gdpr",
+        "jurisdiction": "eu",
+        "task_type": "regulatory_change_detection",
+        "metadata": {
+          "input_length": 40,
+          "output_length": 114
+        }
+      }
+    ]
+  },
+  "training_results": {
+    "config": {
+      "model_name": "microsoft/DialoGPT-small",
+      "num_epochs": 3,
+      "batch_size": 4,
+      "learning_rate": 5e-05,
+      "max_length": 512
+    },
+    "training_started": "2025-07-24T20:51:07.033025",
+    "total_samples": 32,
+    "epochs": [
+      {
+        "epoch": 1,
+        "train_loss": 1.0,
+        "compliance_accuracy": 0.5,
+        "risk_assessment_accuracy": 0.45,
+        "policy_quality_score": 0.4
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.7,
+        "compliance_accuracy": 0.65,
+        "risk_assessment_accuracy": 0.65,
+        "policy_quality_score": 0.5800000000000001
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.4,
+        "compliance_accuracy": 0.8,
+        "risk_assessment_accuracy": 0.85,
+        "policy_quality_score": 0.76
+      }
+    ],
+    "final_metrics": {
+      "final_loss": 0.4,
+      "final_compliance_accuracy": 0.8,
+      "final_risk_assessment_accuracy": 0.85,
+      "final_policy_quality_score": 0.76,
+      "overall_compliance_score": 0.8033333333333333
+    },
+    "training_completed": "2025-07-24T20:51:07.036029"
+  },
+  "evaluation_results": {
+    "evaluation_started": "2025-07-24T20:51:07.039029",
+    "total_evaluated_samples": 10,
+    "metrics": {
+      "overall_compliance_score": 0.78,
+      "compliance_accuracy": 0.82,
+      "risk_assessment_accuracy": 0.75,
+      "policy_generation_quality": 0.73,
+      "regulatory_change_detection_f1": 0.79
+    },
+    "task_specific_scores": {
+      "compliance_analysis": 0.639,
+      "risk_assessment": 0.743,
+      "policy_generation": 0.712,
+      "regulatory_change_detection": 0.789
+    },
+    "regulation_specific_scores": {
+      "sox": 0.808,
+      "gdpr": 0.77
+    },
+    "jurisdiction_specific_scores": {
+      "us_federal": 0.744,
+      "eu": 0.719
+    },
+    "evaluation_completed": "2025-07-24T20:51:07.039029"
+  }
+}

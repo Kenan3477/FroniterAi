@@ -1,0 +1,596 @@
+# Disaster Recovery and Business Continuity Configuration
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: disaster-recovery-config
+  namespace: business-ops
+  labels:
+    app: business-ops
+    component: disaster-recovery
+data:
+  recovery-plan.yaml: |
+    disaster_recovery:
+      rto: 240  # Recovery Time Objective: 4 hours
+      rpo: 60   # Recovery Point Objective: 1 hour
+      
+      backup_strategy:
+        frequency:
+          full_backup: "weekly"
+          incremental_backup: "daily"
+          transaction_log_backup: "15min"
+        retention:
+          daily_backups: 30
+          weekly_backups: 12
+          monthly_backups: 12
+          yearly_backups: 7
+      
+      recovery_procedures:
+        tier_1_critical:
+          priority: 1
+          recovery_time: "30min"
+          services: ["authentication", "core-api", "database"]
+        tier_2_important:
+          priority: 2
+          recovery_time: "2hours"
+          services: ["ml-services", "analytics", "reporting"]
+        tier_3_standard:
+          priority: 3
+          recovery_time: "4hours"
+          services: ["batch-processing", "archive-services"]
+
+  regions.yaml: |
+    primary_region: "us-east-1"
+    disaster_recovery_regions:
+      - region: "us-west-2"
+        type: "hot_standby"
+        capacity: "50%"
+        failover_time: "5min"
+      - region: "eu-west-1"
+        type: "warm_standby"
+        capacity: "25%"
+        failover_time: "30min"
+
+---
+# Database Backup and Replication
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: business-ops-db-primary
+  namespace: business-ops
+  labels:
+    app: business-ops-database
+    tier: primary
+spec:
+  instances: 3
+  primaryUpdateStrategy: unsupervised
+  
+  postgresql:
+    parameters:
+      # Replication settings
+      wal_level: "replica"
+      max_wal_senders: "10"
+      max_replication_slots: "10"
+      hot_standby: "on"
+      archive_mode: "on"
+      archive_command: "aws s3 cp %p s3://frontier-db-backups/wal/%f"
+      
+      # Performance settings
+      shared_buffers: "256MB"
+      effective_cache_size: "1GB"
+      maintenance_work_mem: "64MB"
+      checkpoint_completion_target: "0.7"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      
+      # Backup settings
+      log_statement: "all"
+      log_min_duration_statement: "1000"
+      
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: "s3://frontier-db-backups/primary"
+      s3Credentials:
+        accessKeyId:
+          name: backup-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: backup-credentials
+          key: SECRET_ACCESS_KEY
+        region:
+          name: backup-credentials
+          key: DEFAULT_REGION
+      wal:
+        retention: "7d"
+      data:
+        retention: "30d"
+        jobs: 2
+
+  monitoring:
+    enabled: true
+    podMonitorEnabled: true
+
+  storage:
+    size: "100Gi"
+    storageClass: "gp3-encrypted"
+
+---
+# Standby Database Cluster (Disaster Recovery)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: business-ops-db-standby
+  namespace: business-ops-dr
+  labels:
+    app: business-ops-database
+    tier: standby
+spec:
+  instances: 2
+  
+  bootstrap:
+    recovery:
+      source: "business-ops-db-primary"
+      recoveryTargetSettings:
+        targetTimeline: "latest"
+      
+  externalClusters:
+    - name: "business-ops-db-primary"
+      barmanObjectStore:
+        destinationPath: "s3://frontier-db-backups/primary"
+        s3Credentials:
+          accessKeyId:
+            name: backup-credentials
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: backup-credentials
+            key: SECRET_ACCESS_KEY
+          region:
+            name: backup-credentials
+            key: DEFAULT_REGION
+        wal:
+          maxParallel: 8
+
+  storage:
+    size: "100Gi"
+    storageClass: "gp3-encrypted"
+
+---
+# Continuous Database Backup CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup
+  namespace: business-ops
+  labels:
+    app: database-backup
+    component: disaster-recovery
+spec:
+  schedule: "0 */4 * * *"  # Every 4 hours
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: database-backup
+        spec:
+          serviceAccountName: backup-service-account
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  
+                  BACKUP_FILE="business-ops-$(date +%Y%m%d-%H%M%S).sql.gz"
+                  PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+                    -h business-ops-database \
+                    -U "${POSTGRES_USER}" \
+                    -d business_ops \
+                    --verbose \
+                    --no-owner \
+                    --no-privileges \
+                    | gzip > "/tmp/${BACKUP_FILE}"
+                  
+                  # Upload to S3
+                  aws s3 cp "/tmp/${BACKUP_FILE}" "s3://frontier-db-backups/manual/${BACKUP_FILE}"
+                  
+                  # Upload to DR region
+                  aws s3 cp "/tmp/${BACKUP_FILE}" "s3://frontier-db-backups-dr/manual/${BACKUP_FILE}" --region us-west-2
+                  
+                  # Verify backup integrity
+                  if zcat "/tmp/${BACKUP_FILE}" | head -n 20 | grep -q "PostgreSQL database dump"; then
+                    echo "Backup verification successful"
+                  else
+                    echo "Backup verification failed" && exit 1
+                  fi
+                  
+                  # Cleanup old backups (keep last 30 days)
+                  aws s3 ls s3://frontier-db-backups/manual/ --recursive | \
+                    awk '$1 <= "'$(date -d "30 days ago" +%Y-%m-%d)'" {print $4}' | \
+                    xargs -I {} aws s3 rm s3://frontier-db-backups/{}
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: business-ops-db-secrets
+                      key: username
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: business-ops-db-secrets
+                      key: password
+                - name: AWS_REGION
+                  value: "us-east-1"
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  cpu: 1000m
+                  memory: 2Gi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 70
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+
+---
+# Application State Backup CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: application-state-backup
+  namespace: business-ops
+  labels:
+    app: app-state-backup
+    component: disaster-recovery
+spec:
+  schedule: "30 */6 * * *"  # Every 6 hours at 30 minutes past
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: app-state-backup
+        spec:
+          serviceAccountName: backup-service-account
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: frontier/backup-utility:latest
+              command:
+                - python
+                - /app/backup_app_state.py
+              env:
+                - name: BACKUP_TYPE
+                  value: "application_state"
+                - name: S3_BUCKET
+                  value: "frontier-app-backups"
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: business-ops-redis-secrets
+                      key: redis-url
+                - name: NAMESPACE
+                  value: "business-ops"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+
+---
+# Disaster Recovery Failover Script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: failover-scripts
+  namespace: business-ops
+  labels:
+    component: disaster-recovery
+data:
+  failover.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Disaster Recovery Failover Script
+    
+    FAILOVER_REGION=${1:-us-west-2}
+    ORIGINAL_REGION=${2:-us-east-1}
+    
+    echo "Starting failover to region: ${FAILOVER_REGION}"
+    
+    # 1. Promote standby database to primary
+    echo "Promoting standby database..."
+    kubectl patch cluster business-ops-db-standby -n business-ops-dr \
+      --type='merge' -p='{"spec":{"bootstrap":null}}'
+    
+    # 2. Update DNS to point to DR region
+    echo "Updating DNS records..."
+    aws route53 change-resource-record-sets \
+      --hosted-zone-id Z1234567890 \
+      --change-batch file://dns-failover.json
+    
+    # 3. Scale up DR region services
+    echo "Scaling up DR services..."
+    kubectl scale deployment business-ops-api --replicas=3 -n business-ops-dr
+    kubectl scale deployment business-ops-ml --replicas=2 -n business-ops-dr
+    
+    # 4. Update load balancer configuration
+    echo "Updating load balancer..."
+    kubectl patch service business-ops-api-lb -n business-ops-dr \
+      --type='merge' -p='{"metadata":{"annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}}'
+    
+    # 5. Verify services are healthy
+    echo "Verifying service health..."
+    timeout 300 bash -c 'until kubectl get pods -n business-ops-dr | grep -q "Running"; do sleep 10; done'
+    
+    # 6. Run health checks
+    echo "Running health checks..."
+    python /scripts/health_check.py --region ${FAILOVER_REGION}
+    
+    echo "Failover completed successfully to region: ${FAILOVER_REGION}"
+
+  failback.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Disaster Recovery Failback Script
+    
+    ORIGINAL_REGION=${1:-us-east-1}
+    CURRENT_REGION=${2:-us-west-2}
+    
+    echo "Starting failback to original region: ${ORIGINAL_REGION}"
+    
+    # 1. Ensure original region is fully recovered
+    echo "Verifying original region health..."
+    python /scripts/health_check.py --region ${ORIGINAL_REGION}
+    
+    # 2. Sync data from current active region
+    echo "Syncing data..."
+    kubectl exec -n business-ops-dr business-ops-db-standby-0 -- \
+      pg_basebackup -h business-ops-database.business-ops.svc.cluster.local \
+      -D /var/lib/postgresql/data/sync -U postgres -W
+    
+    # 3. Update DNS back to original region
+    echo "Updating DNS records back to original region..."
+    aws route53 change-resource-record-sets \
+      --hosted-zone-id Z1234567890 \
+      --change-batch file://dns-failback.json
+    
+    # 4. Scale up original region services
+    echo "Scaling up original region services..."
+    kubectl scale deployment business-ops-api --replicas=3 -n business-ops
+    kubectl scale deployment business-ops-ml --replicas=2 -n business-ops
+    
+    # 5. Scale down DR region services
+    echo "Scaling down DR region services..."
+    kubectl scale deployment business-ops-api --replicas=1 -n business-ops-dr
+    kubectl scale deployment business-ops-ml --replicas=0 -n business-ops-dr
+    
+    echo "Failback completed successfully to region: ${ORIGINAL_REGION}"
+
+  health_check.py: |
+    #!/usr/bin/env python3
+    import requests
+    import sys
+    import argparse
+    import time
+    
+    def check_api_health(endpoint):
+        """Check API endpoint health"""
+        try:
+            response = requests.get(f"{endpoint}/health", timeout=10)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"API health check failed: {e}")
+            return False
+    
+    def check_database_health(db_endpoint):
+        """Check database connectivity"""
+        import psycopg2
+        try:
+            conn = psycopg2.connect(db_endpoint)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] == 1
+        except Exception as e:
+            print(f"Database health check failed: {e}")
+            return False
+    
+    def main():
+        parser = argparse.ArgumentParser(description='Health check for disaster recovery')
+        parser.add_argument('--region', required=True, help='AWS region to check')
+        args = parser.parse_args()
+        
+        # Region-specific endpoints
+        endpoints = {
+            'us-east-1': 'https://api.frontier.com',
+            'us-west-2': 'https://api-dr.frontier.com',
+            'eu-west-1': 'https://api-eu.frontier.com'
+        }
+        
+        endpoint = endpoints.get(args.region)
+        if not endpoint:
+            print(f"Unknown region: {args.region}")
+            sys.exit(1)
+        
+        print(f"Running health checks for region: {args.region}")
+        
+        # Check API health
+        if not check_api_health(endpoint):
+            print("API health check failed")
+            sys.exit(1)
+        
+        print("All health checks passed")
+        sys.exit(0)
+    
+    if __name__ == "__main__":
+        main()
+
+---
+# Monitoring for Disaster Recovery
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: disaster-recovery-alerts
+  namespace: business-ops
+  labels:
+    app: business-ops
+    component: disaster-recovery
+spec:
+  groups:
+    - name: disaster-recovery
+      rules:
+        - alert: DatabaseReplicationLag
+          expr: pg_replication_lag_seconds > 300
+          for: 5m
+          labels:
+            severity: critical
+            component: database
+          annotations:
+            summary: "Database replication lag is high"
+            description: "Database replication lag is {{ $value }} seconds, which exceeds the 5-minute threshold"
+            runbook_url: "https://runbooks.frontier.com/database-replication-lag"
+        
+        - alert: BackupFailure
+          expr: time() - backup_last_success_timestamp > 86400
+          for: 10m
+          labels:
+            severity: critical
+            component: backup
+          annotations:
+            summary: "Database backup has failed"
+            description: "No successful backup in the last 24 hours"
+            runbook_url: "https://runbooks.frontier.com/backup-failure"
+        
+        - alert: CrossRegionConnectivityLoss
+          expr: up{job="cross-region-probe"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: network
+          annotations:
+            summary: "Cross-region connectivity lost"
+            description: "Cannot reach disaster recovery region"
+            runbook_url: "https://runbooks.frontier.com/cross-region-connectivity"
+        
+        - alert: DRRegionResourcesLow
+          expr: |
+            (
+              kube_node_status_allocatable{resource="cpu", node=~".*us-west-2.*"} -
+              kube_node_status_capacity{resource="cpu", node=~".*us-west-2.*"}
+            ) / kube_node_status_capacity{resource="cpu", node=~".*us-west-2.*"} < 0.2
+          for: 15m
+          labels:
+            severity: warning
+            component: capacity
+          annotations:
+            summary: "DR region has low available resources"
+            description: "Disaster recovery region has less than 20% CPU capacity available"
+
+---
+# Automated DR Testing
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dr-testing
+  namespace: business-ops
+  labels:
+    app: dr-testing
+    component: disaster-recovery
+spec:
+  schedule: "0 3 1 * *"  # Monthly on the 1st at 3 AM
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: dr-testing
+        spec:
+          serviceAccountName: dr-testing-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: dr-test
+              image: frontier/dr-testing:latest
+              command:
+                - python
+                - /app/dr_test.py
+              env:
+                - name: TEST_TYPE
+                  value: "automated"
+                - name: NOTIFICATION_WEBHOOK
+                  valueFrom:
+                    secretKeyRef:
+                      name: business-ops-api-secrets
+                      key: webhook-secret
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+---
+# Service Account for Backup Operations
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-service-account
+  namespace: business-ops
+  labels:
+    component: disaster-recovery
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/BusinessOpsBackupRole
+
+---
+# RBAC for Backup Service Account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-role
+  namespace: business-ops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["get", "list", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-role-binding
+  namespace: business-ops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-role
+subjects:
+  - kind: ServiceAccount
+    name: backup-service-account
+    namespace: business-ops

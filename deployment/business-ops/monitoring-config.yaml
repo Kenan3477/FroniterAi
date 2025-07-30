@@ -1,0 +1,602 @@
+# Business Operations Specialized Monitoring Configuration
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: business-ops-monitoring
+  labels:
+    name: business-ops-monitoring
+    component: monitoring
+    compliance: enabled
+
+---
+# Prometheus Configuration for Business Operations
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-ops-prometheus-config
+  namespace: business-ops-monitoring
+  labels:
+    app: prometheus
+    component: config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'business-ops'
+        environment: 'production'
+        compliance_zone: 'regulated'
+
+    rule_files:
+      - "/etc/prometheus/rules/business-ops-rules.yml"
+      - "/etc/prometheus/rules/financial-rules.yml"
+      - "/etc/prometheus/rules/compliance-rules.yml"
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - business-ops-alertmanager:9093
+
+    scrape_configs:
+      # Business Operations API metrics
+      - job_name: 'business-ops-api'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - business-ops
+                - business-ops-prod
+                - business-ops-staging
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: business-ops-api
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+        metric_relabel_configs:
+          # Add compliance labels
+          - source_labels: [__name__]
+            regex: 'financial_.*'
+            target_label: compliance_scope
+            replacement: 'financial'
+          - source_labels: [__name__]
+            regex: 'audit_.*'
+            target_label: compliance_scope
+            replacement: 'audit'
+
+      # Database metrics with compliance tracking
+      - job_name: 'business-ops-database'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - business-ops
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: business-ops-database
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'pg_.*'
+            target_label: data_classification
+            replacement: 'sensitive'
+
+      # ML Service metrics
+      - job_name: 'business-ops-ml'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - business-ops
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: business-ops-ml
+        scrape_interval: 30s # ML models need more time
+
+      # Financial API specific metrics
+      - job_name: 'financial-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - business-ops
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: business-ops-api
+        params:
+          module: [financial_module]
+
+      # Compliance audit logs
+      - job_name: 'compliance-audit'
+        static_configs:
+          - targets: ['business-ops-audit-exporter:9090']
+        scrape_interval: 60s
+        params:
+          format: ['compliance']
+
+---
+# Business Operations Alert Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-ops-alert-rules
+  namespace: business-ops-monitoring
+  labels:
+    app: prometheus
+    component: rules
+data:
+  business-ops-rules.yml: |
+    groups:
+      - name: business_ops.financial
+        interval: 30s
+        rules:
+          # Financial API Response Time
+          - alert: FinancialAPIHighLatency
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="business-ops-api", endpoint=~"/api/v1/business/financial.*"}[5m])) > 2
+            for: 2m
+            labels:
+              severity: warning
+              service: financial-api
+              compliance: true
+            annotations:
+              summary: "Financial API response time is high"
+              description: "95th percentile response time for financial endpoints is {{ $value }}s"
+              runbook_url: "https://docs.frontier.com/runbooks/financial-api-latency"
+
+          - alert: FinancialAPIErrorRate
+            expr: rate(http_requests_total{job="business-ops-api", endpoint=~"/api/v1/business/financial.*", status=~"5.."}[5m]) > 0.05
+            for: 1m
+            labels:
+              severity: critical
+              service: financial-api
+              compliance: true
+              pagerduty: true
+            annotations:
+              summary: "High error rate in Financial API"
+              description: "Error rate is {{ $value | humanizePercentage }} for financial endpoints"
+
+          # Valuation Service Alerts
+          - alert: ValuationServiceDown
+            expr: up{job="business-ops-api", endpoint="/api/v1/business/valuation"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: valuation
+              business_impact: high
+            annotations:
+              summary: "Valuation service is down"
+              description: "Valuation service has been unavailable for more than 1 minute"
+
+          # Database Performance for Financial Data
+          - alert: FinancialDatabaseSlowQueries
+            expr: rate(pg_stat_activity_max_tx_duration{datname="business_ops"}[5m]) > 30
+            for: 5m
+            labels:
+              severity: warning
+              service: database
+              data_type: financial
+            annotations:
+              summary: "Slow queries detected in financial database"
+              description: "Database transactions taking longer than 30 seconds"
+
+          # ML Model Performance
+          - alert: MLModelInferenceLatency
+            expr: histogram_quantile(0.95, rate(ml_inference_duration_seconds_bucket[5m])) > 10
+            for: 3m
+            labels:
+              severity: warning
+              service: ml-inference
+            annotations:
+              summary: "ML model inference latency is high"
+              description: "95th percentile inference time is {{ $value }}s"
+
+          # Cache Performance
+          - alert: RedisCacheHitRate低
+            expr: rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) < 0.8
+            for: 5m
+            labels:
+              severity: warning
+              service: cache
+            annotations:
+              summary: "Redis cache hit rate is low"
+              description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      - name: business_ops.compliance
+        interval: 60s
+        rules:
+          # Data Access Monitoring
+          - alert: UnauthorizedFinancialDataAccess
+            expr: increase(unauthorized_access_attempts_total{data_type="financial"}[5m]) > 5
+            for: 0m
+            labels:
+              severity: critical
+              compliance: sox
+              security: true
+              escalate: immediate
+            annotations:
+              summary: "Unauthorized access to financial data detected"
+              description: "{{ $value }} unauthorized access attempts in the last 5 minutes"
+
+          # Audit Log Integrity
+          - alert: AuditLogGap
+            expr: increase(audit_log_entries_total[1h]) == 0
+            for: 1h
+            labels:
+              severity: critical
+              compliance: audit
+            annotations:
+              summary: "Audit log gap detected"
+              description: "No audit log entries recorded in the last hour"
+
+          # Data Retention Compliance
+          - alert: DataRetentionViolation
+            expr: data_retention_age_days > 2555  # 7 years
+            for: 0m
+            labels:
+              severity: critical
+              compliance: retention
+            annotations:
+              summary: "Data retention policy violation"
+              description: "Data older than retention policy detected"
+
+          # Encryption Status
+          - alert: UnencryptedSensitiveData
+            expr: unencrypted_data_records_total > 0
+            for: 0m
+            labels:
+              severity: critical
+              compliance: encryption
+              security: true
+            annotations:
+              summary: "Unencrypted sensitive data detected"
+              description: "{{ $value }} records found without encryption"
+
+      - name: business_ops.performance
+        interval: 15s
+        rules:
+          # API Performance Indicators
+          - record: business_ops:api_request_rate
+            expr: rate(http_requests_total{job="business-ops-api"}[5m])
+
+          - record: business_ops:api_error_rate
+            expr: rate(http_requests_total{job="business-ops-api", status=~"5.."}[5m]) / rate(http_requests_total{job="business-ops-api"}[5m])
+
+          - record: business_ops:api_response_time_p95
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="business-ops-api"}[5m]))
+
+          # Database Performance Indicators
+          - record: business_ops:db_connection_utilization
+            expr: pg_stat_database_numbackends / pg_settings_max_connections
+
+          - record: business_ops:db_query_rate
+            expr: rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])
+
+          # ML Performance Indicators
+          - record: business_ops:ml_inference_rate
+            expr: rate(ml_predictions_total[5m])
+
+          - record: business_ops:ml_model_accuracy
+            expr: ml_model_accuracy_score
+
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-ops-grafana-dashboards
+  namespace: business-ops-monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  business-ops-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Business Operations Overview",
+        "tags": ["business-ops", "financial", "compliance"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "API Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"business-ops-api\"}[5m])) by (endpoint)",
+                "legendFormat": "{{endpoint}}"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Requests/sec"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "Financial API Response Time",
+            "type": "graph", 
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"business-ops-api\", endpoint=~\"/api/v1/business/financial.*\"}[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"business-ops-api\", endpoint=~\"/api/v1/business/financial.*\"}[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Compliance Violations",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(compliance_violations_total)",
+                "legendFormat": "Total Violations"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 5}
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  financial-analysis-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Financial Analysis Performance",
+        "tags": ["financial", "analysis", "performance"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "Financial Analysis Requests",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{endpoint=\"/api/v1/business/financial-analysis\"}[5m])",
+                "legendFormat": "Analysis Requests/sec"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "Valuation Service Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{endpoint=\"/api/v1/business/valuation\"}[5m])",
+                "legendFormat": "Valuation Requests/sec"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Database Query Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(pg_stat_database_xact_commit{datname=\"business_ops\"}[5m])",
+                "legendFormat": "Commits/sec"
+              },
+              {
+                "expr": "rate(pg_stat_database_xact_rollback{datname=\"business_ops\"}[5m])",
+                "legendFormat": "Rollbacks/sec"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# AlertManager Configuration for Business Operations
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-ops-alertmanager-config
+  namespace: business-ops-monitoring
+  labels:
+    app: alertmanager
+    component: config
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.company.com:587'
+      smtp_from: 'alerts@frontier.com'
+
+    route:
+      group_by: ['alertname', 'severity', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'default'
+      routes:
+        # Critical financial alerts
+        - match:
+            compliance: "true"
+            severity: critical
+          receiver: 'compliance-team'
+          group_wait: 0s
+          repeat_interval: 5m
+        
+        # Security alerts
+        - match:
+            security: "true"
+          receiver: 'security-team'
+          group_wait: 0s
+          repeat_interval: 2m
+        
+        # High business impact
+        - match:
+            business_impact: high
+          receiver: 'business-critical'
+          group_wait: 30s
+          repeat_interval: 15m
+
+    receivers:
+      - name: 'default'
+        email_configs:
+          - to: 'devops@frontier.com'
+            subject: 'Business Ops Alert: {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Severity: {{ .Labels.severity }}
+              Service: {{ .Labels.service }}
+              {{ end }}
+
+      - name: 'compliance-team'
+        email_configs:
+          - to: 'compliance@frontier.com'
+            subject: 'COMPLIANCE ALERT: {{ .GroupLabels.alertname }}'
+        slack_configs:
+          - api_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+            channel: '#compliance-alerts'
+            title: 'Compliance Violation Detected'
+            text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+            color: 'danger'
+        pagerduty_configs:
+          - service_key: 'YOUR_COMPLIANCE_PAGERDUTY_KEY'
+            description: 'Compliance alert: {{ .GroupLabels.alertname }}'
+
+      - name: 'security-team'
+        email_configs:
+          - to: 'security@frontier.com'
+            subject: 'SECURITY ALERT: {{ .GroupLabels.alertname }}'
+        slack_configs:
+          - api_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+            channel: '#security-alerts'
+            title: 'Security Alert'
+            color: 'danger'
+
+      - name: 'business-critical'
+        email_configs:
+          - to: 'executives@frontier.com'
+            subject: 'BUSINESS CRITICAL: {{ .GroupLabels.alertname }}'
+        slack_configs:
+          - api_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+            channel: '#business-critical'
+            title: 'Business Critical Alert'
+            color: 'danger'
+
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'service']
+
+---
+# Custom Metrics Exporter for Business Operations
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: business-ops-metrics-exporter
+  namespace: business-ops-monitoring
+  labels:
+    app: metrics-exporter
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: metrics-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      containers:
+        - name: business-ops-exporter
+          image: frontier/business-ops-metrics-exporter:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-secrets
+                  key: redis-url
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+---
+# Service for Custom Metrics Exporter
+apiVersion: v1
+kind: Service
+metadata:
+  name: business-ops-metrics-exporter
+  namespace: business-ops-monitoring
+  labels:
+    app: metrics-exporter
+spec:
+  selector:
+    app: metrics-exporter
+  ports:
+    - port: 9090
+      targetPort: 9090
+      name: metrics
+  type: ClusterIP

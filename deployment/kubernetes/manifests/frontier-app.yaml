@@ -1,0 +1,553 @@
+# Kubernetes Deployment Manifests for Frontier
+
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontier
+  labels:
+    name: frontier
+    environment: production
+---
+# API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-api
+  namespace: frontier
+  labels:
+    app: frontier-api
+    component: api
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-api
+  template:
+    metadata:
+      labels:
+        app: frontier-api
+        component: api
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: frontier-api-sa
+      containers:
+      - name: api
+        image: REGISTRY_URL/frontier/api:latest
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: redis-url
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: secret-key
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: aws-secret-access-key
+        - name: S3_BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: frontier-config
+              key: s3-bucket-name
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: app-logs
+          mountPath: /app/logs
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: app-logs
+        emptyDir: {}
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 30
+---
+# API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontier-api-service
+  namespace: frontier
+  labels:
+    app: frontier-api
+    component: api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: frontier-api
+---
+# Web Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-web
+  namespace: frontier
+  labels:
+    app: frontier-web
+    component: frontend
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-web
+  template:
+    metadata:
+      labels:
+        app: frontier-web
+        component: frontend
+        version: v1
+    spec:
+      containers:
+      - name: web
+        image: REGISTRY_URL/frontier/web:latest
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: frontier-config
+              key: api-url
+        - name: NEXT_PUBLIC_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: frontier-config
+              key: public-api-url
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+---
+# Web Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontier-web-service
+  namespace: frontier
+  labels:
+    app: frontier-web
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: frontier-web
+---
+# ML Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontier-ml
+  namespace: frontier
+  labels:
+    app: frontier-ml
+    component: ml-service
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: frontier-ml
+  template:
+    metadata:
+      labels:
+        app: frontier-ml
+        component: ml-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      nodeSelector:
+        workload: ml
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "ml"
+        effect: "NoSchedule"
+      containers:
+      - name: ml-service
+        image: REGISTRY_URL/frontier/ml:latest
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: MODEL_PATH
+          value: "/app/models"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: frontier-secrets
+              key: redis-url
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+            nvidia.com/gpu: "0"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: model-storage
+          mountPath: /app/models
+        - name: tmp
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: frontier-ml-pvc
+      - name: tmp
+        emptyDir: {}
+---
+# ML Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontier-ml-service
+  namespace: frontier
+  labels:
+    app: frontier-ml
+    component: ml-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: frontier-ml
+---
+# Configuration ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontier-config
+  namespace: frontier
+data:
+  api-url: "http://frontier-api-service"
+  public-api-url: "https://api.yourdomain.com"
+  s3-bucket-name: "frontier-app-bucket"
+  redis-host: "frontier-redis-service"
+  redis-port: "6379"
+  log-level: "INFO"
+  max-upload-size: "10MB"
+  session-timeout: "3600"
+---
+# Secrets (should be created separately with actual values)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: frontier-secrets
+  namespace: frontier
+type: Opaque
+data:
+  # Base64 encoded values (replace with actual values)
+  database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzcw==  # postgresql://user:pass@host:5432/db
+  redis-url: cmVkaXM6Ly9sb2NhbGhvc3Q6NjM3OQ==      # redis://localhost:6379
+  secret-key: c3VwZXItc2VjcmV0LWtleQ==              # super-secret-key
+  aws-access-key-id: QUtJQUlPU0ZPRE5ON0VYQU1QTEU=   # AKIAIOSFODNN7EXAMPLE
+  aws-secret-access-key: d0phbHJYVXRuRkVNSS9LN01ERU5HL2JQeFJmaUNZRVhBTVBMRUtFWQ== # wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+---
+# Service Account for API
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontier-api-sa
+  namespace: frontier
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT-ID:role/frontier-api-role
+---
+# Horizontal Pod Autoscaler for API
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontier-api-hpa
+  namespace: frontier
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontier-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+---
+# Horizontal Pod Autoscaler for Web
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontier-web-hpa
+  namespace: frontier
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontier-web
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# PersistentVolumeClaim for ML models
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frontier-ml-pvc
+  namespace: frontier
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp2
+  resources:
+    requests:
+      storage: 50Gi
+---
+# Network Policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontier-network-policy
+  namespace: frontier
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 8080
+  egress:
+  - {}
+---
+# Pod Disruption Budget for API
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontier-api-pdb
+  namespace: frontier
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: frontier-api
+---
+# Pod Disruption Budget for Web
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontier-web-pdb
+  namespace: frontier
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontier-web
+---
+# Pod Disruption Budget for ML
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontier-ml-pdb
+  namespace: frontier
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontier-ml

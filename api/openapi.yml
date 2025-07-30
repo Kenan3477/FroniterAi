@@ -1,0 +1,613 @@
+openapi: 3.0.3
+info:
+  title: Frontier API
+  description: |
+    Comprehensive API ecosystem for Frontier AI capabilities including visual design, 
+    self-improvement, code quality analysis, image generation, and audio/video processing.
+    
+    ## Authentication
+    This API uses JWT tokens for authentication. Obtain a token from the `/auth/login` endpoint
+    and include it in the `Authorization` header as `Bearer <token>`.
+    
+    ## Rate Limiting
+    Rate limits are enforced based on your subscription tier:
+    - **Free**: 100 requests/hour
+    - **Developer**: 1,000 requests/hour  
+    - **Professional**: 10,000 requests/hour
+    - **Enterprise**: Custom limits
+    
+    ## Error Handling
+    All endpoints return standard HTTP status codes with detailed error messages in JSON format.
+  version: 1.0.0
+  contact:
+    name: Frontier API Support
+    url: https://api.frontier.ai/support
+    email: support@frontier.ai
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.frontier.ai/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user and get JWT token
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh JWT token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required: [refreshToken]
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  # Visual Design Endpoints
+  /visual-design/brand-identity:
+    post:
+      tags: [Visual Design]
+      summary: Generate brand identity package
+      operationId: generateBrandIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandIdentityRequest'
+      responses:
+        '200':
+          description: Brand identity generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandIdentityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /visual-design/layouts:
+    post:
+      tags: [Visual Design]
+      summary: Generate responsive UI layouts
+      operationId: generateLayouts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayoutRequest'
+      responses:
+        '200':
+          description: Layouts generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+
+  /visual-design/mockups:
+    post:
+      tags: [Visual Design]
+      summary: Create website mockups
+      operationId: createMockups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockupRequest'
+      responses:
+        '200':
+          description: Mockups created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockupResponse'
+
+  # Self-Improvement Endpoints
+  /self-improvement/analyze:
+    post:
+      tags: [Self-Improvement]
+      summary: Analyze code/content for improvements
+      operationId: analyzeForImprovements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImprovementAnalysisRequest'
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImprovementAnalysisResponse'
+
+  /self-improvement/feedback:
+    post:
+      tags: [Self-Improvement]
+      summary: Submit execution feedback
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+
+  # Code Quality Endpoints
+  /code-quality/scan:
+    post:
+      tags: [Code Quality]
+      summary: Scan code for quality issues
+      operationId: scanCodeQuality
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeQualityScanRequest'
+      responses:
+        '200':
+          description: Code scan completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeQualityScanResponse'
+
+  /code-quality/refactor:
+    post:
+      tags: [Code Quality]
+      summary: Auto-refactor code improvements
+      operationId: refactorCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefactorRequest'
+      responses:
+        '200':
+          description: Code refactored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefactorResponse'
+
+  # Image Generation Endpoints
+  /image-generation/assets:
+    post:
+      tags: [Image Generation]
+      summary: Generate website assets from descriptions
+      operationId: generateAssets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetGenerationRequest'
+      responses:
+        '200':
+          description: Assets generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetGenerationResponse'
+
+  /image-generation/product-photos:
+    post:
+      tags: [Image Generation]
+      summary: Generate product photography
+      operationId: generateProductPhotos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPhotoRequest'
+      responses:
+        '200':
+          description: Product photos generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPhotoResponse'
+
+  # Audio/Video Processing Endpoints
+  /audio-video/scripts:
+    post:
+      tags: [Audio/Video]
+      summary: Generate video scripts and storyboards
+      operationId: generateVideoScripts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoScriptRequest'
+      responses:
+        '200':
+          description: Video script generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoScriptResponse'
+
+  /audio-video/voiceover:
+    post:
+      tags: [Audio/Video]
+      summary: Generate voiceover audio
+      operationId: generateVoiceover
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceoverRequest'
+      responses:
+        '200':
+          description: Voiceover generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceoverResponse'
+
+  /audio-video/analyze-calls:
+    post:
+      tags: [Audio/Video]
+      summary: Analyze customer calls for insights
+      operationId: analyzeCustomerCalls
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CallAnalysisRequest'
+      responses:
+        '200':
+          description: Call analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAnalysisResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Authentication Schemas
+    UserRegistration:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          example: securePassword123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        company:
+          type: string
+          example: Acme Corp
+        tier:
+          type: string
+          enum: [free, developer, professional, enterprise]
+          default: free
+
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: securePassword123
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Authentication successful
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            refreshToken:
+              type: string
+              example: def502004a8b7c...
+            user:
+              $ref: '#/components/schemas/User'
+            expiresIn:
+              type: integer
+              example: 86400
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 123e4567-e89b-12d3-a456-426614174000
+        email:
+          type: string
+          example: user@example.com
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        tier:
+          type: string
+          enum: [free, developer, professional, enterprise]
+        rateLimits:
+          type: object
+          properties:
+            requestsPerHour:
+              type: integer
+              example: 1000
+            requestsRemaining:
+              type: integer
+              example: 850
+
+    # Visual Design Schemas
+    BrandIdentityRequest:
+      type: object
+      required: [businessName, industry]
+      properties:
+        businessName:
+          type: string
+          example: TechCorp Solutions
+        industry:
+          type: string
+          example: Technology
+        description:
+          type: string
+          example: AI-powered business solutions
+        targetAudience:
+          type: string
+          example: Enterprise businesses
+        style:
+          type: string
+          enum: [modern, classic, minimalist, bold, elegant]
+          example: modern
+        colors:
+          type: array
+          items:
+            type: string
+          example: [blue, white, gray]
+
+    BrandIdentityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            logos:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    example: primary
+                  format:
+                    type: string
+                    example: svg
+                  url:
+                    type: string
+                    example: https://api.frontier.ai/assets/logo-primary.svg
+            colorPalette:
+              type: object
+              properties:
+                primary:
+                  type: string
+                  example: "#2563eb"
+                secondary:
+                  type: string
+                  example: "#64748b"
+                accent:
+                  type: string
+                  example: "#f59e0b"
+            typography:
+              type: object
+              properties:
+                heading:
+                  type: string
+                  example: Inter
+                body:
+                  type: string
+                  example: Open Sans
+
+    # Additional schemas would continue here for all other endpoints...
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid request parameters
+            details:
+              type: array
+              items:
+                type: string
+              example: ["Email is required", "Password must be at least 8 characters"]
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per hour
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Requests remaining in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Visual Design
+    description: Brand identity, layouts, and mockup generation
+  - name: Self-Improvement
+    description: AI system learning and improvement capabilities
+  - name: Code Quality
+    description: Code analysis, scanning, and refactoring
+  - name: Image Generation
+    description: AI-powered image and asset creation
+  - name: Audio/Video
+    description: Multimedia content generation and processing

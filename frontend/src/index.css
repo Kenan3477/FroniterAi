@@ -1,0 +1,213 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-lg;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Chat message animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.message-slide-in {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.typing-indicator {
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-indicator:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Glass morphism effect */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-morphism-dark {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Feature card hover effects */
+.feature-card {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.feature-card:hover {
+  @apply transform scale-105 shadow-xl;
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Message bubble styling */
+.message-bubble {
+  @apply max-w-[80%] px-4 py-3 rounded-2xl;
+}
+
+.message-bubble-user {
+  @apply bg-blue-600 text-white ml-auto;
+  border-bottom-right-radius: 0.375rem;
+}
+
+.message-bubble-ai {
+  @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100;
+  border-bottom-left-radius: 0.375rem;
+}
+
+/* Code highlighting */
+.code-block {
+  @apply bg-gray-900 rounded-lg p-4 overflow-x-auto;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
+}
+
+/* Responsive grid */
+.responsive-grid {
+  @apply grid gap-6;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+/* Custom focus states */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
+}
+
+/* Tool suggestion animations */
+.tool-suggestion {
+  @apply transform transition-all duration-200 ease-in-out;
+}
+
+.tool-suggestion:hover {
+  @apply scale-102 shadow-lg;
+}
+
+/* Conversation history styling */
+.conversation-history {
+  @apply space-y-4 max-h-96 overflow-y-auto;
+}
+
+/* Dark mode transitions */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Custom utility classes */
+.text-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-gradient {
+  border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .mobile-chat {
+    @apply fixed inset-0 z-50 bg-white dark:bg-gray-900;
+  }
+  
+  .mobile-feature-grid {
+    @apply grid-cols-1 gap-4;
+  }
+  
+  .mobile-sidebar {
+    @apply transform transition-transform duration-300 ease-in-out;
+  }
+  
+  .mobile-sidebar-hidden {
+    @apply -translate-x-full;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .message-bubble-user {
+    @apply border-2 border-blue-800;
+  }
+  
+  .message-bubble-ai {
+    @apply border-2 border-gray-800 dark:border-gray-200;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    @apply hidden;
+  }
+  
+  .print-only {
+    @apply block;
+  }
+}

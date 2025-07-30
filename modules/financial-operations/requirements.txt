@@ -1,0 +1,93 @@
+# Financial Operations Module Dependencies
+
+# Core Python packages
+asyncio>=3.4.3
+aiohttp>=3.8.0
+dataclasses>=0.8
+datetime
+decimal
+enum34>=1.1.10
+typing>=3.7.4
+uuid>=1.30
+json5>=0.9.6
+
+# Data processing and analysis
+pandas>=1.5.0
+numpy>=1.21.0
+scipy>=1.9.0
+scikit-learn>=1.1.0
+
+# Financial and mathematical libraries
+python-dateutil>=2.8.2
+pytz>=2022.1
+holidays>=0.16
+
+# OCR and image processing
+Pillow>=9.2.0
+pytesseract>=0.3.10
+opencv-python>=4.6.0
+pdf2image>=1.16.0
+
+# Machine learning and AI
+tensorflow>=2.10.0
+transformers>=4.21.0
+torch>=1.12.0
+spacy>=3.4.0
+
+# Database and caching
+redis>=4.3.4
+sqlalchemy>=1.4.40
+psycopg2-binary>=2.9.3
+pymongo>=4.2.0
+
+# API and web frameworks
+fastapi>=0.85.0
+uvicorn>=0.18.0
+pydantic>=1.10.0
+requests>=2.28.0
+
+# Security and encryption
+cryptography>=37.0.4
+bcrypt>=3.2.2
+PyJWT>=2.4.0
+
+# Configuration and environment
+python-dotenv>=0.20.0
+PyYAML>=6.0
+configparser>=5.2.0
+
+# Logging and monitoring
+structlog>=22.1.0
+prometheus-client>=0.14.1
+sentry-sdk>=1.9.8
+
+# Testing
+pytest>=7.1.2
+pytest-asyncio>=0.19.0
+pytest-cov>=3.0.0
+pytest-mock>=3.8.2
+factory-boy>=3.2.1
+
+# Development tools
+black>=22.6.0
+flake8>=5.0.4
+mypy>=0.971
+pre-commit>=2.20.0
+
+# Documentation
+sphinx>=5.1.1
+sphinx-rtd-theme>=1.0.0
+
+# Financial data providers (optional)
+yfinance>=0.1.74
+alpha-vantage>=2.3.1
+quandl>=3.7.0
+
+# Accounting software integrations (optional)
+quickbooks-online>=0.6.0
+xero-python>=1.0.0
+
+# Cloud services (optional)
+boto3>=1.24.59  # AWS
+google-cloud-storage>=2.5.0  # Google Cloud
+azure-storage-blob>=12.12.0  # Azure

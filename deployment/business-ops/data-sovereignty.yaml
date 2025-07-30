@@ -1,0 +1,565 @@
+# Data Sovereignty and Compliance Configuration for Business Operations
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-sovereignty-config
+  namespace: business-ops
+  labels:
+    app: business-ops
+    component: compliance
+data:
+  regions.yaml: |
+    # Regional compliance configuration
+    regions:
+      us-east-1:
+        jurisdiction: "United States"
+        compliance_frameworks:
+          - SOX
+          - CCPA
+          - GLBA
+        data_residency: true
+        encryption_requirements:
+          - AES-256
+          - TLS-1.3
+        audit_retention_days: 2555  # 7 years for SOX
+        
+      eu-west-1:
+        jurisdiction: "European Union"
+        compliance_frameworks:
+          - GDPR
+          - PCI-DSS
+          - MiFID-II
+        data_residency: true
+        encryption_requirements:
+          - AES-256
+          - TLS-1.3
+        audit_retention_days: 2190  # 6 years for GDPR
+        
+      asia-pacific-1:
+        jurisdiction: "Singapore"
+        compliance_frameworks:
+          - PDPA
+          - MAS-TRM
+          - PCI-DSS
+        data_residency: true
+        encryption_requirements:
+          - AES-256
+          - TLS-1.3
+        audit_retention_days: 1825  # 5 years for PDPA
+
+  data-classification.yaml: |
+    # Data classification and handling rules
+    data_classifications:
+      public:
+        encryption_required: false
+        geographical_restrictions: []
+        retention_days: 365
+        
+      internal:
+        encryption_required: true
+        geographical_restrictions: []
+        retention_days: 1825
+        
+      confidential:
+        encryption_required: true
+        geographical_restrictions: ["home_region"]
+        retention_days: 2555
+        access_controls:
+          - rbac_required: true
+          - mfa_required: true
+          
+      restricted:
+        encryption_required: true
+        geographical_restrictions: ["home_region"]
+        retention_days: 2555
+        access_controls:
+          - rbac_required: true
+          - mfa_required: true
+          - approval_required: true
+        audit_all_access: true
+
+---
+# GDPR Compliance Deployment (EU Region)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: business-ops-api-eu
+  namespace: business-ops-eu
+  labels:
+    app: business-ops-api
+    region: eu-west-1
+    compliance: gdpr
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: business-ops-api
+      region: eu-west-1
+  template:
+    metadata:
+      labels:
+        app: business-ops-api
+        region: eu-west-1
+        compliance: gdpr
+      annotations:
+        compliance.frontier.io/frameworks: "GDPR,PCI-DSS,MiFID-II"
+        compliance.frontier.io/data-residency: "eu-west-1"
+        compliance.frontier.io/encryption: "AES-256"
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/region: eu-west-1
+        compliance.frontier.io/gdpr-compliant: "true"
+      tolerations:
+        - key: "compliance.frontier.io/gdpr"
+          operator: "Equal"
+          value: "required"
+          effect: "NoSchedule"
+      containers:
+        - name: api
+          image: frontier/business-ops-api:latest
+          env:
+            - name: REGION
+              value: "eu-west-1"
+            - name: COMPLIANCE_FRAMEWORKS
+              value: "GDPR,PCI-DSS,MiFID-II"
+            - name: DATA_RESIDENCY_ENABLED
+              value: "true"
+            - name: ENCRYPTION_LEVEL
+              value: "AES-256"
+            - name: AUDIT_LEVEL
+              value: "FULL"
+            - name: GDPR_CONSENT_REQUIRED
+              value: "true"
+            - name: RIGHT_TO_ERASURE_ENABLED
+              value: "true"
+            - name: DATA_PORTABILITY_ENABLED
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+# SOX Compliance Deployment (US Region)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: business-ops-api-us
+  namespace: business-ops-us
+  labels:
+    app: business-ops-api
+    region: us-east-1
+    compliance: sox
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: business-ops-api
+      region: us-east-1
+  template:
+    metadata:
+      labels:
+        app: business-ops-api
+        region: us-east-1
+        compliance: sox
+      annotations:
+        compliance.frontier.io/frameworks: "SOX,CCPA,GLBA"
+        compliance.frontier.io/data-residency: "us-east-1"
+        compliance.frontier.io/encryption: "AES-256"
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/region: us-east-1
+        compliance.frontier.io/sox-compliant: "true"
+      tolerations:
+        - key: "compliance.frontier.io/sox"
+          operator: "Equal"
+          value: "required"
+          effect: "NoSchedule"
+      containers:
+        - name: api
+          image: frontier/business-ops-api:latest
+          env:
+            - name: REGION
+              value: "us-east-1"
+            - name: COMPLIANCE_FRAMEWORKS
+              value: "SOX,CCPA,GLBA"
+            - name: DATA_RESIDENCY_ENABLED
+              value: "true"
+            - name: ENCRYPTION_LEVEL
+              value: "AES-256"
+            - name: AUDIT_LEVEL
+              value: "FULL"
+            - name: FINANCIAL_CONTROLS_ENABLED
+              value: "true"
+            - name: SEGREGATION_OF_DUTIES
+              value: "true"
+            - name: CHANGE_MANAGEMENT_REQUIRED
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+# Data Residency Enforcement Policy
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-data-residency
+  labels:
+    component: compliance
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+    - name: check-node-region
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - business-ops-*
+      validate:
+        message: "Pod must be scheduled on nodes in the correct region for data residency compliance"
+        pattern:
+          spec:
+            nodeSelector:
+              topology.kubernetes.io/region: "{{ request.object.metadata.annotations.\"compliance.frontier.io/data-residency\" }}"
+    
+    - name: require-compliance-annotations
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+              namespaces:
+                - business-ops-*
+      validate:
+        message: "Compliance annotations are required for business operations workloads"
+        pattern:
+          metadata:
+            annotations:
+              compliance.frontier.io/frameworks: "?*"
+              compliance.frontier.io/data-residency: "?*"
+              compliance.frontier.io/encryption: "?*"
+
+---
+# GDPR Data Processing Record
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gdpr-data-processing-record
+  namespace: business-ops-eu
+  labels:
+    compliance: gdpr
+    component: data-protection
+data:
+  processing-record.json: |
+    {
+      "controller": {
+        "name": "Frontier Business Operations",
+        "contact": "dpo@frontier.com",
+        "representative": "EU Representative Contact"
+      },
+      "purposes": [
+        {
+          "purpose": "Financial Transaction Processing",
+          "legal_basis": "Contract",
+          "categories_of_data": ["Financial", "Transactional", "Identity"],
+          "recipients": ["Payment Processors", "Financial Institutions"],
+          "retention_period": "7 years",
+          "transfers": []
+        },
+        {
+          "purpose": "Compliance Monitoring",
+          "legal_basis": "Legal Obligation",
+          "categories_of_data": ["Transaction Logs", "Audit Trails"],
+          "recipients": ["Regulatory Authorities"],
+          "retention_period": "6 years",
+          "transfers": []
+        }
+      ],
+      "data_subjects": {
+        "categories": ["Customers", "Employees", "Business Partners"],
+        "rights": [
+          "Right of Access",
+          "Right to Rectification",
+          "Right to Erasure",
+          "Right to Data Portability",
+          "Right to Object"
+        ]
+      }
+    }
+
+---
+# Cross-Border Data Transfer Restrictions
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-residency-enforcement
+  namespace: business-ops-eu
+  labels:
+    compliance: gdpr
+    component: network-security
+spec:
+  podSelector:
+    matchLabels:
+      app: business-ops-api
+      region: eu-west-1
+  policyTypes:
+    - Egress
+  egress:
+    # Allow communication within EU region only
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              region: eu-west-1
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    
+    # Allow communication to approved third-party services in EU
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+      # Additional egress rules would specify approved IP ranges
+
+---
+# PCI DSS Compliance Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pci-dss-config
+  namespace: business-ops
+  labels:
+    compliance: pci-dss
+    component: security
+data:
+  requirements.yaml: |
+    pci_dss_requirements:
+      requirement_1:
+        description: "Install and maintain a firewall configuration"
+        controls:
+          - network_policies_enabled: true
+          - ingress_filtering: true
+          - egress_filtering: true
+      
+      requirement_2:
+        description: "Do not use vendor-supplied defaults"
+        controls:
+          - default_passwords_changed: true
+          - unnecessary_services_disabled: true
+          - secure_configurations: true
+      
+      requirement_3:
+        description: "Protect stored cardholder data"
+        controls:
+          - encryption_at_rest: "AES-256"
+          - encryption_in_transit: "TLS-1.3"
+          - key_management: "HSM"
+      
+      requirement_4:
+        description: "Encrypt transmission of cardholder data"
+        controls:
+          - strong_cryptography: "TLS-1.3"
+          - certificate_validation: true
+      
+      requirement_6:
+        description: "Develop secure systems and applications"
+        controls:
+          - vulnerability_scanning: true
+          - penetration_testing: true
+          - secure_coding_standards: true
+      
+      requirement_10:
+        description: "Track and monitor all access"
+        controls:
+          - audit_logging: true
+          - log_integrity: true
+          - log_review: true
+
+---
+# Compliance Audit CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: compliance-audit
+  namespace: business-ops
+  labels:
+    app: compliance-audit
+    component: monitoring
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: compliance-audit
+        spec:
+          serviceAccountName: compliance-audit-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: audit
+              image: frontier/compliance-audit:latest
+              command:
+                - python
+                - /app/compliance_audit.py
+              env:
+                - name: COMPLIANCE_FRAMEWORKS
+                  value: "GDPR,SOX,PCI-DSS"
+                - name: AUDIT_LEVEL
+                  value: "FULL"
+                - name: RETENTION_DAYS
+                  value: "2555"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+
+---
+# Data Retention Policy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-retention-policy
+  namespace: business-ops
+  labels:
+    component: compliance
+data:
+  retention-policy.yaml: |
+    retention_policies:
+      financial_transactions:
+        retention_period_days: 2555  # 7 years for SOX compliance
+        encryption_required: true
+        deletion_method: "secure_overwrite"
+        compliance_frameworks: ["SOX", "GLBA"]
+      
+      audit_logs:
+        retention_period_days: 2190  # 6 years for GDPR
+        encryption_required: true
+        deletion_method: "secure_overwrite"
+        compliance_frameworks: ["GDPR", "SOX", "PCI-DSS"]
+      
+      personal_data:
+        retention_period_days: 1095  # 3 years or consent withdrawal
+        encryption_required: true
+        deletion_method: "secure_overwrite"
+        right_to_erasure: true
+        compliance_frameworks: ["GDPR"]
+      
+      payment_card_data:
+        retention_period_days: 365   # 1 year maximum for PCI-DSS
+        encryption_required: true
+        deletion_method: "cryptographic_erase"
+        compliance_frameworks: ["PCI-DSS"]
+
+---
+# Data Protection Impact Assessment (DPIA) Record
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dpia-record
+  namespace: business-ops-eu
+  labels:
+    compliance: gdpr
+    component: data-protection
+data:
+  dpia.json: |
+    {
+      "assessment_date": "2024-01-01",
+      "processing_operation": "Business Operations Financial Processing",
+      "high_risk_factors": [
+        "Large scale processing of financial data",
+        "Automated decision making for credit assessments",
+        "Cross-border data transfers"
+      ],
+      "risks_identified": [
+        {
+          "risk": "Unauthorized access to financial data",
+          "likelihood": "Medium",
+          "severity": "High",
+          "mitigation": "Multi-layer encryption and access controls"
+        },
+        {
+          "risk": "Data breach during transfer",
+          "likelihood": "Low",
+          "severity": "High",
+          "mitigation": "End-to-end encryption and VPN tunneling"
+        }
+      ],
+      "safeguards": [
+        "AES-256 encryption at rest",
+        "TLS 1.3 encryption in transit",
+        "Multi-factor authentication",
+        "Regular security audits",
+        "Data anonymization where possible"
+      ],
+      "consultation": {
+        "dpo_consulted": true,
+        "data_subjects_consulted": false,
+        "supervisory_authority_consulted": false
+      }
+    }
+
+---
+# Regional Service Monitor for Compliance
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: compliance-monitoring
+  namespace: business-ops
+  labels:
+    app: compliance-monitor
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: business-ops-api
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics/compliance
+      params:
+        format: ['prometheus']

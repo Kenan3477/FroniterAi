@@ -1,0 +1,93 @@
+# Jaeger Helm Chart Values
+provisionDataStore:
+  cassandra: false
+  elasticsearch: true
+
+storage:
+  type: "${jaeger_storage_type}"
+  elasticsearch:
+    host: elasticsearch-master
+    port: 9200
+    scheme: http
+    user: ""
+    password: ""
+
+agent:
+  enabled: true
+  daemonset:
+    useHostNetwork: true
+
+collector:
+  enabled: true
+  service:
+    type: ClusterIP
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+query:
+  enabled: true
+  service:
+    type: ClusterIP
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: "alb"
+      alb.ingress.kubernetes.io/scheme: "internet-facing"
+      alb.ingress.kubernetes.io/target-type: "ip"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:region:account:certificate/certificate-id"
+    hosts:
+      - "${jaeger_ingress_host}"
+
+hotrod:
+  enabled: false
+
+esIndexCleaner:
+  enabled: true
+  numberOfDays: 7
+  schedule: "55 23 * * *"
+  image: jaegertracing/jaeger-es-index-cleaner
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+esRollover:
+  enabled: true
+  schedule: "10 0 * * *"
+  conditions: '{"max_age": "1d"}'
+  image: jaegertracing/jaeger-es-rollover
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+nodeSelector:
+  node-type: monitoring
+
+tolerations:
+  - key: "monitoring"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"

@@ -1,0 +1,409 @@
+[
+  {
+    "id": "lead_tech_001",
+    "name": "DataFlow Analytics",
+    "industry": "Industry.TECHNOLOGY",
+    "size": "CompanySize.MEDIUM",
+    "location": "San Francisco, CA",
+    "website": "https://dataflow-analytics.com",
+    "description": "Business intelligence platform for mid-market companies",
+    "primary_contact_name": "Sarah Mitchell",
+    "primary_contact_email": "sarah.mitchell@dataflow-analytics.com",
+    "primary_contact_phone": "+1-415-555-1001",
+    "primary_contact_title": "VP of Product",
+    "linkedin_profile": "",
+    "annual_revenue": 15000000,
+    "employee_count": 85,
+    "year_founded": 2018,
+    "business_model": "B2B",
+    "current_tools": [
+      "Tableau",
+      "Salesforce",
+      "Excel",
+      "Google Analytics"
+    ],
+    "tech_stack": [
+      "Python",
+      "React",
+      "PostgreSQL",
+      "AWS"
+    ],
+    "api_usage_experience": "advanced",
+    "data_analytics_maturity": "advanced",
+    "pain_points": [
+      "Manual financial analysis for clients",
+      "Time-consuming market research",
+      "Lack of standardized competitive analysis"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "market_research",
+      "competitive_analysis"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "high",
+    "timeline_to_decide": "<3months",
+    "lead_score": 76,
+    "fit_score": 76.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_tech_002",
+    "name": "CloudScale Solutions",
+    "industry": "Industry.TECHNOLOGY",
+    "size": "CompanySize.SMALL",
+    "location": "Austin, TX",
+    "website": "https://cloudscale.com",
+    "description": "Cloud infrastructure automation for startups",
+    "primary_contact_name": "Marcus Chen",
+    "primary_contact_email": "marcus@cloudscale.com",
+    "primary_contact_phone": "+1-512-555-1002",
+    "primary_contact_title": "Co-founder & CTO",
+    "linkedin_profile": "",
+    "annual_revenue": 3500000,
+    "employee_count": 25,
+    "year_founded": 2020,
+    "business_model": "B2B",
+    "current_tools": [
+      "Excel",
+      "Stripe",
+      "Mixpanel",
+      "Slack"
+    ],
+    "tech_stack": [
+      "Node.js",
+      "React",
+      "MongoDB",
+      "GCP"
+    ],
+    "api_usage_experience": "advanced",
+    "data_analytics_maturity": "intermediate",
+    "pain_points": [
+      "Manual investor reporting",
+      "Inconsistent financial modeling",
+      "Need better strategic planning tools"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "strategic_planning",
+      "valuation"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "medium",
+    "timeline_to_decide": "3-6months",
+    "lead_score": 66,
+    "fit_score": 66.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_fin_001",
+    "name": "Regional Investment Partners",
+    "industry": "Industry.FINANCE",
+    "size": "CompanySize.MEDIUM",
+    "location": "Boston, MA",
+    "website": "https://regionalinvest.com",
+    "description": "Investment advisory firm for high-net-worth individuals",
+    "primary_contact_name": "Jennifer Walsh",
+    "primary_contact_email": "j.walsh@regionalinvest.com",
+    "primary_contact_phone": "+1-617-555-2001",
+    "primary_contact_title": "Managing Partner",
+    "linkedin_profile": "",
+    "annual_revenue": 25000000,
+    "employee_count": 45,
+    "year_founded": 2015,
+    "business_model": "B2B",
+    "current_tools": [
+      "Bloomberg Terminal",
+      "Excel",
+      "PowerBI",
+      "Salesforce"
+    ],
+    "tech_stack": [
+      "Microsoft Stack",
+      "SQL Server"
+    ],
+    "api_usage_experience": "intermediate",
+    "data_analytics_maturity": "advanced",
+    "pain_points": [
+      "Time-intensive client portfolio analysis",
+      "Manual market research compilation",
+      "Inconsistent valuation methodologies"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "valuation",
+      "market_research"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "high",
+    "timeline_to_decide": "<3months",
+    "lead_score": 72,
+    "fit_score": 72.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_fin_002",
+    "name": "FinTech Growth Capital",
+    "industry": "Industry.FINANCE",
+    "size": "CompanySize.SMALL",
+    "location": "New York, NY",
+    "website": "https://fintechgrowth.com",
+    "description": "Venture capital focused on fintech startups",
+    "primary_contact_name": "David Rodriguez",
+    "primary_contact_email": "david@fintechgrowth.com",
+    "primary_contact_phone": "+1-212-555-2002",
+    "primary_contact_title": "Principal",
+    "linkedin_profile": "",
+    "annual_revenue": 8000000,
+    "employee_count": 15,
+    "year_founded": 2019,
+    "business_model": "B2B",
+    "current_tools": [
+      "Excel",
+      "PitchBook",
+      "Airtable",
+      "Slack"
+    ],
+    "tech_stack": [
+      "Google Workspace",
+      "Python"
+    ],
+    "api_usage_experience": "intermediate",
+    "data_analytics_maturity": "intermediate",
+    "pain_points": [
+      "Manual due diligence processes",
+      "Inconsistent startup valuation",
+      "Time-consuming market analysis"
+    ],
+    "use_case_fit": [
+      "valuation",
+      "market_research",
+      "competitive_analysis"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "medium",
+    "timeline_to_decide": "3-6months",
+    "lead_score": 66,
+    "fit_score": 66.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_health_001",
+    "name": "MedTech Innovations",
+    "industry": "Industry.HEALTHCARE",
+    "size": "CompanySize.MEDIUM",
+    "location": "San Diego, CA",
+    "website": "https://medtech-innovations.com",
+    "description": "Medical device development and manufacturing",
+    "primary_contact_name": "Dr. Lisa Anderson",
+    "primary_contact_email": "landerson@medtech-innovations.com",
+    "primary_contact_phone": "+1-858-555-3001",
+    "primary_contact_title": "VP of Strategy",
+    "linkedin_profile": "",
+    "annual_revenue": 40000000,
+    "employee_count": 120,
+    "year_founded": 2012,
+    "business_model": "B2B",
+    "current_tools": [
+      "Excel",
+      "SAP",
+      "Tableau",
+      "Salesforce"
+    ],
+    "tech_stack": [
+      "Java",
+      "Oracle",
+      "AWS"
+    ],
+    "api_usage_experience": "beginner",
+    "data_analytics_maturity": "intermediate",
+    "pain_points": [
+      "Complex regulatory financial reporting",
+      "Manual competitive analysis",
+      "Inefficient strategic planning processes"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "strategic_planning",
+      "competitive_analysis"
+    ],
+    "decision_maker_access": false,
+    "budget_authority": "medium",
+    "timeline_to_decide": "3-6months",
+    "lead_score": 66,
+    "fit_score": 66.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_mfg_001",
+    "name": "Precision Manufacturing Corp",
+    "industry": "Industry.MANUFACTURING",
+    "size": "CompanySize.LARGE",
+    "location": "Milwaukee, WI",
+    "website": "https://precisionmfg.com",
+    "description": "Precision machining and assembly for aerospace",
+    "primary_contact_name": "Robert Thompson",
+    "primary_contact_email": "rthompson@precisionmfg.com",
+    "primary_contact_phone": "+1-414-555-4001",
+    "primary_contact_title": "CFO",
+    "linkedin_profile": "",
+    "annual_revenue": 75000000,
+    "employee_count": 350,
+    "year_founded": 1995,
+    "business_model": "B2B",
+    "current_tools": [
+      "Excel",
+      "SAP",
+      "PowerBI",
+      "AutoCAD"
+    ],
+    "tech_stack": [
+      "Microsoft Stack",
+      ".NET",
+      "SQL Server"
+    ],
+    "api_usage_experience": "beginner",
+    "data_analytics_maturity": "basic",
+    "pain_points": [
+      "Manual financial analysis and reporting",
+      "Lack of industry benchmarking",
+      "Time-consuming budget planning"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "industry_benchmarks"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "high",
+    "timeline_to_decide": "3-6months",
+    "lead_score": 55,
+    "fit_score": 55.00000000000001,
+    "engagement_score": 0.0,
+    "qualification_status": "unqualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_consult_001",
+    "name": "Strategic Growth Advisors",
+    "industry": "Industry.CONSULTING",
+    "size": "CompanySize.SMALL",
+    "location": "Chicago, IL",
+    "website": "https://strategicgrowth.com",
+    "description": "Management consulting for mid-market companies",
+    "primary_contact_name": "Emily Watson",
+    "primary_contact_email": "ewatson@strategicgrowth.com",
+    "primary_contact_phone": "+1-312-555-5001",
+    "primary_contact_title": "Managing Director",
+    "linkedin_profile": "",
+    "annual_revenue": 12000000,
+    "employee_count": 30,
+    "year_founded": 2017,
+    "business_model": "B2B",
+    "current_tools": [
+      "Excel",
+      "PowerPoint",
+      "Tableau",
+      "Salesforce"
+    ],
+    "tech_stack": [
+      "Microsoft Office",
+      "Google Workspace"
+    ],
+    "api_usage_experience": "intermediate",
+    "data_analytics_maturity": "advanced",
+    "pain_points": [
+      "Time-intensive client research",
+      "Manual financial modeling for clients",
+      "Inconsistent competitive analysis methodology"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "strategic_planning",
+      "market_research",
+      "competitive_analysis"
+    ],
+    "decision_maker_access": true,
+    "budget_authority": "high",
+    "timeline_to_decide": "<3months",
+    "lead_score": 76,
+    "fit_score": 76.0,
+    "engagement_score": 0.0,
+    "qualification_status": "qualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  },
+  {
+    "id": "lead_retail_001",
+    "name": "Urban Fashion Collective",
+    "industry": "Industry.RETAIL",
+    "size": "CompanySize.MEDIUM",
+    "location": "Los Angeles, CA",
+    "website": "https://urbanfashion.com",
+    "description": "Multi-brand fashion retailer with online and physical stores",
+    "primary_contact_name": "Maria Gonzalez",
+    "primary_contact_email": "mgonzalez@urbanfashion.com",
+    "primary_contact_phone": "+1-323-555-6001",
+    "primary_contact_title": "VP of Operations",
+    "linkedin_profile": "",
+    "annual_revenue": 18000000,
+    "employee_count": 65,
+    "year_founded": 2014,
+    "business_model": "B2C",
+    "current_tools": [
+      "Shopify",
+      "Excel",
+      "Google Analytics",
+      "Mailchimp"
+    ],
+    "tech_stack": [
+      "PHP",
+      "MySQL",
+      "Shopify Plus"
+    ],
+    "api_usage_experience": "beginner",
+    "data_analytics_maturity": "intermediate",
+    "pain_points": [
+      "Manual financial analysis across channels",
+      "Lack of competitive pricing insights",
+      "Time-consuming market trend research"
+    ],
+    "use_case_fit": [
+      "financial_analysis",
+      "market_research",
+      "competitive_analysis"
+    ],
+    "decision_maker_access": false,
+    "budget_authority": "medium",
+    "timeline_to_decide": "3-6months",
+    "lead_score": 57,
+    "fit_score": 56.99999999999999,
+    "engagement_score": 0.0,
+    "qualification_status": "unqualified",
+    "first_contact_date": null,
+    "last_interaction_date": null,
+    "interaction_history": []
+  }
+]

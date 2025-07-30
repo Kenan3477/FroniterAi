@@ -1,0 +1,524 @@
+# Business Operations Module - Scaling Policies Configuration
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-ops-scaling-config
+  namespace: business-ops
+  labels:
+    app: business-ops
+    component: scaling
+data:
+  scaling-policies.yaml: |
+    # Horizontal Pod Autoscaler configurations for business operations services
+    
+    api_service:
+      min_replicas: 2
+      max_replicas: 20
+      target_cpu_utilization: 70
+      target_memory_utilization: 80
+      scale_up_stabilization: 60s
+      scale_down_stabilization: 300s
+      behavior:
+        scale_up:
+          stabilization_window_seconds: 60
+          policies:
+            - type: Percent
+              value: 100
+              period_seconds: 60
+            - type: Pods
+              value: 2
+              period_seconds: 60
+        scale_down:
+          stabilization_window_seconds: 300
+          policies:
+            - type: Percent
+              value: 50
+              period_seconds: 60
+    
+    ml_service:
+      min_replicas: 1
+      max_replicas: 10
+      target_cpu_utilization: 80
+      target_memory_utilization: 85
+      scale_up_stabilization: 120s
+      scale_down_stabilization: 600s
+      custom_metrics:
+        - name: model_inference_queue_length
+          target_value: "10"
+        - name: gpu_utilization
+          target_value: "75"
+    
+    database:
+      # Vertical scaling for database
+      resource_scaling:
+        cpu_thresholds:
+          scale_up: 85
+          scale_down: 30
+        memory_thresholds:
+          scale_up: 90
+          scale_down: 40
+        storage_thresholds:
+          scale_up: 85
+          alert: 95
+
+---
+# API Service HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: business-ops-api-hpa
+  namespace: business-ops
+  labels:
+    app: business-ops-api
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: business-ops-api
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    
+    # Custom metrics - API request rate
+    - type: Pods
+      pods:
+        metric:
+          name: api_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+    
+    # Custom metrics - Response time
+    - type: Pods
+      pods:
+        metric:
+          name: api_response_time_p95
+        target:
+          type: AverageValue
+          averageValue: "2000m" # 2 seconds
+  
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+
+---
+# ML Service HPA with GPU considerations
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: business-ops-ml-hpa
+  namespace: business-ops
+  labels:
+    app: business-ops-ml
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: business-ops-ml
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85
+    
+    # Custom metrics - Model inference queue
+    - type: Pods
+      pods:
+        metric:
+          name: ml_inference_queue_length
+        target:
+          type: AverageValue
+          averageValue: "10"
+    
+    # Custom metrics - GPU utilization
+    - type: Pods
+      pods:
+        metric:
+          name: gpu_utilization_percentage
+        target:
+          type: AverageValue
+          averageValue: "75"
+  
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120 # Longer for ML workloads
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 120
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Max
+    
+    scaleDown:
+      stabilizationWindowSeconds: 600 # Much longer for ML
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 120
+      selectPolicy: Min
+
+---
+# Vertical Pod Autoscaler for Database
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: business-ops-database-vpa
+  namespace: business-ops
+  labels:
+    app: business-ops-database
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: business-ops-database
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: postgresql
+        minAllowed:
+          cpu: 250m
+          memory: 512Mi
+        maxAllowed:
+          cpu: 4000m
+          memory: 8Gi
+        controlledResources: ["cpu", "memory"]
+        controlledValues: RequestsAndLimits
+
+---
+# Pod Disruption Budget for API Service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: business-ops-api-pdb
+  namespace: business-ops
+  labels:
+    app: business-ops-api
+    component: availability
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: business-ops-api
+
+---
+# Pod Disruption Budget for ML Service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: business-ops-ml-pdb
+  namespace: business-ops
+  labels:
+    app: business-ops-ml
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: business-ops-ml
+
+---
+# Cluster Autoscaler Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-autoscaler-business-ops
+  namespace: kube-system
+  labels:
+    app: cluster-autoscaler
+    component: business-ops
+data:
+  business-ops-node-pool.yaml: |
+    # Node pool configuration for business operations workloads
+    
+    general_compute:
+      instance_types:
+        - m5.large      # 2 vCPU, 8 GB RAM
+        - m5.xlarge     # 4 vCPU, 16 GB RAM
+        - m5.2xlarge    # 8 vCPU, 32 GB RAM
+      min_nodes: 2
+      max_nodes: 20
+      target_utilization: 75
+      labels:
+        workload-type: general
+        node-pool: business-ops-general
+    
+    ml_compute:
+      instance_types:
+        - p3.2xlarge    # 8 vCPU, 61 GB RAM, 1 GPU
+        - p3.8xlarge    # 32 vCPU, 244 GB RAM, 4 GPU
+      min_nodes: 0
+      max_nodes: 5
+      target_utilization: 80
+      labels:
+        workload-type: ml
+        node-pool: business-ops-ml
+        accelerator: nvidia-tesla-v100
+      taints:
+        - key: nvidia.com/gpu
+          value: "true"
+          effect: NoSchedule
+    
+    database:
+      instance_types:
+        - r5.large      # 2 vCPU, 16 GB RAM
+        - r5.xlarge     # 4 vCPU, 32 GB RAM
+        - r5.2xlarge    # 8 vCPU, 64 GB RAM
+      min_nodes: 1
+      max_nodes: 3
+      target_utilization: 70
+      labels:
+        workload-type: database
+        node-pool: business-ops-database
+        storage-optimized: "true"
+
+---
+# KEDA ScaledObject for Queue-based Scaling
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: business-ops-queue-scaler
+  namespace: business-ops
+  labels:
+    app: business-ops-api
+    component: queue-scaling
+spec:
+  scaleTargetRef:
+    name: business-ops-api
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 2
+  maxReplicaCount: 50
+  triggers:
+    # Redis queue length trigger
+    - type: redis
+      metadata:
+        address: business-ops-redis:6379
+        listName: financial_analysis_queue
+        listLength: "10"
+        passwordFromEnv: REDIS_PASSWORD
+    
+    # Prometheus metrics trigger
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus:9090
+        metricName: business_ops_pending_requests
+        threshold: "100"
+        query: sum(rate(http_requests_total{job="business-ops-api",status="pending"}[1m]))
+
+---
+# Priority Classes for Different Workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: business-ops-critical
+  labels:
+    component: scheduling
+value: 1000
+globalDefault: false
+description: "Critical business operations workloads"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: business-ops-high
+  labels:
+    component: scheduling
+value: 500
+globalDefault: false
+description: "High priority business operations workloads"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: business-ops-normal
+  labels:
+    component: scheduling
+value: 100
+globalDefault: false
+description: "Normal priority business operations workloads"
+
+---
+# Resource Quotas by Environment
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: business-ops-quota-prod
+  namespace: business-ops-prod
+  labels:
+    environment: production
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    requests.storage: 1Ti
+    limits.cpu: "100"
+    limits.memory: 200Gi
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: business-ops-quota-staging
+  namespace: business-ops-staging
+  labels:
+    environment: staging
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    requests.storage: 500Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "10"
+    pods: "50"
+    services: "10"
+    secrets: "25"
+    configmaps: "25"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: business-ops-quota-dev
+  namespace: business-ops-dev
+  labels:
+    environment: development
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    requests.storage: 200Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "5"
+    pods: "25"
+    services: "5"
+    secrets: "15"
+    configmaps: "15"
+
+---
+# Network Policies for Scaling Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: business-ops-scaling-network-policy
+  namespace: business-ops
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: business-ops-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from load balancer
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+    
+    # Allow metrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8001
+  
+  egress:
+    # Allow database connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: business-ops-database
+      ports:
+        - protocol: TCP
+          port: 5432
+    
+    # Allow Redis connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: business-ops-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    
+    # Allow HTTPS for external APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

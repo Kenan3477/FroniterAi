@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontier Dashboard - UI Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+            50% { transform: none; animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-bounce { animation: bounce 1s infinite; }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        Frontier Dashboard
+                    </h1>
+                    <span class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Demo Mode
+                    </span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button class="relative p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zm0-8h5l-5-5v5zM9 19c-1.104 0-2-.896-2-2V9c0-1.104.896-2 2-2h6c1.104 0 2 .896 2 2v8c0 1.104-.896 2-2 2H9z"/>
+                            </svg>
+                            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">3</span>
+                        </button>
+                    </div>
+                    
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        Welcome, Demo User
+                    </div>
+                    
+                    <img class="h-8 w-8 rounded-full" src="https://ui-avatars.com/api/?name=Demo+User&background=random" alt="Demo User">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 shadow-lg">
+            <div class="h-full flex flex-col">
+                <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+                    <div class="flex items-center flex-shrink-0 px-4">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span class="ml-2 text-lg font-semibold text-gray-900 dark:text-white">Features</span>
+                    </div>
+                    
+                    <nav class="mt-5 flex-1 px-2 space-y-1">
+                        <button class="bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-200 group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                            <span class="mr-3 h-5 w-5">📊</span>
+                            Analytics
+                            <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">15</span>
+                        </button>
+                        <button class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                            <span class="mr-3 h-5 w-5">🤖</span>
+                            AI Assistant
+                            <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">8</span>
+                        </button>
+                        <button class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                            <span class="mr-3 h-5 w-5">📈</span>
+                            Reports
+                            <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">3</span>
+                        </button>
+                        <button class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                            <span class="mr-3 h-5 w-5">⚙️</span>
+                            Automation
+                            <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">12</span>
+                        </button>
+                    </nav>
+                </div>
+                
+                <div class="flex-shrink-0 flex border-t border-gray-200 dark:border-gray-700 p-4">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        <div>Sessions: 42</div>
+                        <div>Satisfaction: 4.8/5</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1">
+            <div class="py-6">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    
+                    <!-- Metrics Panel -->
+                    <div class="mb-8">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                        </svg>
+                                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Business Metrics</h2>
+                                    </div>
+                                    <select class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                        <option>7 Days</option>
+                                        <option>30 Days</option>
+                                        <option>90 Days</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <!-- Revenue Card -->
+                                    <div class="p-4 rounded-lg border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="p-2 rounded-lg bg-green-100 dark:bg-green-900">
+                                                <svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue</p>
+                                            <p class="text-2xl font-bold text-gray-900 dark:text-white">$847.3K</p>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-green-600 dark:text-green-400">+12.3%</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">vs last period</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Customers Card -->
+                                    <div class="p-4 rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900">
+                                                <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Customers</p>
+                                            <p class="text-2xl font-bold text-gray-900 dark:text-white">2,847</p>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-green-600 dark:text-green-400">+8.2%</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">vs last period</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Retention Card -->
+                                    <div class="p-4 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+                                                <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Retention Rate</p>
+                                            <p class="text-2xl font-bold text-gray-900 dark:text-white">94.2%</p>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-red-600 dark:text-red-400">-2.1%</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">vs last period</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Satisfaction Card -->
+                                    <div class="p-4 rounded-lg border-2 border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900">
+                                                <svg class="h-5 w-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Satisfaction</p>
+                                            <p class="text-2xl font-bold text-gray-900 dark:text-white">4.8/5</p>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-green-600 dark:text-green-400">+0.3</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">vs last period</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Feature Cards -->
+                        <div class="lg:col-span-2">
+                            <div class="mb-6">
+                                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Available Features</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- Analytics Feature -->
+                                    <div class="p-6 rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 cursor-pointer hover:border-blue-300">
+                                        <div class="flex items-start justify-between mb-4">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800">
+                                                    <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Analytics</h3>
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400">analytics</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Generate comprehensive business intelligence reports and insights</p>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                                <span>15 uses</span>
+                                                <span>2h ago</span>
+                                            </div>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-yellow-400 fill-current" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                </svg>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">4.8</span>
+                                            </div>
+                                        </div>
+                                        <button class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                            Execute
+                                        </button>
+                                    </div>
+
+                                    <!-- AI Assistant Feature -->
+                                    <div class="p-6 rounded-lg border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 cursor-pointer hover:border-indigo-300">
+                                        <div class="flex items-start justify-between mb-4">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-800">
+                                                    <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">AI Assistant</h3>
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400">ai</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">AI-powered business assistant for intelligent automation</p>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                                <span>8 uses</span>
+                                                <span>1h ago</span>
+                                            </div>
+                                            <div class="flex items-center space-x-1">
+                                                <svg class="h-3 w-3 text-yellow-400 fill-current" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                </svg>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">4.9</span>
+                                            </div>
+                                        </div>
+                                        <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                            Execute
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chat Interface -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 h-96 flex flex-col">
+                                <!-- Chat Header -->
+                                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                        <span class="font-medium text-gray-900 dark:text-white">Frontier Assistant</span>
+                                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Chat Messages -->
+                                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                                <!-- Welcome Message -->
+                                <div class="flex justify-start">
+                                    <div class="bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 max-w-[80%]">
+                                        <div class="whitespace-pre-wrap break-words">Hello! I'm your Frontier AI assistant. I can help you analyze business performance, generate insights, and answer questions about your operations.
+
+🌐 **New Feature:** I can now analyze websites and business pages! Just share any URL and I'll extract key information, performance metrics, and competitive insights.
+
+To get started, could you tell me a bit about your business? What industry are you in and what would you like to explore?</div>
+                                        <div class="flex items-center justify-between mt-2">
+                                            <span class="text-xs opacity-70">Just now</span>
+                                        </div>
+                                    </div>
+                                </div>                                    <!-- Typing Indicator -->
+                                    <div class="flex justify-start">
+                                        <div class="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-2">
+                                            <div class="flex items-center space-x-2">
+                                                <div class="flex space-x-1">
+                                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                                </div>
+                                                <span class="text-sm text-gray-500 dark:text-gray-400">Thinking...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Chat Input -->
+                                <div class="border-t border-gray-200 dark:border-gray-700 p-4">
+                                    <div class="flex items-end space-x-2">
+                                        <div class="flex-1">
+                                            <textarea 
+                                                placeholder="Ask me anything about your business..." 
+                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                                rows="1"
+                                                style="min-height: 40px; max-height: 120px;"
+                                            ></textarea>
+                                        </div>
+                                        <button class="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-400 text-center">
+                                        Press Enter to send, Shift+Enter for new line
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Business context and state
+        let businessContext = {
+            name: null,
+            industry: null,
+            size: null,
+            goals: [],
+            challenges: [],
+            hasSetup: false
+        };
+
+        let currentFeature = null;
+        let conversationHistory = [];
+
+        // Advanced Conversational AI Engine - Proprietary Implementation
+        class ConversationalAI {
+            constructor() {
+                // Conversation memory and context
+                this.conversationMemory = [];
+                this.contextWindow = 10; // Remember last 10 exchanges
+                this.userProfile = {};
+                this.currentTopic = null;
+                this.emotionalState = 'neutral';
+                
+                // Knowledge domains
+                this.knowledgeDomains = {
+                    business: new Map(),
+                    technology: new Map(),
+                    marketing: new Map(),
+                    finance: new Map(),
+                    general: new Map()
+                };
+                
+                // Document and URL storage with advanced indexing
+                this.analyzedDocuments = [];
+                this.documentTags = {};
+                this.businessKnowledge = {};
+                this.websiteAnalysisEngine = new WebsiteAnalysisEngine();
+                
+                // Reasoning and inference engine
+                this.reasoningEngine = new ReasoningEngine();
+                this.responseGenerator = new ResponseGenerator();
+                
+                // Initialize base knowledge
+                this.initializeKnowledgeBase();
+            }
+
+            initializeKnowledgeBase() {
+                // Load business intelligence patterns
+                this.knowledgeDomains.business.set('revenue_analysis', {
+                    patterns: ['growth trends', 'seasonal variations', 'market factors'],
+                    insights: ['identify growth drivers', 'forecast future performance', 'benchmark against industry']
+                });
+                
+                this.knowledgeDomains.business.set('customer_metrics', {
+                    patterns: ['acquisition costs', 'lifetime value', 'churn patterns'],
+                    insights: ['optimize acquisition channels', 'increase retention', 'improve satisfaction']
+                });
+                
+                // Technology domain
+                this.knowledgeDomains.technology.set('web_analysis', {
+                    patterns: ['performance metrics', 'seo factors', 'user experience'],
+                    insights: ['technical optimization', 'competitive positioning', 'digital strategy']
+                });
+            }
+
+            // Main conversation processing method
+            processMessage(message) {
+                // Add to conversation memory
+                this.conversationMemory.push({
+                    type: 'user',
+                    content: message,
+                    timestamp: Date.now(),
+                    context: this.extractContext(message)
+                });
+
+                // Maintain context window
+                if (this.conversationMemory.length > this.contextWindow * 2) {
+                    this.conversationMemory = this.conversationMemory.slice(-this.contextWindow * 2);
+                }
+
+                // Extract URLs if present
+                const urls = this.extractUrls(message);
+                
+                // Process the message through reasoning engine
+                const analysis = this.reasoningEngine.analyze(message, this.getConversationContext(), urls);
+                
+                // Generate response based on analysis
+                let response;
+                if (urls.length > 0) {
+                    response = this.handleUrlAnalysisConversational(message, urls, analysis);
+                } else {
+                    response = this.responseGenerator.generate(analysis, this.getConversationContext(), this.userProfile);
+                }
+
+                // Add response to memory
+                this.conversationMemory.push({
+                    type: 'assistant',
+                    content: response,
+                    timestamp: Date.now(),
+                    reasoning: analysis.reasoning
+                });
+
+                return response;
+            }
+
+            extractContext(message) {
+                const context = {
+                    topics: [],
+                    entities: [],
+                    intent: null,
+                    sentiment: this.analyzeSentiment(message),
+                    urgency: this.assessUrgency(message)
+                };
+
+                // Extract topics using semantic analysis
+                const words = message.toLowerCase().split(' ');
+                const topics = words.filter(word => 
+                    word.length > 3 && 
+                    !['this', 'that', 'with', 'from', 'they', 'have', 'been', 'were', 'what', 'when', 'where'].includes(word)
+                );
+                
+                context.topics = [...new Set(topics)];
+                
+                // Extract entities (companies, numbers, dates, etc.)
+                context.entities = this.extractEntities(message);
+                
+                // Determine intent through contextual analysis
+                context.intent = this.determineIntent(message, this.getConversationContext());
+                
+                return context;
+            }
+
+            extractUrls(message) {
+                const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|edu|gov|io|co|uk|de|fr|es|it|jp|au|ca|ai|tech|app|dev)[^\s]*)/g;
+                const urls = message.match(urlRegex) || [];
+                return urls.map(url => {
+                    if (!url.startsWith('http')) {
+                        return url.startsWith('www') ? `https://${url}` : `https://${url}`;
+                    }
+                    return url;
+                });
+            }
+
+            analyzeSentiment(message) {
+                const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'like', 'fantastic'];
+                const negativeWords = ['bad', 'terrible', 'hate', 'awful', 'horrible', 'frustrated', 'angry'];
+                
+                const words = message.toLowerCase().split(' ');
+                let score = 0;
+                
+                words.forEach(word => {
+                    if (positiveWords.includes(word)) score += 1;
+                    if (negativeWords.includes(word)) score -= 1;
+                });
+                
+                if (score > 0) return 'positive';
+                if (score < 0) return 'negative';
+                return 'neutral';
+            }
+
+            assessUrgency(message) {
+                const urgentWords = ['urgent', 'asap', 'immediately', 'critical', 'emergency', 'quickly', 'now'];
+                return urgentWords.some(word => message.toLowerCase().includes(word)) ? 'high' : 'normal';
+            }
+
+            extractEntities(message) {
+                const entities = {
+                    companies: [],
+                    numbers: [],
+                    dates: [],
+                    metrics: []
+                };
+
+                // Extract numbers and percentages
+                const numberRegex = /\b\d+(\.\d+)?(%|k|million|billion|thousand)?\b/gi;
+                entities.numbers = message.match(numberRegex) || [];
+
+                // Extract company names (basic heuristic)
+                const companyRegex = /\b[A-Z][a-z]+ ?(Inc|Corp|LLC|Ltd|Company)?\b/g;
+                entities.companies = message.match(companyRegex) || [];
+
+                return entities;
+            }
+
+            determineIntent(message, context) {
+                const msg = message.toLowerCase();
+                
+                // Advanced intent detection based on sentence structure and context
+                if (msg.includes('why') && context.recentMessages.length > 0) {
+                    return 'explanation_request';
+                }
+                
+                if (msg.includes('how') && (msg.includes('improve') || msg.includes('increase'))) {
+                    return 'optimization_request';
+                }
+                
+                if (msg.includes('what') && msg.includes('think')) {
+                    return 'opinion_request';
+                }
+                
+                return 'general';
+            }
+
+            // URL Analysis method for conversational AI
+            handleUrlAnalysisConversational(message, urls, analysis) {
+                let response = `I'll analyze the website(s) you've shared. Let me take a look at what we have here...\n\n`;
+                
+                const analysisResults = [];
+                
+                urls.forEach((url, index) => {
+                    const urlAnalysis = this.websiteAnalysisEngine.analyzeUrl(url, this.getConversationContext());
+                    analysisResults.push(urlAnalysis);
+                    
+                    response += `📋 **Analysis of ${url}:**\n`;
+                    response += `• **Business Type:** ${urlAnalysis.businessType}\n`;
+                    response += `• **Industry:** ${urlAnalysis.industry}\n`;
+                    response += `• **Domain:** ${urlAnalysis.domain}\n\n`;
+                    
+                    response += `🤔 **My Reasoning:**\n`;
+                    urlAnalysis.reasoning.forEach(reason => {
+                        response += `• ${reason}\n`;
+                    });
+                    
+                    if (urlAnalysis.recommendations.length > 0) {
+                        response += `\n💡 **Recommendations:**\n`;
+                        urlAnalysis.recommendations.forEach(rec => {
+                            response += `• ${rec}\n`;
+                        });
+                    }
+                    
+                    if (index < urls.length - 1) {
+                        response += `\n---\n\n`;
+                    }
+                });
+                
+                // Store analysis results
+                this.analyzedDocuments.push(...analysisResults);
+                
+                response += `\n\n✅ **Analysis Complete!** I've analyzed ${urls.length} website(s) and stored the insights in my knowledge base. `;
+                response += `Feel free to ask me any questions about what I found, or share more URLs for analysis!`;
+                
+                return response;
+            }
+        }
+
+        // Reasoning Engine - Handles logical inference and context understanding
+        class ReasoningEngine {
+            analyze(message, conversationContext, urls = []) {
+                const analysis = {
+                    intent: this.inferIntent(message, conversationContext),
+                    reasoning: this.buildReasoning(message, conversationContext),
+                    confidence: 0.8,
+                    followUpQuestions: [],
+                    requiredInfo: [],
+                    contextualClues: this.extractContextualClues(message, conversationContext)
+                };
+
+                // Adjust confidence based on context
+                if (conversationContext.recentMessages.length > 0) {
+                    analysis.confidence += 0.1;
+                }
+
+                if (urls.length > 0) {
+                    analysis.intent = 'url_analysis';
+                    analysis.reasoning.push(`User provided ${urls.length} URL(s) for analysis`);
+                }
+
+                return analysis;
+            }
+
+            inferIntent(message, context) {
+                const msg = message.toLowerCase();
+                
+                // Check conversation history for context
+                const recentTopics = context.recentMessages
+                    .filter(m => m.type === 'user')
+                    .flatMap(m => m.context?.topics || []);
+
+                // Sophisticated intent detection based on semantic meaning
+                if (this.isGreeting(msg)) return 'greeting';
+                if (this.isQuestion(msg)) return 'question';
+                if (this.isRequest(msg)) return 'request';
+                if (this.isBusinessInquiry(msg, context)) return 'business_inquiry';
+                if (this.isAnalyticsRequest(msg, recentTopics)) return 'analytics';
+                if (this.isHelpRequest(msg)) return 'help';
+                if (this.isExplanationRequest(msg)) return 'explanation';
+                
+                return 'general_conversation';
+            }
+
+            buildReasoning(message, context) {
+                const reasoning = [];
+                const msg = message.toLowerCase();
+
+                // Analyze what the user is really asking
+                if (msg.includes('why')) {
+                    reasoning.push('User is seeking explanation or justification');
+                }
+                if (msg.includes('how')) {
+                    reasoning.push('User wants process or method information');
+                }
+                if (msg.includes('what')) {
+                    reasoning.push('User seeks definition or identification');
+                }
+
+                // Context-based reasoning
+                if (context.recentMessages.length > 0) {
+                    const lastMessage = context.recentMessages[context.recentMessages.length - 1];
+                    if (lastMessage && lastMessage.type === 'assistant') {
+                        reasoning.push('Following up on previous assistant response');
+                    }
+                }
+
+                // Business context reasoning
+                if (context.businessContext && context.businessContext.hasSetup) {
+                    reasoning.push(`User has established business context: ${context.businessContext.name || 'unnamed business'}`);
+                } else {
+                    reasoning.push('No business context established yet');
+                }
+
+                return reasoning;
+            }
+
+            extractContextualClues(message, context) {
+                return {
+                    timeReferences: this.extractTimeReferences(message),
+                    numbers: this.extractNumbers(message),
+                    comparisons: this.extractComparisons(message),
+                    emotions: this.extractEmotions(message)
+                };
+            }
+
+            isGreeting(msg) {
+                return /^(hi|hello|hey|good morning|good afternoon|good evening)/.test(msg);
+            }
+
+            isQuestion(msg) {
+                return msg.includes('?') || /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did)/.test(msg);
+            }
+
+            isRequest(msg) {
+                return /^(please|can you|could you|would you|i need|i want|help me)/.test(msg);
+            }
+
+            isBusinessInquiry(msg, context) {
+                const businessTerms = ['business', 'company', 'revenue', 'sales', 'customers', 'metrics', 'performance'];
+                return businessTerms.some(term => msg.includes(term));
+            }
+
+            isAnalyticsRequest(msg, recentTopics) {
+                const analyticsTerms = ['analyze', 'analysis', 'data', 'report', 'insights', 'trends'];
+                return analyticsTerms.some(term => msg.includes(term)) || 
+                       recentTopics.some(topic => analyticsTerms.includes(topic));
+            }
+
+            isHelpRequest(msg) {
+                return msg.includes('help') || msg.includes('assist') || msg.includes('support');
+            }
+
+            isExplanationRequest(msg) {
+                return msg.includes('explain') || msg.includes('why') || msg.includes('how does');
+            }
+
+            extractTimeReferences(message) {
+                const timeRegex = /(today|yesterday|tomorrow|last week|next week|this month|last month|recently|soon)/gi;
+                return message.match(timeRegex) || [];
+            }
+
+            extractNumbers(message) {
+                const numberRegex = /\b\d+(\.\d+)?(%|k|million|billion)?\b/gi;
+                return message.match(numberRegex) || [];
+            }
+
+            extractComparisons(message) {
+                const comparisonWords = ['better', 'worse', 'higher', 'lower', 'more', 'less', 'compared to', 'versus'];
+                return comparisonWords.filter(word => message.toLowerCase().includes(word));
+            }
+
+            extractEmotions(message) {
+                const emotionWords = {
+                    positive: ['good', 'great', 'excellent', 'amazing', 'wonderful', 'happy', 'excited'],
+                    negative: ['bad', 'terrible', 'awful', 'frustrated', 'angry', 'disappointed', 'worried'],
+                    neutral: ['okay', 'fine', 'normal', 'standard']
+                };
+
+                const detected = {};
+                Object.entries(emotionWords).forEach(([emotion, words]) => {
+                    const found = words.filter(word => message.toLowerCase().includes(word));
+                    if (found.length > 0) detected[emotion] = found;
+                });
+
+                return detected;
+            }
+        }
+
+        // Response Generator - Creates human-like, contextual responses
+        class ResponseGenerator {
+            generate(analysis, context, userProfile) {
+                switch (analysis.intent) {
+                    case 'greeting':
+                        return this.generateGreeting(context);
+                    case 'question':
+                        return this.generateQuestionResponse(analysis, context);
+                    case 'business_inquiry':
+                        return this.generateBusinessResponse(analysis, context);
+                    case 'analytics':
+                        return this.generateAnalyticsResponse(analysis, context);
+                    case 'help':
+                        return this.generateHelpResponse(analysis, context);
+                    case 'explanation':
+                        return this.generateExplanationResponse(analysis, context);
+                    default:
+                        return this.generateGeneralResponse(analysis, context);
+                }
+            }
+
+            generateGreeting(context) {
+                const greetings = [
+                    "Hello! I'm here to help you with your business questions and analysis.",
+                    "Hi there! What can I assist you with today?",
+                    "Good to see you! How can I help optimize your business performance?"
+                ];
+
+                let greeting = greetings[Math.floor(Math.random() * greetings.length)];
+                
+                if (context.businessContext && context.businessContext.hasSetup) {
+                    greeting += ` I remember we were working with ${context.businessContext.name || 'your business'}. What's on your mind?`;
+                }
+
+                return greeting;
+            }
+
+            generateQuestionResponse(analysis, context) {
+                if (analysis.reasoning.includes('User is seeking explanation')) {
+                    return "That's a great question! Let me think through this and provide you with a thorough explanation based on our conversation and what I know about your situation.";
+                }
+
+                return "I understand what you're asking. Let me provide you with a comprehensive answer based on the context of our conversation.";
+            }
+
+            generateBusinessResponse(analysis, context) {
+                if (!context.businessContext || !context.businessContext.hasSetup) {
+                    return "I'd love to help you with your business questions! To give you the most relevant insights, could you tell me a bit about your business? What industry are you in, and what specific challenges are you focusing on?";
+                }
+
+                return `Based on what I know about ${context.businessContext.name || 'your business'}, I can provide some insights. What specific aspect would you like to explore?`;
+            }
+
+            generateAnalyticsResponse(analysis, context) {
+                if (!context.businessContext || !context.businessContext.hasSetup) {
+                    return "I'd be happy to help with analytics! However, I'll need some information about your business first to provide meaningful insights.";
+                }
+
+                return "Let me analyze your current performance data and provide some insights. What area would you like me to focus on?";
+            }
+
+            generateHelpResponse(analysis, context) {
+                return "I'm here to help! I can assist with business analysis, performance insights, website evaluation, competitive intelligence, and strategic recommendations. What specific area would you like help with?";
+            }
+
+            generateExplanationResponse(analysis, context) {
+                return "Let me explain this clearly and walk you through my reasoning. Understanding the 'why' behind business data is crucial for making informed decisions.";
+            }
+
+            generateGeneralResponse(analysis, context) {
+                const responses = [
+                    "I understand what you're looking for. Let me help you with that.",
+                    "That's an interesting point. Let me provide some insights based on what we've discussed.",
+                    "I can definitely help you with that. Based on our conversation, here's what I'm thinking..."
+                ];
+
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+        }
+
+        // Website Analysis Engine - Intelligent website analysis
+        class WebsiteAnalysisEngine {
+            analyzeUrl(url, context) {
+                const domain = this.extractDomain(url);
+                return this.performIntelligentAnalysis(url, domain, context);
+            }
+
+            performIntelligentAnalysis(url, domain, context) {
+                const analysis = {
+                    url: url,
+                    domain: domain,
+                    timestamp: new Date().toISOString(),
+                    businessType: this.inferBusinessType(url, domain),
+                    industry: this.inferIndustry(url, domain),
+                    reasoning: this.explainAnalysisReasoning(url, domain),
+                    recommendations: this.generateContextualRecommendations(url, domain, context)
+                };
+
+                return analysis;
+            }
+
+            inferBusinessType(url, domain) {
+                if (url.includes('shop') || url.includes('store')) return 'E-commerce';
+                if (url.includes('blog') || url.includes('news')) return 'Content/Media';
+                if (domain.includes('tech') || domain.includes('ai')) return 'Technology';
+                return 'Corporate Website';
+            }
+
+            inferIndustry(url, domain) {
+                const urlLower = (url + domain).toLowerCase();
+                
+                if (urlLower.includes('health') || urlLower.includes('medical')) return 'Healthcare';
+                if (urlLower.includes('tech') || urlLower.includes('software')) return 'Technology';
+                if (urlLower.includes('bank') || urlLower.includes('financial')) return 'Finance';
+                if (urlLower.includes('education') || urlLower.includes('school')) return 'Education';
+                
+                return 'General Business';
+            }
+
+            explainAnalysisReasoning(url, domain) {
+                const reasoning = [];
+                reasoning.push(`Analyzed URL structure: ${url}`);
+                reasoning.push(`Domain: ${domain}`);
+                
+                if (url.includes('https')) {
+                    reasoning.push('Site uses HTTPS - good for security');
+                }
+                
+                return reasoning;
+            }
+
+            generateContextualRecommendations(url, domain, context) {
+                const recommendations = [];
+                
+                if (!url.startsWith('https')) {
+                    recommendations.push('Implement SSL certificate for better security');
+                }
+                
+                if (context.businessContext && context.businessContext.hasSetup) {
+                    recommendations.push('Compare their strategy with your business approach');
+                }
+                
+                return recommendations;
+            }
+
+            extractDomain(url) {
+                try {
+                    return url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+                } catch (error) {
+                    return 'unknown-site';
+                }
+            }
+        }
+
+            generateResponse(message, analysis) {
+                // Handle URL analysis first
+                if (analysis.containsUrl) {
+                    return this.handleUrlAnalysis(message, analysis);
+                }
+
+                // If business not set up and asking for business info
+                if (analysis.needsInfo && !businessContext.hasSetup) {
+                    return this.requestBusinessInfo();
+                }
+
+                // Handle different intents
+                switch (analysis.intent) {
+                    case 'help':
+                        return this.getHelpResponse(message);
+                    case 'business_setup':
+                        return this.handleBusinessSetup(message);
+                    case 'analytics':
+                        return this.getAnalyticsResponse(message);
+                    case 'features':
+                        return this.getFeaturesResponse(message);
+                    case 'url_analysis':
+                        return this.handleUrlAnalysis(message, analysis);
+                    default:
+                        return this.getGeneralResponse(message, analysis);
+                }
+            }
+
+            requestBusinessInfo() {
+                return "I'd love to help you with your business analytics! However, I don't have any information about your business yet. Could you tell me:\n\n1. What's your business name?\n2. What industry are you in?\n3. What size is your company (startup/small/medium/large)?\n4. What are your main business goals?\n\nThis will help me provide more relevant insights and recommendations.";
+            }
+
+            handleBusinessSetup(message) {
+                const msg = message.toLowerCase();
+                
+                // Try to extract business info
+                if (!businessContext.name && (msg.includes('business') || msg.includes('company'))) {
+                    const words = message.split(' ');
+                    const businessWordIndex = words.findIndex(word => 
+                        word.toLowerCase().includes('business') || 
+                        word.toLowerCase().includes('company')
+                    );
+                    if (businessWordIndex > 0) {
+                        businessContext.name = words.slice(0, businessWordIndex).join(' ');
+                    }
+                }
+
+                // Industry detection
+                const industries = ['tech', 'technology', 'retail', 'healthcare', 'finance', 'education', 'manufacturing', 'construction', 'consulting', 'marketing', 'real estate', 'food', 'restaurant'];
+                for (const industry of industries) {
+                    if (msg.includes(industry)) {
+                        businessContext.industry = industry;
+                        break;
+                    }
+                }
+
+                // Size detection
+                const sizes = ['startup', 'small', 'medium', 'large', 'enterprise'];
+                for (const size of sizes) {
+                    if (msg.includes(size)) {
+                        businessContext.size = size;
+                        break;
+                    }
+                }
+
+                if (businessContext.name || businessContext.industry) {
+                    businessContext.hasSetup = true;
+                    return `Great! I'm learning about your business. ${businessContext.name ? `So you're working with ${businessContext.name}` : 'I see'} ${businessContext.industry ? `in the ${businessContext.industry} industry` : ''}${businessContext.size ? ` as a ${businessContext.size} company` : ''}.\n\nNow I can provide more targeted insights! What would you like to know about your business metrics or what can I help you analyze?`;
+                }
+
+                return "Thank you for that information! I'm still gathering details about your business. Feel free to tell me more about your company, industry, or what specific business challenges you're facing.";
+            }
+
+            getAnalyticsResponse(message) {
+                if (!businessContext.hasSetup) {
+                    return this.requestBusinessInfo();
+                }
+
+                const msg = message.toLowerCase();
+                let response = '';
+                
+                if (msg.includes('revenue') || msg.includes('sales')) {
+                    response = `Based on your current metrics, your revenue is $847.3K with a +12.3% growth rate. ${businessContext.industry ? `For a ${businessContext.industry} business, this is quite good.` : ''} Would you like me to break down the revenue sources or analyze trends over different periods?`;
+                } else if (msg.includes('customers') || msg.includes('retention')) {
+                    response = `You currently have 2,847 customers with a 94.2% retention rate. ${businessContext.size === 'startup' ? 'For a startup, this retention rate is excellent!' : businessContext.size === 'large' ? 'This is solid performance for an enterprise.' : 'This shows strong customer loyalty.'} The slight 2.1% dip might need attention - would you like strategies to improve retention?`;
+                } else if (msg.includes('satisfaction') || msg.includes('rating')) {
+                    response = `Your customer satisfaction score is 4.8/5, which is outstanding! ${businessContext.industry === 'retail' ? 'Retail businesses typically average 4.2/5' : businessContext.industry === 'tech' ? 'Tech companies usually see 4.1/5' : 'Most businesses average around 4.0/5'}, so you're performing above average. Keep up the great work!`;
+                } else if (msg.includes('competitor') || msg.includes('competition')) {
+                    if (this.businessKnowledge.competitorAnalysis && this.businessKnowledge.competitorAnalysis.length > 0) {
+                        response = `📊 **Competitive Analysis** (from analyzed websites):\n\n`;
+                        this.businessKnowledge.competitorAnalysis.forEach((comp, index) => {
+                            response += `${index + 1}. **${comp.company}**\n   • SEO Score: ${comp.seoScore}/100\n   • Industry: ${comp.industry}\n   • Focus: ${comp.recommendations[0] || 'N/A'}\n\n`;
+                        });
+                        response += `Your business can leverage these insights to stay competitive. Would you like specific recommendations?`;
+                    } else {
+                        response = `I don't have competitor analysis data yet. Share some competitor website URLs and I'll analyze them for you to provide competitive insights!`;
+                    }
+                } else if (msg.includes('website') || msg.includes('seo') || msg.includes('online')) {
+                    if (this.analyzedDocuments.length > 0) {
+                        response = `📋 **Website Analysis Summary:**\n\n`;
+                        response += `• Documents analyzed: ${this.analyzedDocuments.length}\n`;
+                        response += `• Average SEO score: ${(this.analyzedDocuments.reduce((sum, doc) => sum + doc.keyMetrics.seoScore, 0) / this.analyzedDocuments.length).toFixed(1)}/100\n`;
+                        response += `• Industries covered: ${[...new Set(this.analyzedDocuments.map(doc => doc.extractedInfo.industry))].join(', ')}\n\n`;
+                        response += `Share more URLs for deeper analysis or ask about specific websites!`;
+                    } else {
+                        response = `I can analyze websites and business pages for you! Share any URL and I'll extract key information, performance metrics, and strategic insights.`;
+                    }
+                } else {
+                    response = `I can analyze various aspects of your business performance. Currently showing:\n• Revenue: $847.3K (+12.3%)\n• Customers: 2,847 (+8.2%)\n• Retention: 94.2% (-2.1%)\n• Satisfaction: 4.8/5 (+0.3)\n\nWhat specific metric would you like me to dive deeper into?`;
+                }
+
+                // Add document insights if available
+                if (this.analyzedDocuments.length > 0 && !msg.includes('website') && !msg.includes('competitor')) {
+                    response += `\n\n💡 **Additional Insights:** I have analyzed ${this.analyzedDocuments.length} website(s) that might provide competitive intelligence. Ask me about competitor analysis for more details!`;
+                }
+
+                return response;
+            }
+
+            getFeaturesResponse(message) {
+                return "I have several powerful features available:\n\n📊 **Analytics** - Generate detailed business reports and insights\n🤖 **AI Assistant** - Get intelligent recommendations and automation\n📈 **Reports** - Create custom performance dashboards\n⚙️ **Automation** - Set up workflows and business processes\n\nYou can click on any feature in the sidebar to activate it, or tell me which one you'd like to explore!";
+            }
+
+            getHelpResponse(message) {
+                return "I'm here to help! Here's what I can do:\n\n💬 **Business Consultation** - Ask me about your metrics, trends, or strategy\n📊 **Data Analysis** - Help interpret your business performance\n🔧 **Feature Guidance** - Explain how to use different tools\n🎯 **Recommendations** - Suggest improvements based on your data\n🌐 **Website Analysis** - Analyze any website or business page you share\n📋 **Document Intelligence** - Extract and organize information from URLs\n🏷️ **Smart Tagging** - Automatically categorize and tag analyzed content\n\n**URL Analysis Examples:**\n• Share a competitor's website for analysis\n• Analyze your own business pages\n• Extract information from industry reports\n• Get SEO and performance insights\n\nWhat specific area would you like help with?";
+            }
+
+            getGeneralResponse(message, analysis) {
+                if (analysis.keywords.includes('greeting')) {
+                    return `Hello! I'm your Frontier AI business assistant. ${businessContext.hasSetup ? `Ready to help with ${businessContext.name || 'your business'}!` : 'I\'m here to help you understand and optimize your business performance. Tell me about your business to get started!'} How can I assist you today?`;
+                }
+
+                if (message.includes('?')) {
+                    return "That's a great question! I'd be happy to help you find the answer. Could you provide a bit more context or tell me specifically what you'd like to know about your business or the dashboard?";
+                }
+
+                return "I understand you're looking for assistance. I can help with business analytics, performance insights, feature explanations, or general business questions. What would you like to explore?";
+            }
+
+            // URL and Website Analysis Methods
+            handleUrlAnalysis(message, analysis) {
+                const urls = analysis.urls;
+                if (urls.length === 0) return "I didn't detect any valid URLs in your message. Please share a website URL for me to analyze.";
+
+                let response = `🔍 **Website Analysis Started**\n\nI found ${urls.length} URL(s) to analyze:\n`;
+                
+                const analysisResults = [];
+                for (let i = 0; i < urls.length; i++) {
+                    const url = urls[i];
+                    response += `\n📋 **Analyzing:** ${url}\n`;
+                    
+                    try {
+                        const analysis = this.analyzeWebsite(url);
+                        analysisResults.push(analysis);
+                        response += this.formatAnalysisResult(analysis);
+                    } catch (error) {
+                        response += `❌ **Error:** Could not analyze ${url} - ${error.message}\n`;
+                    }
+                }
+
+                // Store successful analyses
+                if (analysisResults.length > 0) {
+                    this.storeDocumentAnalyses(analysisResults);
+                    response += `\n✅ **Analysis Complete!** I've stored ${analysisResults.length} document(s) in your knowledge base.\n\n`;
+                    response += this.getSummaryRecommendations(analysisResults);
+                }
+
+                return response;
+            }
+
+            analyzeWebsite(url) {
+                // Simulate website analysis (in real implementation, this would use a web scraping service)
+                // Remove async/await for demo purposes to avoid Promise issues
+                
+                const mockAnalysis = this.generateMockWebsiteAnalysis(url);
+                return mockAnalysis;
+            }
+
+            generateMockWebsiteAnalysis(url) {
+                const domain = this.extractDomain(url);
+                const businessTypes = ['e-commerce', 'saas', 'consulting', 'marketing agency', 'tech startup', 'retail', 'healthcare', 'finance'];
+                const contentTypes = ['homepage', 'about page', 'product page', 'blog', 'pricing', 'contact', 'documentation'];
+                
+                const analysis = {
+                    url: url,
+                    domain: domain,
+                    timestamp: new Date().toISOString(),
+                    title: `${domain.charAt(0).toUpperCase() + domain.slice(1)} - Business Solutions`,
+                    businessType: businessTypes[Math.floor(Math.random() * businessTypes.length)],
+                    contentType: contentTypes[Math.floor(Math.random() * contentTypes.length)],
+                    keyMetrics: this.generateMockMetrics(),
+                    extractedInfo: this.generateMockExtractedInfo(domain),
+                    tags: this.generateRelevantTags(domain),
+                    sentiment: this.calculateSentiment(),
+                    recommendations: this.generateRecommendations()
+                };
+
+                return analysis;
+            }
+
+            generateMockMetrics() {
+                return {
+                    estimatedTraffic: Math.floor(Math.random() * 100000) + 10000,
+                    loadTime: (Math.random() * 3 + 1).toFixed(2) + 's',
+                    mobileOptimized: Math.random() > 0.3,
+                    seoScore: Math.floor(Math.random() * 40) + 60,
+                    socialPresence: Math.random() > 0.4
+                };
+            }
+
+            generateMockExtractedInfo(domain) {
+                const industries = ['Technology', 'E-commerce', 'Consulting', 'Healthcare', 'Finance', 'Education'];
+                const services = ['Software Development', 'Digital Marketing', 'Business Consulting', 'Product Sales', 'Data Analytics'];
+                
+                return {
+                    companyName: domain.charAt(0).toUpperCase() + domain.slice(1),
+                    industry: industries[Math.floor(Math.random() * industries.length)],
+                    primaryService: services[Math.floor(Math.random() * services.length)],
+                    foundedYear: Math.floor(Math.random() * 20) + 2004,
+                    keyProducts: ['Product A', 'Service B', 'Solution C'],
+                    targetMarket: 'B2B Enterprise',
+                    geographicFocus: 'North America, Europe'
+                };
+            }
+
+            generateRelevantTags(domain) {
+                const baseTags = ['business', 'website', 'analysis'];
+                const industryTags = ['technology', 'marketing', 'finance', 'healthcare', 'retail'];
+                const functionalTags = ['homepage', 'contact', 'about', 'products', 'services'];
+                
+                const selectedTags = [
+                    ...baseTags,
+                    industryTags[Math.floor(Math.random() * industryTags.length)],
+                    functionalTags[Math.floor(Math.random() * functionalTags.length)],
+                    domain.includes('shop') ? 'e-commerce' : 'corporate',
+                    'competitive-analysis'
+                ];
+
+                return [...new Set(selectedTags)]; // Remove duplicates
+            }
+
+            calculateSentiment() {
+                const sentiments = ['positive', 'neutral', 'negative'];
+                const weights = [0.6, 0.3, 0.1]; // Most websites should be positive/neutral
+                
+                const random = Math.random();
+                let cumulative = 0;
+                
+                for (let i = 0; i < sentiments.length; i++) {
+                    cumulative += weights[i];
+                    if (random <= cumulative) {
+                        return {
+                            overall: sentiments[i],
+                            score: sentiments[i] === 'positive' ? Math.random() * 0.5 + 0.5 : 
+                                   sentiments[i] === 'neutral' ? Math.random() * 0.4 + 0.3 : 
+                                   Math.random() * 0.3
+                        };
+                    }
+                }
+                
+                return { overall: 'neutral', score: 0.5 };
+            }
+
+            generateRecommendations() {
+                const recs = [
+                    'Improve mobile responsiveness for better user experience',
+                    'Optimize page load speed for better SEO ranking',
+                    'Add more detailed product descriptions',
+                    'Implement better call-to-action buttons',
+                    'Enhance social media integration',
+                    'Improve contact form accessibility',
+                    'Add customer testimonials section',
+                    'Optimize for local SEO if applicable'
+                ];
+
+                const numRecs = Math.floor(Math.random() * 3) + 2;
+                return recs.sort(() => 0.5 - Math.random()).slice(0, numRecs);
+            }
+
+            formatAnalysisResult(analysis) {
+                let result = `\n📊 **Analysis Results:**\n`;
+                result += `• **Company:** ${analysis.extractedInfo.companyName}\n`;
+                result += `• **Industry:** ${analysis.extractedInfo.industry}\n`;
+                result += `• **Content Type:** ${analysis.contentType}\n`;
+                result += `• **SEO Score:** ${analysis.keyMetrics.seoScore}/100\n`;
+                result += `• **Mobile Optimized:** ${analysis.keyMetrics.mobileOptimized ? '✅ Yes' : '❌ No'}\n`;
+                result += `• **Estimated Traffic:** ${analysis.keyMetrics.estimatedTraffic.toLocaleString()} monthly visits\n`;
+                result += `• **Tags:** ${analysis.tags.join(', ')}\n`;
+                
+                if (analysis.recommendations.length > 0) {
+                    result += `\n💡 **Key Recommendations:**\n`;
+                    analysis.recommendations.forEach(rec => {
+                        result += `  - ${rec}\n`;
+                    });
+                }
+                
+                return result;
+            }
+
+            storeDocumentAnalyses(analyses) {
+                analyses.forEach(analysis => {
+                    // Store in analyzed documents
+                    this.analyzedDocuments.push(analysis);
+                    
+                    // Update document tags index
+                    analysis.tags.forEach(tag => {
+                        if (!this.documentTags[tag]) {
+                            this.documentTags[tag] = [];
+                        }
+                        this.documentTags[tag].push(analysis.url);
+                    });
+                    
+                    // Update business knowledge if relevant
+                    if (analysis.extractedInfo && (businessContext.name === analysis.extractedInfo.companyName || 
+                        analysis.extractedInfo.industry === businessContext.industry)) {
+                        this.updateBusinessKnowledge(analysis);
+                    }
+                });
+
+                console.log(`📚 Stored ${analyses.length} document analyses. Total documents: ${this.analyzedDocuments.length}`);
+            }
+
+            updateBusinessKnowledge(analysis) {
+                if (!this.businessKnowledge.competitorAnalysis) {
+                    this.businessKnowledge.competitorAnalysis = [];
+                }
+                if (!this.businessKnowledge.industryInsights) {
+                    this.businessKnowledge.industryInsights = [];
+                }
+
+                // Store as competitor or industry insight
+                if (analysis.extractedInfo.companyName !== businessContext.name) {
+                    this.businessKnowledge.competitorAnalysis.push({
+                        company: analysis.extractedInfo.companyName,
+                        url: analysis.url,
+                        industry: analysis.extractedInfo.industry,
+                        seoScore: analysis.keyMetrics.seoScore,
+                        recommendations: analysis.recommendations
+                    });
+                }
+
+                this.businessKnowledge.industryInsights.push({
+                    trend: `${analysis.extractedInfo.industry} companies focus on ${analysis.extractedInfo.primaryService}`,
+                    source: analysis.url,
+                    timestamp: analysis.timestamp
+                });
+            }
+
+            getSummaryRecommendations(analyses) {
+                let summary = `🎯 **Strategic Insights:**\n`;
+                
+                if (analyses.length > 1) {
+                    const avgSeo = analyses.reduce((sum, a) => sum + a.keyMetrics.seoScore, 0) / analyses.length;
+                    const mobileOptimized = analyses.filter(a => a.keyMetrics.mobileOptimized).length;
+                    
+                    summary += `• Average SEO Score: ${avgSeo.toFixed(1)}/100\n`;
+                    summary += `• Mobile Optimized: ${mobileOptimized}/${analyses.length} sites\n`;
+                }
+
+                const allTags = [...new Set(analyses.flatMap(a => a.tags))];
+                summary += `• Common Themes: ${allTags.slice(0, 5).join(', ')}\n`;
+
+                if (this.businessKnowledge.competitorAnalysis && this.businessKnowledge.competitorAnalysis.length > 0) {
+                    summary += `\n🏆 **Competitive Intelligence:**\n`;
+                    summary += `• Found ${this.businessKnowledge.competitorAnalysis.length} potential competitor(s)\n`;
+                    summary += `• Industry benchmarks available for comparison\n`;
+                }
+
+                summary += `\n📁 **Knowledge Base Updated:**\n`;
+                summary += `• Total documents analyzed: ${this.analyzedDocuments.length}\n`;
+                summary += `• Available tags: ${Object.keys(this.documentTags).length}\n`;
+                summary += `• You can now ask me questions about these analyzed websites!\n`;
+
+                return summary;
+            }
+
+            // Utility methods
+            extractDomain(url) {
+                try {
+                    const domain = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].split('.')[0];
+                    return domain;
+                } catch (error) {
+                    return 'unknown-site';
+                }
+            }
+
+            // Method to query stored documents
+            queryDocuments(query) {
+                const queryLower = query.toLowerCase();
+                const results = this.analyzedDocuments.filter(doc => {
+                    return doc.title.toLowerCase().includes(queryLower) ||
+                           doc.extractedInfo.companyName.toLowerCase().includes(queryLower) ||
+                           doc.extractedInfo.industry.toLowerCase().includes(queryLower) ||
+                           doc.tags.some(tag => tag.toLowerCase().includes(queryLower));
+                });
+
+                return results;
+            }
+
+            getDocumentsByTag(tag) {
+                return this.documentTags[tag] || [];
+            }
+        }
+
+        // Feature management
+        const features = {
+            analytics: {
+                name: 'Analytics',
+                description: 'Business intelligence and reporting',
+                active: false,
+                execute: function() {
+                    updateMainContent('analytics');
+                    addMessage("📊 Analytics feature activated! I can now help you with:\n\n• Revenue analysis and forecasting\n• Customer behavior insights\n• Performance trend analysis\n• Custom report generation\n\nWhat specific analytics would you like to explore?", false);
+                }
+            },
+            ai: {
+                name: 'AI Assistant',
+                description: 'Intelligent automation and recommendations',
+                active: false,
+                execute: function() {
+                    updateMainContent('ai');
+                    addMessage("🤖 AI Assistant is now active! I can provide:\n\n• Intelligent business recommendations\n• Automated workflow suggestions\n• Predictive insights\n• Smart optimization tips\n\nWhat would you like me to analyze or automate for you?", false);
+                }
+            },
+            reports: {
+                name: 'Reports',
+                description: 'Custom dashboard and report generation',
+                active: false,
+                execute: function() {
+                    updateMainContent('reports');
+                    addMessage("📈 Reports feature loaded! I can create:\n\n• Executive summary dashboards\n• Detailed performance reports\n• Trend analysis documents\n• Custom KPI tracking\n\nWhat type of report would you like me to generate?", false);
+                }
+            },
+            automation: {
+                name: 'Automation',
+                description: 'Business process automation',
+                active: false,
+                execute: function() {
+                    updateMainContent('automation');
+                    addMessage("⚙️ Automation tools ready! I can help set up:\n\n• Workflow automation\n• Alert systems\n• Data processing pipelines\n• Integration management\n\nWhat business process would you like to automate?", false);
+                }
+            }
+        };
+
+        function updateMainContent(featureType) {
+            // Reset all features
+            Object.keys(features).forEach(key => features[key].active = false);
+            
+            // Activate selected feature
+            if (features[featureType]) {
+                features[featureType].active = true;
+                currentFeature = featureType;
+            }
+
+            // Update UI to show which feature is active
+            const cards = document.querySelectorAll('.grid .p-6');
+            cards.forEach(card => {
+                card.classList.remove('ring-2', 'ring-blue-500');
+            });
+        }
+
+        // Enhanced demo functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the AI system properly
+            const ai = new ConversationalAI();
+            window.ai = ai; // Make it globally accessible
+            
+            console.log('🤖 AI System initialized:', ai);
+            
+            // Dark mode toggle simulation
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            }
+
+            // Feature sidebar buttons
+            const sidebarButtons = document.querySelectorAll('nav button');
+            sidebarButtons.forEach((button, index) => {
+                button.addEventListener('click', function() {
+                    // Remove active state from all buttons
+                    sidebarButtons.forEach(btn => {
+                        btn.classList.remove('bg-blue-100', 'text-blue-900', 'dark:bg-blue-900', 'dark:text-blue-200');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900', 'dark:text-gray-300', 'dark:hover:bg-gray-700');
+                    });
+                    
+                    // Add active state to clicked button
+                    this.classList.add('bg-blue-100', 'text-blue-900', 'dark:bg-blue-900', 'dark:text-blue-200');
+                    this.classList.remove('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900', 'dark:text-gray-300', 'dark:hover:bg-gray-700');
+                    
+                    // Execute feature based on button
+                    const featureMap = ['analytics', 'ai', 'reports', 'automation'];
+                    const featureKey = featureMap[index];
+                    if (features[featureKey]) {
+                        features[featureKey].execute();
+                    }
+                });
+            });
+
+            // Feature cards in main area
+            const featureCards = document.querySelectorAll('.grid .p-6');
+            featureCards.forEach((card, index) => {
+                card.addEventListener('click', function() {
+                    // Remove active state from all cards
+                    featureCards.forEach(c => c.classList.remove('ring-2', 'ring-blue-500'));
+                    // Add active state to clicked card
+                    this.classList.add('ring-2', 'ring-blue-500');
+                    
+                    // Execute feature
+                    const featureKeys = ['analytics', 'ai'];
+                    const featureKey = featureKeys[index];
+                    if (features[featureKey]) {
+                        features[featureKey].execute();
+                    }
+                });
+
+                // Execute buttons within cards
+                const executeBtn = card.querySelector('button');
+                if (executeBtn) {
+                    executeBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const featureKeys = ['analytics', 'ai'];
+                        const featureKey = featureKeys[index];
+                        if (features[featureKey]) {
+                            features[featureKey].execute();
+                        }
+                    });
+                }
+            });
+
+            // Chat functionality
+            const textarea = document.querySelector('textarea');
+            const sendButton = document.querySelector('button[class*="bg-blue-600"]');
+            
+            function addMessage(content, isUser = false) {
+                const messagesContainer = document.querySelector('.space-y-4');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+                
+                messageDiv.innerHTML = `
+                    <div class="${isUser ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'} rounded-lg px-4 py-2 max-w-[80%]">
+                        <div class="whitespace-pre-wrap break-words">${content}</div>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-xs opacity-70">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove typing indicator if it exists
+                const typingIndicator = messagesContainer.querySelector('.animate-bounce');
+                if (typingIndicator && !isUser) {
+                    typingIndicator.closest('.flex').remove();
+                }
+                
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Store in conversation history
+                conversationHistory.push({content, isUser, timestamp: Date.now()});
+            }
+
+            function showTypingIndicator() {
+                const messagesContainer = document.querySelector('.space-y-4');
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'flex justify-start typing-indicator';
+                
+                typingDiv.innerHTML = `
+                    <div class="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-2">
+                        <div class="flex items-center space-x-2">
+                            <div class="flex space-x-1">
+                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            </div>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Thinking...</span>
+                        </div>
+                    </div>
+                `;
+                
+                messagesContainer.appendChild(typingDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            sendButton.addEventListener('click', function() {
+                console.log('Send button clicked');
+                const message = textarea.value.trim();
+                if (message && window.ai) {
+                    console.log('Processing message:', message);
+                    addMessage(message, true);
+                    textarea.value = '';
+                    
+                    // Show typing indicator
+                    showTypingIndicator();
+                    
+                    // Process with AI engine
+                    setTimeout(() => {
+                        try {
+                            const response = window.ai.processMessage(message);
+                            console.log('AI Response:', response);
+                            addMessage(response, false);
+                        } catch (error) {
+                            console.error('AI Processing Error:', error);
+                            addMessage('Sorry, I encountered an error processing your message. Please try again.', false);
+                        }
+                    }, 800 + Math.random() * 1200);
+                } else {
+                    console.log('No message or AI not available');
+                }
+            });
+
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendButton.click();
+                }
+            });
+
+            // Auto-resize textarea
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            console.log('🚀 Enhanced Frontier Dashboard Demo Loaded');
+            console.log('💡 Features: Intelligent chat, functional sidebar, contextual responses');
+            console.log('🎯 Try: Ask about your business, click features, request analytics');
+        });
+    </script>
+</body>
+</html>

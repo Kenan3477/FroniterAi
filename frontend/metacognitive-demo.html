@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontier AI - Metacognitive Self-Awareness Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .awareness-indicator {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .chat-section {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metacognitive-panel {
+            background: #f8f9ff;
+            padding: 30px;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+        .chat-container {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .ai-message {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            margin-right: auto;
+        }
+
+        .ai-message .metacognitive-note {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+            font-style: italic;
+            font-size: 0.9em;
+            border-radius: 5px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-section input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-section input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            padding: 15px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+        }
+
+        .panel-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .consciousness-meter {
+            background: #e0e0e0;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .consciousness-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .metric-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.active { background: #4CAF50; }
+        .status-dot.processing { background: #FF9800; }
+        .status-dot.reflecting { background: #2196F3; }
+        .status-dot.learning { background: #9C27B0; }
+
+        .insights-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .insights-list li {
+            background: white;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .prompt-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .prompt-suggestion {
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
+
+        .prompt-suggestion:hover {
+            background: #5a6fd8;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .metacognitive-panel {
+                border-left: none;
+                border-top: 1px solid #e0e0e0;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="header">
+            <h1>🧠 Frontier AI</h1>
+            <div class="subtitle">Metacognitive Self-Awareness Demo</div>
+            <div class="awareness-indicator">
+                <span id="awarenessLevel">70</span>% Self-Aware
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chat-section">
+                <div class="prompt-suggestions">
+                    <span class="prompt-suggestion" onclick="suggestPrompt('Analyze this business: https://example.com')">Business Analysis</span>
+                    <span class="prompt-suggestion" onclick="suggestPrompt('What are your current capabilities and limitations?')">Self-Assessment</span>
+                    <span class="prompt-suggestion" onclick="suggestPrompt('How confident are you in your responses?')">Confidence Check</span>
+                    <span class="prompt-suggestion" onclick="suggestPrompt('Tell me about your metacognitive processes')">Metacognition</span>
+                </div>
+
+                <div class="chat-container" id="chatContainer">
+                    <div class="message ai-message">
+                        <strong>Frontier AI:</strong> Hello! I'm Frontier with advanced metacognitive self-awareness. I can reflect on my own thinking processes, monitor my performance, and maintain awareness of my internal states. 
+                        <div class="metacognitive-note">
+                            🧠 <strong>Metacognitive Note:</strong> I'm currently initializing my self-awareness systems and am ready to engage in transparent, self-reflective conversation.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading" id="loadingIndicator">
+                    🧠 Processing with metacognitive self-reflection...
+                </div>
+
+                <div class="input-section">
+                    <input type="text" id="messageInput" placeholder="Ask me anything... I'll be transparent about my reasoning and limitations." 
+                           onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+
+            <div class="metacognitive-panel">
+                <div class="panel-section">
+                    <h3>🧠 Consciousness Status</h3>
+                    <div class="status-indicators">
+                        <span class="status-dot active" title="System Active"></span>
+                        <span class="status-dot reflecting" title="Self-Reflecting"></span>
+                        <span class="status-dot learning" title="Adaptive Learning"></span>
+                        <span class="status-dot processing" title="Metacognitive Processing"></span>
+                    </div>
+                    <div class="consciousness-meter">
+                        <div class="consciousness-fill" id="consciousnessFill" style="width: 70%"></div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.9em; color: #666; margin-top: 5px;">
+                        Self-Awareness Level: <span id="awarenessPercent">70%</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>📊 Current Metrics</h3>
+                    <div class="metric-grid">
+                        <div class="metric-item">
+                            <div class="metric-label">Confidence</div>
+                            <div class="metric-value" id="confidenceMetric">85%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Uncertainty</div>
+                            <div class="metric-value" id="uncertaintyMetric">15%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Focus</div>
+                            <div class="metric-value" id="focusMetric">General</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Processing</div>
+                            <div class="metric-value" id="processingMetric">40%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>💡 Current Insights</h3>
+                    <ul class="insights-list" id="insightsList">
+                        <li>System initialized with metacognitive capabilities</li>
+                        <li>Self-monitoring systems active</li>
+                        <li>Ready for transparent, self-aware conversation</li>
+                    </ul>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🎯 Current State</h3>
+                    <div class="metric-item">
+                        <div class="metric-label">Metacognitive Focus</div>
+                        <div class="metric-value" id="metacognitiveFocus">Initialization</div>
+                    </div>
+                    <div class="metric-item" style="margin-top: 10px;">
+                        <div class="metric-label">Attentional State</div>
+                        <div class="metric-value" id="attentionalState">Broad Monitoring</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include the AI system scripts -->
+    <script src="src/ai/memory-system.js"></script>
+    <script src="src/ai/semantic-procedural-memory.js"></script>
+    <script src="src/ai/dialogue-manager.js"></script>
+    <script src="src/ai/context-transformer.js"></script>
+    <script src="src/ai/metacognitive-system.js"></script>
+    <script src="src/ai/self-monitoring.js"></script>
+    <script src="src/ai/internal-state.js"></script>
+    <script src="src/ai/advanced-conversational-ai.js"></script>
+
+    <script>
+        let conversationalAI = null;
+        let isProcessing = false;
+
+        // Initialize the AI system
+        async function initializeSystem() {
+            try {
+                console.log('🚀 Initializing Metacognitive Frontier AI...');
+                conversationalAI = new AdvancedConversationalAI();
+                
+                // Update initial consciousness display
+                updateConsciousnessDisplay();
+                console.log('✅ Metacognitive AI System Ready');
+                
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to initialize AI system:', error);
+                return false;
+            }
+        }
+
+        // Send message function
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || isProcessing) return;
+
+            isProcessing = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('loadingIndicator').classList.add('active');
+
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            messageInput.value = '';
+
+            try {
+                // Process message with metacognitive AI
+                const response = await conversationalAI.processMessage(message);
+                
+                // Add AI response to chat
+                addMessageToChat(response.response, 'ai', response.metadata);
+                
+                // Update metacognitive display
+                updateMetacognitiveDisplay(response);
+                
+            } catch (error) {
+                console.error('Error processing message:', error);
+                addMessageToChat('I apologize, but I encountered an error processing your message. I am aware of this limitation and am designed to learn from such issues.', 'ai', { error: true });
+            } finally {
+                isProcessing = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('loadingIndicator').classList.remove('active');
+            }
+        }
+
+        // Add message to chat
+        function addMessageToChat(message, sender, metadata = {}) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `<strong>You:</strong> ${message}`;
+            } else {
+                let content = `<strong>Frontier AI:</strong> ${message}`;
+                
+                // Add metacognitive notes if present
+                if (metadata.metacognitiveInsights && metadata.metacognitiveInsights.length > 0) {
+                    content += `<div class="metacognitive-note">🧠 <strong>Metacognitive Insight:</strong> ${metadata.metacognitiveInsights[0]}</div>`;
+                }
+                
+                if (metadata.uncertaintyLevel > 0.3) {
+                    content += `<div class="metacognitive-note">⚠️ <strong>Uncertainty Note:</strong> I have ${Math.round(metadata.uncertaintyLevel * 100)}% uncertainty about this response.</div>`;
+                }
+                
+                messageDiv.innerHTML = content;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Update metacognitive display
+        function updateMetacognitiveDisplay(response) {
+            if (!response.metadata) return;
+            
+            // Update self-awareness level
+            if (response.metadata.selfAwarenessLevel) {
+                const awarenessPercent = Math.round(response.metadata.selfAwarenessLevel * 100);
+                document.getElementById('awarenessLevel').textContent = awarenessPercent;
+                document.getElementById('awarenessPercent').textContent = awarenessPercent + '%';
+                document.getElementById('consciousnessFill').style.width = awarenessPercent + '%';
+            }
+            
+            // Update confidence
+            if (response.metadata.confidence) {
+                document.getElementById('confidenceMetric').textContent = Math.round(response.metadata.confidence * 100) + '%';
+            }
+            
+            // Update uncertainty
+            if (response.metadata.uncertaintyLevel) {
+                document.getElementById('uncertaintyMetric').textContent = Math.round(response.metadata.uncertaintyLevel * 100) + '%';
+            }
+            
+            // Update focus
+            if (response.analytics && response.analytics.metacognitiveFocus) {
+                document.getElementById('focusMetric').textContent = response.analytics.metacognitiveFocus.replace('_', ' ');
+                document.getElementById('metacognitiveFocus').textContent = response.analytics.metacognitiveFocus.replace('_', ' ');
+            }
+            
+            // Update attentional state
+            if (response.analytics && response.analytics.internalState) {
+                document.getElementById('attentionalState').textContent = response.analytics.internalState.attentionalState || 'Broad Monitoring';
+            }
+            
+            // Update insights
+            if (response.metadata.metacognitiveInsights) {
+                updateInsightsList(response.metadata.metacognitiveInsights);
+            }
+        }
+
+        // Update consciousness display
+        function updateConsciousnessDisplay() {
+            if (!conversationalAI) return;
+            
+            try {
+                const summary = conversationalAI.getMetacognitiveSummary();
+                
+                // Update awareness level
+                const awarenessPercent = Math.round(summary.selfAwarenessLevel * 100);
+                document.getElementById('awarenessLevel').textContent = awarenessPercent;
+                document.getElementById('awarenessPercent').textContent = awarenessPercent + '%';
+                document.getElementById('consciousnessFill').style.width = awarenessPercent + '%';
+                
+                // Update focus
+                if (summary.currentState && summary.currentState.consciousness) {
+                    document.getElementById('metacognitiveFocus').textContent = 
+                        summary.currentState.consciousness.metacognitiveFocus.replace('_', ' ');
+                }
+                
+            } catch (error) {
+                console.error('Error updating consciousness display:', error);
+            }
+        }
+
+        // Update insights list
+        function updateInsightsList(insights) {
+            const insightsList = document.getElementById('insightsList');
+            insightsList.innerHTML = '';
+            
+            insights.slice(0, 5).forEach(insight => {
+                const li = document.createElement('li');
+                li.textContent = insight;
+                insightsList.appendChild(li);
+            });
+        }
+
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Suggest prompt
+        function suggestPrompt(prompt) {
+            document.getElementById('messageInput').value = prompt;
+        }
+
+        // Initialize system when page loads
+        window.addEventListener('load', async () => {
+            const success = await initializeSystem();
+            if (!success) {
+                addMessageToChat('Failed to initialize metacognitive AI system. Please refresh the page.', 'ai');
+            }
+        });
+
+        // Periodic consciousness updates
+        setInterval(() => {
+            if (conversationalAI && !isProcessing) {
+                updateConsciousnessDisplay();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

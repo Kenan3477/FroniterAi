@@ -1,0 +1,655 @@
+# Business Operations Database Deployment and Migration Configuration
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: business-ops-data
+  labels:
+    name: business-ops-data
+    component: database
+    data-classification: sensitive
+    compliance: enabled
+
+---
+# PostgreSQL Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  namespace: business-ops-data
+  labels:
+    app: postgresql
+    component: config
+data:
+  postgresql.conf: |
+    # Performance Configuration
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    
+    # WAL Configuration for Backup/Recovery
+    wal_level = replica
+    max_wal_senders = 3
+    max_replication_slots = 3
+    archive_mode = on
+    archive_command = 'wal-e wal-push %p'
+    
+    # Logging Configuration for Compliance
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = '/var/log/postgresql'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_rotation_age = 1d
+    log_rotation_size = 100MB
+    log_min_duration_statement = 1000
+    log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+    log_lock_waits = on
+    log_statement = 'ddl'
+    
+    # Security Configuration
+    ssl = on
+    ssl_cert_file = '/etc/ssl/certs/server.crt'
+    ssl_key_file = '/etc/ssl/private/server.key'
+    ssl_ca_file = '/etc/ssl/certs/ca.crt'
+    
+    # Compliance Configuration
+    track_activities = on
+    track_counts = on
+    track_io_timing = on
+    track_functions = all
+
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    local   all             postgres                                peer
+    local   all             all                                     md5
+    host    all             all             127.0.0.1/32            md5
+    host    all             all             ::1/128                 md5
+    host    all             all             10.0.0.0/8              md5
+    hostssl all             all             0.0.0.0/0               md5
+
+---
+# Database Initialization Script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-init-scripts
+  namespace: business-ops-data
+  labels:
+    app: postgresql
+    component: init
+data:
+  01-create-database.sql: |
+    -- Create business operations database
+    CREATE DATABASE business_ops;
+    
+    -- Create read-only user for reporting
+    CREATE USER business_ops_readonly WITH PASSWORD 'readonly_password';
+    GRANT CONNECT ON DATABASE business_ops TO business_ops_readonly;
+    
+    -- Create audit user
+    CREATE USER business_ops_audit WITH PASSWORD 'audit_password';
+    GRANT CONNECT ON DATABASE business_ops TO business_ops_audit;
+
+  02-enable-extensions.sql: |
+    \c business_ops;
+    
+    -- Enable required extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+    CREATE EXTENSION IF NOT EXISTS "btree_gin";
+    
+    -- Create audit schema
+    CREATE SCHEMA IF NOT EXISTS audit;
+    
+    -- Create compliance schema
+    CREATE SCHEMA IF NOT EXISTS compliance;
+
+  03-create-audit-tables.sql: |
+    \c business_ops;
+    
+    -- Audit log table
+    CREATE TABLE audit.audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        table_name VARCHAR(255) NOT NULL,
+        operation VARCHAR(10) NOT NULL,
+        old_data JSONB,
+        new_data JSONB,
+        user_id UUID,
+        username VARCHAR(255),
+        ip_address INET,
+        user_agent TEXT,
+        session_id VARCHAR(255),
+        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        compliance_flags TEXT[]
+    );
+    
+    -- Create indexes for audit queries
+    CREATE INDEX idx_audit_log_timestamp ON audit.audit_log(timestamp);
+    CREATE INDEX idx_audit_log_table_name ON audit.audit_log(table_name);
+    CREATE INDEX idx_audit_log_user_id ON audit.audit_log(user_id);
+    CREATE INDEX idx_audit_log_operation ON audit.audit_log(operation);
+    
+    -- Data retention table
+    CREATE TABLE compliance.data_retention (
+        id SERIAL PRIMARY KEY,
+        table_name VARCHAR(255) NOT NULL,
+        retention_period_days INTEGER NOT NULL,
+        last_cleanup TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Insert default retention policies
+    INSERT INTO compliance.data_retention (table_name, retention_period_days) VALUES
+    ('financial_data', 2555),  -- 7 years
+    ('audit_log', 2555),       -- 7 years
+    ('user_sessions', 90),     -- 90 days
+    ('api_logs', 365);         -- 1 year
+
+  04-create-triggers.sql: |
+    \c business_ops;
+    
+    -- Generic audit trigger function
+    CREATE OR REPLACE FUNCTION audit.audit_trigger_function()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        IF TG_OP = 'DELETE' THEN
+            INSERT INTO audit.audit_log (
+                table_name, operation, old_data, user_id, username, timestamp
+            ) VALUES (
+                TG_TABLE_NAME, TG_OP, row_to_json(OLD), 
+                current_setting('app.user_id', true)::UUID,
+                current_setting('app.username', true),
+                NOW()
+            );
+            RETURN OLD;
+        ELSIF TG_OP = 'UPDATE' THEN
+            INSERT INTO audit.audit_log (
+                table_name, operation, old_data, new_data, user_id, username, timestamp
+            ) VALUES (
+                TG_TABLE_NAME, TG_OP, row_to_json(OLD), row_to_json(NEW),
+                current_setting('app.user_id', true)::UUID,
+                current_setting('app.username', true),
+                NOW()
+            );
+            RETURN NEW;
+        ELSIF TG_OP = 'INSERT' THEN
+            INSERT INTO audit.audit_log (
+                table_name, operation, new_data, user_id, username, timestamp
+            ) VALUES (
+                TG_TABLE_NAME, TG_OP, row_to_json(NEW),
+                current_setting('app.user_id', true)::UUID,
+                current_setting('app.username', true),
+                NOW()
+            );
+            RETURN NEW;
+        END IF;
+        RETURN NULL;
+    END;
+    $$ LANGUAGE plpgsql;
+
+---
+# Database Migration Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: business-ops-db-migration
+  namespace: business-ops-data
+  labels:
+    app: database-migration
+    component: migration
+spec:
+  template:
+    metadata:
+      labels:
+        app: database-migration
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      initContainers:
+        - name: wait-for-db
+          image: postgres:15.4-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h business-ops-database -p 5432 -U business_ops; do
+                echo "Waiting for database..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-db-secrets
+                  key: password
+      containers:
+        - name: migrate
+          image: migrate/migrate:latest
+          command:
+            - migrate
+            - -path
+            - /migrations
+            - -database
+            - $(DATABASE_URL)
+            - up
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-db-secrets
+                  key: migration-url
+          volumeMounts:
+            - name: migration-scripts
+              mountPath: /migrations
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: migration-scripts
+          configMap:
+            name: database-migration-scripts
+
+---
+# Migration Scripts ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-migration-scripts
+  namespace: business-ops-data
+  labels:
+    app: database-migration
+    component: scripts
+data:
+  001_initial_schema.up.sql: |
+    -- Users and Authentication
+    CREATE TABLE users (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        subscription_tier VARCHAR(50) NOT NULL DEFAULT 'basic',
+        roles TEXT[] DEFAULT '{}',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        last_login TIMESTAMP WITH TIME ZONE,
+        is_active BOOLEAN DEFAULT true,
+        compliance_flags JSONB DEFAULT '{}'
+    );
+    
+    -- Financial Analysis Data
+    CREATE TABLE financial_analyses (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        company_name VARCHAR(255) NOT NULL,
+        industry VARCHAR(100),
+        analysis_period VARCHAR(50),
+        financial_data JSONB NOT NULL,
+        analysis_results JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        data_classification VARCHAR(50) DEFAULT 'confidential'
+    );
+    
+    -- Valuation Data
+    CREATE TABLE valuations (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        financial_analysis_id UUID REFERENCES financial_analyses(id),
+        company_name VARCHAR(255) NOT NULL,
+        valuation_methods TEXT[] NOT NULL,
+        market_data JSONB,
+        valuation_results JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Strategic Planning Data
+    CREATE TABLE strategic_plans (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        company_profile JSONB NOT NULL,
+        current_situation JSONB NOT NULL,
+        objectives TEXT[] NOT NULL,
+        time_horizon INTEGER,
+        strategic_analysis JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- API Usage Tracking
+    CREATE TABLE api_usage (
+        id BIGSERIAL PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        endpoint VARCHAR(255) NOT NULL,
+        method VARCHAR(10) NOT NULL,
+        status_code INTEGER,
+        response_time_ms INTEGER,
+        request_size_bytes INTEGER,
+        response_size_bytes INTEGER,
+        ip_address INET,
+        user_agent TEXT,
+        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        rate_limit_remaining INTEGER
+    );
+
+  001_initial_schema.down.sql: |
+    DROP TABLE IF EXISTS api_usage;
+    DROP TABLE IF EXISTS strategic_plans;
+    DROP TABLE IF EXISTS valuations;
+    DROP TABLE IF EXISTS financial_analyses;
+    DROP TABLE IF EXISTS users;
+
+  002_indexes_and_constraints.up.sql: |
+    -- Performance Indexes
+    CREATE INDEX idx_users_email ON users(email);
+    CREATE INDEX idx_users_username ON users(username);
+    CREATE INDEX idx_users_subscription_tier ON users(subscription_tier);
+    CREATE INDEX idx_users_created_at ON users(created_at);
+    
+    CREATE INDEX idx_financial_analyses_user_id ON financial_analyses(user_id);
+    CREATE INDEX idx_financial_analyses_company_name ON financial_analyses(company_name);
+    CREATE INDEX idx_financial_analyses_industry ON financial_analyses(industry);
+    CREATE INDEX idx_financial_analyses_created_at ON financial_analyses(created_at);
+    
+    CREATE INDEX idx_valuations_user_id ON valuations(user_id);
+    CREATE INDEX idx_valuations_financial_analysis_id ON valuations(financial_analysis_id);
+    CREATE INDEX idx_valuations_created_at ON valuations(created_at);
+    
+    CREATE INDEX idx_strategic_plans_user_id ON strategic_plans(user_id);
+    CREATE INDEX idx_strategic_plans_created_at ON strategic_plans(created_at);
+    
+    CREATE INDEX idx_api_usage_user_id ON api_usage(user_id);
+    CREATE INDEX idx_api_usage_endpoint ON api_usage(endpoint);
+    CREATE INDEX idx_api_usage_timestamp ON api_usage(timestamp);
+    CREATE INDEX idx_api_usage_ip_address ON api_usage(ip_address);
+    
+    -- Compliance Indexes
+    CREATE INDEX idx_financial_analyses_data_classification ON financial_analyses(data_classification);
+    CREATE INDEX idx_users_compliance_flags ON users USING GIN(compliance_flags);
+    
+    -- Full-text search indexes
+    CREATE INDEX idx_financial_analyses_company_name_trgm ON financial_analyses USING gin(company_name gin_trgm_ops);
+
+  002_indexes_and_constraints.down.sql: |
+    DROP INDEX IF EXISTS idx_financial_analyses_company_name_trgm;
+    DROP INDEX IF EXISTS idx_users_compliance_flags;
+    DROP INDEX IF EXISTS idx_financial_analyses_data_classification;
+    DROP INDEX IF EXISTS idx_api_usage_ip_address;
+    DROP INDEX IF EXISTS idx_api_usage_timestamp;
+    DROP INDEX IF EXISTS idx_api_usage_endpoint;
+    DROP INDEX IF EXISTS idx_api_usage_user_id;
+    DROP INDEX IF EXISTS idx_strategic_plans_created_at;
+    DROP INDEX IF EXISTS idx_strategic_plans_user_id;
+    DROP INDEX IF EXISTS idx_valuations_created_at;
+    DROP INDEX IF EXISTS idx_valuations_financial_analysis_id;
+    DROP INDEX IF EXISTS idx_valuations_user_id;
+    DROP INDEX IF EXISTS idx_financial_analyses_created_at;
+    DROP INDEX IF EXISTS idx_financial_analyses_industry;
+    DROP INDEX IF EXISTS idx_financial_analyses_company_name;
+    DROP INDEX IF EXISTS idx_financial_analyses_user_id;
+    DROP INDEX IF EXISTS idx_users_created_at;
+    DROP INDEX IF EXISTS idx_users_subscription_tier;
+    DROP INDEX IF EXISTS idx_users_username;
+    DROP INDEX IF EXISTS idx_users_email;
+
+  003_audit_triggers.up.sql: |
+    -- Create audit triggers for all main tables
+    CREATE TRIGGER users_audit_trigger
+        AFTER INSERT OR UPDATE OR DELETE ON users
+        FOR EACH ROW EXECUTE FUNCTION audit.audit_trigger_function();
+    
+    CREATE TRIGGER financial_analyses_audit_trigger
+        AFTER INSERT OR UPDATE OR DELETE ON financial_analyses
+        FOR EACH ROW EXECUTE FUNCTION audit.audit_trigger_function();
+    
+    CREATE TRIGGER valuations_audit_trigger
+        AFTER INSERT OR UPDATE OR DELETE ON valuations
+        FOR EACH ROW EXECUTE FUNCTION audit.audit_trigger_function();
+    
+    CREATE TRIGGER strategic_plans_audit_trigger
+        AFTER INSERT OR UPDATE OR DELETE ON strategic_plans
+        FOR EACH ROW EXECUTE FUNCTION audit.audit_trigger_function();
+
+  003_audit_triggers.down.sql: |
+    DROP TRIGGER IF EXISTS strategic_plans_audit_trigger ON strategic_plans;
+    DROP TRIGGER IF EXISTS valuations_audit_trigger ON valuations;
+    DROP TRIGGER IF EXISTS financial_analyses_audit_trigger ON financial_analyses;
+    DROP TRIGGER IF EXISTS users_audit_trigger ON users;
+
+---
+# Database StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: business-ops-database
+  namespace: business-ops-data
+  labels:
+    app: business-ops-database
+    component: database
+spec:
+  serviceName: business-ops-database
+  replicas: 1
+  selector:
+    matchLabels:
+      app: business-ops-database
+  template:
+    metadata:
+      labels:
+        app: business-ops-database
+        component: database
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgresql
+          image: postgres:15.4-alpine
+          ports:
+            - containerPort: 5432
+              name: postgresql
+          env:
+            - name: POSTGRES_DB
+              value: "business_ops"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-db-secrets
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: business-ops-db-secrets
+                  key: password
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgresql-config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+            - name: postgresql-config
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+            - name: ssl-keys
+              mountPath: /etc/ssl/private
+              readOnly: true
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+      volumes:
+        - name: postgresql-config
+          configMap:
+            name: postgresql-config
+        - name: init-scripts
+          configMap:
+            name: database-init-scripts
+        - name: ssl-certs
+          secret:
+            secretName: postgresql-ssl-certs
+            defaultMode: 0644
+        - name: ssl-keys
+          secret:
+            secretName: postgresql-ssl-keys
+            defaultMode: 0600
+  volumeClaimTemplates:
+    - metadata:
+        name: postgresql-data
+        labels:
+          app: business-ops-database
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "fast-ssd"
+        resources:
+          requests:
+            storage: 100Gi
+
+---
+# Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: business-ops-database
+  namespace: business-ops-data
+  labels:
+    app: business-ops-database
+    component: database
+spec:
+  selector:
+    app: business-ops-database
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgresql
+  type: ClusterIP
+
+---
+# Database Backup CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: business-ops-db-backup
+  namespace: business-ops-data
+  labels:
+    app: database-backup
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: database-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:15.4-alpine
+              command:
+                - sh
+                - -c
+                - |
+                  BACKUP_FILE="business_ops_backup_$(date +%Y%m%d_%H%M%S).sql"
+                  pg_dump $DATABASE_URL > /backup/$BACKUP_FILE
+                  gzip /backup/$BACKUP_FILE
+                  
+                  # Upload to cloud storage
+                  aws s3 cp /backup/${BACKUP_FILE}.gz s3://business-ops-backups/daily/
+                  
+                  # Cleanup old local backups
+                  find /backup -name "*.gz" -mtime +7 -delete
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: business-ops-db-secrets
+                      key: backup-url
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-backup-credentials
+                      key: access-key-id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-backup-credentials
+                      key: secret-access-key
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: database-backup-storage
+
+---
+# Backup Storage PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: database-backup-storage
+  namespace: business-ops-data
+  labels:
+    app: database-backup
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: "standard"
+  resources:
+    requests:
+      storage: 50Gi

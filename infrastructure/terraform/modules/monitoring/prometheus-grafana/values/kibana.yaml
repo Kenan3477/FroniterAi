@@ -1,0 +1,57 @@
+# Kibana Helm Chart Values
+elasticsearchHosts: "http://elasticsearch-master:9200"
+
+kibanaConfig:
+  kibana.yml: |
+    server.host: 0.0.0.0
+    elasticsearch.hosts: ["http://elasticsearch-master:9200"]
+    monitoring.ui.container.elasticsearch.enabled: true
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+service:
+  type: ClusterIP
+  port: 5601
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: "internet-facing"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:region:account:certificate/certificate-id"
+  hosts:
+    - host: "${kibana_ingress_host}"
+      paths:
+        - path: /
+          pathType: Prefix
+
+nodeSelector:
+  node-type: monitoring
+
+tolerations:
+  - key: "monitoring"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+# Security Context
+securityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+# Health checks
+healthCheckPath: "/api/status"
+
+# Kibana configuration
+extraEnvs:
+  - name: "NODE_OPTIONS"
+    value: "--max-old-space-size=1800"

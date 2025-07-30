@@ -1,0 +1,466 @@
+# ConfigMaps for ELK Stack Configuration
+
+---
+# Logstash Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: elk-stack
+data:
+  logstash.conf: |
+    input {
+      beats {
+        port => 5044
+      }
+      
+      # API Gateway logs
+      tcp {
+        port => 5000
+        codec => json
+        tags => ["api-gateway"]
+      }
+      
+      # Application logs from Filebeat
+      beats {
+        port => 5044
+        type => "logs"
+      }
+      
+      # Kubernetes audit logs
+      tcp {
+        port => 5001
+        codec => json
+        tags => ["kubernetes-audit"]
+      }
+    }
+    
+    filter {
+      # Parse Frontier API logs
+      if [fields][service] == "frontier-api" {
+        grok {
+          match => { 
+            "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} \[%{DATA:thread}\] %{DATA:logger} - %{GREEDYDATA:log_message}"
+          }
+        }
+        
+        # Parse JSON logs
+        if [log_message] =~ /^\{.*\}$/ {
+          json {
+            source => "log_message"
+            target => "parsed_log"
+          }
+        }
+        
+        # Extract request metrics
+        if [parsed_log][request_id] {
+          mutate {
+            add_field => { "request_id" => "%{[parsed_log][request_id]}" }
+            add_field => { "user_id" => "%{[parsed_log][user_id]}" }
+            add_field => { "endpoint" => "%{[parsed_log][endpoint]}" }
+            add_field => { "response_time" => "%{[parsed_log][response_time]}" }
+            add_field => { "status_code" => "%{[parsed_log][status_code]}" }
+          }
+        }
+      }
+      
+      # Parse Nginx access logs
+      if [fields][service] == "nginx" {
+        grok {
+          match => { 
+            "message" => "%{COMBINEDAPACHELOG}"
+          }
+        }
+        
+        # Convert response time to number
+        if [response] {
+          mutate {
+            convert => { "response" => "integer" }
+          }
+        }
+        
+        # GeoIP lookup
+        geoip {
+          source => "clientip"
+          target => "geoip"
+        }
+      }
+      
+      # Parse Kubernetes logs
+      if [kubernetes] {
+        # Add namespace and pod information
+        mutate {
+          add_field => { "k8s_namespace" => "%{[kubernetes][namespace]}" }
+          add_field => { "k8s_pod" => "%{[kubernetes][pod][name]}" }
+          add_field => { "k8s_container" => "%{[kubernetes][container][name]}" }
+        }
+        
+        # Parse container logs
+        if [k8s_container] == "frontier-api" {
+          json {
+            source => "message"
+            target => "app_log"
+          }
+        }
+      }
+      
+      # Add common fields
+      mutate {
+        add_field => { "environment" => "production" }
+        add_field => { "service_name" => "%{[fields][service]}" }
+      }
+      
+      # Parse timestamp
+      date {
+        match => [ "timestamp", "ISO8601" ]
+        target => "@timestamp"
+      }
+      
+      # Remove unnecessary fields
+      mutate {
+        remove_field => [ "agent", "ecs", "host" ]
+      }
+    }
+    
+    output {
+      elasticsearch {
+        hosts => ["https://elasticsearch:9200"]
+        user => "${ELASTICSEARCH_USERNAME}"
+        password => "${ELASTICSEARCH_PASSWORD}"
+        ssl => true
+        ssl_certificate_verification => false
+        
+        # Index strategy
+        index => "frontier-logs-%{+YYYY.MM.dd}"
+        
+        # Document type based on log source
+        if [fields][service] == "frontier-api" {
+          index => "frontier-api-logs-%{+YYYY.MM.dd}"
+        } else if [fields][service] == "nginx" {
+          index => "frontier-access-logs-%{+YYYY.MM.dd}"
+        } else if [kubernetes] {
+          index => "frontier-k8s-logs-%{+YYYY.MM.dd}"
+        }
+        
+        # Template for log parsing
+        template_name => "frontier-logs"
+        template_pattern => "frontier-*"
+        template => "/usr/share/logstash/templates/frontier-template.json"
+      }
+      
+      # Debug output (comment out in production)
+      # stdout { codec => rubydebug }
+    }
+
+---
+# Logstash Patterns
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-patterns
+  namespace: elk-stack
+data:
+  frontier-patterns: |
+    # Custom patterns for Frontier logs
+    FRONTIER_REQUEST_ID [a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}
+    FRONTIER_ENDPOINT \/api\/v[0-9]+\/[a-zA-Z0-9\/_-]+
+    FRONTIER_RESPONSE_TIME [0-9]+\.?[0-9]*ms
+    FRONTIER_LOG_LEVEL (DEBUG|INFO|WARN|ERROR|FATAL)
+
+---
+# Filebeat Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: elk-stack
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+    # Container logs
+    - type: container
+      paths:
+        - /var/log/containers/*frontier*.log
+      fields:
+        service: frontier-api
+        environment: production
+      fields_under_root: true
+      multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+      multiline.negate: true
+      multiline.match: after
+      
+    # Nginx access logs
+    - type: log
+      paths:
+        - /var/log/nginx/access.log
+      fields:
+        service: nginx
+        log_type: access
+      fields_under_root: true
+      
+    # Nginx error logs
+    - type: log
+      paths:
+        - /var/log/nginx/error.log
+      fields:
+        service: nginx
+        log_type: error
+      fields_under_root: true
+      
+    # Application logs from mounted volumes
+    - type: log
+      paths:
+        - /var/log/frontier/*.log
+      fields:
+        service: frontier-api
+        environment: production
+      fields_under_root: true
+      multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+      multiline.negate: true
+      multiline.match: after
+    
+    # Kubernetes audit logs
+    - type: log
+      paths:
+        - /var/log/audit.log
+      fields:
+        service: kubernetes
+        log_type: audit
+      fields_under_root: true
+    
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          hints.default_config:
+            type: container
+            paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+    
+    processors:
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+    
+    - add_host_metadata:
+        when.not.contains.tags: forwarded
+    
+    - add_docker_metadata: ~
+    
+    - decode_json_fields:
+        fields: ["message"]
+        target: "json"
+        overwrite_keys: true
+    
+    output.logstash:
+      hosts: ["logstash:5044"]
+      
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat
+      keepfiles: 7
+      permissions: 0644
+
+---
+# Metricbeat Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metricbeat-config
+  namespace: elk-stack
+data:
+  metricbeat.yml: |
+    metricbeat.autodiscover:
+      providers:
+        - type: kubernetes
+          scope: cluster
+          node: ${NODE_NAME}
+          unique: true
+          templates:
+            - config:
+                - module: kubernetes
+                  hosts: ["kube-state-metrics:8080"]
+                  period: 10s
+                  add_metadata: true
+                  metricsets:
+                    - state_node
+                    - state_deployment
+                    - state_replicaset
+                    - state_statefulset
+                    - state_pod
+                    - state_container
+                    - state_cronjob
+                    - state_resourcequota
+                    - state_service
+                    - state_persistentvolume
+                    - state_persistentvolumeclaim
+    
+    metricbeat.modules:
+    # System metrics
+    - module: system
+      metricsets:
+        - cpu
+        - load
+        - memory
+        - network
+        - process
+        - process_summary
+        - socket_summary
+        - filesystem
+        - fsstat
+      enabled: true
+      period: 10s
+      processes: ['.*']
+      cpu.metrics: ["percentages", "normalized_percentages"]
+      core.metrics: ["percentages"]
+    
+    # Docker metrics
+    - module: docker
+      metricsets:
+        - container
+        - cpu
+        - diskio
+        - event
+        - healthcheck
+        - info
+        - memory
+        - network
+      hosts: ["unix:///var/run/docker.sock"]
+      period: 10s
+      enabled: true
+    
+    # Kubernetes metrics
+    - module: kubernetes
+      enabled: true
+      metricsets:
+        - node
+        - system
+        - pod
+        - container
+        - volume
+      period: 10s
+      host: ${NODE_NAME}
+      hosts: ["https://${NODE_NAME}:10250"]
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      ssl.verification_mode: "none"
+    
+    # PostgreSQL metrics (if accessible)
+    - module: postgresql
+      enabled: true
+      metricsets: ["database", "bgwriter", "activity"]
+      period: 10s
+      hosts: ["postgres://elastic:${ELASTICSEARCH_PASSWORD}@postgres:5432/frontier?sslmode=disable"]
+    
+    # Redis metrics (if accessible)
+    - module: redis
+      enabled: true
+      metricsets: ["info", "keyspace"]
+      period: 10s
+      hosts: ["redis:6379"]
+    
+    # Nginx metrics
+    - module: nginx
+      enabled: true
+      metricsets: ["stubstatus"]
+      period: 10s
+      hosts: ["http://nginx/nginx_status"]
+    
+    processors:
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+    
+    - add_host_metadata:
+        when.not.contains.tags: forwarded
+    
+    - add_docker_metadata: ~
+    
+    output.elasticsearch:
+      hosts: ["https://elasticsearch:9200"]
+      username: "${ELASTICSEARCH_USERNAME}"
+      password: "${ELASTICSEARCH_PASSWORD}"
+      ssl.verification_mode: none
+      
+      # Index strategy for metrics
+      index: "frontier-metrics-%{+yyyy.MM.dd}"
+      template.name: "frontier-metrics"
+      template.pattern: "frontier-metrics-*"
+      
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/metricbeat
+      name: metricbeat
+      keepfiles: 7
+      permissions: 0644
+
+---
+# Kibana Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: elk-stack
+data:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0"
+    elasticsearch.hosts: [ "https://elasticsearch:9200" ]
+    elasticsearch.username: elastic
+    elasticsearch.password: ${ELASTICSEARCH_PASSWORD}
+    elasticsearch.ssl.verificationMode: none
+    
+    # Monitoring
+    monitoring.ui.container.elasticsearch.enabled: true
+    monitoring.ui.container.logstash.enabled: true
+    
+    # Security
+    xpack.security.enabled: true
+    xpack.encryptedSavedObjects.encryptionKey: "frontier-business-operations-key-32-chars"
+    
+    # Default space and index patterns
+    kibana.defaultAppId: "discover"
+    
+    # Logging
+    logging.dest: stdout
+    logging.silent: false
+    logging.quiet: false
+    
+    # Advanced settings
+    elasticsearch.requestTimeout: 30000
+    elasticsearch.shardTimeout: 30000
+    server.shutdownTimeout: 5000
+    
+    # Custom settings for Frontier
+    map.includeElasticMapsService: false
+    telemetry.enabled: false
+    newsfeed.enabled: false
+
+---
+# Elasticsearch Credentials Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-credentials
+  namespace: elk-stack
+type: Opaque
+data:
+  password: ZnJvbnRpZXItZWxhc3RpYy1wYXNzd29yZA==  # base64 encoded "frontier-elastic-password"
+
+---
+# Elasticsearch Certificates Secret (placeholder)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-certs
+  namespace: elk-stack
+type: Opaque
+data:
+  elastic-certificates.p12: ""  # To be populated with actual certificates

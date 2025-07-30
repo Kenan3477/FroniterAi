@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # Redis for caching and model state
+  redis:
+    image: redis:7.2-alpine
+    container_name: frontier_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15
+    container_name: frontier_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: frontier_ai
+      POSTGRES_USER: frontier_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-frontier_secure_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frontier_user -d frontier_ai"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontier AI API (Development)
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: frontier_api_dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8888:8888"  # Jupyter
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://frontier_user:${POSTGRES_PASSWORD:-frontier_secure_password}@postgres:5432/frontier_ai
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_CACHE_DIR=/app/models
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - model_cache:/app/models
+      - app_logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    profiles:
+      - dev
+
+  # Frontier AI API (Production)
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: frontier_api_prod
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://frontier_user:${POSTGRES_PASSWORD}@postgres:5432/frontier_ai
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_CACHE_DIR=/app/models
+      - LOG_LEVEL=INFO
+      - WORKERS=4
+    volumes:
+      - model_cache:/app/models
+      - app_logs:/app/logs
+      - ./data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    profiles:
+      - prod
+
+  # Frontier AI API with GPU (Production)
+  app-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tensorrt
+    container_name: frontier_api_gpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://frontier_user:${POSTGRES_PASSWORD}@postgres:5432/frontier_ai
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_CACHE_DIR=/app/models
+      - LOG_LEVEL=INFO
+      - WORKERS=2
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - model_cache:/app/models
+      - app_logs:/app/logs
+      - ./data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+  # Nginx reverse proxy (Production)
+  nginx:
+    image: nginx:alpine
+    container_name: frontier_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - app-prod
+    profiles:
+      - prod
+      - gpu
+
+  # Model initialization service
+  model-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: frontier_model_init
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - app_logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python api/models/initialize_models.py
+    profiles:
+      - init
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  model_cache:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  default:
+    name: frontier_network

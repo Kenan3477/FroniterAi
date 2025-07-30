@@ -1,0 +1,135 @@
+
+version: '3.8'
+
+services:
+  # Redis for message brokering
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # PostgreSQL for metadata storage
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: frontier
+      POSTGRES_USER: frontier
+      POSTGRES_PASSWORD: frontier_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Module Router
+  module-router:
+    build:
+      context: .
+      dockerfile: orchestration/Dockerfile.router
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://frontier:frontier_password@postgres:5432/frontier
+      - CONFIG_PATH=/app/config/orchestration-config.yaml
+    volumes:
+      - ./config:/app/config
+      - ./orchestration:/app/orchestration
+    depends_on:
+      - redis
+      - postgres
+
+  # Foundation Module (Mock)
+  foundation-module:
+    build:
+      context: .
+      dockerfile: modules/Dockerfile.foundation
+    ports:
+      - "8001:8080"
+    environment:
+      - MODULE_ID=foundation
+      - MODULE_TYPE=foundation
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  # Business Module (Mock)
+  business-module:
+    build:
+      context: .
+      dockerfile: modules/Dockerfile.business
+    ports:
+      - "8002:8080"
+    environment:
+      - MODULE_ID=business-operations
+      - MODULE_TYPE=business
+      - FOUNDATION_ENDPOINT=http://foundation-module:8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - foundation-module
+
+  # Development Module (Mock)
+  dev-module:
+    build:
+      context: .
+      dockerfile: modules/Dockerfile.development
+    ports:
+      - "8003:8080"
+    environment:
+      - MODULE_ID=web-development
+      - MODULE_TYPE=development
+      - FOUNDATION_ENDPOINT=http://foundation-module:8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - foundation-module
+
+  # Creative Module (Mock)
+  creative-module:
+    build:
+      context: .
+      dockerfile: modules/Dockerfile.creative
+    ports:
+      - "8004:8080"
+    environment:
+      - MODULE_ID=marketing-creative
+      - MODULE_TYPE=creative
+      - FOUNDATION_ENDPOINT=http://foundation-module:8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - foundation-module
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:

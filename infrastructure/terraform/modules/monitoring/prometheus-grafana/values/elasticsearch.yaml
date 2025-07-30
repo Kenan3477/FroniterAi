@@ -1,0 +1,57 @@
+# Elasticsearch Helm Chart Values
+replicas: ${elasticsearch_replicas}
+
+esConfig:
+  elasticsearch.yml: |
+    cluster.name: "elasticsearch"
+    network.host: 0.0.0.0
+    discovery.seed_hosts: "elasticsearch-master-headless"
+    cluster.initial_master_nodes: "elasticsearch-master-0,elasticsearch-master-1,elasticsearch-master-2"
+    xpack.security.enabled: false
+    xpack.monitoring.collection.enabled: true
+
+resources:
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+  limits:
+    cpu: "2000m"
+    memory: "4Gi"
+
+esJavaOpts: "-Xmx${elasticsearch_heap_size} -Xms${elasticsearch_heap_size}"
+
+volumeClaimTemplate:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: gp2
+  resources:
+    requests:
+      storage: "${elasticsearch_storage_size}"
+
+nodeSelector:
+  node-type: monitoring
+
+tolerations:
+  - key: "monitoring"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+service:
+  type: ClusterIP
+  port: 9200
+
+antiAffinity: "soft"
+
+# Security Context
+securityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+# Sysctls
+sysctlInitContainer:
+  enabled: true
+
+# Index lifecycle management
+lifecycle:
+  enabled: true
+  deleteAfter: "30d"

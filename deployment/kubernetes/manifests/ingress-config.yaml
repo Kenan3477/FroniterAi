@@ -1,0 +1,305 @@
+# Ingress Controller and Load Balancer Configuration
+
+# NGINX Ingress Controller
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontier-ingress
+  namespace: frontier
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/client-max-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # AWS Load Balancer Controller annotations
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '5'
+    alb.ingress.kubernetes.io/success-codes: '200'
+spec:
+  tls:
+  - hosts:
+    - api.yourdomain.com
+    - yourdomain.com
+    - www.yourdomain.com
+    secretName: frontier-tls-secret
+  rules:
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-api-service
+            port:
+              number: 80
+  - host: yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-web-service
+            port:
+              number: 80
+  - host: www.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-web-service
+            port:
+              number: 80
+---
+# AWS Load Balancer Controller Ingress (Alternative)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontier-alb-ingress
+  namespace: frontier
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account:certificate/cert-id
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/load-balancer-attributes: routing.http2.enabled=true,deletion_protection.enabled=true
+    alb.ingress.kubernetes.io/tags: Environment=production,Project=Frontier
+spec:
+  rules:
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-api-service
+            port:
+              number: 80
+  - host: yourdomain.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-api-service
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontier-web-service
+            port:
+              number: 80
+---
+# Certificate Issuer for Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@yourdomain.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+# Certificate for TLS
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: frontier-tls
+  namespace: frontier
+spec:
+  secretName: frontier-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - yourdomain.com
+  - www.yourdomain.com
+  - api.yourdomain.com
+---
+# Rate Limiting Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-rate-limit
+  namespace: nginx-ingress
+data:
+  rate-limit.conf: |
+    map $binary_remote_addr $limit {
+        default $binary_remote_addr;
+        ~^192\.168\. "";
+        ~^10\. "";
+    }
+
+    limit_req_zone $limit zone=api:10m rate=10r/s;
+    limit_req_zone $limit zone=web:10m rate=30r/s;
+---
+# Service Monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontier-api-monitor
+  namespace: frontier
+  labels:
+    app: frontier-api
+spec:
+  selector:
+    matchLabels:
+      app: frontier-api
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# Service Monitor for ML Service
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontier-ml-monitor
+  namespace: frontier
+  labels:
+    app: frontier-ml
+spec:
+  selector:
+    matchLabels:
+      app: frontier-ml
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# External DNS Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-dns-config
+  namespace: kube-system
+data:
+  external-dns.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: external-dns
+      namespace: kube-system
+    spec:
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app: external-dns
+      template:
+        metadata:
+          labels:
+            app: external-dns
+        spec:
+          serviceAccountName: external-dns
+          containers:
+          - name: external-dns
+            image: k8s.gcr.io/external-dns/external-dns:v0.13.4
+            args:
+            - --source=ingress
+            - --domain-filter=yourdomain.com
+            - --provider=aws
+            - --policy=upsert-only
+            - --aws-zone-type=public
+            - --registry=txt
+            - --txt-owner-id=frontier-k8s
+            env:
+            - name: AWS_DEFAULT_REGION
+              value: us-west-2
+---
+# Priority Class for critical workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "High priority class for critical Frontier services"
+---
+# Priority Class for ML workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ml-priority
+value: 500
+globalDefault: false
+description: "Priority class for ML services"
+---
+# Resource Quota for namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: frontier-quota
+  namespace: frontier
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "2"
+    services.nodeports: "0"
+    secrets: "10"
+    configmaps: "10"
+---
+# Limit Range for pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: frontier-limits
+  namespace: frontier
+spec:
+  limits:
+  - default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+  - max:
+      cpu: "2"
+      memory: "4Gi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+    type: Container
+  - max:
+      storage: "100Gi"
+    min:
+      storage: "1Gi"
+    type: PersistentVolumeClaim

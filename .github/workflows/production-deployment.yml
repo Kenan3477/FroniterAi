@@ -1,0 +1,446 @@
+# Frontier Production Deployment Pipeline
+# Complete CI/CD with blue-green deployment strategy
+
+name: Production Deployment
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+        - blue-green
+        - rolling
+        - canary
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: frontier/api
+  CLUSTER_NAME: frontier-prod-cluster
+  AWS_REGION: us-west-2
+
+jobs:
+  # Code quality and security checks
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort bandit safety pytest-cov
+
+    - name: Code formatting check
+      run: |
+        black --check .
+        isort --check-only .
+
+    - name: Lint code
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json
+        safety check --json --output safety-report.json
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  # Unit and integration tests
+  test:
+    runs-on: ubuntu-latest
+    needs: code-quality
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: frontier_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/frontier_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test_secret_key_for_ci
+      run: |
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          htmlcov/
+          coverage.xml
+
+  # Build and push Docker images
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.spdx.json
+
+  # Security scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build.outputs.image-tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Deploy to staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: staging
+      url: https://staging.frontier.com
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name frontier-staging-cluster
+
+    - name: Deploy to staging
+      env:
+        IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+      run: |
+        # Update image in deployment
+        sed -i "s|frontier/api:latest|$IMAGE_TAG|g" k8s/deployment.yaml
+        
+        # Apply configurations
+        kubectl apply -f k8s/namespace-staging.yaml
+        kubectl apply -f k8s/ -n staging
+        
+        # Wait for rollout
+        kubectl rollout status deployment/frontier-api -n staging --timeout=600s
+
+    - name: Run smoke tests
+      run: |
+        # Wait for service to be ready
+        kubectl wait --for=condition=ready pod -l app=frontier-api -n staging --timeout=300s
+        
+        # Get service endpoint
+        ENDPOINT=$(kubectl get service frontier-api-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        
+        # Run basic health checks
+        curl -f http://$ENDPOINT/health || exit 1
+        curl -f http://$ENDPOINT/status || exit 1
+
+  # Deploy to production with blue-green strategy
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://api.frontier.com
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
+
+    - name: Determine deployment color
+      id: color
+      run: |
+        # Check current active deployment
+        CURRENT_COLOR=$(kubectl get service frontier-api-service -n production -o jsonpath='{.spec.selector.color}' 2>/dev/null || echo "")
+        if [ "$CURRENT_COLOR" = "blue" ]; then
+          echo "NEW_COLOR=green" >> $GITHUB_OUTPUT
+          echo "OLD_COLOR=blue" >> $GITHUB_OUTPUT
+        else
+          echo "NEW_COLOR=blue" >> $GITHUB_OUTPUT
+          echo "OLD_COLOR=green" >> $GITHUB_OUTPUT
+        fi
+        echo "Deploying to $NEW_COLOR environment"
+
+    - name: Deploy new version (Blue-Green)
+      env:
+        IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+        NEW_COLOR: ${{ steps.color.outputs.NEW_COLOR }}
+      run: |
+        # Create deployment for new color
+        sed -e "s|frontier/api:latest|$IMAGE_TAG|g" \
+            -e "s|version: v1|version: $NEW_COLOR|g" \
+            -e "s|app: frontier-api|app: frontier-api-$NEW_COLOR|g" \
+            k8s/deployment.yaml > k8s/deployment-$NEW_COLOR.yaml
+        
+        # Deploy new version
+        kubectl apply -f k8s/deployment-$NEW_COLOR.yaml -n production
+        
+        # Wait for new deployment to be ready
+        kubectl rollout status deployment/frontier-api-$NEW_COLOR -n production --timeout=600s
+
+    - name: Run production smoke tests
+      env:
+        NEW_COLOR: ${{ steps.color.outputs.NEW_COLOR }}
+      run: |
+        # Test new deployment directly
+        kubectl port-forward deployment/frontier-api-$NEW_COLOR 8080:8000 -n production &
+        PF_PID=$!
+        sleep 10
+        
+        # Run comprehensive tests
+        curl -f http://localhost:8080/health || exit 1
+        curl -f http://localhost:8080/status || exit 1
+        
+        # Run API tests
+        python -m pytest tests/api/ -v --tb=short
+        
+        kill $PF_PID
+
+    - name: Switch traffic to new version
+      env:
+        NEW_COLOR: ${{ steps.color.outputs.NEW_COLOR }}
+      run: |
+        # Update service selector to point to new version
+        kubectl patch service frontier-api-service -n production -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}'
+        
+        echo "Traffic switched to $NEW_COLOR deployment"
+
+    - name: Monitor new deployment
+      env:
+        NEW_COLOR: ${{ steps.color.outputs.NEW_COLOR }}
+      run: |
+        # Monitor for 5 minutes
+        echo "Monitoring new deployment for 5 minutes..."
+        sleep 300
+        
+        # Check if deployment is healthy
+        READY_REPLICAS=$(kubectl get deployment frontier-api-$NEW_COLOR -n production -o jsonpath='{.status.readyReplicas}')
+        DESIRED_REPLICAS=$(kubectl get deployment frontier-api-$NEW_COLOR -n production -o jsonpath='{.spec.replicas}')
+        
+        if [ "$READY_REPLICAS" != "$DESIRED_REPLICAS" ]; then
+          echo "Deployment health check failed. Ready: $READY_REPLICAS, Desired: $DESIRED_REPLICAS"
+          exit 1
+        fi
+        
+        echo "Deployment is healthy. Ready: $READY_REPLICAS/$DESIRED_REPLICAS"
+
+    - name: Cleanup old deployment
+      env:
+        OLD_COLOR: ${{ steps.color.outputs.OLD_COLOR }}
+      run: |
+        # Wait additional time before cleanup
+        sleep 120
+        
+        # Scale down old deployment
+        kubectl scale deployment frontier-api-$OLD_COLOR --replicas=0 -n production || true
+        
+        # Optionally delete old deployment after some time
+        # kubectl delete deployment frontier-api-$OLD_COLOR -n production || true
+
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "🚀 Production deployment successful!"
+        echo "New version deployed with blue-green strategy"
+        echo "Image: ${{ needs.build.outputs.image-tag }}"
+        echo "Color: ${{ steps.color.outputs.NEW_COLOR }}"
+
+  # Rollback procedure
+  rollback-production:
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
+
+    - name: Rollback deployment
+      run: |
+        # Get current and previous colors
+        CURRENT_COLOR=$(kubectl get service frontier-api-service -n production -o jsonpath='{.spec.selector.color}')
+        
+        if [ "$CURRENT_COLOR" = "blue" ]; then
+          ROLLBACK_COLOR="green"
+        else
+          ROLLBACK_COLOR="blue"
+        fi
+        
+        echo "Rolling back from $CURRENT_COLOR to $ROLLBACK_COLOR"
+        
+        # Switch service back to previous version
+        kubectl patch service frontier-api-service -n production -p '{"spec":{"selector":{"color":"'$ROLLBACK_COLOR'"}}}'
+        
+        # Scale up previous deployment if it was scaled down
+        kubectl scale deployment frontier-api-$ROLLBACK_COLOR --replicas=3 -n production
+        
+        echo "Rollback completed successfully"
+
+    - name: Notify rollback
+      run: |
+        echo "⚠️ Production deployment failed and was rolled back"
+        echo "Please check logs and resolve issues before next deployment"

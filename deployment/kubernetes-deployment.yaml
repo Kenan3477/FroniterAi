@@ -1,0 +1,83 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontier-orchestration
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: module-router
+  namespace: frontier-orchestration
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: module-router
+  template:
+    metadata:
+      labels:
+        app: module-router
+    spec:
+      containers:
+      - name: router
+        image: frontier/module-router:1.0.0
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_URL
+          value: "redis://redis.frontier-orchestration.svc.cluster.local:6379"
+        - name: CONFIG_PATH
+          value: "/app/config/orchestration-config.yaml"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: orchestration-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: module-router
+  namespace: frontier-orchestration
+spec:
+  selector:
+    app: module-router
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestration-config
+  namespace: frontier-orchestration
+data:
+  orchestration-config.yaml: |
+    # Inline configuration here
+    orchestration:
+      router:
+        max_concurrent_requests: 1000
+        request_timeout: 30.0

@@ -1,0 +1,1334 @@
+{
+  "metadata": {
+    "generated_at": "2025-07-24T20:53:30.665145",
+    "regulations": [
+      "sox",
+      "gdpr",
+      "basel_iii",
+      "hipaa"
+    ],
+    "jurisdictions": [
+      "us_federal",
+      "eu",
+      "uk",
+      "singapore"
+    ],
+    "dataset_size": 100
+  },
+  "datasets": {
+    "sox": {
+      "regulation": "sox",
+      "total_samples": 24,
+      "samples_by_task": {
+        "compliance_analysis": 6,
+        "risk_assessment": 6,
+        "policy_generation": 6,
+        "regulatory_change_detection": 6
+      },
+      "samples": [
+        {
+          "id": 1,
+          "input": "Analyze SOX compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 151,
+            "output_length": 338,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 2,
+          "input": "Analyze SOX compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 143,
+            "output_length": 330,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 3,
+          "input": "Analyze SOX compliance requirements for uk jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in uk jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "uk",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 143,
+            "output_length": 330,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 4,
+          "input": "Analyze SOX compliance requirements for singapore jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in singapore jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "singapore",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 150,
+            "output_length": 337,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 5,
+          "input": "Analyze SOX compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 151,
+            "output_length": 338,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 6,
+          "input": "Analyze SOX compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The SOX regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 143,
+            "output_length": 330,
+            "created_at": "2025-07-24T20:53:30.665145"
+          }
+        },
+        {
+          "id": 7,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.18, Impact: 0.54. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 137,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 8,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.29, Impact: 0.88. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 129,
+            "output_length": 272,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 9,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in uk. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.83, Impact: 0.82. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "uk",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 129,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 10,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in singapore. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.11, Impact: 0.79. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "singapore",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 136,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 11,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.1, Impact: 0.68. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 137,
+            "output_length": 271,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 12,
+          "input": "Conduct comprehensive risk assessment for SOX compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.23, Impact: 0.14. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 129,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 13,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 167,
+            "output_length": 479,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 14,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 159,
+            "output_length": 471,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 15,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to uk organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in uk.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "uk",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 159,
+            "output_length": 471,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 16,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to singapore organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in singapore.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "singapore",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 166,
+            "output_length": 478,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 17,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 167,
+            "output_length": 479,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 18,
+          "input": "Generate comprehensive compliance policy for SOX requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: SOX Requirements\n\n1. PURPOSE: Ensure full compliance with SOX regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 159,
+            "output_length": 471,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 19,
+          "input": "Analyze recent regulatory changes in SOX framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 104,
+            "output_length": 317,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 20,
+          "input": "Analyze recent regulatory changes in SOX framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: enforcement_update, Impact Level: critical, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 96,
+            "output_length": 331,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 21,
+          "input": "Analyze recent regulatory changes in SOX framework for uk. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "uk",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 96,
+            "output_length": 318,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 22,
+          "input": "Analyze recent regulatory changes in SOX framework for singapore. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: new_requirement, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "singapore",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 103,
+            "output_length": 324,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 23,
+          "input": "Analyze recent regulatory changes in SOX framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 104,
+            "output_length": 318,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        },
+        {
+          "id": 24,
+          "input": "Analyze recent regulatory changes in SOX framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "sox",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 96,
+            "output_length": 321,
+            "created_at": "2025-07-24T20:53:30.698146"
+          }
+        }
+      ]
+    },
+    "gdpr": {
+      "regulation": "gdpr",
+      "total_samples": 24,
+      "samples_by_task": {
+        "compliance_analysis": 6,
+        "risk_assessment": 6,
+        "policy_generation": 6,
+        "regulatory_change_detection": 6
+      },
+      "samples": [
+        {
+          "id": 1,
+          "input": "Analyze GDPR compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 152,
+            "output_length": 339,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 2,
+          "input": "Analyze GDPR compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 144,
+            "output_length": 331,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 3,
+          "input": "Analyze GDPR compliance requirements for uk jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in uk jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "uk",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 144,
+            "output_length": 331,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 4,
+          "input": "Analyze GDPR compliance requirements for singapore jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in singapore jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "singapore",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 151,
+            "output_length": 338,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 5,
+          "input": "Analyze GDPR compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 152,
+            "output_length": 339,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 6,
+          "input": "Analyze GDPR compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The GDPR regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 144,
+            "output_length": 331,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 7,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.28, Impact: 0.47. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 138,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 8,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.71, Impact: 0.16. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 130,
+            "output_length": 272,
+            "created_at": "2025-07-24T20:53:30.699145"
+          }
+        },
+        {
+          "id": 9,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in uk. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.33, Impact: 0.82. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "uk",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 130,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 10,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in singapore. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.15, Impact: 0.18. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "singapore",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 137,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 11,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.47, Impact: 0.1. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 138,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 12,
+          "input": "Conduct comprehensive risk assessment for GDPR compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: medium, Likelihood: 0.56, Impact: 0.7. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 130,
+            "output_length": 269,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 13,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 168,
+            "output_length": 481,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 14,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 160,
+            "output_length": 473,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 15,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to uk organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in uk.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "uk",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 160,
+            "output_length": 473,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 16,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to singapore organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in singapore.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "singapore",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 167,
+            "output_length": 480,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 17,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 168,
+            "output_length": 481,
+            "created_at": "2025-07-24T20:53:30.700145"
+          }
+        },
+        {
+          "id": 18,
+          "input": "Generate comprehensive compliance policy for GDPR requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: GDPR Requirements\n\n1. PURPOSE: Ensure full compliance with GDPR regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 160,
+            "output_length": 473,
+            "created_at": "2025-07-24T20:53:30.701147"
+          }
+        },
+        {
+          "id": 19,
+          "input": "Analyze recent regulatory changes in GDPR framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 105,
+            "output_length": 317,
+            "created_at": "2025-07-24T20:53:30.701147"
+          }
+        },
+        {
+          "id": 20,
+          "input": "Analyze recent regulatory changes in GDPR framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: critical, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 97,
+            "output_length": 326,
+            "created_at": "2025-07-24T20:53:30.705145"
+          }
+        },
+        {
+          "id": 21,
+          "input": "Analyze recent regulatory changes in GDPR framework for uk. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: medium, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "uk",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 97,
+            "output_length": 324,
+            "created_at": "2025-07-24T20:53:30.705145"
+          }
+        },
+        {
+          "id": 22,
+          "input": "Analyze recent regulatory changes in GDPR framework for singapore. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: medium, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "singapore",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 104,
+            "output_length": 320,
+            "created_at": "2025-07-24T20:53:30.705145"
+          }
+        },
+        {
+          "id": 23,
+          "input": "Analyze recent regulatory changes in GDPR framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: critical, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 105,
+            "output_length": 322,
+            "created_at": "2025-07-24T20:53:30.705145"
+          }
+        },
+        {
+          "id": 24,
+          "input": "Analyze recent regulatory changes in GDPR framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "gdpr",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 97,
+            "output_length": 322,
+            "created_at": "2025-07-24T20:53:30.706145"
+          }
+        }
+      ]
+    },
+    "basel_iii": {
+      "regulation": "basel_iii",
+      "total_samples": 24,
+      "samples_by_task": {
+        "compliance_analysis": 6,
+        "risk_assessment": 6,
+        "policy_generation": 6,
+        "regulatory_change_detection": 6
+      },
+      "samples": [
+        {
+          "id": 1,
+          "input": "Analyze BASEL_III compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 157,
+            "output_length": 344,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 2,
+          "input": "Analyze BASEL_III compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 149,
+            "output_length": 336,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 3,
+          "input": "Analyze BASEL_III compliance requirements for uk jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in uk jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "uk",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 149,
+            "output_length": 336,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 4,
+          "input": "Analyze BASEL_III compliance requirements for singapore jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in singapore jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "singapore",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 156,
+            "output_length": 343,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 5,
+          "input": "Analyze BASEL_III compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 157,
+            "output_length": 344,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 6,
+          "input": "Analyze BASEL_III compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The BASEL_III regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 149,
+            "output_length": 336,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 7,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: medium, Likelihood: 0.82, Impact: 0.33. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 143,
+            "output_length": 270,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 8,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.22, Impact: 0.34. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 135,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 9,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in uk. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.14, Impact: 0.49. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "uk",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 135,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 10,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in singapore. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.18, Impact: 0.76. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "singapore",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 142,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 11,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: medium, Likelihood: 0.88, Impact: 0.4. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 143,
+            "output_length": 269,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 12,
+          "input": "Conduct comprehensive risk assessment for BASEL_III compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: low, Likelihood: 0.53, Impact: 0.15. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 135,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 13,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 173,
+            "output_length": 491,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 14,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 165,
+            "output_length": 483,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 15,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to uk organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in uk.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "uk",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 165,
+            "output_length": 483,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 16,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to singapore organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in singapore.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "singapore",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 172,
+            "output_length": 490,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 17,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 173,
+            "output_length": 491,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 18,
+          "input": "Generate comprehensive compliance policy for BASEL_III requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: BASEL_III Requirements\n\n1. PURPOSE: Ensure full compliance with BASEL_III regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 165,
+            "output_length": 483,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 19,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: enforcement_update, Impact Level: medium, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 110,
+            "output_length": 329,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 20,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: enforcement_update, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 102,
+            "output_length": 327,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 21,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for uk. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "uk",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 102,
+            "output_length": 318,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 22,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for singapore. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "singapore",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 109,
+            "output_length": 322,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 23,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 110,
+            "output_length": 322,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        },
+        {
+          "id": 24,
+          "input": "Analyze recent regulatory changes in BASEL_III framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: new_requirement, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "basel_iii",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 102,
+            "output_length": 323,
+            "created_at": "2025-07-24T20:53:30.709146"
+          }
+        }
+      ]
+    },
+    "hipaa": {
+      "regulation": "hipaa",
+      "total_samples": 24,
+      "samples_by_task": {
+        "compliance_analysis": 6,
+        "risk_assessment": 6,
+        "policy_generation": 6,
+        "regulatory_change_detection": 6
+      },
+      "samples": [
+        {
+          "id": 1,
+          "input": "Analyze HIPAA compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 153,
+            "output_length": 340,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 2,
+          "input": "Analyze HIPAA compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 145,
+            "output_length": 332,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 3,
+          "input": "Analyze HIPAA compliance requirements for uk jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in uk jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "uk",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 145,
+            "output_length": 332,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 4,
+          "input": "Analyze HIPAA compliance requirements for singapore jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in singapore jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "singapore",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 152,
+            "output_length": 339,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 5,
+          "input": "Analyze HIPAA compliance requirements for us_federal jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in us_federal jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 153,
+            "output_length": 340,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 6,
+          "input": "Analyze HIPAA compliance requirements for eu jurisdiction. Provide detailed assessment of regulatory obligations and implementation requirements.",
+          "output": "The HIPAA regulation in eu jurisdiction requires: 1) Comprehensive compliance framework implementation, 2) Regular monitoring and assessment procedures, 3) Documentation of all compliance activities, 4) Risk management and mitigation strategies, 5) Reporting and disclosure requirements, 6) Employee training and awareness programs.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "compliance_analysis",
+          "metadata": {
+            "input_length": 145,
+            "output_length": 332,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 7,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.65, Impact: 0.64. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 139,
+            "output_length": 272,
+            "created_at": "2025-07-24T20:53:30.711144"
+          }
+        },
+        {
+          "id": 8,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.43, Impact: 0.89. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 131,
+            "output_length": 272,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 9,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in uk. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: critical, Likelihood: 0.88, Impact: 0.6. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "uk",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 131,
+            "output_length": 271,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 10,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in singapore. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.78, Impact: 0.26. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "singapore",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 138,
+            "output_length": 268,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 11,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in us_federal. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: high, Likelihood: 0.7, Impact: 0.53. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 139,
+            "output_length": 267,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 12,
+          "input": "Conduct comprehensive risk assessment for HIPAA compliance violation in eu. Evaluate likelihood, impact, and mitigation strategies.",
+          "output": "Risk Assessment Results: Risk Level: medium, Likelihood: 0.18, Impact: 0.53. Key risks include: regulatory penalties, operational disruption, reputational damage. Mitigation strategies: enhanced controls, regular monitoring, staff training, incident response procedures.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "risk_assessment",
+          "metadata": {
+            "input_length": 131,
+            "output_length": 270,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 13,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 169,
+            "output_length": 483,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 14,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 161,
+            "output_length": 475,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 15,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to uk organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in uk.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "uk",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 161,
+            "output_length": 475,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 16,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to singapore organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in singapore.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "singapore",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 168,
+            "output_length": 482,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 17,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to us_federal organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in us_federal.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 169,
+            "output_length": 483,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 18,
+          "input": "Generate comprehensive compliance policy for HIPAA requirements applicable to eu organizations. Include procedures, responsibilities, and enforcement mechanisms.",
+          "output": "COMPLIANCE POLICY: HIPAA Requirements\n\n1. PURPOSE: Ensure full compliance with HIPAA regulations in eu.\n\n2. SCOPE: Applies to all employees, contractors, and business operations.\n\n3. RESPONSIBILITIES: Management oversight, compliance officer coordination, employee adherence.\n\n4. PROCEDURES: Regular assessments, documentation requirements, reporting protocols, training programs.\n\n5. ENFORCEMENT: Violation reporting, investigation procedures, corrective actions, penalties.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "policy_generation",
+          "metadata": {
+            "input_length": 161,
+            "output_length": 475,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 19,
+          "input": "Analyze recent regulatory changes in HIPAA framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: enforcement_update, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 106,
+            "output_length": 326,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 20,
+          "input": "Analyze recent regulatory changes in HIPAA framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: amendment, Impact Level: high, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 98,
+            "output_length": 318,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 21,
+          "input": "Analyze recent regulatory changes in HIPAA framework for uk. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: enforcement_update, Impact Level: medium, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "uk",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 98,
+            "output_length": 329,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 22,
+          "input": "Analyze recent regulatory changes in HIPAA framework for singapore. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: clarification, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "singapore",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 105,
+            "output_length": 321,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 23,
+          "input": "Analyze recent regulatory changes in HIPAA framework for us_federal. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: new_requirement, Impact Level: critical, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "us_federal",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 106,
+            "output_length": 328,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        },
+        {
+          "id": 24,
+          "input": "Analyze recent regulatory changes in HIPAA framework for eu. Identify impact and required actions.",
+          "output": "Regulatory Change Analysis: Change Type: new_requirement, Impact Level: low, Effective Date: 2024-01-01. Summary: Significant updates to compliance requirements. Actions Required: 1) Update internal policies, 2) Retrain staff, 3) Modify compliance procedures, 4) Implement new controls, 5) Report to regulatory authorities.",
+          "regulation": "hipaa",
+          "jurisdiction": "eu",
+          "task_type": "regulatory_change_detection",
+          "metadata": {
+            "input_length": 98,
+            "output_length": 323,
+            "created_at": "2025-07-24T20:53:30.712146"
+          }
+        }
+      ]
+    }
+  },
+  "statistics": {
+    "total_samples": 96,
+    "total_regulations": 4,
+    "task_distribution": {
+      "compliance_analysis": 24,
+      "risk_assessment": 24,
+      "policy_generation": 24,
+      "regulatory_change_detection": 24
+    },
+    "regulation_distribution": {
+      "sox": 24,
+      "gdpr": 24,
+      "basel_iii": 24,
+      "hipaa": 24
+    },
+    "average_input_length": 137.83,
+    "average_output_length": 351.75
+  }
+}
