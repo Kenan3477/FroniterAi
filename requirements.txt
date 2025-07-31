@@ -28,5 +28,11 @@ python-dateutil==2.8.2
 # Async Support
 asyncio-mqtt==0.13.0
 
+# System Monitoring
+psutil==5.9.6
+
+# HTTP requests for GitHub API
+requests==2.31.0
+
 # Lightweight and Railway-compatible
 gunicorn==21.2.0

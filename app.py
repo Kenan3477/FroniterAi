@@ -13,9 +13,6 @@ from pathlib import Path
 os.environ['PYTHONUNBUFFERED'] = '1'
 os.environ['RAILWAY_ENVIRONMENT'] = 'production'
 
-# Import the main system
-from comprehensive_evolution_system import ComprehensiveEvolutionSystem
-
 def signal_handler(sig, frame):
     """Handle graceful shutdown"""
     print("🛑 Gracefully shutting down Frontier AI...")
@@ -27,6 +24,7 @@ def main():
     print("🌐 Frontier AI - Advanced Business Intelligence Suite")
     print("💼 Financial Analysis | 🏢 Business Formation | 🌐 Web Development")
     print("📋 Compliance Management | 🚀 Marketing Automation")
+    print("🤖 AUTONOMOUS EVOLUTION SYSTEM - PRODUCTION MODE")
     print()
     
     # Set up signal handlers for graceful shutdown
@@ -46,15 +44,43 @@ def main():
     print(f"   📁 Workspace: {workspace_path}")
     print()
     
-    # Create and start the system
+    # Create and start the systems
     try:
-        system = ComprehensiveEvolutionSystem(workspace_path)
-        system.start_comprehensive_evolution()
+        print("🤖 Initializing Production Autonomous Evolution Manager...")
+        from production_evolution_manager import ProductionEvolutionManager
+        evolution_manager = ProductionEvolutionManager(workspace_path)
         
-        print("✅ Evolution system started successfully")
+        print("🌐 Starting Enhanced Production Web Server...")
+        import socketserver
+        import threading
+        from enhanced_production_handler import EnhancedProductionHandler
+        
+        # Start web server with enhanced handler
+        host = '0.0.0.0'
+        port_int = int(port)
+        
+        handler = lambda *args, **kwargs: EnhancedProductionHandler(
+            *args, 
+            evolution_system=None,
+            evolution_manager=evolution_manager,
+            **kwargs
+        )
+        
+        server = socketserver.TCPServer((host, port_int), handler)
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        
+        print("🔍 Starting autonomous evolution manager...")
+        evolution_manager.start_autonomous_evolution()
+        
+        print("✅ All systems started successfully")
         print(f"🌐 Frontier AI Dashboard available at: {railway_url}")
         print("🤖 Conversational AI interface ready")
         print("📊 Business Operations Suite online")
+        print("🔍 AUTONOMOUS REPOSITORY MONITORING: ACTIVE")
+        print("⚡ ADVANCED IMPLEMENTATION UPGRADES: ENABLED")
+        print("📺 LIVE EVOLUTION FEED: BROADCASTING")
         print()
         print("🎯 Ready to serve users worldwide!")
         
@@ -70,6 +96,13 @@ def main():
                 print(f"💫 Frontier AI running stable - Cycle {cycle_count}")
                 print(f"🌐 Available at: {railway_url}")
                 
+                # Show evolution stats
+                try:
+                    stats = evolution_manager.get_evolution_stats()
+                    print(f"🤖 Evolution Stats: {stats['total_files_created']} files, Gen {stats['current_generation']}, {stats['upgrades_performed']} upgrades")
+                except Exception as e:
+                    print(f"📊 Stats collection error: {e}")
+                
     except KeyboardInterrupt:
         print("🛑 Received shutdown signal")
         sys.exit(0)
@@ -77,7 +110,20 @@ def main():
         print(f"❌ Error starting system: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        
+        # Fallback to basic server
+        print("🔄 Starting fallback server...")
+        try:
+            from enhanced_frontier_dashboard import EnhancedFrontierDashboard
+            dashboard = EnhancedFrontierDashboard(workspace_path)
+            dashboard.start_server()
+            
+            while True:
+                time.sleep(30)
+                
+        except Exception as fallback_error:
+            print(f"❌ Fallback server failed: {fallback_error}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
