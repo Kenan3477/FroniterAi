@@ -71,9 +71,14 @@ Railway will automatically choose the best deployment method:
 ## 🌐 Live URLs After Deployment
 
 Your Frontier AI will be available at:
-- **Main Dashboard**: `https://your-app.up.railway.app/`
-- **API Endpoint**: `https://your-app.up.railway.app/api/chat`
-- **System Stats**: `https://your-app.up.railway.app/api/stats`
+- **🤖 Main Business Dashboard**: `https://your-app.up.railway.app/`
+- **🧬 Evolution Monitor**: `https://your-app.up.railway.app/evolution`
+- **API Chat Endpoint**: `https://your-app.up.railway.app/api/chat`
+- **System Stats API**: `https://your-app.up.railway.app/api/stats`
+
+### Interface Features:
+- **Business Dashboard** (`/`): Conversational AI, financial analysis, business formation, web development
+- **Evolution Monitor** (`/evolution`): Real-time AI self-improvement monitoring, task management, performance metrics
 
 ## 📊 Monitoring
 
@@ -131,10 +136,14 @@ railway up --detach
 
 ## 🎯 Post-Deployment Checklist
 
-- [ ] Verify dashboard loads at Railway URL
+- [ ] Verify business dashboard loads at Railway URL (`/`)
 - [ ] Test conversational AI chat interface
+- [ ] Check evolution monitor dashboard (`/evolution`)
+- [ ] Verify real-time evolution system monitoring
+- [ ] Test task creation in evolution monitor
 - [ ] Check all API endpoints respond
 - [ ] Confirm business operations modules work
+- [ ] Test navigation between both interfaces
 - [ ] Set up custom domain (optional)
 - [ ] Configure monitoring alerts
 
