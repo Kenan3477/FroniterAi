@@ -1,8 +1,30 @@
 #!/usr/bin/env python3
 """
+Force Railway Redeploy
+Triggers a new deployment to ensure the latest code with heartbeat monitoring is deployed
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+def force_redeploy():
+    """Force a new Railway deployment"""
+    print("🚀 Forcing Railway Redeploy with Latest Code")
+    print("=" * 50)
+    
+    # Make a small change to trigger redeploy
+    print("📝 Making small change to trigger redeploy...")
+    
+    # Update app.py with a deployment timestamp
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    app_content = f'''#!/usr/bin/env python3
+"""
 Railway-optimized entry point for Frontier AI Evolution System
 Optimized startup process for cloud deployment with enhanced logging
-Last deployed: 2025-08-01 12:46:40
+Last deployed: {timestamp}
 """
 
 import os
@@ -31,7 +53,7 @@ def signal_handler(sig, frame):
 def main():
     """Main entry point optimized for Railway deployment"""
     print("🚀 Starting Frontier AI Evolution System on Railway...")
-    print(f"🕐 Deployment Time: 2025-08-01 12:46:40")
+    print(f"🕐 Deployment Time: {timestamp}")
     print("🌐 Frontier AI - Advanced Business Intelligence Suite")
     print("💼 Financial Analysis | 🏢 Business Formation | 🌐 Web Development")
     print("📋 Compliance Management | 🚀 Marketing Automation")
@@ -57,12 +79,12 @@ def main():
     
     # Get Railway environment info
     port = os.environ.get('PORT', '8889')
-    railway_url = os.environ.get('RAILWAY_PUBLIC_URL', f'http://localhost:{port}')
+    railway_url = os.environ.get('RAILWAY_PUBLIC_URL', f'http://localhost:{{port}}')
     
     print(f"🔧 Railway Configuration:")
-    print(f"   📡 Port: {port}")
-    print(f"   🌐 Public URL: {railway_url}")
-    print(f"   📁 Workspace: {workspace_path}")
+    print(f"   📡 Port: {{port}}")
+    print(f"   🌐 Public URL: {{railway_url}}")
+    print(f"   📁 Workspace: {{workspace_path}}")
     print()
     
     # Create and start the systems
@@ -96,7 +118,7 @@ def main():
         evolution_manager.start_autonomous_evolution()
         
         print("✅ All systems started successfully")
-        print(f"🌐 Frontier AI Dashboard available at: {railway_url}")
+        print(f"🌐 Frontier AI Dashboard available at: {{railway_url}}")
         print("🤖 Conversational AI interface ready")
         print("📊 Business Operations Suite online")
         print("🔍 AUTONOMOUS REPOSITORY MONITORING: ACTIVE")
@@ -115,28 +137,28 @@ def main():
             
             # Log status every 10 cycles (5 minutes)
             if cycle_count % 10 == 0:
-                print(f"💫 Frontier AI running stable - Cycle {cycle_count}")
-                print(f"🌐 Available at: {railway_url}")
+                print(f"💫 Frontier AI running stable - Cycle {{cycle_count}}")
+                print(f"🌐 Available at: {{railway_url}}")
                 
                 # Show evolution stats
                 try:
                     stats = evolution_manager.get_evolution_stats()
-                    print(f"🤖 Evolution Stats: {stats['total_files_created']} files, Gen {stats['current_generation']}, {stats['upgrades_performed']} upgrades")
+                    print(f"🤖 Evolution Stats: {{stats['total_files_created']}} files, Gen {{stats['current_generation']}}, {{stats['upgrades_performed']}} upgrades")
                 except Exception as e:
-                    print(f"📊 Stats collection error: {e}")
+                    print(f"📊 Stats collection error: {{e}}")
                 
                 # Show heartbeat status
                 try:
                     heartbeat = evolution_manager.get_heartbeat_status()
-                    print(f"💓 GitHub Status: {heartbeat.get('status', 'unknown')} - Files: {heartbeat.get('repository_stats', {}).get('total_files', 0)}")
+                    print(f"💓 GitHub Status: {{heartbeat.get('status', 'unknown')}} - Files: {{heartbeat.get('repository_stats', {{}}).get('total_files', 0)}}")
                 except Exception as e:
-                    print(f"💓 Heartbeat check error: {e}")
+                    print(f"💓 Heartbeat check error: {{e}}")
                 
     except KeyboardInterrupt:
         print("🛑 Received shutdown signal")
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Error starting system: {e}")
+        print(f"❌ Error starting system: {{e}}")
         import traceback
         traceback.print_exc()
         
@@ -151,8 +173,45 @@ def main():
                 time.sleep(30)
                 
         except Exception as fallback_error:
-            print(f"❌ Fallback server failed: {fallback_error}")
+            print(f"❌ Fallback server failed: {{fallback_error}}")
             sys.exit(1)
 
 if __name__ == "__main__":
     main()
+'''
+    
+    with open('app.py', 'w', encoding='utf-8') as f:
+        f.write(app_content)
+    
+    print("✅ Updated app.py with deployment timestamp")
+    
+    # Commit and push changes
+    try:
+        print("📦 Committing changes...")
+        subprocess.run(['git', 'add', '.'], check=True)
+        subprocess.run(['git', 'commit', '-m', f'Force redeploy with heartbeat monitoring - {timestamp}'], check=True)
+        
+        print("🚀 Pushing to trigger Railway redeploy...")
+        subprocess.run(['git', 'push'], check=True)
+        
+        print("✅ Successfully triggered redeploy!")
+        print()
+        print("🎯 What happens next:")
+        print("1. Railway will detect the new commit")
+        print("2. Automatically start a new deployment")
+        print("3. Use the GITHUB_TOKEN environment variable you set")
+        print("4. Start the heartbeat monitoring system")
+        print("5. Your dashboard will show GitHub connection status")
+        print()
+        print("⏱️  Wait 2-3 minutes for deployment to complete")
+        print("🌐 Then check your Railway URL to see the heartbeat monitor!")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Git operation failed: {e}")
+        print("📝 Try running manually:")
+        print("   git add .")
+        print(f"   git commit -m 'Force redeploy with heartbeat monitoring'")
+        print("   git push")
+
+if __name__ == "__main__":
+    force_redeploy()
