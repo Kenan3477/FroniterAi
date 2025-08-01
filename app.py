@@ -47,6 +47,24 @@ class WorkingHeartbeatHandler(SimpleHTTPRequestHandler):
         .status { font-size: 20px; font-weight: bold; }
         .live { color: #00ff00; }
         .error { color: #ff4444; }
+        .monitor-container { 
+            background: #001122; 
+            border: 2px solid #00ff00; 
+            border-radius: 8px; 
+            padding: 10px; 
+            margin: 15px 0;
+            box-shadow: 0 0 20px rgba(0,255,0,0.3);
+        }
+        #heartbeat-monitor { 
+            background: #000011; 
+            border-radius: 5px;
+        }
+        .heartbeat-connected #heartbeat-line {
+            filter: drop-shadow(0 0 5px #00ff00);
+        }
+        .heartbeat-disconnected #heartbeat-line {
+            filter: none;
+        }
     </style>
 </head>
 <body>
@@ -58,7 +76,30 @@ class WorkingHeartbeatHandler(SimpleHTTPRequestHandler):
         </div>
         
         <div class="card heartbeat">
-            <h2>💓 GitHub Connection Monitor</h2>
+            <h2>GitHub Connection Monitor</h2>
+            <div class="monitor-container">
+                <svg id="heartbeat-monitor" width="100%" height="120" viewBox="0 0 800 120">
+                    <defs>
+                        <linearGradient id="gridGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.1"/>
+                            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0.05"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Grid background -->
+                    <rect width="100%" height="100%" fill="url(#gridGradient)"/>
+                    <!-- Grid lines -->
+                    <g stroke="#00ff00" stroke-width="0.5" opacity="0.3">
+                        <line x1="0" y1="60" x2="800" y2="60"/>
+                        <line x1="200" y1="0" x2="200" y2="120"/>
+                        <line x1="400" y1="0" x2="400" y2="120"/>
+                        <line x1="600" y1="0" x2="600" y2="120"/>
+                    </g>
+                    <!-- Heartbeat line -->
+                    <path id="heartbeat-line" stroke="#00ff00" stroke-width="2" fill="none" d="M0,60"/>
+                    <!-- Status text -->
+                    <text x="20" y="30" fill="#00ff00" font-family="monospace" font-size="16" id="monitor-status">INITIALIZING...</text>
+                </svg>
+            </div>
             <div class="status" id="heartbeat-status">Connecting...</div>
             <div id="github-stats">
                 <p>Repository Files: <span id="file-count">Loading...</span></p>
@@ -88,17 +129,72 @@ class WorkingHeartbeatHandler(SimpleHTTPRequestHandler):
     </div>
     
     <script>
+        let heartbeatAnimation;
+        let isConnected = false;
+        let animationPosition = 0;
+        
+        function drawHeartbeat() {
+            const line = document.getElementById('heartbeat-line');
+            const monitor = document.getElementById('heartbeat-monitor');
+            const status = document.getElementById('monitor-status');
+            
+            if (isConnected) {
+                // Connected heartbeat pattern
+                monitor.classList.add('heartbeat-connected');
+                monitor.classList.remove('heartbeat-disconnected');
+                status.textContent = 'GITHUB CONNECTION: ACTIVE';
+                
+                // Animate heartbeat waveform
+                animationPosition += 2;
+                if (animationPosition > 800) animationPosition = 0;
+                
+                // Create heartbeat pattern
+                let path = `M0,60`;
+                for (let x = 0; x <= 800; x += 2) {
+                    let y = 60;
+                    let pos = (x + animationPosition) % 120;
+                    
+                    if (pos >= 0 && pos < 10) {
+                        // First spike
+                        y = 60 - Math.sin((pos / 10) * Math.PI) * 30;
+                    } else if (pos >= 10 && pos < 15) {
+                        // Dip
+                        y = 60 + Math.sin(((pos - 10) / 5) * Math.PI) * 10;
+                    } else if (pos >= 15 && pos < 25) {
+                        // Main spike
+                        y = 60 - Math.sin(((pos - 15) / 10) * Math.PI) * 50;
+                    } else if (pos >= 25 && pos < 30) {
+                        // Recovery dip
+                        y = 60 + Math.sin(((pos - 25) / 5) * Math.PI) * 8;
+                    }
+                    
+                    path += ` L${x},${y}`;
+                }
+                line.setAttribute('d', path);
+            } else {
+                // Disconnected flat line
+                monitor.classList.add('heartbeat-disconnected');
+                monitor.classList.remove('heartbeat-connected');
+                status.textContent = 'GITHUB CONNECTION: OFFLINE';
+                line.setAttribute('d', 'M0,60 L800,60');
+            }
+        }
+        
         function updateHeartbeat() {
             fetch('/api/heartbeat-status')
                 .then(response => response.json())
                 .then(data => {
                     const statusEl = document.getElementById('heartbeat-status');
+                    
                     if (data.status === 'connected') {
-                        statusEl.innerHTML = '<span class="live">✅ Connected</span>';
+                        statusEl.innerHTML = '<span class="live">CONNECTED</span>';
+                        isConnected = true;
                     } else if (data.status === 'initializing') {
-                        statusEl.innerHTML = '<span style="color: yellow;">🔄 Initializing...</span>';
+                        statusEl.innerHTML = '<span style="color: yellow;">INITIALIZING</span>';
+                        isConnected = false;
                     } else {
-                        statusEl.innerHTML = '<span class="error">❌ Disconnected</span>';
+                        statusEl.innerHTML = '<span class="error">DISCONNECTED</span>';
+                        isConnected = false;
                     }
                     
                     if (data.repository_stats) {
@@ -107,17 +203,24 @@ class WorkingHeartbeatHandler(SimpleHTTPRequestHandler):
                     }
                     
                     document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
-                    document.getElementById('token-status').innerHTML = '<span class="live">✅ Connected</span>';
-                    document.getElementById('generation').textContent = data.repository_stats ? data.repository_stats.total_files : 0;
-                    document.getElementById('improvements').textContent = data.repository_stats ? data.repository_stats.python_files : 0;
+                    
+                    if (isConnected) {
+                        document.getElementById('token-status').innerHTML = '<span class="live">CONNECTED</span>';
+                        document.getElementById('generation').textContent = data.repository_stats ? data.repository_stats.total_files : 0;
+                        document.getElementById('improvements').textContent = data.repository_stats ? data.repository_stats.python_files : 0;
+                    }
                 })
                 .catch(err => {
-                    document.getElementById('heartbeat-status').innerHTML = '<span class="error">❌ API Error</span>';
-                    document.getElementById('token-status').innerHTML = '<span class="error">❌ Failed</span>';
+                    document.getElementById('heartbeat-status').innerHTML = '<span class="error">API ERROR</span>';
+                    document.getElementById('token-status').innerHTML = '<span class="error">FAILED</span>';
+                    isConnected = false;
                 });
         }
         
-        // Update immediately and every 5 seconds
+        // Start heartbeat animation
+        heartbeatAnimation = setInterval(drawHeartbeat, 50); // 20 FPS
+        
+        // Update data every 5 seconds
         updateHeartbeat();
         setInterval(updateHeartbeat, 5000);
     </script>
