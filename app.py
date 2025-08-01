@@ -13,6 +13,15 @@ from pathlib import Path
 os.environ['PYTHONUNBUFFERED'] = '1'
 os.environ['RAILWAY_ENVIRONMENT'] = 'production'
 
+# Set GitHub token for API access (Railway environment variable)
+# Note: In production, set GITHUB_TOKEN environment variable in Railway dashboard
+if not os.environ.get('GITHUB_TOKEN'):
+    print("⚠️  WARNING: GITHUB_TOKEN environment variable not set!")
+    print("📝 Please set GITHUB_TOKEN in Railway dashboard for GitHub API access")
+    print("🔑 Token should be: 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")
+    # For local development only, uncomment the line below:
+    # os.environ['GITHUB_TOKEN'] = 'your_token_here'
+
 def signal_handler(sig, frame):
     """Handle graceful shutdown"""
     print("🛑 Gracefully shutting down Frontier AI...")

@@ -14,14 +14,6 @@ from pathlib import Path
 import threading
 from typing import Dict, List, Any
 
-# Load environment variables from .env file if it exists
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # dotenv not available, use os.environ directly
-    pass
-
 class GitHubAPIMonitor:
     def __init__(self, workspace_path):
         self.workspace_path = Path(workspace_path)
