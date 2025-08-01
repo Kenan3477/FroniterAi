@@ -16,8 +16,11 @@ def test_github_connection():
     """Test GitHub API connection"""
     print("🔍 Testing GitHub API connection...")
     
-    # Set token for testing
-    token = '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'
+    # Set token for testing (use environment variable in production)
+    token = os.environ.get('GITHUB_TOKEN', 'github_pat_EXAMPLE_TOKEN_HERE')
+    if 'EXAMPLE' in token:
+        print("⚠️  Please set GITHUB_TOKEN environment variable for testing")
+        return False
     os.environ['GITHUB_TOKEN'] = token
     
     try:

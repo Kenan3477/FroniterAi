@@ -8,8 +8,14 @@ import sys
 from pathlib import Path
 import time
 
-# Set GitHub token
-os.environ['GITHUB_TOKEN'] = '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'
+# Set GitHub token from environment variable
+github_token = os.environ.get('GITHUB_TOKEN')
+if not github_token:
+    print("⚠️  Please set GITHUB_TOKEN environment variable")
+    print("💡 Example: set GITHUB_TOKEN=your_actual_token_here")
+    sys.exit(1)
+
+os.environ['GITHUB_TOKEN'] = github_token
 
 # Add current directory to path
 sys.path.append(str(Path.cwd()))
