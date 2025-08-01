@@ -3,6 +3,7 @@
 Frontier AI Evolution System - WORKING HEARTBEAT VERSION
 This version GUARANTEES the heartbeat monitoring works
 """
+# RAILWAY_DEPLOY: 20250801_141137
 
 import os
 import sys
