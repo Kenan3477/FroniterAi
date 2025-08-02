@@ -416,6 +416,74 @@ class ComprehensiveEvolutionSystem:
             
         except Exception as e:
             return {'error': f'Could not read file: {str(e)}'}
+    
+    def get_system_stats(self):
+        """Get comprehensive system statistics for the web dashboard"""
+        try:
+            current_time = time.time()
+            uptime_seconds = current_time - self.start_time
+            uptime_hours = round(uptime_seconds / 3600, 2)
+            uptime_days = round(uptime_seconds / 86400, 2)
+            
+            # Count files in generated_files directory
+            generated_files_dir = self.workspace_path / 'generated_files'
+            files_created = 0
+            if generated_files_dir.exists():
+                files_created = len(list(generated_files_dir.rglob('*'))) - len(list(generated_files_dir.rglob('*/')))
+            
+            # Get current metrics
+            metrics = self.evolution_data.get('metrics', {})
+            components_built = metrics.get('components_created', 0)
+            pages_upgraded = metrics.get('pages_upgraded', 0)
+            features_implemented = metrics.get('features_implemented', 0)
+            code_blocks_generated = metrics.get('code_blocks_generated', 0)
+            
+            # Calculate current improvements
+            current_improvements = len(self.evolution_data.get('comprehensive_improvements', []))
+            
+            # Get active tasks count
+            active_tasks = len(self.evolution_data.get('evolution_goals', {}).get('active_tasks', []))
+            
+            # Get current task info
+            current_task = self.evolution_data.get('current_task')
+            current_task_description = None
+            current_task_progress = 0
+            if current_task:
+                current_task_description = current_task.get('description', 'Unknown task')
+                current_task_progress = current_task.get('progress', 0)
+            
+            return {
+                'files_created': files_created,
+                'components_built': components_built,
+                'pages_upgraded': pages_upgraded,
+                'features_implemented': features_implemented,
+                'code_blocks_generated': code_blocks_generated,
+                'uptime_hours': uptime_hours,
+                'uptime_days': uptime_days,
+                'uptime_seconds': uptime_seconds,
+                'current_improvements': current_improvements,
+                'active_tasks': active_tasks,
+                'generation': self.evolution_data.get('generation', 0),
+                'task_mode': self.evolution_data.get('task_mode', False),
+                'current_task_description': current_task_description,
+                'current_task_progress': current_task_progress,
+                'system_running': self.running,
+                'completion_rate': metrics.get('task_completion_rate', 100.0),
+                'last_update': self.evolution_data.get('last_update', datetime.now().isoformat()),
+                'workspace_path': str(self.workspace_path),
+                'total_created_files': len(self.evolution_data.get('created_files', [])),
+                'total_upgraded_pages': len(self.evolution_data.get('upgraded_pages', []))
+            }
+            
+        except Exception as e:
+            return {
+                'error': f'Could not generate system stats: {str(e)}',
+                'files_created': 0,
+                'components_built': 0,
+                'uptime_hours': 0,
+                'current_improvements': 0,
+                'system_running': False
+            }
         
     def _execute_real_task(self, task):
         """Execute a real task with actual file creation"""
@@ -5821,12 +5889,11 @@ Implement everything at the highest professional level with modern best practice
             super().do_GET()
     
     def do_POST(self):
+        """Handle POST requests for task management and API endpoints"""
         if self.path == '/add_task':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode())
-            
-            # Add task to evolution system with progress tracking
             task_result = self.evolution_system.add_task_with_progress(data['task'])
             
             self.send_response(200)
@@ -5839,7 +5906,6 @@ Implement everything at the highest professional level with modern best practice
             }).encode())
             
         elif self.path == '/api/task_progress':
-            # Get current task progress
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode())
@@ -5852,7 +5918,6 @@ Implement everything at the highest professional level with modern best practice
             self.wfile.write(json.dumps(progress).encode())
             
         elif self.path == '/api/browse_files':
-            # Browse generated files
             files = self.evolution_system.get_generated_files()
             
             self.send_response(200)
@@ -5861,7 +5926,6 @@ Implement everything at the highest professional level with modern best practice
             self.wfile.write(json.dumps(files).encode())
             
         elif self.path == '/api/view_file':
-            # View specific file content
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode())
@@ -5874,14 +5938,11 @@ Implement everything at the highest professional level with modern best practice
             self.wfile.write(json.dumps(file_content).encode())
             
         elif self.path == '/api/chat':
-            # Handle chat API for conversational AI
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             try:
                 data = json.loads(post_data.decode('utf-8'))
                 message = data.get('message', '')
-                
-                # Process the message through Frontier AI
                 response = self.evolution_system.process_chat_message(message)
                 
                 self.send_response(200)
@@ -5902,7 +5963,6 @@ Implement everything at the highest professional level with modern best practice
                 return
         
         elif self.path == '/api/stats':
-            # API endpoint for system stats
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -5913,14 +5973,11 @@ Implement everything at the highest professional level with modern best practice
             return
             
         elif self.path == '/force_complete_task':
-            # Force complete stuck task
             if self.evolution_system.evolution_data.get('current_task'):
                 current_task = self.evolution_system.evolution_data['current_task']
                 if current_task.get('progress', 0) >= 95:
                     print("🔧 Force completing stuck task...")
                     current_task['progress'] = 100
-                    
-                    # Force execute completion based on task type
                     task_type = current_task.get('type', 'comprehensive_general')
                     
                     if task_type == 'comprehensive_ui':
@@ -5958,16 +6015,12 @@ Implement everything at the highest professional level with modern best practice
                 self.end_headers()
                 self.wfile.write(json.dumps({'status': 'error', 'message': 'No active task'}).encode())
 
-
-# Main execution
 if __name__ == "__main__":
     workspace_path = Path.cwd()
     system = ComprehensiveEvolutionSystem(workspace_path)
     
     try:
         system.start_comprehensive_evolution()
-        
-        # Keep running
         while True:
             time.sleep(1)
             
