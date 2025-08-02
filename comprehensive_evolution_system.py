@@ -4,6 +4,7 @@
 Creates entire code blocks, full components, and comprehensive implementations
 Stops all processes when given tasks and focuses entirely on goal achievement
 Updated: 2024-12-28 - Force Railway rebuild with get_system_stats fix
+Enhanced: 2025-08-02 - Added AI Market Analysis Integration
 """
 
 import os
@@ -15,16 +16,36 @@ import shutil
 import subprocess
 import webbrowser
 import os
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import socketserver
+
+# Import market analysis if available
+try:
+    from market_analysis import MarketAnalyzer, integrate_with_evolution_system
+    MARKET_ANALYSIS_AVAILABLE = True
+except ImportError:
+    MARKET_ANALYSIS_AVAILABLE = False
+    print("⚠️ Market Analysis module not available - continuing without market insights")
 
 class ComprehensiveEvolutionSystem:
     def __init__(self, workspace_path):
         self.workspace_path = Path(workspace_path)
         self.backup_dir = self.workspace_path / '.comprehensive_backups'
         self.backup_dir.mkdir(exist_ok=True)
+        
+        # Initialize market analyzer if available
+        self.market_analyzer = None
+        if MARKET_ANALYSIS_AVAILABLE:
+            try:
+                self.market_analyzer = MarketAnalyzer(
+                    data_dir=str(self.workspace_path / "market_data")
+                )
+                print("🔍 Market Analysis integration enabled")
+            except Exception as e:
+                print(f"⚠️ Could not initialize market analyzer: {e}")
         
         self.evolution_data = {
             'generation': 0,
@@ -33,18 +54,25 @@ class ComprehensiveEvolutionSystem:
             'created_files': [],
             'upgraded_pages': [],
             'comprehensive_improvements': [],
+            'market_insights': {
+                'last_analysis': None,
+                'trending_technologies': [],
+                'recommendations': [],
+                'confidence_score': 0.0
+            },
             'evolution_goals': {
                 'primary_goal': 'comprehensive_development',
                 'active_tasks': [],
                 'priority_level': 'medium',
-                'focus_areas': ['ui_creation', 'feature_development', 'architecture_improvement']
+                'focus_areas': ['ui_creation', 'feature_development', 'architecture_improvement', 'market_alignment']
             },
             'metrics': {
                 'components_created': 0,
                 'pages_upgraded': 0,
                 'features_implemented': 0,
                 'code_blocks_generated': 0,
-                'task_completion_rate': 100.0
+                'task_completion_rate': 100.0,
+                'market_driven_improvements': 0
             },
             'last_update': datetime.now().isoformat()
         }
@@ -60,6 +88,14 @@ class ComprehensiveEvolutionSystem:
         print("🎯 Creates entire code blocks, full components, and comprehensive implementations")
         print("⚡ Stops all processes when given tasks")
         print("📊 Shows results by opening created files/web pages")
+        
+        # Initialize market analysis if available
+        if self.market_analyzer:
+            print("🔍 Market Analysis integration enabled")
+            # Schedule periodic market analysis
+            self._schedule_market_analysis()
+        else:
+            print("⚠️ Market Analysis not available")
         print()
         
         # Start web server for task management
@@ -82,6 +118,28 @@ class ComprehensiveEvolutionSystem:
         if not os.environ.get('RAILWAY_ENVIRONMENT'):
             time.sleep(2)
             webbrowser.open(f'http://localhost:{port}')
+
+    def _schedule_market_analysis(self):
+        """Schedule periodic market analysis updates"""
+        def periodic_analysis():
+            while self.running:
+                try:
+                    if self.market_analyzer:
+                        # Run market analysis in background
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self.get_market_insights())
+                        loop.close()
+                        print("📊 Market analysis updated")
+                except Exception as e:
+                    print(f"⚠️ Market analysis update failed: {e}")
+                
+                # Wait 6 hours before next analysis
+                time.sleep(6 * 3600)
+        
+        market_thread = threading.Thread(target=periodic_analysis)
+        market_thread.daemon = True
+        market_thread.start()
         
     def start_web_server(self, evolution_manager=None):
         """Start web server for task management interface with enhanced production handler"""
@@ -417,6 +475,75 @@ class ComprehensiveEvolutionSystem:
         except Exception as e:
             return {'error': f'Could not read file: {str(e)}'}
     
+    async def get_market_insights(self):
+        """Get current market insights and trends"""
+        if not self.market_analyzer:
+            return {
+                'status': 'unavailable',
+                'message': 'Market analysis not available',
+                'insights': []
+            }
+        
+        try:
+            # Run market analysis
+            trends = await self.market_analyzer.analyze_trends()
+            
+            # Update evolution data with insights
+            self.evolution_data['market_insights'] = {
+                'last_analysis': datetime.now().isoformat(),
+                'trending_technologies': trends.get('technologies', []),
+                'recommendations': trends.get('recommendations', []),
+                'confidence_score': trends.get('confidence', 0.0)
+            }
+            
+            return {
+                'status': 'success',
+                'insights': trends,
+                'last_updated': self.evolution_data['market_insights']['last_analysis']
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Market analysis failed: {e}',
+                'insights': []
+            }
+
+    async def generate_market_driven_tasks(self):
+        """Generate evolution tasks based on market insights"""
+        if not self.market_analyzer:
+            return []
+        
+        try:
+            insights = await self.get_market_insights()
+            if insights['status'] != 'success':
+                return []
+            
+            # Generate tasks based on trends
+            trends = insights['insights']
+            tasks = []
+            
+            for tech in trends.get('technologies', [])[:3]:  # Top 3 trending
+                task = {
+                    'id': f"market_task_{len(tasks)+1}",
+                    'type': 'market_driven',
+                    'title': f"Integrate {tech} capabilities",
+                    'description': f"Add {tech} features to align with market trends",
+                    'priority': 'high',
+                    'created': datetime.now().isoformat(),
+                    'market_confidence': trends.get('confidence', 0.0)
+                }
+                tasks.append(task)
+            
+            # Add tasks to evolution goals
+            self.evolution_data['evolution_goals']['active_tasks'].extend(tasks)
+            self.evolution_data['metrics']['market_driven_improvements'] += len(tasks)
+            self.save_evolution_data()
+            
+            return tasks
+        except Exception as e:
+            print(f"❌ Failed to generate market-driven tasks: {e}")
+            return []
+    
     def get_system_stats(self):
         """Get comprehensive system statistics for the web dashboard"""
         try:
@@ -452,6 +579,10 @@ class ComprehensiveEvolutionSystem:
                 current_task_description = current_task.get('description', 'Unknown task')
                 current_task_progress = current_task.get('progress', 0)
             
+            # Get market insights status
+            market_insights = self.evolution_data.get('market_insights', {})
+            market_status = "Available" if self.market_analyzer else "Unavailable"
+            
             return {
                 'files_created': files_created,
                 'components_built': components_built,
@@ -472,7 +603,15 @@ class ComprehensiveEvolutionSystem:
                 'last_update': self.evolution_data.get('last_update', datetime.now().isoformat()),
                 'workspace_path': str(self.workspace_path),
                 'total_created_files': len(self.evolution_data.get('created_files', [])),
-                'total_upgraded_pages': len(self.evolution_data.get('upgraded_pages', []))
+                'total_upgraded_pages': len(self.evolution_data.get('upgraded_pages', [])),
+                'market_analysis': {
+                    'status': market_status,
+                    'last_analysis': market_insights.get('last_analysis', 'Never'),
+                    'trending_technologies': market_insights.get('trending_technologies', []),
+                    'market_driven_improvements': metrics.get('market_driven_improvements', 0),
+                    'confidence_score': market_insights.get('confidence_score', 0.0),
+                    'recommendations': market_insights.get('recommendations', [])
+                }
             }
             
         except Exception as e:
