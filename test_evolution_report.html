@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontierAI Evolution Trail Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <h1 class="text-4xl font-bold text-gray-800 mb-8">🧬 FrontierAI Evolution Trail Report</h1>
+                
+                <div class="grid md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-blue-50 rounded-lg p-6 text-center">
+                        <div class="text-3xl font-bold text-blue-600">6</div>
+                        <div class="text-blue-700">Total Changes</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-6 text-center">
+                        <div class="text-3xl font-bold text-green-600">0</div>
+                        <div class="text-green-700">Lines Added</div>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-6 text-center">
+                        <div class="text-3xl font-bold text-red-600">0</div>
+                        <div class="text-red-700">Lines Removed</div>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-6 text-center">
+                        <div class="text-3xl font-bold text-purple-600">0</div>
+                        <div class="text-purple-700">Files Modified</div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">Evolution Timeline</h3>
+                    <canvas id="timelineChart" width="400" height="200"></canvas>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white border rounded-lg p-6">
+                        <h3 class="text-xl font-semibold mb-4">Change Types</h3>
+                        <canvas id="typeChart" width="300" height="300"></canvas>
+                    </div>
+                    <div class="bg-white border rounded-lg p-6">
+                        <h3 class="text-xl font-semibold mb-4">Contributors</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between"><span>Kenan Davies</span><span class="font-semibold">5</span></div><div class="flex justify-between"><span>Test Developer</span><span class="font-semibold">1</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white border rounded-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">Recent Changes</h3>
+                    <div class="space-y-4">
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Refactor greeting logic</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Refactoring</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Kenan Davies • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Simplified greeting implementation</p>
+                        </div>
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Update docstrings</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Documentation Update</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Kenan Davies • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Improved function documentation</p>
+                        </div>
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Add input validation</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Security Improvement</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Kenan Davies • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Added validation to prevent injection attacks</p>
+                        </div>
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Optimize string formatting</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Performance Optimization</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Kenan Davies • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Improved string concatenation performance</p>
+                        </div>
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Fix greeting bug</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Bug Fix</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Kenan Davies • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Fixed issue with empty name parameter</p>
+                        </div>
+                        
+                        <div class="border-l-4 border-blue-500 pl-4 py-2">
+                            <h4 class="font-semibold">Add greeting functionality</h4>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block bg-gray-200 rounded px-2 py-1 mr-2">Feature Addition</span>
+                                <span class="inline-block bg-blue-200 rounded px-2 py-1 mr-2">Implemented</span>
+                                <span>Test Developer • 2025-08-03 10:05</span>
+                            </div>
+                            <p class="text-gray-700 mt-2">Implement a simple greeting feature for testing</p>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Timeline Chart
+        const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+        const timelineData = [{"date": "2025-08-03", "changes": 6}];
+        
+        new Chart(timelineCtx, {
+            type: 'line',
+            data: {
+                labels: timelineData.map(d => d.date),
+                datasets: [{
+                    label: 'Changes per Day',
+                    data: timelineData.map(d => d.changes),
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Change Types Chart
+        const typeCtx = document.getElementById('typeChart').getContext('2d');
+        const typeData = [["bug_fix", 1], ["documentation_update", 1], ["feature_addition", 1], ["performance_optimization", 1], ["refactoring", 1], ["security_improvement", 1]];
+        
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: typeData.map(d => d[0].replace('_', ' ')),
+                datasets: [{
+                    data: typeData.map(d => d[1]),
+                    backgroundColor: [
+                        '#EF4444', '#F97316', '#EAB308', '#22C55E',
+                        '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+</body>
+</html>

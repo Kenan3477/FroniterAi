@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontierAI - Business Intelligence Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .tagline {
+            font-size: 12px;
+            color: #bdc3c7;
+        }
+
+        .connect-business-btn {
+            margin: 20px;
+            padding: 15px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connect-business-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .business-folders {
+            flex: 1;
+            padding: 0 20px;
+            overflow-y: auto;
+        }
+
+        .folder-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .folder-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+
+        .folder-item.active {
+            background: #3498db;
+            box-shadow: 0 3px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        /* Main Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .chat-header {
+            padding: 20px;
+            background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .chat-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .chat-subtitle {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .message.ai .message-avatar {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+        }
+
+        .message.ai .message-content {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .message.user .message-content {
+            background: #3498db;
+            color: white;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 25px;
+            padding: 10px 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input-wrapper:focus-within {
+            border-color: #3498db;
+            background: white;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.1);
+        }
+
+        .chat-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 16px;
+            padding: 5px 0;
+        }
+
+        .send-btn {
+            background: #3498db;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        /* Right Panel - Dashboard/Stats */
+        .right-panel {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .right-panel.active {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Business Connection Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .integration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .integration-card {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .integration-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.1);
+        }
+
+        .integration-card.selected {
+            border-color: #3498db;
+            background: #f0f8ff;
+        }
+
+        .integration-icon {
+            font-size: 30px;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            color: #7f8c8d;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            border-color: #95a5a6;
+            color: #2c3e50;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin: 20px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            padding: 8px 15px;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            border-radius: 20px;
+            color: #3498db;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+                transform: translateX(-100%);
+                position: absolute;
+                z-index: 100;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .right-panel {
+                position: absolute;
+                right: 0;
+                z-index: 99;
+            }
+
+            .chat-container {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">🚀 FrontierAI</div>
+                <div class="tagline">Business Intelligence Hub</div>
+            </div>
+
+            <button class="connect-business-btn" onclick="openConnectModal()">
+                <span>🔗</span>
+                Connect Your Business
+            </button>
+
+            <div class="quick-actions">
+                <div class="quick-action" onclick="sendQuickMessage('Analyze my financials')">💰 Analyze Financials</div>
+                <div class="quick-action" onclick="sendQuickMessage('Develop a website')">🌐 Build Website</div>
+                <div class="quick-action" onclick="sendQuickMessage('Marketing insights')">📊 Marketing</div>
+                <div class="quick-action" onclick="sendQuickMessage('Process optimization')">⚡ Optimize</div>
+            </div>
+
+            <div class="business-folders" id="businessFolders">
+                <!-- Business folders will be populated here -->
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div>
+                    <div class="chat-title" id="chatTitle">Welcome to FrontierAI</div>
+                    <div class="chat-subtitle" id="chatSubtitle">Your intelligent business companion</div>
+                </div>
+                <button onclick="toggleRightPanel()" style="background: none; border: none; font-size: 20px; cursor: pointer;">📊</button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    <div class="message-avatar">AI</div>
+                    <div class="message-content">
+                        <strong>Welcome to FrontierAI! 🚀</strong><br><br>
+                        I'm your intelligent business companion, ready to help you:<br>
+                        • Connect and manage your business integrations<br>
+                        • Analyze your financial data and performance<br>
+                        • Develop custom solutions for your business<br>
+                        • Optimize processes for maximum efficiency<br><br>
+                        <em>Click "Connect Your Business" to get started, or ask me anything!</em>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything about your business..." onkeypress="handleEnterKey(event)">
+                    <button class="send-btn" onclick="sendMessage()">
+                        <span>➤</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Dashboard/Stats -->
+        <div class="right-panel" id="rightPanel">
+            <div class="panel-header">Business Overview</div>
+            <div class="panel-content" id="panelContent">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Connected Integrations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Active Projects</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Conversations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Optimizations</div>
+                    </div>
+                </div>
+                <p style="color: #7f8c8d; text-align: center; margin-top: 40px;">
+                    Connect your business to see detailed analytics and insights.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Connection Modal -->
+    <div class="modal" id="connectModal">
+        <div class="modal-content">
+            <div class="modal-header">Connect Your Business</div>
+            
+            <div class="form-group">
+                <label class="form-label">Business Name</label>
+                <input type="text" class="form-input" id="businessName" placeholder="Enter your business name">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Select Integrations</label>
+                <div class="integration-grid">
+                    <div class="integration-card" onclick="toggleIntegration(this, 'salesforce')">
+                        <div class="integration-icon">☁️</div>
+                        <div>Salesforce</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'quickbooks')">
+                        <div class="integration-icon">📊</div>
+                        <div>QuickBooks</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'sheets')">
+                        <div class="integration-icon">📑</div>
+                        <div>Google Sheets</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'make')">
+                        <div class="integration-icon">🔧</div>
+                        <div>Make</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'hubspot')">
+                        <div class="integration-icon">🎯</div>
+                        <div>HubSpot</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'stripe')">
+                        <div class="integration-icon">💳</div>
+                        <div>Stripe</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'slack')">
+                        <div class="integration-icon">💬</div>
+                        <div>Slack</div>
+                    </div>
+                    <div class="integration-card" onclick="toggleIntegration(this, 'zapier')">
+                        <div class="integration-icon">⚡</div>
+                        <div>Zapier</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="createBusiness()">Create Business Profile</button>
+            <button class="btn-secondary" onclick="closeConnectModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentBusiness = null;
+        let businesses = JSON.parse(localStorage.getItem('frontierAI_businesses') || '[]');
+        let selectedIntegrations = [];
+        let conversations = JSON.parse(localStorage.getItem('frontierAI_conversations') || '{}');
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBusinessFolders();
+            if (businesses.length > 0) {
+                selectBusiness(businesses[0]);
+            }
+        });
+
+        // Modal functions
+        function openConnectModal() {
+            document.getElementById('connectModal').classList.add('active');
+            document.getElementById('businessName').value = '';
+            selectedIntegrations = [];
+            document.querySelectorAll('.integration-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+        }
+
+        function closeConnectModal() {
+            document.getElementById('connectModal').classList.remove('active');
+        }
+
+        function toggleIntegration(card, integration) {
+            card.classList.toggle('selected');
+            const index = selectedIntegrations.indexOf(integration);
+            if (index > -1) {
+                selectedIntegrations.splice(index, 1);
+            } else {
+                selectedIntegrations.push(integration);
+            }
+        }
+
+        function createBusiness() {
+            const businessName = document.getElementById('businessName').value.trim();
+            
+            if (!businessName) {
+                alert('Please enter a business name');
+                return;
+            }
+
+            if (selectedIntegrations.length === 0) {
+                alert('Please select at least one integration');
+                return;
+            }
+
+            const business = {
+                id: Date.now().toString(),
+                name: businessName,
+                integrations: selectedIntegrations,
+                createdAt: new Date().toISOString(),
+                stats: {
+                    conversations: 0,
+                    projects: 0,
+                    optimizations: 0
+                }
+            };
+
+            businesses.push(business);
+            localStorage.setItem('frontierAI_businesses', JSON.stringify(businesses));
+            
+            loadBusinessFolders();
+            selectBusiness(business);
+            closeConnectModal();
+
+            // Send welcome message for new business
+            setTimeout(() => {
+                addMessage('ai', `🎉 Welcome ${businessName}! I've successfully connected your integrations: ${selectedIntegrations.join(', ')}. Let me analyze your setup and create a custom dashboard for you.`);
+                
+                setTimeout(() => {
+                    addMessage('ai', `Based on your integrations, I can help you with:\n\n📊 Financial Analysis & Reporting\n🎯 Customer Relationship Management\n⚡ Process Automation\n📈 Performance Optimization\n\nWhat would you like to focus on first?`);
+                }, 2000);
+            }, 500);
+        }
+
+        // Business management
+        function loadBusinessFolders() {
+            const container = document.getElementById('businessFolders');
+            container.innerHTML = '';
+
+            businesses.forEach(business => {
+                const folderDiv = document.createElement('div');
+                folderDiv.className = 'folder-item';
+                folderDiv.innerHTML = `
+                    <span>📁</span>
+                    <div>
+                        <div style="font-weight: 600;">${business.name}</div>
+                        <div style="font-size: 12px; opacity: 0.7;">${business.integrations.length} integrations</div>
+                    </div>
+                `;
+                folderDiv.onclick = () => selectBusiness(business);
+                container.appendChild(folderDiv);
+            });
+        }
+
+        function selectBusiness(business) {
+            currentBusiness = business;
+            
+            // Update UI
+            document.getElementById('chatTitle').textContent = business.name;
+            document.getElementById('chatSubtitle').textContent = `${business.integrations.length} integrations connected`;
+            
+            // Update active folder
+            document.querySelectorAll('.folder-item').forEach(item => item.classList.remove('active'));
+            event?.target?.closest('.folder-item')?.classList.add('active');
+            
+            // Load conversation history
+            loadConversationHistory(business.id);
+            
+            // Update right panel stats
+            updateBusinessStats(business);
+        }
+
+        function updateBusinessStats(business) {
+            const stats = business.stats || { conversations: 0, projects: 0, optimizations: 0 };
+            const statsCards = document.querySelectorAll('.stat-card .stat-value');
+            
+            if (statsCards.length >= 4) {
+                statsCards[0].textContent = business.integrations.length;
+                statsCards[1].textContent = stats.projects;
+                statsCards[2].textContent = stats.conversations;
+                statsCards[3].textContent = stats.optimizations;
+            }
+        }
+
+        // Chat functions
+        function handleEnterKey(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage('user', message);
+            input.value = '';
+            
+            // Save conversation
+            saveConversation(message, 'user');
+            
+            // Simulate AI thinking
+            setTimeout(() => {
+                const response = generateAIResponse(message);
+                addMessage('ai', response);
+                saveConversation(response, 'ai');
+            }, 1000 + Math.random() * 2000);
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('chatInput').value = message;
+            sendMessage();
+        }
+
+        function addMessage(role, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = role === 'ai' ? 'AI' : 'YOU';
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">${content.replace(/\n/g, '<br>')}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function generateAIResponse(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            // Business analysis responses
+            if (lowerMessage.includes('financial') || lowerMessage.includes('money') || lowerMessage.includes('revenue')) {
+                return `📊 <strong>Financial Analysis</strong><br><br>Based on your connected integrations, I can provide:<br>• Revenue trends and forecasting<br>• Expense optimization recommendations<br>• Cash flow analysis<br>• Profitability insights<br><br>Would you like me to generate a detailed financial report?`;
+            }
+            
+            if (lowerMessage.includes('website') || lowerMessage.includes('develop') || lowerMessage.includes('build')) {
+                return `🌐 <strong>Website Development</strong><br><br>I can help you create a professional website that:<br>• Integrates with your existing systems<br>• Captures and nurtures leads<br>• Showcases your services effectively<br>• Optimizes for search engines<br><br>What type of website are you looking to build?`;
+            }
+            
+            if (lowerMessage.includes('marketing') || lowerMessage.includes('customers') || lowerMessage.includes('leads')) {
+                return `🎯 <strong>Marketing Intelligence</strong><br><br>Let me analyze your customer data to help with:<br>• Customer segmentation and targeting<br>• Lead generation strategies<br>• Campaign performance optimization<br>• Customer lifetime value analysis<br><br>I can create automated marketing workflows using your connected tools.`;
+            }
+            
+            if (lowerMessage.includes('optimize') || lowerMessage.includes('efficient') || lowerMessage.includes('automate')) {
+                return `⚡ <strong>Process Optimization</strong><br><br>I've identified several automation opportunities:<br>• Data sync between your platforms<br>• Automated reporting and alerts<br>• Workflow streamlining<br>• Task automation<br><br>Would you like me to set up these optimizations?`;
+            }
+            
+            // Default responses
+            const responses = [
+                `I understand you're interested in "${message}". Based on your connected integrations, I can provide detailed insights and actionable recommendations. What specific aspect would you like me to focus on?`,
+                `Great question! Let me analyze your business data to provide you with the most relevant insights for "${message}". This might take a moment as I process information from your connected systems.`,
+                `I can help you with that! Your connected integrations give me access to comprehensive data that will help me provide targeted solutions for your business needs.`
+            ];
+            
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        // Conversation management
+        function saveConversation(message, role) {
+            if (!currentBusiness) return;
+            
+            if (!conversations[currentBusiness.id]) {
+                conversations[currentBusiness.id] = [];
+            }
+            
+            conversations[currentBusiness.id].push({
+                role: role,
+                content: message,
+                timestamp: new Date().toISOString()
+            });
+            
+            localStorage.setItem('frontierAI_conversations', JSON.stringify(conversations));
+            
+            // Update business stats
+            if (role === 'user') {
+                const business = businesses.find(b => b.id === currentBusiness.id);
+                if (business) {
+                    business.stats.conversations++;
+                    localStorage.setItem('frontierAI_businesses', JSON.stringify(businesses));
+                    updateBusinessStats(business);
+                }
+            }
+        }
+
+        function loadConversationHistory(businessId) {
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '';
+            
+            const history = conversations[businessId] || [];
+            history.forEach(msg => {
+                addMessage(msg.role, msg.content);
+            });
+            
+            if (history.length === 0) {
+                addMessage('ai', `Welcome back! I'm ready to help you optimize your business operations. What would you like to work on today?`);
+            }
+        }
+
+        // UI functions
+        function toggleRightPanel() {
+            document.getElementById('rightPanel').classList.toggle('active');
+        }
+
+        // Auto-save functionality
+        setInterval(() => {
+            if (currentBusiness) {
+                localStorage.setItem('frontierAI_businesses', JSON.stringify(businesses));
+                localStorage.setItem('frontierAI_conversations', JSON.stringify(conversations));
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

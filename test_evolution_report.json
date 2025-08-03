@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "generated_at": "2025-08-03T10:05:32.973672",
+    "report_period_days": 7,
+    "format_version": "1.0"
+  },
+  "summary": {
+    "total_changes": 6,
+    "total_lines_added": 0,
+    "total_lines_removed": 0,
+    "total_files_modified": 0,
+    "average_duration_hours": 0.0,
+    "first_change": "2025-08-03T10:05:19.534218",
+    "last_change": "2025-08-03T10:05:30.877411",
+    "by_type": {
+      "bug_fix": 1,
+      "documentation_update": 1,
+      "feature_addition": 1,
+      "performance_optimization": 1,
+      "refactoring": 1,
+      "security_improvement": 1
+    },
+    "by_status": {
+      "implemented": 6
+    },
+    "by_impact": {
+      "low": 6
+    },
+    "by_author": {
+      "Kenan Davies": 5,
+      "Test Developer": 1
+    }
+  },
+  "timeline": [
+    {
+      "date": "2025-08-03",
+      "total_changes": 6,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "total_files_modified": 0,
+      "features_added": 1,
+      "bugs_fixed": 1,
+      "optimizations": 1,
+      "security_improvements": 1
+    }
+  ],
+  "recent_changes": [
+    {
+      "change_id": "change_20250803_100530_844354",
+      "timestamp": "2025-08-03T10:05:30.877411",
+      "change_type": "refactoring",
+      "status": "implemented",
+      "title": "Refactor greeting logic",
+      "description": "Simplified greeting implementation",
+      "author": "Kenan Davies",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\module_refactoring.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    },
+    {
+      "change_id": "change_20250803_100528_761033",
+      "timestamp": "2025-08-03T10:05:28.798842",
+      "change_type": "documentation_update",
+      "status": "implemented",
+      "title": "Update docstrings",
+      "description": "Improved function documentation",
+      "author": "Kenan Davies",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\module_documentation_update.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    },
+    {
+      "change_id": "change_20250803_100526_631883",
+      "timestamp": "2025-08-03T10:05:26.703952",
+      "change_type": "security_improvement",
+      "status": "implemented",
+      "title": "Add input validation",
+      "description": "Added validation to prevent injection attacks",
+      "author": "Kenan Davies",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\module_security_improvement.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    },
+    {
+      "change_id": "change_20250803_100524_393666",
+      "timestamp": "2025-08-03T10:05:24.499664",
+      "change_type": "performance_optimization",
+      "status": "implemented",
+      "title": "Optimize string formatting",
+      "description": "Improved string concatenation performance",
+      "author": "Kenan Davies",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\module_performance_optimization.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    },
+    {
+      "change_id": "change_20250803_100522_146079",
+      "timestamp": "2025-08-03T10:05:22.224164",
+      "change_type": "bug_fix",
+      "status": "implemented",
+      "title": "Fix greeting bug",
+      "description": "Fixed issue with empty name parameter",
+      "author": "Kenan Davies",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\module_bug_fix.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    },
+    {
+      "change_id": "change_20250803_100519_534218",
+      "timestamp": "2025-08-03T10:05:19.534218",
+      "change_type": "feature_addition",
+      "status": "implemented",
+      "title": "Add greeting functionality",
+      "description": "Implement a simple greeting feature for testing",
+      "author": "Test Developer",
+      "impact_level": "low",
+      "affected_files": [
+        "C:\\Users\\kenne\\AppData\\Local\\Temp\\tmp6g3966id\\test_feature.py"
+      ],
+      "lines_added": 0,
+      "lines_removed": 0,
+      "files_modified": 0,
+      "performance_impact": {}
+    }
+  ]
+}

@@ -46,77 +46,57 @@ def main():
     
     # Create and start the systems
     try:
-        print("🤖 Initializing Production Autonomous Evolution Manager...")
-        from production_evolution_manager import ProductionEvolutionManager
-        evolution_manager = ProductionEvolutionManager(workspace_path)
+        print("🤖 Initializing FrontierAI Frontend Dashboard...")
+        from frontend_dashboard import FrontierDashboard, create_dashboard_templates
         
-        print("🌐 Starting Enhanced Production Web Server...")
-        import socketserver
-        import threading
-        from enhanced_production_handler import EnhancedProductionHandler
+        # Create dashboard templates
+        create_dashboard_templates()
         
-        # Start web server with enhanced handler
-        host = '0.0.0.0'
-        port_int = int(port)
+        # Initialize dashboard
+        dashboard = FrontierDashboard(workspace_path)
         
-        handler = lambda *args, **kwargs: EnhancedProductionHandler(
-            *args, 
-            evolution_system=None,
-            evolution_manager=evolution_manager,
-            **kwargs
-        )
-        
-        server = socketserver.TCPServer((host, port_int), handler)
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        
-        print("🔍 Starting autonomous evolution manager...")
-        evolution_manager.start_autonomous_evolution()
-        
-        print("✅ All systems started successfully")
-        print(f"🌐 Frontier AI Dashboard available at: {railway_url}")
-        print("🤖 Conversational AI interface ready")
-        print("📊 Business Operations Suite online")
-        print("🔍 AUTONOMOUS REPOSITORY MONITORING: ACTIVE")
-        print("⚡ ADVANCED IMPLEMENTATION UPGRADES: ENABLED")
-        print("📺 LIVE EVOLUTION FEED: BROADCASTING")
+        print("🌐 Starting FrontierAI Dashboard Server...")
+        print(f"🔧 Railway Configuration:")
+        print(f"   📡 Port: {port}")
+        print(f"   🌐 Public URL: {railway_url}")
+        print(f"   📁 Workspace: {workspace_path}")
         print()
-        print("🎯 Ready to serve users worldwide!")
         
-        # Keep the process alive with enhanced monitoring
-        import time
-        cycle_count = 0
-        while True:
-            cycle_count += 1
-            time.sleep(30)  # Check every 30 seconds
-            
-            # Log status every 10 cycles (5 minutes)
-            if cycle_count % 10 == 0:
-                print(f"💫 Frontier AI running stable - Cycle {cycle_count}")
-                print(f"🌐 Available at: {railway_url}")
-                
-                # Show evolution stats
-                try:
-                    stats = evolution_manager.get_evolution_stats()
-                    print(f"🤖 Evolution Stats: {stats['total_files_created']} files, Gen {stats['current_generation']}, {stats['upgrades_performed']} upgrades")
-                except Exception as e:
-                    print(f"📊 Stats collection error: {e}")
-                
+        print("✅ FrontierAI Dashboard Features:")
+        print("   💬 ChatGPT-Style Conversational Interface")
+        print("   🏢 Business Integration Platform")
+        print("   📊 Custom Dashboard Builder")
+        print("   🔗 CRM, Bookkeeping & Google Sheets Integration")
+        print("   🤖 Self-Evolution Monitoring System")
+        print("   📈 GitHub Repository Analytics")
+        print("   ⚡ Real-time Task Implementation")
+        print("   🎯 AI-Powered Business Growth Tools")
+        print()
+        
+        print(f"🌐 FrontierAI Dashboard available at: {railway_url}")
+        print("🚀 Starting dashboard server...")
+        
+        # Run the dashboard (this will block)
+        dashboard.run(host='0.0.0.0', port=int(port), debug=False)
+        
     except KeyboardInterrupt:
         print("🛑 Received shutdown signal")
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Error starting system: {e}")
+        print(f"❌ Error starting FrontierAI Dashboard: {e}")
         import traceback
         traceback.print_exc()
         
         # Fallback to basic server
         print("🔄 Starting fallback server...")
         try:
+            import time
             from enhanced_frontier_dashboard import EnhancedFrontierDashboard
             dashboard = EnhancedFrontierDashboard(workspace_path)
             dashboard.start_server()
+            
+            print("✅ Fallback server started successfully")
+            print(f"🌐 Available at: {railway_url}")
             
             while True:
                 time.sleep(30)

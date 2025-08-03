@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 FrontierAI Evolution Visualization Dashboard</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.24.1/plotly.min.js"></script>
+    
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        .network-container {
+            height: 500px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .filter-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .capability-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">🧬 Evolution Visualization</h1>
+                    <span class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        1 Changes Tracked
+                    </span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="exportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        📊 Export Data
+                    </button>
+                    <button id="refreshBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <h2 class="text-xl font-semibold mb-4">📊 Visualization Filters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Date Range</label>
+                    <select id="dateFilter" class="w-full px-3 py-2 text-gray-900 rounded-lg">
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90" selected>Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Change Type</label>
+                    <select id="typeFilter" class="w-full px-3 py-2 text-gray-900 rounded-lg">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Impact Level</label>
+                    <select id="impactFilter" class="w-full px-3 py-2 text-gray-900 rounded-lg">
+                        <option value="">All Levels</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Author</label>
+                    <select id="authorFilter" class="w-full px-3 py-2 text-gray-900 rounded-lg">
+                        <option value="">All Authors</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="metric-card text-white rounded-xl p-6">
+                <div class="text-center">
+                    <div class="text-3xl font-bold" id="totalChanges">1</div>
+                    <div class="text-sm opacity-90">Total Changes</div>
+                </div>
+            </div>
+            <div class="capability-card text-white rounded-xl p-6">
+                <div class="text-center">
+                    <div class="text-3xl font-bold" id="activeCapabilities">2</div>
+                    <div class="text-sm opacity-90">Active Capabilities</div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-xl p-6">
+                <div class="text-center">
+                    <div class="text-3xl font-bold" id="activeBranches">0</div>
+                    <div class="text-sm opacity-90">Active Branches</div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded-xl p-6">
+                <div class="text-center">
+                    <div class="text-3xl font-bold" id="avgDaily">1.0</div>
+                    <div class="text-sm opacity-90">Avg Daily Changes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Evolution Timeline -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">📈 Evolution Timeline</h3>
+                <div id="timelineChart" class="chart-container"></div>
+            </div>
+
+            <!-- Capability Growth -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">🎯 Capability Growth</h3>
+                <div id="capabilityChart" class="chart-container"></div>
+            </div>
+
+            <!-- Change Type Distribution -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">🔄 Change Distribution</h3>
+                <div id="distributionChart" class="chart-container"></div>
+            </div>
+
+            <!-- Impact Analysis -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">⚡ Impact Analysis</h3>
+                <div id="impactChart" class="chart-container"></div>
+            </div>
+        </div>
+
+        <!-- Evolution Branches Network -->
+        <div class="bg-white rounded-xl shadow p-6 mt-8">
+            <h3 class="text-lg font-semibold mb-4">🌳 Evolutionary Branches</h3>
+            <div id="branchNetwork" class="network-container"></div>
+        </div>
+
+        <!-- Detailed Timeline Table -->
+        <div class="bg-white rounded-xl shadow p-6 mt-8">
+            <h3 class="text-lg font-semibold mb-4">📋 Detailed Change Log</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="timelineTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Impact</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="timelineTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="text-center text-gray-500">
+                <p>Generated by FrontierAI Evolution Visualization System</p>
+                <p class="text-sm mt-1">Last updated: 2025-08-03T11:11:41.991064</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Embedded visualization data
+        const dashboardData = {"timeline": [{"date": "2025-08-03", "timestamp": "2025-08-03T11:11:39.896016", "change_id": "change_20250803_111139_823024", "title": "Visualization component integration", "change_type": "feature_addition", "impact_level": "high", "status": "implemented", "author": "Kenan3477", "files_modified": 0, "lines_added": 0, "lines_removed": 0, "performance_impact": {}, "tags": []}], "capabilities": {"development_velocity": [{"date": "2025-07-04", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "development_velocity", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "development_velocity", "value": 1.3, "growth_rate": 0, "cumulative_value": 1.3, "change_count": 1, "impact_score": 3.0}], "code_quality": [{"date": "2025-07-04", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "code_quality", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}], "security_posture": [{"date": "2025-07-04", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "security_posture", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}], "performance": [{"date": "2025-07-04", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "performance", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}], "user_experience": [{"date": "2025-07-04", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "user_experience", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}], "system_reliability": [{"date": "2025-07-04", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "system_reliability", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}], "innovation": [{"date": "2025-07-04", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "innovation", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "innovation", "value": 1.3, "growth_rate": 0, "cumulative_value": 1.3, "change_count": 1, "impact_score": 3.0}], "technical_debt": [{"date": "2025-07-04", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-05", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-06", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-07", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-08", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-09", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-10", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-11", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-12", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-13", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-14", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-15", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-16", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-17", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-18", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-19", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-20", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-21", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-22", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-23", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-24", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-25", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-26", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-27", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-28", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-29", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-30", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-07-31", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-01", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-02", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}, {"date": "2025-08-03", "capability_name": "technical_debt", "value": 0.0, "growth_rate": 0, "cumulative_value": 0.0, "change_count": 0, "impact_score": 0}]}, "branches": [], "statistics": {"timeline": {"total_changes": 1, "change_types": {"feature_addition": 1}, "impact_levels": {"high": 1}, "top_authors": {"Kenan3477": 1}}, "capabilities": {"development_velocity": {"total_value": 1.3, "max_growth_rate": 0, "current_value": 1.3}, "code_quality": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}, "security_posture": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}, "performance": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}, "user_experience": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}, "system_reliability": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}, "innovation": {"total_value": 1.3, "max_growth_rate": 0, "current_value": 1.3}, "technical_debt": {"total_value": 0.0, "max_growth_rate": 0, "current_value": 0.0}}, "branches": {"total_branches": 0, "active_branches": 0, "top_technologies": {}, "most_impactful_branch": null}, "temporal": {"busiest_day": "2025-08-03", "busiest_day_count": 1, "average_daily_changes": 1.0, "change_frequency": 1}}, "filters": {"change_types": ["feature_addition"], "impact_levels": ["high"], "authors": ["Kenan3477"], "statuses": ["implemented"], "tags": []}, "metadata": {"generated_at": "2025-08-03T11:11:41.991064", "time_period_days": 30, "total_changes": 1, "active_capabilities": 2, "active_branches": 0, "color_schemes": {"timeline": {"feature_addition": "#22c55e", "bug_fix": "#ef4444", "performance_optimization": "#3b82f6", "security_improvement": "#f59e0b", "refactoring": "#8b5cf6", "documentation_update": "#06b6d4", "default": "#6b7280"}, "impact_levels": {"critical": "#dc2626", "high": "#ea580c", "medium": "#d97706", "low": "#65a30d", "trivial": "#16a34a"}, "capabilities": ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#c084fc", "#e879f9"]}}};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+        });
+        
+        function initializeDashboard() {
+            console.log('🎨 Initializing Evolution Visualization Dashboard');
+            
+            // Populate filter options
+            populateFilters();
+            
+            // Create visualizations
+            createTimelineChart();
+            createCapabilityChart();
+            createDistributionChart();
+            createImpactChart();
+            createBranchNetwork();
+            createTimelineTable();
+            
+            // Setup event handlers
+            setupEventHandlers();
+            
+            console.log('✅ Dashboard initialization complete');
+        }
+        
+        function populateFilters() {
+            const filters = dashboardData.filters;
+            
+            // Populate change type filter
+            const typeFilter = document.getElementById('typeFilter');
+            filters.change_types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                typeFilter.appendChild(option);
+            });
+            
+            // Populate impact level filter
+            const impactFilter = document.getElementById('impactFilter');
+            filters.impact_levels.forEach(level => {
+                const option = document.createElement('option');
+                option.value = level;
+                option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+                impactFilter.appendChild(option);
+            });
+            
+            // Populate author filter
+            const authorFilter = document.getElementById('authorFilter');
+            filters.authors.forEach(author => {
+                if (author) {
+                    const option = document.createElement('option');
+                    option.value = author;
+                    option.textContent = author;
+                    authorFilter.appendChild(option);
+                }
+            });
+        }
+        
+        function createTimelineChart() {
+            const ctx = document.getElementById('timelineChart');
+            if (!ctx) return;
+            
+            // Prepare timeline data for Chart.js
+            const timelineData = dashboardData.timeline;
+            const colorMap = {
+                'feature_addition': '#22c55e',
+                'bug_fix': '#ef4444',
+                'performance_optimization': '#3b82f6',
+                'security_improvement': '#f59e0b',
+                'refactoring': '#8b5cf6'
+            };
+            
+            const datasets = Object.keys(colorMap).map(changeType => ({
+                label: changeType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                data: timelineData
+                    .filter(point => point.change_type === changeType)
+                    .map(point => ({
+                        x: point.date,
+                        y: point.impact_level === 'critical' ? 5 : 
+                            point.impact_level === 'high' ? 4 :
+                            point.impact_level === 'medium' ? 3 :
+                            point.impact_level === 'low' ? 2 : 1,
+                        title: point.title,
+                        author: point.author
+                    })),
+                backgroundColor: colorMap[changeType],
+                borderColor: colorMap[changeType],
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }));
+            
+            new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Impact Level'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    const labels = ['', 'Trivial', 'Low', 'Medium', 'High', 'Critical'];
+                                    return labels[value] || '';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].raw.title || 'Change';
+                                },
+                                label: function(context) {
+                                    return `Author: ${context.raw.author || 'Unknown'}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createCapabilityChart() {
+            const capabilities = dashboardData.capabilities;
+            const capabilityNames = Object.keys(capabilities);
+            
+            if (capabilityNames.length === 0) return;
+            
+            // Create traces for Plotly
+            const traces = capabilityNames.map((name, index) => ({
+                x: capabilities[name].map(m => m.date),
+                y: capabilities[name].map(m => m.cumulative_value),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                line: {
+                    color: `hsl(${index * 360 / capabilityNames.length}, 70%, 50%)`
+                }
+            }));
+            
+            const layout = {
+                title: 'Capability Growth Over Time',
+                xaxis: { title: 'Date' },
+                yaxis: { title: 'Cumulative Capability Value' },
+                height: 300,
+                margin: { t: 30, r: 20, b: 40, l: 50 }
+            };
+            
+            Plotly.newPlot('capabilityChart', traces, layout, {responsive: true});
+        }
+        
+        function createDistributionChart() {
+            const stats = dashboardData.statistics.timeline;
+            const changeTypes = Object.keys(stats.change_types);
+            const counts = Object.values(stats.change_types);
+            
+            const ctx = document.getElementById('distributionChart');
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: changeTypes.map(type => type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())),
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: [
+                            '#22c55e', '#ef4444', '#3b82f6', '#f59e0b', 
+                            '#8b5cf6', '#06b6d4', '#10b981', '#f97316'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createImpactChart() {
+            const stats = dashboardData.statistics.timeline;
+            const impactLevels = Object.keys(stats.impact_levels);
+            const counts = Object.values(stats.impact_levels);
+            
+            const ctx = document.getElementById('impactChart');
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: impactLevels.map(level => level.charAt(0).toUpperCase() + level.slice(1)),
+                    datasets: [{
+                        label: 'Number of Changes',
+                        data: counts,
+                        backgroundColor: [
+                            '#16a34a', '#65a30d', '#d97706', 
+                            '#ea580c', '#dc2626'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Changes'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createBranchNetwork() {
+            const branches = dashboardData.branches;
+            
+            // Create nodes and edges for vis.js network
+            const nodes = branches.map(branch => ({
+                id: branch.branch_id,
+                label: branch.name,
+                size: Math.min(branch.impact_score * 5, 50),
+                color: branch.status === 'active' ? '#22c55e' : '#6b7280',
+                title: `Impact Score: ${branch.impact_score.toFixed(1)}\nChanges: ${branch.change_count}\nStatus: ${branch.status}`
+            }));
+            
+            const edges = branches
+                .filter(branch => branch.parent_branch)
+                .map(branch => ({
+                    from: branch.parent_branch,
+                    to: branch.branch_id,
+                    arrows: 'to'
+                }));
+            
+            const data = { nodes, edges };
+            
+            const options = {
+                nodes: {
+                    shape: 'circle',
+                    font: { size: 14 }
+                },
+                edges: {
+                    arrows: { to: true },
+                    smooth: true
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: { iterations: 100 }
+                }
+            };
+            
+            new vis.Network(document.getElementById('branchNetwork'), data, options);
+        }
+        
+        function createTimelineTable() {
+            const tbody = document.getElementById('timelineTableBody');
+            const timeline = dashboardData.timeline.slice(0, 50); // Show last 50 changes
+            
+            timeline.forEach(point => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${point.date}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">${point.title}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            ${point.change_type.replace('_', ' ')}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 text-xs rounded-full ${getImpactColor(point.impact_level)}">
+                            ${point.impact_level}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${point.author || 'Unknown'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        +${point.lines_added} -${point.lines_removed}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function getImpactColor(level) {
+            const colors = {
+                'critical': 'bg-red-100 text-red-800',
+                'high': 'bg-orange-100 text-orange-800',
+                'medium': 'bg-yellow-100 text-yellow-800',
+                'low': 'bg-green-100 text-green-800',
+                'trivial': 'bg-gray-100 text-gray-800'
+            };
+            return colors[level] || 'bg-gray-100 text-gray-800';
+        }
+        
+        function setupEventHandlers() {
+            // Export button
+            document.getElementById('exportBtn').addEventListener('click', function() {
+                const dataStr = JSON.stringify(dashboardData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'evolution_data.json';
+                link.click();
+                URL.revokeObjectURL(url);
+            });
+            
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                location.reload();
+            });
+            
+            // Filter change handlers
+            ['dateFilter', 'typeFilter', 'impactFilter', 'authorFilter'].forEach(filterId => {
+                document.getElementById(filterId).addEventListener('change', function() {
+                    console.log('Filter changed:', filterId, this.value);
+                    // In a real implementation, this would trigger data refresh
+                });
+            });
+        }
+    </script>
+</body>
+</html>

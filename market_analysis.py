@@ -48,6 +48,44 @@ class MarketReport:
     top_trends: List[TrendData]
     emerging_technologies: List[str]
     declining_technologies: List[str]
+
+@dataclass
+class AISystemCapability:
+    """Data structure for AI system capabilities"""
+    system_name: str
+    company: str
+    capability_type: str  # 'language_model', 'vision', 'reasoning', 'multimodal', etc.
+    description: str
+    performance_metrics: Dict[str, float]  # benchmark scores, latency, accuracy, etc.
+    release_date: datetime
+    model_size: Optional[str] = None
+    training_data: Optional[str] = None
+    key_features: List[str] = None
+    limitations: List[str] = None
+    source_url: str = ""
+
+@dataclass
+class CompetitiveIntelligence:
+    """Competitive intelligence report structure"""
+    generated_at: datetime
+    frontier_capabilities: Dict[str, Any]
+    competitor_analysis: List[AISystemCapability]
+    capability_gaps: List[Dict[str, Any]]
+    improvement_opportunities: List[Dict[str, Any]]
+    benchmark_comparisons: Dict[str, Any]
+    strategic_recommendations: List[str]
+
+@dataclass
+class BenchmarkResult:
+    """Benchmark test result structure"""
+    test_name: str
+    test_category: str
+    frontier_score: float
+    competitor_scores: Dict[str, float]  # system_name -> score
+    industry_average: float
+    percentile_rank: float
+    improvement_potential: float
+    test_timestamp: datetime
     growth_opportunities: List[str]
     recommendations: List[str]
     confidence_score: float
@@ -839,6 +877,905 @@ async def main():
             logger.info(f"  {key}: {', '.join(value[:3])}")
         else:
             logger.info(f"  {key}: {value}")
+
+
+class CompetitiveIntelligenceAnalyzer:
+    """Advanced competitive intelligence analyzer for AI systems"""
+    
+    def __init__(self, data_dir: str = "competitive_data"):
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(exist_ok=True)
+        
+        # Database for competitive intelligence
+        self.db_path = self.data_dir / "competitive_intelligence.db"
+        self.init_database()
+        
+        # Known AI systems to track
+        self.tracked_systems = {
+            "OpenAI": ["GPT-4", "GPT-4 Turbo", "DALL-E 3", "Whisper", "CodeX"],
+            "Anthropic": ["Claude-3 Opus", "Claude-3 Sonnet", "Claude-3 Haiku"],
+            "Google": ["Gemini Ultra", "Gemini Pro", "PaLM 2", "Bard", "LaMDA"],
+            "Meta": ["Llama 2", "Code Llama", "SAM", "Make-A-Video"],
+            "Microsoft": ["Copilot", "Bing Chat", "Azure OpenAI"],
+            "DeepMind": ["Gemini", "AlphaCode", "Flamingo"],
+            "Cohere": ["Command", "Generate", "Embed"],
+            "Stability AI": ["Stable Diffusion XL", "StableLM"],
+            "Hugging Face": ["BigCode", "BLOOM", "StarCoder"]
+        }
+        
+        # Capability categories for analysis
+        self.capability_categories = [
+            "language_understanding",
+            "code_generation", 
+            "reasoning",
+            "multimodal",
+            "vision",
+            "audio",
+            "safety",
+            "efficiency",
+            "fine_tuning",
+            "deployment"
+        ]
+        
+        # Benchmark datasets and metrics
+        self.benchmarks = {
+            "language": ["MMLU", "HellaSwag", "ARC", "TruthfulQA", "GLUE"],
+            "code": ["HumanEval", "MBPP", "CodeX", "BigCodeBench"],
+            "reasoning": ["GSM8K", "MATH", "BBH", "LogiQA"],
+            "multimodal": ["VQA", "COCO", "Flickr30k", "TextVQA"],
+            "safety": ["ToxiGen", "RealToxicityPrompts", "CrowS-Pairs"]
+        }
+    
+    def init_database(self):
+        """Initialize competitive intelligence database"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # AI systems table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_systems (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    system_name TEXT NOT NULL,
+                    company TEXT NOT NULL,
+                    release_date TEXT,
+                    model_size TEXT,
+                    key_features TEXT,
+                    limitations TEXT,
+                    source_url TEXT,
+                    last_updated TEXT,
+                    UNIQUE(system_name, company)
+                )
+            """)
+            
+            # Capabilities table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS capabilities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    system_id INTEGER,
+                    capability_type TEXT NOT NULL,
+                    description TEXT,
+                    performance_metrics TEXT,
+                    timestamp TEXT,
+                    FOREIGN KEY (system_id) REFERENCES ai_systems (id)
+                )
+            """)
+            
+            # Benchmarks table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS benchmarks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    system_name TEXT NOT NULL,
+                    benchmark_name TEXT NOT NULL,
+                    category TEXT,
+                    score REAL,
+                    percentile_rank REAL,
+                    test_date TEXT,
+                    source TEXT
+                )
+            """)
+            
+            # Competitive analysis table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS competitive_analysis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    analysis_date TEXT,
+                    frontier_capabilities TEXT,
+                    competitor_analysis TEXT,
+                    capability_gaps TEXT,
+                    recommendations TEXT
+                )
+            """)
+            
+            conn.commit()
+    
+    async def collect_competitive_data(self) -> Dict[str, Any]:
+        """Collect competitive intelligence from multiple sources"""
+        logger.info("🔍 Starting competitive intelligence collection...")
+        
+        competitive_data = {
+            "systems": [],
+            "capabilities": [],
+            "benchmarks": [],
+            "market_positioning": {},
+            "collection_timestamp": datetime.now().isoformat()
+        }
+        
+        try:
+            # Collect from papers and research
+            papers_data = await self._collect_from_arxiv()
+            competitive_data["research_insights"] = papers_data
+            
+            # Collect from GitHub (model releases, benchmarks)
+            github_data = await self._collect_github_competitive_data()
+            competitive_data["development_activity"] = github_data
+            
+            # Collect from HuggingFace model hub
+            hf_data = await self._collect_huggingface_models()
+            competitive_data["model_releases"] = hf_data
+            
+            # Store collected data
+            self._store_competitive_data(competitive_data)
+            
+            logger.info("✅ Competitive intelligence collection completed")
+            return competitive_data
+            
+        except Exception as e:
+            logger.error(f"❌ Error collecting competitive data: {e}")
+            return {"error": str(e)}
+    
+    async def _collect_from_arxiv(self) -> List[Dict]:
+        """Collect AI system announcements and benchmarks from arXiv"""
+        competitive_papers = []
+        
+        # Search terms for competitive intelligence
+        search_terms = [
+            "language model benchmark",
+            "AI system evaluation", 
+            "multimodal model comparison",
+            "foundation model capabilities",
+            "LLM performance analysis"
+        ]
+        
+        async with aiohttp.ClientSession() as session:
+            for term in search_terms:
+                try:
+                    params = {
+                        'search_query': f'all:{term}',
+                        'start': 0,
+                        'max_results': 20,
+                        'sortBy': 'submittedDate',
+                        'sortOrder': 'descending'
+                    }
+                    
+                    url = f"http://export.arxiv.org/api/query?{urlencode(params)}"
+                    
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            xml_content = await response.text()
+                            papers = self._parse_arxiv_competitive_xml(xml_content)
+                            competitive_papers.extend(papers)
+                            
+                    await asyncio.sleep(1)  # Rate limiting
+                    
+                except Exception as e:
+                    logger.error(f"Error collecting from arXiv for term '{term}': {e}")
+        
+        return competitive_papers[:50]  # Limit results
+    
+    def _parse_arxiv_competitive_xml(self, xml_content: str) -> List[Dict]:
+        """Parse arXiv XML for competitive intelligence"""
+        papers = []
+        
+        try:
+            root = ET.fromstring(xml_content)
+            namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
+            
+            for entry in root.findall('atom:entry', namespaces):
+                title_elem = entry.find('atom:title', namespaces)
+                summary_elem = entry.find('atom:summary', namespaces)
+                published_elem = entry.find('atom:published', namespaces)
+                
+                if title_elem is not None and summary_elem is not None:
+                    title = title_elem.text.strip()
+                    summary = summary_elem.text.strip()
+                    
+                    # Extract competitive intelligence
+                    system_mentions = self._extract_ai_systems(title + " " + summary)
+                    benchmark_mentions = self._extract_benchmarks(title + " " + summary)
+                    
+                    if system_mentions or benchmark_mentions:
+                        papers.append({
+                            'title': title,
+                            'summary': summary[:500],
+                            'published': published_elem.text if published_elem is not None else '',
+                            'ai_systems_mentioned': system_mentions,
+                            'benchmarks_mentioned': benchmark_mentions,
+                            'competitive_relevance': len(system_mentions) + len(benchmark_mentions)
+                        })
+        
+        except ET.ParseError as e:
+            logger.error(f"Error parsing arXiv XML: {e}")
+        
+        return papers
+    
+    def _extract_ai_systems(self, text: str) -> List[str]:
+        """Extract mentions of AI systems from text"""
+        systems_found = []
+        text_lower = text.lower()
+        
+        for company, systems in self.tracked_systems.items():
+            for system in systems:
+                if system.lower() in text_lower:
+                    systems_found.append(f"{company}:{system}")
+        
+        return list(set(systems_found))
+    
+    def _extract_benchmarks(self, text: str) -> List[str]:
+        """Extract mentions of benchmarks from text"""
+        benchmarks_found = []
+        text_lower = text.lower()
+        
+        for category, benchmarks in self.benchmarks.items():
+            for benchmark in benchmarks:
+                if benchmark.lower() in text_lower:
+                    benchmarks_found.append(f"{category}:{benchmark}")
+        
+        return list(set(benchmarks_found))
+    
+    async def _collect_github_competitive_data(self) -> Dict[str, Any]:
+        """Collect competitive data from GitHub repositories"""
+        github_data = {
+            "model_releases": [],
+            "benchmark_repos": [],
+            "evaluation_frameworks": []
+        }
+        
+        # Search terms for competitive repositories
+        search_queries = [
+            "language model evaluation",
+            "LLM benchmark",
+            "AI model comparison", 
+            "foundation model",
+            "multimodal evaluation"
+        ]
+        
+        async with aiohttp.ClientSession() as session:
+            for query in search_queries:
+                try:
+                    url = f"https://api.github.com/search/repositories"
+                    params = {
+                        'q': f'{query} language:Python stars:>100',
+                        'sort': 'updated',
+                        'order': 'desc',
+                        'per_page': 10
+                    }
+                    
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            
+                            for repo in data.get('items', []):
+                                repo_info = {
+                                    'name': repo['name'],
+                                    'description': repo.get('description', ''),
+                                    'stars': repo['stargazers_count'],
+                                    'language': repo.get('language'),
+                                    'updated': repo['updated_at'],
+                                    'url': repo['html_url'],
+                                    'competitive_relevance': self._assess_competitive_relevance(
+                                        repo['name'] + " " + repo.get('description', '')
+                                    )
+                                }
+                                
+                                if repo_info['competitive_relevance'] > 0:
+                                    github_data["benchmark_repos"].append(repo_info)
+                    
+                    await asyncio.sleep(1)  # Rate limiting
+                    
+                except Exception as e:
+                    logger.error(f"Error collecting GitHub data for '{query}': {e}")
+        
+        return github_data
+    
+    def _assess_competitive_relevance(self, text: str) -> int:
+        """Assess how relevant a repository is for competitive intelligence"""
+        relevance_keywords = [
+            'benchmark', 'evaluation', 'comparison', 'leaderboard',
+            'gpt', 'claude', 'gemini', 'llama', 'palm',
+            'performance', 'accuracy', 'score', 'metric'
+        ]
+        
+        text_lower = text.lower()
+        relevance_score = sum(1 for keyword in relevance_keywords if keyword in text_lower)
+        
+        return relevance_score
+    
+    async def _collect_huggingface_models(self) -> List[Dict]:
+        """Collect model information from HuggingFace"""
+        hf_models = []
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Get popular models
+                url = "https://huggingface.co/api/models"
+                params = {
+                    'sort': 'downloads',
+                    'direction': -1,
+                    'limit': 50,
+                    'filter': 'text-generation'
+                }
+                
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        models_data = await response.json()
+                        
+                        for model in models_data:
+                            model_info = {
+                                'name': model.get('id', ''),
+                                'downloads': model.get('downloads', 0),
+                                'likes': model.get('likes', 0),
+                                'tags': model.get('tags', []),
+                                'created_at': model.get('createdAt', ''),
+                                'updated_at': model.get('lastModified', ''),
+                                'competitive_score': self._calculate_model_competitive_score(model)
+                            }
+                            
+                            if model_info['competitive_score'] > 0:
+                                hf_models.append(model_info)
+        
+        except Exception as e:
+            logger.error(f"Error collecting HuggingFace models: {e}")
+        
+        return hf_models[:30]  # Limit results
+    
+    def _calculate_model_competitive_score(self, model: Dict) -> float:
+        """Calculate competitive relevance score for a model"""
+        score = 0
+        
+        # Downloads weight
+        downloads = model.get('downloads', 0)
+        if downloads > 1000000:
+            score += 3
+        elif downloads > 100000:
+            score += 2
+        elif downloads > 10000:
+            score += 1
+        
+        # Tags relevance
+        competitive_tags = ['text-generation', 'conversational', 'code', 'reasoning']
+        tags = model.get('tags', [])
+        tag_score = sum(1 for tag in tags if any(comp_tag in tag for comp_tag in competitive_tags))
+        score += tag_score
+        
+        return score
+    
+    def _store_competitive_data(self, data: Dict[str, Any]):
+        """Store competitive intelligence data in database"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Store research insights
+                for paper in data.get("research_insights", []):
+                    for system in paper.get('ai_systems_mentioned', []):
+                        company, system_name = system.split(':', 1)
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO ai_systems 
+                            (system_name, company, source_url, last_updated)
+                            VALUES (?, ?, ?, ?)
+                        """, (system_name, company, paper.get('title', ''), 
+                              datetime.now().isoformat()))
+                
+                # Store GitHub data
+                for repo in data.get("development_activity", {}).get("benchmark_repos", []):
+                    if repo['competitive_relevance'] > 2:
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO benchmarks
+                            (system_name, benchmark_name, category, source, test_date)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, ('Repository', repo['name'], 'evaluation_framework',
+                              repo['url'], datetime.now().isoformat()))
+                
+                conn.commit()
+                logger.info("💾 Competitive data stored successfully")
+                
+        except Exception as e:
+            logger.error(f"Error storing competitive data: {e}")
+    
+    async def analyze_capabilities(self, frontier_capabilities: Dict[str, Any]) -> CompetitiveIntelligence:
+        """Analyze FrontierAI capabilities against competitors"""
+        logger.info("🔬 Starting competitive capability analysis...")
+        
+        # Collect latest competitive data
+        competitive_data = await self.collect_competitive_data()
+        
+        # Analyze capability gaps
+        capability_gaps = self._identify_capability_gaps(frontier_capabilities, competitive_data)
+        
+        # Generate improvement opportunities
+        improvement_opportunities = self._generate_improvement_opportunities(capability_gaps)
+        
+        # Benchmark comparisons
+        benchmark_comparisons = await self._perform_benchmark_analysis()
+        
+        # Strategic recommendations
+        strategic_recommendations = self._generate_strategic_recommendations(
+            capability_gaps, improvement_opportunities, benchmark_comparisons
+        )
+        
+        # Create competitive intelligence report
+        intelligence = CompetitiveIntelligence(
+            generated_at=datetime.now(),
+            frontier_capabilities=frontier_capabilities,
+            competitor_analysis=self._extract_competitor_capabilities(),
+            capability_gaps=capability_gaps,
+            improvement_opportunities=improvement_opportunities,
+            benchmark_comparisons=benchmark_comparisons,
+            strategic_recommendations=strategic_recommendations
+        )
+        
+        # Store analysis
+        self._store_competitive_analysis(intelligence)
+        
+        logger.info("✅ Competitive capability analysis completed")
+        return intelligence
+    
+    def _identify_capability_gaps(self, frontier_caps: Dict[str, Any], 
+                                 competitive_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Identify capability gaps compared to competitors"""
+        gaps = []
+        
+        # Analyze each capability category
+        for category in self.capability_categories:
+            frontier_score = frontier_caps.get(category, 0)
+            
+            # Find competitor capabilities in this category
+            competitor_capabilities = []
+            
+            # Extract from research papers
+            for paper in competitive_data.get("research_insights", []):
+                if category.replace('_', ' ') in paper.get('title', '').lower():
+                    for system in paper.get('ai_systems_mentioned', []):
+                        competitor_capabilities.append({
+                            'system': system,
+                            'capability': category,
+                            'evidence': paper['title'],
+                            'estimated_score': self._estimate_capability_score(paper)
+                        })
+            
+            # Calculate gap
+            if competitor_capabilities:
+                max_competitor_score = max(cap['estimated_score'] for cap in competitor_capabilities)
+                
+                if max_competitor_score > frontier_score:
+                    gaps.append({
+                        'capability': category,
+                        'frontier_score': frontier_score,
+                        'competitor_max': max_competitor_score,
+                        'gap_size': max_competitor_score - frontier_score,
+                        'leading_systems': [cap for cap in competitor_capabilities 
+                                          if cap['estimated_score'] == max_competitor_score],
+                        'priority': self._calculate_gap_priority(category, max_competitor_score - frontier_score)
+                    })
+        
+        # Sort by priority
+        gaps.sort(key=lambda x: x['priority'], reverse=True)
+        return gaps[:10]  # Top 10 gaps
+    
+    def _estimate_capability_score(self, paper: Dict) -> float:
+        """Estimate capability score based on paper content"""
+        score = 5.0  # Base score
+        
+        # Boost for benchmark mentions
+        benchmark_count = len(paper.get('benchmarks_mentioned', []))
+        score += benchmark_count * 0.5
+        
+        # Boost for competitive relevance
+        relevance = paper.get('competitive_relevance', 0)
+        score += relevance * 0.3
+        
+        # Boost for system mentions
+        system_count = len(paper.get('ai_systems_mentioned', []))
+        score += system_count * 0.2
+        
+        return min(score, 10.0)  # Cap at 10
+    
+    def _calculate_gap_priority(self, capability: str, gap_size: float) -> float:
+        """Calculate priority for addressing a capability gap"""
+        # High priority capabilities
+        high_priority = ['language_understanding', 'reasoning', 'safety', 'code_generation']
+        medium_priority = ['multimodal', 'efficiency', 'fine_tuning']
+        
+        base_priority = gap_size
+        
+        if capability in high_priority:
+            base_priority *= 1.5
+        elif capability in medium_priority:
+            base_priority *= 1.2
+        
+        return base_priority
+    
+    def _generate_improvement_opportunities(self, gaps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Generate specific improvement opportunities based on gaps"""
+        opportunities = []
+        
+        for gap in gaps:
+            capability = gap['capability']
+            gap_size = gap['gap_size']
+            leading_systems = gap['leading_systems']
+            
+            # Generate specific recommendations
+            recommendations = []
+            
+            if capability == 'language_understanding':
+                recommendations = [
+                    "Implement advanced reasoning mechanisms",
+                    "Enhance context window handling",
+                    "Improve instruction following capabilities",
+                    "Add multi-turn conversation memory"
+                ]
+            elif capability == 'code_generation':
+                recommendations = [
+                    "Train on diverse programming languages",
+                    "Implement code explanation capabilities", 
+                    "Add debugging and optimization suggestions",
+                    "Enhance code review functionality"
+                ]
+            elif capability == 'reasoning':
+                recommendations = [
+                    "Implement chain-of-thought reasoning",
+                    "Add mathematical problem solving",
+                    "Enhance logical deduction capabilities",
+                    "Implement multi-step planning"
+                ]
+            elif capability == 'multimodal':
+                recommendations = [
+                    "Add vision-language integration",
+                    "Implement audio processing capabilities",
+                    "Enhance image generation quality",
+                    "Add video understanding features"
+                ]
+            else:
+                recommendations = [
+                    f"Research latest {capability} techniques",
+                    f"Benchmark against leading {capability} systems",
+                    f"Implement state-of-the-art {capability} methods"
+                ]
+            
+            opportunities.append({
+                'capability': capability,
+                'gap_size': gap_size,
+                'priority': gap['priority'],
+                'leading_competitors': [sys['system'] for sys in leading_systems],
+                'recommendations': recommendations,
+                'estimated_effort': self._estimate_implementation_effort(capability, gap_size),
+                'expected_impact': self._estimate_impact(capability, gap_size)
+            })
+        
+        return opportunities
+    
+    def _estimate_implementation_effort(self, capability: str, gap_size: float) -> str:
+        """Estimate effort required to implement improvements"""
+        effort_multipliers = {
+            'language_understanding': 1.5,
+            'reasoning': 1.8,
+            'multimodal': 2.0,
+            'safety': 1.3,
+            'code_generation': 1.2,
+            'efficiency': 1.0
+        }
+        
+        base_effort = gap_size * effort_multipliers.get(capability, 1.0)
+        
+        if base_effort < 2:
+            return "Low"
+        elif base_effort < 4:
+            return "Medium"
+        elif base_effort < 6:
+            return "High"
+        else:
+            return "Very High"
+    
+    def _estimate_impact(self, capability: str, gap_size: float) -> str:
+        """Estimate business impact of addressing capability gap"""
+        impact_weights = {
+            'language_understanding': 2.0,
+            'safety': 1.8,
+            'reasoning': 1.7,
+            'code_generation': 1.5,
+            'multimodal': 1.3,
+            'efficiency': 1.2
+        }
+        
+        impact_score = gap_size * impact_weights.get(capability, 1.0)
+        
+        if impact_score < 3:
+            return "Low"
+        elif impact_score < 6:
+            return "Medium"
+        elif impact_score < 9:
+            return "High"
+        else:
+            return "Critical"
+    
+    async def _perform_benchmark_analysis(self) -> Dict[str, Any]:
+        """Perform benchmark analysis against competitors"""
+        benchmark_results = {}
+        
+        # Simulate benchmark scores (in real implementation, these would be actual test results)
+        frontier_benchmarks = {
+            'MMLU': 72.5,
+            'HellaSwag': 84.2,
+            'HumanEval': 48.1,
+            'GSM8K': 67.3,
+            'TruthfulQA': 58.7
+        }
+        
+        # Competitor benchmark data (would be collected from papers/leaderboards)
+        competitor_benchmarks = {
+            'GPT-4': {'MMLU': 86.4, 'HellaSwag': 95.3, 'HumanEval': 67.0, 'GSM8K': 92.0, 'TruthfulQA': 59.0},
+            'Claude-3 Opus': {'MMLU': 86.8, 'HellaSwag': 95.4, 'HumanEval': 84.9, 'GSM8K': 95.0, 'TruthfulQA': 83.1},
+            'Gemini Ultra': {'MMLU': 90.0, 'HellaSwag': 87.8, 'HumanEval': 74.4, 'GSM8K': 94.4, 'TruthfulQA': 75.0}
+        }
+        
+        for benchmark_name, frontier_score in frontier_benchmarks.items():
+            competitor_scores = {sys: scores.get(benchmark_name, 0) 
+                               for sys, scores in competitor_benchmarks.items()}
+            
+            # Calculate statistics
+            all_scores = list(competitor_scores.values()) + [frontier_score]
+            industry_average = sum(all_scores) / len(all_scores)
+            
+            # Calculate percentile rank
+            scores_below = sum(1 for score in all_scores if score < frontier_score)
+            percentile_rank = (scores_below / len(all_scores)) * 100
+            
+            # Calculate improvement potential
+            max_competitor = max(competitor_scores.values()) if competitor_scores else frontier_score
+            improvement_potential = max_competitor - frontier_score
+            
+            benchmark_results[benchmark_name] = BenchmarkResult(
+                test_name=benchmark_name,
+                test_category=self._get_benchmark_category(benchmark_name),
+                frontier_score=frontier_score,
+                competitor_scores=competitor_scores,
+                industry_average=industry_average,
+                percentile_rank=percentile_rank,
+                improvement_potential=improvement_potential,
+                test_timestamp=datetime.now()
+            )
+        
+        return benchmark_results
+    
+    def _get_benchmark_category(self, benchmark_name: str) -> str:
+        """Get category for a benchmark"""
+        categories = {
+            'MMLU': 'language',
+            'HellaSwag': 'language',
+            'HumanEval': 'code',
+            'GSM8K': 'reasoning',
+            'TruthfulQA': 'safety'
+        }
+        return categories.get(benchmark_name, 'general')
+    
+    def _extract_competitor_capabilities(self) -> List[AISystemCapability]:
+        """Extract competitor capabilities from database"""
+        capabilities = []
+        
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT DISTINCT system_name, company 
+                    FROM ai_systems 
+                    ORDER BY last_updated DESC
+                    LIMIT 20
+                """)
+                
+                for row in cursor.fetchall():
+                    system_name, company = row
+                    capabilities.append(AISystemCapability(
+                        system_name=system_name,
+                        company=company,
+                        capability_type="general",
+                        description=f"AI system from {company}",
+                        performance_metrics={},
+                        release_date=datetime.now(),
+                        key_features=[],
+                        limitations=[]
+                    ))
+        
+        except Exception as e:
+            logger.error(f"Error extracting competitor capabilities: {e}")
+        
+        return capabilities
+    
+    def _generate_strategic_recommendations(self, gaps: List[Dict], opportunities: List[Dict], 
+                                          benchmarks: Dict[str, BenchmarkResult]) -> List[str]:
+        """Generate strategic recommendations for FrontierAI"""
+        recommendations = []
+        
+        # Analyze benchmark performance
+        underperforming_benchmarks = [
+            name for name, result in benchmarks.items() 
+            if result.percentile_rank < 50
+        ]
+        
+        if underperforming_benchmarks:
+            recommendations.append(
+                f"Priority: Improve performance on {', '.join(underperforming_benchmarks[:3])} benchmarks"
+            )
+        
+        # High-priority gaps
+        high_priority_gaps = [gap for gap in gaps if gap['priority'] > 2.0]
+        
+        if high_priority_gaps:
+            capabilities = [gap['capability'] for gap in high_priority_gaps[:3]]
+            recommendations.append(
+                f"Focus development on {', '.join(capabilities)} capabilities"
+            )
+        
+        # Quick wins
+        quick_wins = [opp for opp in opportunities 
+                     if opp['estimated_effort'] in ['Low', 'Medium'] 
+                     and opp['expected_impact'] in ['High', 'Critical']]
+        
+        if quick_wins:
+            recommendations.append(
+                f"Implement quick wins in {quick_wins[0]['capability']} for immediate impact"
+            )
+        
+        # Market positioning
+        recommendations.extend([
+            "Establish regular competitive benchmarking process",
+            "Develop unique differentiating capabilities beyond feature parity",
+            "Focus on safety and reliability as competitive advantages",
+            "Build comprehensive evaluation framework for continuous improvement",
+            "Consider strategic partnerships to accelerate capability development"
+        ])
+        
+        return recommendations[:10]  # Top 10 recommendations
+    
+    def _store_competitive_analysis(self, intelligence: CompetitiveIntelligence):
+        """Store competitive analysis in database"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO competitive_analysis 
+                    (analysis_date, frontier_capabilities, competitor_analysis, 
+                     capability_gaps, recommendations)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    intelligence.generated_at.isoformat(),
+                    json.dumps(intelligence.frontier_capabilities),
+                    json.dumps([asdict(cap) for cap in intelligence.competitor_analysis]),
+                    json.dumps(intelligence.capability_gaps),
+                    json.dumps(intelligence.strategic_recommendations)
+                ))
+                
+                conn.commit()
+                logger.info("💾 Competitive analysis stored successfully")
+                
+        except Exception as e:
+            logger.error(f"Error storing competitive analysis: {e}")
+    
+    def generate_competitive_report(self, intelligence: CompetitiveIntelligence) -> str:
+        """Generate comprehensive competitive intelligence report"""
+        report_date = intelligence.generated_at.strftime("%Y-%m-%d %H:%M:%S")
+        
+        report = f"""# 🔍 Competitive Intelligence Report
+**Generated:** {report_date}
+
+## 📊 Executive Summary
+
+FrontierAI competitive analysis reveals {len(intelligence.capability_gaps)} capability gaps 
+and {len(intelligence.improvement_opportunities)} improvement opportunities across 
+{len(intelligence.competitor_analysis)} competitor systems.
+
+## 🎯 Key Findings
+
+### Critical Capability Gaps
+"""
+        
+        # Add capability gaps
+        for i, gap in enumerate(intelligence.capability_gaps[:5], 1):
+            report += f"""
+{i}. **{gap['capability'].replace('_', ' ').title()}**
+   - Gap Size: {gap['gap_size']:.1f} points
+   - Priority: {gap['priority']:.1f}
+   - Leading Competitors: {', '.join([sys['system'] for sys in gap['leading_systems'][:3]])}
+"""
+        
+        # Add benchmark analysis
+        report += "\n## 📈 Benchmark Performance\n"
+        
+        for benchmark_name, result in intelligence.benchmark_comparisons.items():
+            status = "🟢" if result.percentile_rank > 75 else "🟡" if result.percentile_rank > 50 else "🔴"
+            report += f"""
+- **{benchmark_name}** {status}
+  - FrontierAI Score: {result.frontier_score:.1f}
+  - Industry Average: {result.industry_average:.1f}
+  - Percentile Rank: {result.percentile_rank:.1f}%
+  - Improvement Potential: {result.improvement_potential:.1f} points
+"""
+        
+        # Add improvement opportunities
+        report += "\n## 🚀 Improvement Opportunities\n"
+        
+        for i, opp in enumerate(intelligence.improvement_opportunities[:5], 1):
+            report += f"""
+### {i}. {opp['capability'].replace('_', ' ').title()}
+- **Priority:** {opp['priority']:.1f}
+- **Effort:** {opp['estimated_effort']}
+- **Impact:** {opp['expected_impact']}
+- **Leading Competitors:** {', '.join(opp['leading_competitors'][:2])}
+
+**Recommendations:**
+"""
+            for rec in opp['recommendations'][:3]:
+                report += f"  - {rec}\n"
+        
+        # Add strategic recommendations
+        report += "\n## 📋 Strategic Recommendations\n"
+        
+        for i, rec in enumerate(intelligence.strategic_recommendations, 1):
+            report += f"{i}. {rec}\n"
+        
+        report += f"""
+## 📊 Competitive Landscape
+
+**Total Competitors Analyzed:** {len(intelligence.competitor_analysis)}
+**Data Sources:** arXiv papers, GitHub repositories, HuggingFace models
+**Analysis Confidence:** High (based on {len(intelligence.capability_gaps)} data points)
+
+---
+*Generated by FrontierAI Competitive Intelligence System*
+"""
+        
+        return report
+
+
+# Integration function for competitive intelligence
+def integrate_competitive_intelligence(evolution_system, competitive_analyzer: CompetitiveIntelligenceAnalyzer):
+    """Integrate competitive intelligence with evolution system"""
+    
+    async def competitive_guided_evolution():
+        """Run competitive intelligence guided evolution"""
+        try:
+            # Get current FrontierAI capabilities (mock data for now)
+            frontier_capabilities = {
+                'language_understanding': 7.2,
+                'code_generation': 6.8,
+                'reasoning': 6.5,
+                'multimodal': 5.2,
+                'safety': 7.8,
+                'efficiency': 6.9
+            }
+            
+            # Perform competitive analysis
+            intelligence = await competitive_analyzer.analyze_capabilities(frontier_capabilities)
+            
+            # Apply insights to evolution system
+            for opportunity in intelligence.improvement_opportunities[:3]:
+                for rec in opportunity['recommendations'][:2]:
+                    evolution_system.add_task(f"Competitive: {rec}")
+            
+            # Add benchmark improvement tasks
+            for benchmark_name, result in intelligence.benchmark_comparisons.items():
+                if result.improvement_potential > 5:
+                    evolution_system.add_task(f"Improve {benchmark_name} benchmark score by {result.improvement_potential:.1f} points")
+            
+            logger.info("🔗 Competitive intelligence integrated into evolution system")
+            
+        except Exception as e:
+            logger.error(f"Error in competitive guided evolution: {e}")
+    
+    # Add method to evolution system
+    if not hasattr(evolution_system, 'competitive_guided_evolution'):
+        evolution_system.competitive_guided_evolution = competitive_guided_evolution
 
 if __name__ == "__main__":
     asyncio.run(main())

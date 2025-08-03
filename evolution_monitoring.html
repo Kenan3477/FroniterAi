@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontierAI - Self-Evolution Monitoring</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .evolution-dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 70px 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Header */
+        .dashboard-header {
+            grid-column: 1 / -1;
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Left Sidebar - System Overview */
+        .system-overview {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .overview-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #4ecdc4;
+            border-bottom: 1px solid rgba(78, 205, 196, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(5px);
+        }
+
+        .metric-title {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .metric-change {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .positive { color: #4ecdc4; }
+        .negative { color: #ff6b6b; }
+        .neutral { color: #f7dc6f; }
+
+        /* Main Content - Evolution Feed */
+        .evolution-feed {
+            background: rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .feed-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .feed-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .feed-subtitle {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .feed-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .evolution-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4ecdc4;
+            animation: slideInRight 0.5s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .evolution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .evolution-type {
+            background: rgba(78, 205, 196, 0.2);
+            color: #4ecdc4;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .evolution-time {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .evolution-description {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .evolution-benefits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .benefit-tag {
+            background: rgba(247, 220, 111, 0.2);
+            color: #f7dc6f;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        /* Right Panel - Task Management */
+        .task-management {
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .task-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .task-input-form {
+            margin-top: 15px;
+        }
+
+        .task-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .task-input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            background: rgba(255,255,255,0.15);
+        }
+
+        .task-input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .submit-task-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .task-list {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .task-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .task-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: white;
+        }
+
+        .task-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-pending { background: rgba(247, 220, 111, 0.2); color: #f7dc6f; }
+        .status-in_progress { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
+        .status-completed { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+        .status-failed { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+
+        .task-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .task-meta {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* GitHub Stats Panel */
+        .github-stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            margin-top: 3px;
+        }
+
+        /* Connection Indicator */
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+
+        .connected { color: #4ecdc4; }
+        .disconnected { color: #ff6b6b; }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .evolution-dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: 70px 1fr;
+            }
+
+            .system-overview,
+            .task-management {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="evolution-dashboard">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-logo">
+                <div class="logo-icon">🧠</div>
+                <div class="logo-text">FrontierAI Evolution</div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="systemStatus">System Active</span>
+                </div>
+                <div class="status-indicator">
+                    <span id="connectionTime">0.0ms</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Sidebar - System Overview -->
+        <div class="system-overview">
+            <div class="overview-section">
+                <div class="section-title">🎯 System Performance</div>
+                <div class="metric-card">
+                    <div class="metric-title">Superiority Score</div>
+                    <div class="metric-value" id="superiorityScore">7.8</div>
+                    <div class="metric-change positive" id="superiorityChange">+0.3 today</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Active Tasks</div>
+                    <div class="metric-value" id="activeTasks">3</div>
+                    <div class="metric-change neutral" id="taskChange">2 pending</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Success Rate</div>
+                    <div class="metric-value" id="successRate">94.5%</div>
+                    <div class="metric-change positive" id="successChange">+2.1%</div>
+                </div>
+            </div>
+
+            <div class="overview-section">
+                <div class="section-title">📊 Repository Health</div>
+                <div class="github-stats">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="commitsToday">0</div>
+                            <div class="stat-label">Commits Today</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="repoStars">0</div>
+                            <div class="stat-label">Stars</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="openIssues">0</div>
+                            <div class="stat-label">Issues</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="repoForks">0</div>
+                            <div class="stat-label">Forks</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overview-section">
+                <div class="section-title">⚡ Recent Improvements</div>
+                <div class="metric-card">
+                    <div class="metric-title">Response Time</div>
+                    <div class="metric-value">-15.3%</div>
+                    <div class="metric-change positive">Improved</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">User Satisfaction</div>
+                    <div class="metric-value">+22.1%</div>
+                    <div class="metric-change positive">Enhanced</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content - Evolution Feed -->
+        <div class="evolution-feed">
+            <div class="feed-header">
+                <div class="feed-title">🔬 Live Evolution Feed</div>
+                <div class="feed-subtitle">Real-time monitoring of autonomous improvements and upgrades</div>
+            </div>
+            <div class="feed-content" id="evolutionFeed">
+                <!-- Evolution items will be populated here -->
+            </div>
+        </div>
+
+        <!-- Right Panel - Task Management -->
+        <div class="task-management">
+            <div class="task-header">
+                <div class="section-title">📝 Task Implementer</div>
+                <div style="font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 10px;">
+                    Give the self-evolving system a task to implement
+                </div>
+                <div class="task-input-form">
+                    <input type="text" class="task-input" id="taskTitle" placeholder="Task title...">
+                    <textarea class="task-input" id="taskDescription" placeholder="Describe what you want the system to do..." rows="3"></textarea>
+                    <button class="submit-task-btn" onclick="submitTask()">🚀 Submit Task</button>
+                </div>
+            </div>
+            <div class="task-list" id="taskList">
+                <!-- Tasks will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div class="connection-status" id="connectionStatus">
+        <span class="connected">● Connected</span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script>
+        // Global variables
+        let socket;
+        let evolutionData = [];
+        let tasks = [];
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSocket();
+            loadEvolutionData();
+            loadTasks();
+            startHeartbeatMonitoring();
+        });
+
+        // Socket.IO connection
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                updateConnectionStatus(true);
+                console.log('Connected to FrontierAI Evolution System');
+            });
+            
+            socket.on('disconnect', function() {
+                updateConnectionStatus(false);
+                console.log('Disconnected from server');
+            });
+            
+            socket.on('evolution_status_update', function(data) {
+                updateSystemMetrics(data);
+            });
+            
+            socket.on('task_created', function(task) {
+                addTaskToList(task);
+                showNotification(`New task created: ${task.title}`);
+            });
+            
+            socket.on('evolution_record', function(record) {
+                addEvolutionItem(record);
+            });
+        }
+
+        // Load evolution data
+        async function loadEvolutionData() {
+            try {
+                const response = await fetch('/api/evolution/records');
+                const data = await response.json();
+                
+                evolutionData = data.records;
+                renderEvolutionFeed();
+                
+                // Simulate real-time updates
+                setInterval(simulateEvolutionUpdate, 10000);
+            } catch (error) {
+                console.error('Error loading evolution data:', error);
+            }
+        }
+
+        // Load tasks
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/evolution/tasks');
+                const data = await response.json();
+                
+                tasks = data.tasks;
+                renderTaskList();
+                
+                // Update task progress periodically
+                setInterval(updateTaskProgress, 5000);
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        // Render evolution feed
+        function renderEvolutionFeed() {
+            const feedContainer = document.getElementById('evolutionFeed');
+            feedContainer.innerHTML = '';
+            
+            if (evolutionData.length === 0) {
+                feedContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                        <div style="font-size: 48px; margin-bottom: 15px;">🔬</div>
+                        <div>Evolution system is monitoring...</div>
+                        <div style="font-size: 14px; margin-top: 10px;">Autonomous improvements will appear here</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            evolutionData.slice(0, 10).forEach(record => {
+                addEvolutionItem(record);
+            });
+        }
+
+        // Add evolution item to feed
+        function addEvolutionItem(record) {
+            const feedContainer = document.getElementById('evolutionFeed');
+            const timeAgo = getTimeAgo(record.timestamp);
+            
+            const evolutionElement = document.createElement('div');
+            evolutionElement.className = 'evolution-item';
+            evolutionElement.innerHTML = `
+                <div class="evolution-header">
+                    <div class="evolution-type">${record.upgrade_type.replace('_', ' ').toUpperCase()}</div>
+                    <div class="evolution-time">${timeAgo}</div>
+                </div>
+                <div class="evolution-description">${record.description}</div>
+                <div class="evolution-benefits">
+                    ${record.benefits_achieved.slice(0, 3).map(benefit => 
+                        `<div class="benefit-tag">${benefit}</div>`
+                    ).join('')}
+                </div>
+                ${record.market_advantage_gained ? 
+                    `<div style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.7);">
+                        🎯 ${record.market_advantage_gained}
+                    </div>` : ''
+                }
+            `;
+            
+            feedContainer.insertBefore(evolutionElement, feedContainer.firstChild);
+            
+            // Remove old items if too many
+            const items = feedContainer.children;
+            if (items.length > 20) {
+                feedContainer.removeChild(items[items.length - 1]);
+            }
+        }
+
+        // Render task list
+        function renderTaskList() {
+            const taskContainer = document.getElementById('taskList');
+            taskContainer.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                taskContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+                        <div style="font-size: 36px; margin-bottom: 10px;">📝</div>
+                        <div>No tasks yet</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Submit a task above to get started</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            tasks.forEach(task => {
+                addTaskToList(task, false);
+            });
+        }
+
+        // Add task to list
+        function addTaskToList(task, prepend = true) {
+            const taskContainer = document.getElementById('taskList');
+            const timeAgo = getTimeAgo(task.created_at);
+            
+            const taskElement = document.createElement('div');
+            taskElement.className = 'task-item';
+            taskElement.id = `task-${task.task_id}`;
+            taskElement.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                <div class="task-status">
+                    <div class="status-badge status-${task.status}">${task.status.replace('_', ' ').toUpperCase()}</div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.6);">Priority: ${task.priority}/10</div>
+                </div>
+                <div class="task-progress">
+                    <div class="progress-bar" style="width: ${task.progress}%"></div>
+                </div>
+                <div class="task-meta">
+                    <span>Step ${task.current_step}/${task.total_steps}</span>
+                    <span>${timeAgo}</span>
+                </div>
+            `;
+            
+            if (prepend) {
+                taskContainer.insertBefore(taskElement, taskContainer.firstChild);
+                // Add to tasks array
+                tasks.unshift(task);
+            } else {
+                taskContainer.appendChild(taskElement);
+            }
+        }
+
+        // Submit new task
+        async function submitTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const description = document.getElementById('taskDescription').value.trim();
+            
+            if (!title || !description) {
+                alert('Please provide both title and description');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/evolution/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        user_id: 'dashboard_user',
+                        requirements: ['User-requested task', 'Dashboard submission']
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('taskTitle').value = '';
+                    document.getElementById('taskDescription').value = '';
+                    showNotification('Task submitted successfully!');
+                    
+                    // Reload tasks to get the new one
+                    setTimeout(loadTasks, 1000);
+                } else {
+                    alert('Failed to submit task');
+                }
+            } catch (error) {
+                console.error('Error submitting task:', error);
+                alert('Error submitting task');
+            }
+        }
+
+        // Update system metrics
+        function updateSystemMetrics(data) {
+            if (data.heartbeat) {
+                document.getElementById('commitsToday').textContent = data.heartbeat.commits_today;
+                document.getElementById('repoStars').textContent = data.heartbeat.stars_count;
+                document.getElementById('openIssues').textContent = data.heartbeat.issues_count;
+                document.getElementById('repoForks').textContent = data.heartbeat.forks_count;
+                document.getElementById('connectionTime').textContent = `${(data.heartbeat.connection_time * 1000).toFixed(1)}ms`;
+            }
+            
+            if (data.active_tasks !== undefined) {
+                document.getElementById('activeTasks').textContent = data.active_tasks;
+            }
+        }
+
+        // Heartbeat monitoring
+        function startHeartbeatMonitoring() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch('/api/evolution/status');
+                    const data = await response.json();
+                    updateSystemMetrics(data);
+                } catch (error) {
+                    console.error('Heartbeat error:', error);
+                }
+            }, 5000);
+        }
+
+        // Update task progress
+        async function updateTaskProgress() {
+            try {
+                const response = await fetch('/api/evolution/tasks');
+                const data = await response.json();
+                
+                data.tasks.forEach(updatedTask => {
+                    const taskElement = document.getElementById(`task-${updatedTask.task_id}`);
+                    if (taskElement) {
+                        const progressBar = taskElement.querySelector('.progress-bar');
+                        const statusBadge = taskElement.querySelector('.status-badge');
+                        const stepInfo = taskElement.querySelector('.task-meta span:first-child');
+                        
+                        if (progressBar) {
+                            progressBar.style.width = `${updatedTask.progress}%`;
+                        }
+                        if (statusBadge) {
+                            statusBadge.textContent = updatedTask.status.replace('_', ' ').toUpperCase();
+                            statusBadge.className = `status-badge status-${updatedTask.status}`;
+                        }
+                        if (stepInfo) {
+                            stepInfo.textContent = `Step ${updatedTask.current_step}/${updatedTask.total_steps}`;
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error updating task progress:', error);
+            }
+        }
+
+        // Simulate evolution updates for demo
+        function simulateEvolutionUpdate() {
+            const evolutionTypes = [
+                'performance_optimization',
+                'feature_enhancement',
+                'security_update',
+                'integration_improvement'
+            ];
+            
+            const descriptions = [
+                'Optimized database query performance by 23%',
+                'Enhanced user interface responsiveness',
+                'Implemented advanced caching mechanisms',
+                'Added new integration capabilities',
+                'Improved error handling and logging',
+                'Enhanced security protocols'
+            ];
+            
+            const benefits = [
+                ['Faster response times', 'Better user experience', 'Reduced server load'],
+                ['Enhanced security', 'Improved reliability', 'Better scalability'],
+                ['Increased efficiency', 'Cost reduction', 'Better performance'],
+                ['Market advantage', 'User satisfaction', 'Competitive edge']
+            ];
+            
+            const randomRecord = {
+                evolution_id: `demo_${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                upgrade_type: evolutionTypes[Math.floor(Math.random() * evolutionTypes.length)],
+                description: descriptions[Math.floor(Math.random() * descriptions.length)],
+                benefits_achieved: benefits[Math.floor(Math.random() * benefits.length)],
+                market_advantage_gained: 'Enhanced competitive positioning through autonomous improvement'
+            };
+            
+            // Only add if we have fewer than 5 items (to avoid spam)
+            const feedContainer = document.getElementById('evolutionFeed');
+            if (feedContainer.children.length < 5) {
+                addEvolutionItem(randomRecord);
+            }
+        }
+
+        // Utility functions
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connected) {
+                statusElement.innerHTML = '<span class="connected">● Connected</span>';
+            } else {
+                statusElement.innerHTML = '<span class="disconnected">● Disconnected</span>';
+            }
+        }
+
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diff = now - time;
+            
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (days > 0) return `${days}d ago`;
+            if (hours > 0) return `${hours}h ago`;
+            if (minutes > 0) return `${minutes}m ago`;
+            return 'Just now';
+        }
+
+        function showNotification(message) {
+            // Simple notification system
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: rgba(78, 205, 196, 0.9);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                z-index: 1001;
+                animation: slideInRight 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease reverse';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'Enter':
+                        e.preventDefault();
+                        submitTask();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        location.reload();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

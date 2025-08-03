@@ -1,0 +1,2471 @@
+{
+  "timeline": [
+    {
+      "date": "2025-08-03",
+      "timestamp": "2025-08-03T11:11:39.896016",
+      "change_id": "change_20250803_111139_823024",
+      "title": "Visualization component integration",
+      "change_type": "feature_addition",
+      "impact_level": "high",
+      "status": "implemented",
+      "author": "Kenan3477",
+      "files_modified": 0,
+      "lines_added": 0,
+      "lines_removed": 0,
+      "performance_impact": {},
+      "tags": []
+    }
+  ],
+  "capabilities": {
+    "development_velocity": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "development_velocity",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "development_velocity",
+        "value": 1.3,
+        "growth_rate": 0,
+        "cumulative_value": 1.3,
+        "change_count": 1,
+        "impact_score": 3.0
+      }
+    ],
+    "code_quality": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "code_quality",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ],
+    "security_posture": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "security_posture",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ],
+    "performance": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "performance",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ],
+    "user_experience": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "user_experience",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ],
+    "system_reliability": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "system_reliability",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ],
+    "innovation": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "innovation",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "innovation",
+        "value": 1.3,
+        "growth_rate": 0,
+        "cumulative_value": 1.3,
+        "change_count": 1,
+        "impact_score": 3.0
+      }
+    ],
+    "technical_debt": [
+      {
+        "date": "2025-07-04",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-05",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-06",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-07",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-08",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-09",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-10",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-11",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-12",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-13",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-14",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-15",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-16",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-17",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-18",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-19",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-20",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-21",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-22",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-23",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-24",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-25",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-26",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-27",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-28",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-29",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-30",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-07-31",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-01",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-02",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      },
+      {
+        "date": "2025-08-03",
+        "capability_name": "technical_debt",
+        "value": 0.0,
+        "growth_rate": 0,
+        "cumulative_value": 0.0,
+        "change_count": 0,
+        "impact_score": 0
+      }
+    ]
+  },
+  "branches": [],
+  "statistics": {
+    "timeline": {
+      "total_changes": 1,
+      "change_types": {
+        "feature_addition": 1
+      },
+      "impact_levels": {
+        "high": 1
+      },
+      "top_authors": {
+        "Kenan3477": 1
+      }
+    },
+    "capabilities": {
+      "development_velocity": {
+        "total_value": 1.3,
+        "max_growth_rate": 0,
+        "current_value": 1.3
+      },
+      "code_quality": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      },
+      "security_posture": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      },
+      "performance": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      },
+      "user_experience": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      },
+      "system_reliability": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      },
+      "innovation": {
+        "total_value": 1.3,
+        "max_growth_rate": 0,
+        "current_value": 1.3
+      },
+      "technical_debt": {
+        "total_value": 0.0,
+        "max_growth_rate": 0,
+        "current_value": 0.0
+      }
+    },
+    "branches": {
+      "total_branches": 0,
+      "active_branches": 0,
+      "top_technologies": {},
+      "most_impactful_branch": null
+    },
+    "temporal": {
+      "busiest_day": "2025-08-03",
+      "busiest_day_count": 1,
+      "average_daily_changes": 1.0,
+      "change_frequency": 1
+    }
+  },
+  "filters": {
+    "change_types": [
+      "feature_addition"
+    ],
+    "impact_levels": [
+      "high"
+    ],
+    "authors": [
+      "Kenan3477"
+    ],
+    "statuses": [
+      "implemented"
+    ],
+    "tags": []
+  },
+  "metadata": {
+    "generated_at": "2025-08-03T11:11:41.971446",
+    "time_period_days": 30,
+    "total_changes": 1,
+    "active_capabilities": 2,
+    "active_branches": 0,
+    "color_schemes": {
+      "timeline": {
+        "feature_addition": "#22c55e",
+        "bug_fix": "#ef4444",
+        "performance_optimization": "#3b82f6",
+        "security_improvement": "#f59e0b",
+        "refactoring": "#8b5cf6",
+        "documentation_update": "#06b6d4",
+        "default": "#6b7280"
+      },
+      "impact_levels": {
+        "critical": "#dc2626",
+        "high": "#ea580c",
+        "medium": "#d97706",
+        "low": "#65a30d",
+        "trivial": "#16a34a"
+      },
+      "capabilities": [
+        "#ef4444",
+        "#f97316",
+        "#f59e0b",
+        "#eab308",
+        "#84cc16",
+        "#22c55e",
+        "#10b981",
+        "#14b8a6",
+        "#06b6d4",
+        "#0ea5e9",
+        "#3b82f6",
+        "#6366f1",
+        "#8b5cf6",
+        "#a855f7",
+        "#c084fc",
+        "#e879f9"
+      ]
+    }
+  },
+  "dashboard_config": {
+    "charts": {
+      "timeline": {
+        "type": "scatter_timeline",
+        "height": 400,
+        "interactive": true,
+        "zoom_enabled": true,
+        "tooltip_fields": [
+          "title",
+          "change_type",
+          "author",
+          "impact_level"
+        ]
+      },
+      "capability_growth": {
+        "type": "multi_line",
+        "height": 300,
+        "y_axis": "cumulative_value",
+        "smooth_curves": true,
+        "legend": true
+      },
+      "capability_velocity": {
+        "type": "area_stack",
+        "height": 250,
+        "y_axis": "value",
+        "stacked": true
+      },
+      "branch_network": {
+        "type": "network_graph",
+        "height": 500,
+        "physics_enabled": true,
+        "node_size_by": "impact_score"
+      },
+      "impact_distribution": {
+        "type": "pie_chart",
+        "height": 200,
+        "show_percentages": true
+      },
+      "author_activity": {
+        "type": "horizontal_bar",
+        "height": 250,
+        "sort_by": "value"
+      }
+    },
+    "filters": {
+      "date_range": {
+        "type": "date_picker",
+        "default_days": 90
+      },
+      "change_type": {
+        "type": "multi_select",
+        "allow_all": true
+      },
+      "impact_level": {
+        "type": "checkbox_group",
+        "default_selected": [
+          "high",
+          "medium"
+        ]
+      },
+      "author": {
+        "type": "searchable_select",
+        "placeholder": "Select authors..."
+      }
+    },
+    "drill_down": {
+      "enabled": true,
+      "levels": [
+        "timeline_point",
+        "change_detail",
+        "file_diff"
+      ],
+      "modal_display": true
+    }
+  }
+}
