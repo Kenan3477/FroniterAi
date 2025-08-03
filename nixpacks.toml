@@ -8,3 +8,7 @@ cmds = ["echo 'Building FrontierAI Dashboard...'"]
 
 [start]
 cmd = "python dashboard_api.py"
+
+[variables]
+FLASK_APP = "dashboard_api.py"
+FLASK_ENV = "production"

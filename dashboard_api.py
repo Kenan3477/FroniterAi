@@ -612,5 +612,8 @@ if __name__ == '__main__':
     print("🧠 Self-Evolution Backend: Running")
     print("🔗 Real-time WebSocket Updates: Active")
     
+    # Get port from environment variable for Railway deployment
+    port = int(os.environ.get('PORT', 5000))
+    
     # Run the Flask app
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)

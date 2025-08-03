@@ -1,0 +1,14 @@
+# Railway ignore file to prevent auto-detection of wrong Python files
+_autonomous_evolution_system.py.bak
+autonomous_evolution_system.py
+comprehensive_evolution_system.py
+evolution_trail_demo.py
+advanced_evolution_system.py
+backup_files/
+*.bak
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.git/
