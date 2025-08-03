@@ -7,8 +7,12 @@ cmds = ["pip install -r requirements.txt"]
 cmds = ["echo 'Building FrontierAI Dashboard...'"]
 
 [start]
-cmd = "python dashboard_api.py"
+cmd = "python main.py"
 
 [variables]
 FLASK_APP = "dashboard_api.py"
 FLASK_ENV = "production"
+
+# Ensure no auto-detection of other Python files
+[build]
+excludeFiles = ["backup_files/**", "**/*.bak", "**/app.py"]

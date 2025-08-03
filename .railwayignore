@@ -1,10 +1,27 @@
-# Railway ignore file to prevent auto-detection of wrong Python files
+# Railway ignore file to prevent auto-detection of conflicting files
+
+# Backup and conflicting Python files
+backup_files/
 _autonomous_evolution_system.py.bak
 autonomous_evolution_system.py
 comprehensive_evolution_system.py
 evolution_trail_demo.py
 advanced_evolution_system.py
-backup_files/
+true_evolution_system.py
+real_evolution_system.py
+
+# Old app files that might conflict
+app.py
+web_ui.py
+enhanced_frontier_dashboard.py
+market_integrated_dashboard.py
+
+# Test files
+test_*.py
+**/test_*.py
+tests/
+
+# Development files
 *.bak
 *.log
 __pycache__/
@@ -12,3 +29,14 @@ __pycache__/
 .DS_Store
 .env
 .git/
+.venv/
+.comprehensive_backups/
+.evolution_backups/
+.evolution_backups_advanced/
+
+# Cache and temporary files
+cache/
+logs/
+data_feeds/
+competitive_data/
+market_data/
