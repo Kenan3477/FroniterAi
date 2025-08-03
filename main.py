@@ -12,18 +12,19 @@ print(f"🎯 Starting FrontierAI Dashboard from: {os.getcwd()}")
 print(f"🐍 Python executable: {sys.executable}")
 print(f"🚪 Port: {os.environ.get('PORT', '5000')}")
 
-# Import and run our dashboard
+# Import and run our simple dashboard
 try:
-    from dashboard_api import app, socketio
+    from simple_dashboard import app
     
     # Get port from environment
     port = int(os.environ.get('PORT', 5000))
     
     print("🚀 Starting FrontierAI Dashboard...")
     print(f"📍 Listening on 0.0.0.0:{port}")
+    print(f"🌐 Health check: http://0.0.0.0:{port}/health")
     
     # Run the application
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
     
 except Exception as e:
     print(f"❌ Failed to start dashboard: {e}")

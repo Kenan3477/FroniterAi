@@ -1,46 +1,4 @@
-# Frontier AI - Railway Deployment Requirements
-# Core Web Framework
+# FrontierAI Dashboard - Minimal Railway Requirements
 flask==3.0.0
 flask-cors==4.0.0
-flask-socketio==5.3.6
-python-socketio==5.10.0
-python-engineio==4.12.2
-fastapi==0.104.1
-uvicorn==0.24.0
-
-# HTTP and Networking
 requests==2.31.0
-httpx==0.25.2
-websockets==12.0
-
-# Git Integration
-gitpython==3.1.40
-
-# Data Processing
-pandas==2.0.3
-numpy==1.24.3
-
-# Environment and Configuration
-python-dotenv==1.0.0
-
-# JSON and Data Handling
-pydantic==2.5.0
-
-# File and Path Handling
-pathlib2==2.3.7
-
-# Date and Time
-python-dateutil==2.8.2
-
-# Async Support
-asyncio-mqtt==0.13.0
-
-# System Monitoring
-psutil==5.9.6
-
-# HTTP requests for GitHub API
-requests==2.31.0
-python-dotenv==1.0.0  # Environment variable loading
-
-# Lightweight and Railway-compatible
-gunicorn==21.2.0
