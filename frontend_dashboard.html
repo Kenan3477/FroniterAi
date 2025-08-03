@@ -430,6 +430,19 @@
             color: white;
         }
 
+        .evolution-action {
+            background: linear-gradient(45deg, #e74c3c, #c0392b) !important;
+            color: white !important;
+            border: 1px solid #e74c3c !important;
+            font-weight: 600;
+        }
+
+        .evolution-action:hover {
+            background: linear-gradient(45deg, #c0392b, #a93226) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+
         /* Stats Cards */
         .stats-grid {
             display: grid;
@@ -501,6 +514,7 @@
                 <div class="quick-action" onclick="sendQuickMessage('Develop a website')">🌐 Build Website</div>
                 <div class="quick-action" onclick="sendQuickMessage('Marketing insights')">📊 Marketing</div>
                 <div class="quick-action" onclick="sendQuickMessage('Process optimization')">⚡ Optimize</div>
+                <div class="quick-action evolution-action" onclick="openEvolutionDashboard()">🧬 Self-Evolving AI</div>
             </div>
 
             <div class="business-folders" id="businessFolders">
@@ -877,6 +891,10 @@
         // UI functions
         function toggleRightPanel() {
             document.getElementById('rightPanel').classList.toggle('active');
+        }
+
+        function openEvolutionDashboard() {
+            window.open('evolution_dashboard.html', '_blank');
         }
 
         // Auto-save functionality
