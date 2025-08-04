@@ -42,11 +42,27 @@ class GitHubRealTimeAnalyzer:
     def get_repository_stats(self) -> Dict[str, Any]:
         """Get real repository statistics"""
         try:
+            # Test authentication first
+            auth_test = requests.get("https://api.github.com/user", headers=self.headers)
+            if auth_test.status_code == 401:
+                print("❌ GitHub authentication failed - invalid token")
+                print("💡 Check GITHUB_TOKEN_FIX_NEEDED.md for instructions")
+                return self._get_fallback_stats_with_error("authentication_failed")
+            elif auth_test.status_code != 200:
+                print(f"⚠️ GitHub API issue: {auth_test.status_code}")
+                return self._get_fallback_stats_with_error("api_error")
+            
             # Get repository info
             repo_response = requests.get(self.repo_url, headers=self.headers)
-            if repo_response.status_code != 200:
+            if repo_response.status_code == 401:
+                print("❌ Repository access denied - check token permissions")
+                return self._get_fallback_stats_with_error("access_denied")
+            elif repo_response.status_code == 404:
+                print("❌ Repository not found - check repository name")
+                return self._get_fallback_stats_with_error("repo_not_found")
+            elif repo_response.status_code != 200:
                 print(f"❌ Failed to fetch repository: {repo_response.status_code}")
-                return self._get_fallback_stats()
+                return self._get_fallback_stats_with_error("fetch_failed")
             
             repo_data = repo_response.json()
             
@@ -122,7 +138,11 @@ class GitHubRealTimeAnalyzer:
                 url = f"{self.repo_url}/contents/{path}" if path else f"{self.repo_url}/contents"
                 response = requests.get(url, headers=self.headers)
                 
-                if response.status_code != 200:
+                if response.status_code == 401:
+                    print(f"❌ Authentication failed accessing {path or 'root'}")
+                    return 0
+                elif response.status_code != 200:
+                    print(f"⚠️ Error accessing {path or 'root'}: {response.status_code}")
                     return 0
                 
                 contents = response.json()
@@ -141,7 +161,7 @@ class GitHubRealTimeAnalyzer:
             
         except Exception as e:
             print(f"⚠️ Error counting files: {e}")
-            return 89  # Fallback
+            return 0  # Return 0 instead of fallback when there's an error
     
     def _format_size(self, size_bytes: int) -> str:
         """Format file size in human readable format"""
@@ -435,6 +455,26 @@ class GitHubRealTimeAnalyzer:
         
         return recommendations
     
+    def _get_fallback_stats_with_error(self, error_type: str) -> Dict[str, Any]:
+        """Fallback stats with error information when API fails"""
+        error_messages = {
+            'authentication_failed': 'GitHub token is invalid or expired',
+            'access_denied': 'GitHub token lacks repository permissions', 
+            'repo_not_found': 'Repository not found or not accessible',
+            'api_error': 'GitHub API temporarily unavailable',
+            'fetch_failed': 'Failed to fetch repository data'
+        }
+        
+        fallback = self._get_fallback_stats()
+        fallback.update({
+            'connection_status': 'error',
+            'error_type': error_type,
+            'error_message': error_messages.get(error_type, 'Unknown error'),
+            'total_files': 0,  # Show 0 to indicate no real data
+            'fix_instructions': 'See GITHUB_TOKEN_FIX_NEEDED.md for resolution steps'
+        })
+        return fallback
+
     def _get_fallback_stats(self) -> Dict[str, Any]:
         """Fallback stats when API is unavailable"""
         return {
