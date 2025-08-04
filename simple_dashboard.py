@@ -39,6 +39,20 @@ except ImportError as e:
     EVOLUTION_ENGINE = False
     evolution_engine = None
 
+# Import autonomous evolution system
+try:
+    from autonomous_evolution_engine import get_autonomous_engine
+    from autonomous_scheduler import get_evolution_scheduler
+    autonomous_engine = get_autonomous_engine()
+    evolution_scheduler = get_evolution_scheduler()
+    AUTONOMOUS_EVOLUTION = True
+    print("✅ Autonomous evolution system loaded")
+except ImportError as e:
+    print(f"⚠️ Autonomous evolution not available: {e}")
+    AUTONOMOUS_EVOLUTION = False
+    autonomous_engine = None
+    evolution_scheduler = None
+
 # Import evolution API integration
 try:
     from evolution_api_integration import get_evolution_api
@@ -459,6 +473,86 @@ def trigger_evolution():
             'success': False,
             'error': str(e),
             'action': action
+        })
+
+@app.route('/api/evolution/autonomous/start', methods=['POST'])
+def start_autonomous_evolution():
+    """Start autonomous evolution system"""
+    try:
+        if AUTONOMOUS_EVOLUTION and evolution_scheduler:
+            evolution_scheduler.start_autonomous_evolution()
+            return jsonify({
+                'success': True,
+                'message': 'Autonomous evolution system started',
+                'status': 'running'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Autonomous evolution system not available'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/evolution/autonomous/stop', methods=['POST'])
+def stop_autonomous_evolution():
+    """Stop autonomous evolution system"""
+    try:
+        if AUTONOMOUS_EVOLUTION and evolution_scheduler:
+            evolution_scheduler.stop_autonomous_evolution()
+            return jsonify({
+                'success': True,
+                'message': 'Autonomous evolution system stopped',
+                'status': 'stopped'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Autonomous evolution system not available'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/evolution/autonomous/status')
+def autonomous_evolution_status():
+    """Get autonomous evolution status"""
+    try:
+        if AUTONOMOUS_EVOLUTION and evolution_scheduler:
+            status = evolution_scheduler.get_evolution_status()
+            return jsonify(status)
+        else:
+            return jsonify({
+                'is_running': False,
+                'error': 'Autonomous evolution system not available'
+            })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'is_running': False
+        })
+
+@app.route('/api/evolution/autonomous/execute', methods=['POST'])
+def execute_autonomous_evolution():
+    """Execute immediate autonomous evolution cycle"""
+    try:
+        if AUTONOMOUS_EVOLUTION and autonomous_engine:
+            result = autonomous_engine.execute_full_evolution_cycle()
+            return jsonify(result)
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Autonomous evolution system not available'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
         })
 
 if __name__ == '__main__':
