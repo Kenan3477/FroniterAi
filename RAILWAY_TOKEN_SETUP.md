@@ -8,7 +8,7 @@
 4. **Go to Variables tab**
 5. **Add new environment variable**:
    - **Name**: `GITHUB_TOKEN`
-   - **Value**: `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`
+   - **Value**: `[YOUR_GITHUB_TOKEN_HERE]`
 
 ## Alternative: Use Railway CLI
 
@@ -20,7 +20,7 @@ npm install -g @railway/cli
 railway login
 
 # Set the environment variable
-railway variables set GITHUB_TOKEN=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
+railway variables set GITHUB_TOKEN=[YOUR_GITHUB_TOKEN_HERE]
 
 # Deploy
 railway up
