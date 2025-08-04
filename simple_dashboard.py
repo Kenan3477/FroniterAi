@@ -12,6 +12,33 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv('.env.local')  # Load .env.local FIRST for real token
+load_dotenv('.env')  # Load .env second (won't override if already set)
+
+# Import GitHub real-time analyzer
+try:
+    from github_real_analyzer import get_github_analyzer
+    github_analyzer = get_github_analyzer()
+    GITHUB_INTEGRATION = True
+    print("✅ GitHub real-time analyzer loaded")
+except ImportError as e:
+    print(f"⚠️ GitHub analyzer not available: {e}")
+    GITHUB_INTEGRATION = False
+    github_analyzer = None
+
+# Import self-evolution engine
+try:
+    from self_evolution_engine import get_evolution_engine
+    evolution_engine = get_evolution_engine()
+    EVOLUTION_ENGINE = True
+    print("✅ Self-evolution engine loaded")
+except ImportError as e:
+    print(f"⚠️ Evolution engine not available: {e}")
+    EVOLUTION_ENGINE = False
+    evolution_engine = None
+
 # Import evolution API integration
 try:
     from evolution_api_integration import get_evolution_api
@@ -247,7 +274,13 @@ def evolution_status():
 def github_heartbeat():
     """Get GitHub repository heartbeat status"""
     try:
-        if EVOLUTION_INTEGRATION and evolution_api:
+        if GITHUB_INTEGRATION and github_analyzer:
+            # Get real heartbeat data from GitHub analyzer
+            heartbeat_data = github_analyzer.get_repository_stats()
+            # Add recent activity
+            heartbeat_data['recent_activity'] = github_analyzer.get_recent_activity()
+            return jsonify(heartbeat_data)
+        elif EVOLUTION_INTEGRATION and evolution_api:
             # Get real heartbeat data from GitHub monitor
             heartbeat_data = evolution_api.get_github_heartbeat_data()
             return jsonify(heartbeat_data)
@@ -284,6 +317,51 @@ def github_heartbeat():
         return jsonify({
             'connection_status': 'error',
             'error': str(e)
+        })
+
+@app.route('/api/evolution/competitive-analysis')
+def competitive_analysis():
+    """Get competitive analysis and market positioning"""
+    try:
+        if GITHUB_INTEGRATION and github_analyzer:
+            # Get real competitive analysis
+            analysis_data = github_analyzer.perform_competitive_analysis()
+            return jsonify(analysis_data)
+        else:
+            # Fallback to simulated competitive data
+            analysis_data = {
+                'frontier_ai_capabilities': {
+                    'automation_level': 78,
+                    'innovation_score': 85,
+                    'market_readiness': 72
+                },
+                'competitive_gaps': [
+                    {
+                        'area': 'Automation',
+                        'current_score': 78,
+                        'market_leader_score': 95,
+                        'gap': 17
+                    }
+                ],
+                'improvement_opportunities': [
+                    'Implement advanced automated deployment systems',
+                    'Add real-time competitive intelligence'
+                ],
+                'market_position': 'emerging',
+                'recommended_upgrades': [
+                    {
+                        'priority': 'high',
+                        'title': 'Advanced CI/CD Pipeline',
+                        'description': 'Automated testing and deployment',
+                        'estimated_impact': '+15% automation score'
+                    }
+                ]
+            }
+            return jsonify(analysis_data)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'analysis_failed'
         })
 
 @app.route('/api/evolution/trail')

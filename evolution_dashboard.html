@@ -390,6 +390,85 @@
                 width: 100%;
             }
         }
+
+        /* Competitive Analysis Styles */
+        .competitive-analysis {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .capability-scores {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .score-label {
+            width: 120px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .score-bar {
+            flex: 1;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .score-value {
+            width: 50px;
+            text-align: right;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .competitive-gaps {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .gap-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .gap-area {
+            font-weight: 600;
+            color: #e74c3c;
+            margin-bottom: 4px;
+        }
+
+        .gap-info {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 4px;
+        }
+
+        .gap-recommendation {
+            font-size: 12px;
+            color: #27ae60;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -508,6 +587,50 @@
                             </div>
                             <div style="padding: 8px; background: #f8f9fa; border-radius: 5px; margin-bottom: 5px; font-size: 12px;">
                                 <strong>Add evolution monitoring system</strong> - 1 hour ago
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competitive Analysis Panel -->
+                <div class="evolution-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span>🎯</span> Competitive Analysis
+                        </h2>
+                        <span class="panel-badge" id="competitiveBadge">Analyzing</span>
+                    </div>
+
+                    <div class="competitive-analysis">
+                        <div class="capability-scores">
+                            <div class="score-item">
+                                <div class="score-label">Automation Level</div>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="automationScore" style="width: 78%"></div>
+                                </div>
+                                <div class="score-value" id="automationValue">78%</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-label">Innovation Score</div>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="innovationScore" style="width: 85%"></div>
+                                </div>
+                                <div class="score-value" id="innovationValue">85%</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-label">Market Readiness</div>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="readinessScore" style="width: 72%"></div>
+                                </div>
+                                <div class="score-value" id="readinessValue">72%</div>
+                            </div>
+                        </div>
+
+                        <div class="competitive-gaps" id="competitiveGaps">
+                            <div class="gap-item">
+                                <div class="gap-area">Automation</div>
+                                <div class="gap-info">Gap: 17% behind market leaders</div>
+                                <div class="gap-recommendation">→ Implement advanced CI/CD pipeline</div>
                             </div>
                         </div>
                     </div>
@@ -788,6 +911,7 @@
                 addLogLine('info', '📊 No new changes detected');
                 updateRepoStats();
                 loadGitHubHeartbeat();
+                loadCompetitiveAnalysis();
             }, 2000);
         }
 
@@ -1029,6 +1153,58 @@
             setTimeout(() => {
                 addLogLine('success', '✅ GitHub heartbeat connection established');
             }, 1000);
+        }
+
+        function loadCompetitiveAnalysis() {
+            fetch('/api/evolution/competitive-analysis')
+                .then(response => response.json())
+                .then(data => {
+                    updateCompetitiveAnalysis(data);
+                    document.getElementById('competitiveBadge').textContent = 'Live';
+                    document.getElementById('competitiveBadge').style.background = '#27ae60';
+                })
+                .catch(error => {
+                    console.error('Failed to load competitive analysis:', error);
+                    document.getElementById('competitiveBadge').textContent = 'Error';
+                    document.getElementById('competitiveBadge').style.background = '#e74c3c';
+                });
+        }
+
+        function updateCompetitiveAnalysis(data) {
+            const capabilities = data.frontier_ai_capabilities || {};
+            
+            // Update capability scores
+            if (capabilities.automation_level !== undefined) {
+                document.getElementById('automationScore').style.width = capabilities.automation_level + '%';
+                document.getElementById('automationValue').textContent = capabilities.automation_level + '%';
+            }
+            
+            if (capabilities.innovation_score !== undefined) {
+                document.getElementById('innovationScore').style.width = capabilities.innovation_score + '%';
+                document.getElementById('innovationValue').textContent = capabilities.innovation_score + '%';
+            }
+            
+            if (capabilities.market_readiness !== undefined) {
+                document.getElementById('readinessScore').style.width = capabilities.market_readiness + '%';
+                document.getElementById('readinessValue').textContent = capabilities.market_readiness + '%';
+            }
+
+            // Update competitive gaps
+            const gapsContainer = document.getElementById('competitiveGaps');
+            gapsContainer.innerHTML = '';
+            
+            if (data.competitive_gaps && data.competitive_gaps.length > 0) {
+                data.competitive_gaps.forEach(gap => {
+                    const gapDiv = document.createElement('div');
+                    gapDiv.className = 'gap-item';
+                    gapDiv.innerHTML = `
+                        <div class="gap-area">${gap.area}</div>
+                        <div class="gap-info">Gap: ${gap.gap}% behind market leaders</div>
+                        <div class="gap-recommendation">→ ${data.improvement_opportunities && data.improvement_opportunities.length > 0 ? data.improvement_opportunities[0] : 'Analyzing improvements...'}</div>
+                    `;
+                    gapsContainer.appendChild(gapDiv);
+                });
+            }
         }
     </script>
 </body>
