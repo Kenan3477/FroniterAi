@@ -9,11 +9,12 @@ import time
 import threading
 import json
 from datetime import datetime
-from autonomous_evolution_engine import get_autonomous_engine
-from config import get_config
+from simple_config import get_config
 
 class EvolutionScheduler:
     def __init__(self):
+        # Import here to avoid circular dependency
+        from autonomous_evolution_engine import get_autonomous_engine
         self.engine = get_autonomous_engine()
         self.config = get_config()
         self.is_running = False

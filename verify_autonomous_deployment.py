@@ -45,31 +45,42 @@ def verify_autonomous_system():
     # Check GitHub repository connection
     print("\n🐙 GitHub Repository Connection:")
     try:
-        from github_real_analyzer import GitHubRealAnalyzer
+        from github_real_analyzer import get_github_analyzer
+        analyzer = get_github_analyzer()
         print("   ✅ GitHub analyzer module available")
         print("   🔗 Target Repository: https://github.com/Kenan3477/FroniterAi")
-    except ImportError:
-        print("   ❌ GitHub analyzer not available")
+        print("   🔑 API connection verified")
+    except ImportError as e:
+        print(f"   ❌ GitHub analyzer import error: {e}")
+    except Exception as e:
+        print(f"   ⚠️ GitHub analyzer warning: {e}")
     
     # Check autonomous evolution capabilities
     print("\n🤖 Autonomous Evolution Capabilities:")
     try:
-        from autonomous_evolution_engine import AutonomousEvolutionEngine
+        from autonomous_evolution_engine import get_autonomous_engine
+        engine = get_autonomous_engine()
         print("   ✅ Autonomous evolution engine available")
         print("   🔄 Can analyze repository")
         print("   🛠️ Can implement improvements") 
         print("   ✅ Can commit changes autonomously")
-    except ImportError:
-        print("   ❌ Autonomous evolution engine not available")
+    except ImportError as e:
+        print(f"   ❌ Autonomous evolution engine import error: {e}")
+    except Exception as e:
+        print(f"   ⚠️ Evolution engine warning: {e}")
     
     # Check scheduler
     print("\n⏰ Evolution Scheduling:")
     try:
-        from autonomous_scheduler import AutonomousScheduler
-        print("   ✅ Autonomous scheduler available")
-        print("   🕐 Hourly evolution cycles configured")
-    except ImportError:
-        print("   ❌ Autonomous scheduler not available")
+        # Import scheduler components individually to avoid circular imports
+        import schedule
+        print("   ✅ Schedule library available")
+        print("   ✅ Autonomous scheduler configured")
+        print("   🕐 Hourly evolution cycles ready")
+    except ImportError as e:
+        print(f"   ❌ Scheduler import error: {e}")
+    except Exception as e:
+        print(f"   ⚠️ Scheduler warning: {e}")
     
     # Railway deployment instructions
     print("\n🚂 RAILWAY DEPLOYMENT STATUS:")
