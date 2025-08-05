@@ -35,7 +35,7 @@ RUN mkdir -p /app/frontend \
     /app/.comprehensive_backups
 
 # Set permissions
-RUN chmod +x emergency_main.py
+RUN chmod +x advanced_dashboard.py emergency_main.py smart_main.py
 
 # Expose port
 EXPOSE $PORT
@@ -44,5 +44,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the application
-CMD ["python", "emergency_main.py"]
+# Run the application with smart startup (advanced -> emergency fallback)
+CMD ["python", "smart_main.py"]
