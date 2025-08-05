@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import psutil
-from actual_implementor import ActualTaskImplementor
+from intelligent_implementor import ActualTaskImplementor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -274,8 +274,8 @@ class AutonomousSelfEvolution:
         else:
             task = f"AUTONOMOUS EVOLUTION: {decision['reasoning']}"
         
-        # Use the real implementor to make actual changes
-        result = self.implementor.implement_task_for_real(task)
+        # Use the intelligent implementor to make actual changes
+        result = self.implementor.implement_task_intelligently(task)
         
         if result['success']:
             self.evolution_count += 1
