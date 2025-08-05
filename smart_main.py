@@ -10,8 +10,37 @@ import traceback
 import subprocess
 import time
 
+def try_production_dashboard():
+    """Try to start the production dashboard first"""
+    try:
+        print("🚀 Attempting to start Production Dashboard...")
+        
+        # Try importing dependencies
+        import flask
+        import flask_cors
+        import flask_socketio
+        from dotenv import load_dotenv
+        
+        print("✅ All dependencies available")
+        
+        # If we get here, try starting the production dashboard
+        print("🔄 Starting Production Dashboard...")
+        from production_dashboard import app, socketio
+        
+        port = int(os.environ.get('PORT', 5000))
+        print(f"📍 Production Dashboard starting on port {port}")
+        
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
+        
+    except Exception as e:
+        print(f"❌ Production Dashboard failed: {e}")
+        print("🔄 Falling back to Complete Dashboard...")
+        return False
+    
+    return True
+
 def try_complete_dashboard():
-    """Try to start the complete dashboard first"""
+    """Try to start the complete dashboard"""
     try:
         print("🚀 Attempting to start Complete Dashboard...")
         
@@ -106,18 +135,21 @@ def start_emergency_dashboard():
         sys.exit(1)
 
 def main():
-    """Main startup function"""
-    print("🎯 FrontierAI Smart Startup")
+    """Main startup function with production-first hierarchy"""
+    print("🎯 FrontierAI Smart Startup v2.0")
     print(f"🐍 Python: {sys.version}")
     print(f"📁 Working Directory: {os.getcwd()}")
     print(f"🚪 Port: {os.environ.get('PORT', '5000')}")
-    print("=" * 50)
+    print("=" * 60)
     
-    # Try complete dashboard first, then advanced, then emergency
-    if not try_complete_dashboard():
-        if not try_advanced_dashboard():
-            # If both fail, use emergency
-            start_emergency_dashboard()
+    # Try production dashboard first (Railway-optimized)
+    if not try_production_dashboard():
+        # Then try complete dashboard
+        if not try_complete_dashboard():
+            # Then try advanced dashboard
+            if not try_advanced_dashboard():
+                # Finally use emergency dashboard
+                start_emergency_dashboard()
 
 if __name__ == '__main__':
     main()
