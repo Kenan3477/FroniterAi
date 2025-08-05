@@ -1120,4 +1120,4 @@ if __name__ == '__main__':
     print(f"🤖 Autonomous Evolution: {'✅' if AUTONOMOUS_EVOLUTION else '❌'}")
     print(f"🏢 Business Integration: {'✅' if BUSINESS_INTEGRATION else '❌'}")
     
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
