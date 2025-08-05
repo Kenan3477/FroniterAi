@@ -40,6 +40,34 @@ def try_frontier_complete_system():
     
     return True
 
+def try_frontier_complete_system():
+    """Try to start the FrontierAI Complete System first"""
+    try:
+        print("🚀 Attempting to start FrontierAI Complete System...")
+        
+        # Try importing dependencies
+        import flask
+        import flask_cors
+        import flask_socketio
+        from dotenv import load_dotenv
+        
+        print("✅ All dependencies available")
+        
+        # Try importing the complete system
+        from frontier_ai_complete_system import app, socketio
+        
+        port = int(os.environ.get('PORT', 5000))
+        print(f"📍 FrontierAI Complete System starting on port {port}")
+        
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+        
+    except Exception as e:
+        print(f"❌ FrontierAI Complete System failed: {e}")
+        print("🔄 Falling back to Production Dashboard...")
+        return False
+    
+    return True
+
 def try_production_dashboard():
     """Try to start the production dashboard first"""
     try:
@@ -60,7 +88,7 @@ def try_production_dashboard():
         port = int(os.environ.get('PORT', 5000))
         print(f"📍 Production Dashboard starting on port {port}")
         
-        socketio.run(app, host='0.0.0.0', port=port, debug=False)
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
         
     except Exception as e:
         print(f"❌ Production Dashboard failed: {e}")
@@ -96,7 +124,7 @@ def try_complete_dashboard():
         port = int(os.environ.get('PORT', 5000))
         print(f"📍 Complete Dashboard starting on port {port}")
         
-        socketio.run(app, host='0.0.0.0', port=port, debug=False)
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
         
     except Exception as e:
         print(f"❌ Complete Dashboard failed: {e}")
