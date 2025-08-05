@@ -40,8 +40,36 @@ def try_frontier_complete_system():
     
     return True
 
+def try_elite_frontier_system():
+    """Try to start the Elite FrontierAI System first (best version)"""
+    try:
+        print("🚀 Attempting to start Elite FrontierAI System...")
+        
+        # Try importing dependencies
+        import flask
+        import flask_cors
+        import flask_socketio
+        from dotenv import load_dotenv
+        
+        print("✅ All dependencies available")
+        
+        # Try importing the elite system
+        from elite_frontier_system import app, socketio
+        
+        port = int(os.environ.get('PORT', 5000))
+        print(f"📍 Elite FrontierAI System starting on port {port}")
+        
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+        
+    except Exception as e:
+        print(f"❌ Elite FrontierAI System failed: {e}")
+        print("🔄 Falling back to FrontierAI Complete System...")
+        return False
+    
+    return True
+
 def try_frontier_complete_system():
-    """Try to start the FrontierAI Complete System first"""
+    """Try to start the FrontierAI Complete System"""
     try:
         print("🚀 Attempting to start FrontierAI Complete System...")
         
@@ -193,23 +221,25 @@ def start_emergency_dashboard():
         sys.exit(1)
 
 def main():
-    """Main startup function with complete system priority"""
-    print("🎯 FrontierAI Smart Startup v3.0")
+    """Main startup function with Elite System priority"""
+    print("🎯 FrontierAI Smart Startup v4.0 ELITE")
     print(f"🐍 Python: {sys.version}")
     print(f"📁 Working Directory: {os.getcwd()}")
     print(f"🚪 Port: {os.environ.get('PORT', '5000')}")
     print("=" * 70)
     
-    # Try complete FrontierAI system first (with all features)
-    if not try_frontier_complete_system():
-        # Then try production dashboard (Railway-optimized)
-        if not try_production_dashboard():
-            # Then try complete dashboard
-            if not try_complete_dashboard():
-                # Then try advanced dashboard
-                if not try_advanced_dashboard():
-                    # Finally use emergency dashboard
-                    start_emergency_dashboard()
+    # Try Elite FrontierAI system first (highest quality)
+    if not try_elite_frontier_system():
+        # Then try complete FrontierAI system
+        if not try_frontier_complete_system():
+            # Then try production dashboard (Railway-optimized)
+            if not try_production_dashboard():
+                # Then try complete dashboard
+                if not try_complete_dashboard():
+                    # Then try advanced dashboard
+                    if not try_advanced_dashboard():
+                        # Finally use emergency dashboard
+                        start_emergency_dashboard()
 
 if __name__ == '__main__':
     main()
