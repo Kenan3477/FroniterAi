@@ -33,6 +33,9 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'frontier-ai-elite-2025'
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# Import the real evolution engine
+from real_evolution_engine import RealEvolutionEngine
+
 # Global state for real-time monitoring
 evolution_state = {
     'active': True,
@@ -42,6 +45,9 @@ evolution_state = {
     'market_analysis_running': False,
     'github_monitoring': True
 }
+
+# Real Evolution Engine instance
+real_evolution_engine = None
 
 # Database initialization
 def init_database():
@@ -307,7 +313,12 @@ class EliteEvolutionEngine:
         evolution_state['tasks_completed'] += 1
 
 # Initialize evolution engine
-evolution_engine = EliteEvolutionEngine()
+try:
+    real_evolution_engine = RealEvolutionEngine(socketio)
+    logger.info("🧬 Real Evolution Engine initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize Real Evolution Engine: {e}")
+    real_evolution_engine = None
 
 # Professional Dashboard Template
 ELITE_DASHBOARD_TEMPLATE = '''
@@ -942,6 +953,10 @@ ELITE_DASHBOARD_TEMPLATE = '''
             loadDashboard();
         });
         
+        socket.on('real_metrics_update', function(data) {
+            updateRealMetrics(data);
+        });
+        
         socket.on('evolution_update', function(data) {
             addEvolutionUpdate(data);
             updateMetrics();
@@ -1033,16 +1048,28 @@ ELITE_DASHBOARD_TEMPLATE = '''
                     <div class="right-panel">
                         <div class="metrics-grid">
                             <div class="metric-card">
-                                <div class="metric-value" id="evolutionScore">98</div>
+                                <div class="metric-value" id="evolutionScore">Loading...</div>
                                 <div class="metric-label">Evolution Score</div>
                             </div>
                             <div class="metric-card">
-                                <div class="metric-value" id="tasksCompleted">0</div>
+                                <div class="metric-value" id="tasksCompleted">Loading...</div>
                                 <div class="metric-label">Tasks Completed</div>
                             </div>
                             <div class="metric-card">
-                                <div class="metric-value" id="uptime">100%</div>
-                                <div class="metric-label">System Uptime</div>
+                                <div class="metric-value" id="systemUptime">Loading...</div>
+                                <div class="metric-label">System Uptime (hrs)</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="performanceScore">Loading...</div>
+                                <div class="metric-label">Performance Score</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="commitsMade">Loading...</div>
+                                <div class="metric-label">Commits Made</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="filesModified">Loading...</div>
+                                <div class="metric-label">Files Modified</div>
                             </div>
                         </div>
                         
@@ -1257,13 +1284,114 @@ ELITE_DASHBOARD_TEMPLATE = '''
             evolutionData.push(data);
         }
         
-        function updateMetrics() {
-            const tasksCompletedEl = document.getElementById('tasksCompleted');
-            if (tasksCompletedEl) {
-                const count = evolutionData.length;
-                tasksCompletedEl.textContent = count;
-                document.querySelector('#tasksCompleted').textContent = count + ' Tasks';
+        function updateRealMetrics(metrics) {
+            // Update metric displays with real data
+            const evolutionScore = document.getElementById('evolutionScore');
+            if (evolutionScore) evolutionScore.textContent = metrics.evolution_score || 0;
+            
+            const tasksCompleted = document.getElementById('tasksCompleted');
+            if (tasksCompleted) tasksCompleted.textContent = metrics.tasks_completed || 0;
+            
+            const systemUptime = document.getElementById('systemUptime');
+            if (systemUptime) systemUptime.textContent = metrics.system_uptime ? metrics.system_uptime.toFixed(1) : '0.0';
+            
+            const performanceScore = document.getElementById('performanceScore');
+            if (performanceScore) performanceScore.textContent = metrics.performance_score ? metrics.performance_score.toFixed(1) : '0.0';
+            
+            const commitsMade = document.getElementById('commitsMade');
+            if (commitsMade) commitsMade.textContent = metrics.commits_made || 0;
+            
+            const filesModified = document.getElementById('filesModified');
+            if (filesModified) filesModified.textContent = metrics.files_modified || 0;
+            
+            // Update status indicators in header
+            const tasksCompletedHeader = document.querySelector('#tasksCompleted');
+            if (tasksCompletedHeader) {
+                tasksCompletedHeader.textContent = `${metrics.tasks_completed || 0} Tasks`;
             }
+            
+            // Update performance chart if available
+            if (performanceChart && metrics.performance_score) {
+                const newData = performanceChart.data.datasets[0].data;
+                newData.push(metrics.performance_score);
+                if (newData.length > 10) newData.shift();
+                performanceChart.update();
+            }
+        }
+        
+        function loadRealMetrics() {
+            fetch('/api/real_metrics')
+                .then(response => response.json())
+                .then(data => {
+                    updateRealMetrics(data);
+                })
+                .catch(error => {
+                    console.error('Error loading real metrics:', error);
+                });
+        }
+        
+        function loadRealEvolutionData() {
+            fetch('/api/evolution_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.real_metrics) {
+                        updateRealMetrics(data.real_metrics);
+                    }
+                    if (data.recent_logs) {
+                        displayRealEvolutionLogs(data.recent_logs);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading evolution data:', error);
+                });
+        }
+        
+        function displayRealEvolutionLogs(logs) {
+            const feed = document.getElementById('evolutionFeed');
+            if (!feed) return;
+            
+            if (logs.length === 0) {
+                feed.innerHTML = '<div class="no-data">No evolution activity yet...</div>';
+                return;
+            }
+            
+            feed.innerHTML = logs.map(log => `
+                <div class="evolution-item">
+                    <div class="evolution-icon">
+                        <i class="${getIconForEventType(log.event_type)}"></i>
+                    </div>
+                    <div class="evolution-content">
+                        <div class="evolution-title">${log.description}</div>
+                        <div class="evolution-description">${log.changes_made || 'Evolution in progress...'}</div>
+                        <div class="evolution-meta">
+                            <span>${new Date(log.timestamp).toLocaleTimeString()}</span>
+                            <span class="impact-score ${getImpactClass(log.impact_score)}">
+                                Impact: ${log.impact_score}
+                            </span>
+                            ${log.commit_hash ? `<span>📝 ${log.commit_hash}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getIconForEventType(eventType) {
+            const iconMap = {
+                'Code Optimization': 'fas fa-code',
+                'Performance Optimization': 'fas fa-tachometer-alt',
+                'UI Enhancement': 'fas fa-paint-brush',
+                'Security Enhancement': 'fas fa-shield-alt',
+                'Documentation Update': 'fas fa-file-alt',
+                'Git Commit': 'fab fa-git-alt',
+                'User Task Completion': 'fas fa-check-circle'
+            };
+            return iconMap[eventType] || 'fas fa-cog';
+        }
+        
+        function getImpactClass(score) {
+            if (score >= 80) return 'impact-high';
+            if (score >= 60) return 'impact-medium';
+            return 'impact-low';
         }
         
         function initializeCharts() {
@@ -1308,42 +1436,18 @@ ELITE_DASHBOARD_TEMPLATE = '''
         }
         
         function startRealTimeUpdates() {
-            // Simulate real-time evolution updates for demo
+            // Load real metrics initially
+            loadRealMetrics();
+            loadRealEvolutionData();
+            
+            // Update metrics every 30 seconds
             setInterval(() => {
-                const updateTypes = ['market_analysis', 'github_change', 'performance_analysis', 'improvement_suggestion'];
-                const randomType = updateTypes[Math.floor(Math.random() * updateTypes.length)];
-                
-                const mockData = {
-                    type: randomType,
-                    data: {
-                        timestamp: new Date().toISOString(),
-                        impact_score: Math.floor(Math.random() * 40) + 60
-                    }
-                };
-                
-                switch(randomType) {
-                    case 'market_analysis':
-                        mockData.data.analysis_type = 'Competitive Intelligence Update';
-                        mockData.data.findings = 'Identified new market opportunities in AI automation sector';
-                        break;
-                    case 'github_change':
-                        mockData.data.commit_message = 'Enhanced system performance metrics';
-                        mockData.data.author = 'FrontierAI';
-                        break;
-                    case 'performance_analysis':
-                        mockData.data.optimization = 'System optimization completed';
-                        break;
-                    case 'improvement_suggestion':
-                        mockData.data.suggestion = 'UI enhancement opportunity detected';
-                        break;
-                }
-                
-                addEvolutionUpdate(mockData);
-                updateMetrics();
-            }, 5000); // Update every 5 seconds
+                loadRealMetrics();
+                loadRealEvolutionData();
+            }, 30000);
         }
         
-        function submitTask() {
+        async function submitTask() {
             const taskInput = document.getElementById('taskInput');
             const task = taskInput.value.trim();
             
@@ -1352,17 +1456,56 @@ ELITE_DASHBOARD_TEMPLATE = '''
                 return;
             }
             
-            // Add task to evolution feed
-            addEvolutionUpdate({
-                type: 'improvement_suggestion',
-                data: {
-                    suggestion: `🎯 User Task: ${task}`,
-                    timestamp: new Date().toISOString(),
-                    impact_score: 95
+            try {
+                const response = await fetch('/api/submit_evolution_task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task: task })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    taskInput.value = '';
+                    
+                    // Show task submission confirmation
+                    const taskProgress = document.getElementById('taskProgress');
+                    if (taskProgress) {
+                        taskProgress.innerHTML = `
+                            <div style="background: rgba(57,255,20,0.1); border: 1px solid var(--accent-green); border-radius: 10px; padding: 15px; margin-top: 15px;">
+                                <div style="color: var(--accent-green); font-weight: 600; margin-bottom: 5px;">
+                                    ✅ Task #${result.task_id} Submitted Successfully
+                                </div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">
+                                    "${task}" is now being processed by the AI evolution engine.
+                                    Real implementation will begin shortly with actual code changes and commits.
+                                </div>
+                                <div class="progress-bar" style="background: var(--border-color); height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden;">
+                                    <div id="progress-${result.task_id}" style="background: var(--accent-green); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                                </div>
+                                <div id="status-${result.task_id}" style="color: var(--text-secondary); font-size: 12px; margin-top: 5px;">
+                                    Initializing real implementation...
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    alert('Error submitting task: ' + result.error);
                 }
-            });
+            } catch (error) {
+                alert('Error submitting task: ' + error.message);
+            }
+        }
+        
+        function updateTaskProgress(taskId, progress, status) {
+            const progressBar = document.getElementById(`progress-${taskId}`);
+            const statusText = document.getElementById(`status-${taskId}`);
             
-            taskInput.value = '';
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+            }
+            if (statusText) {
+                statusText.textContent = status;
+            }
         }
         
         function sendMessage() {
@@ -1458,40 +1601,31 @@ def index():
 
 @app.route('/api/evolution_status')
 def evolution_status():
-    """Get current evolution status"""
-    conn = sqlite3.connect('frontier_elite.db')
-    cursor = conn.cursor()
-    
-    # Get recent evolution logs
-    cursor.execute('''
-    SELECT * FROM evolution_logs 
-    ORDER BY timestamp DESC 
-    LIMIT 10
-    ''')
-    recent_logs = cursor.fetchall()
-    
-    # Get performance metrics
-    cursor.execute('''
-    SELECT metric_name, metric_value, timestamp 
-    FROM monitoring_data 
-    ORDER BY timestamp DESC 
-    LIMIT 20
-    ''')
-    metrics = cursor.fetchall()
-    
-    conn.close()
-    
-    return jsonify({
-        'status': 'active',
-        'recent_logs': recent_logs,
-        'metrics': metrics,
-        'tasks_completed': evolution_state['tasks_completed'],
-        'last_evolution': evolution_state['last_evolution']
-    })
+    """Get current evolution status with real data"""
+    try:
+        if real_evolution_engine:
+            # Get real metrics
+            real_metrics = real_evolution_engine.get_real_metrics()
+            recent_logs = real_evolution_engine.get_real_evolution_logs(10)
+            
+            return jsonify({
+                'status': 'active',
+                'real_metrics': real_metrics,
+                'recent_logs': recent_logs,
+                'github_status': real_evolution_engine.monitor_github_repo()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': 'Evolution engine not initialized'
+            })
+    except Exception as e:
+        logger.error(f"Error getting evolution status: {e}")
+        return jsonify({'status': 'error', 'error': str(e)})
 
 @app.route('/api/submit_evolution_task', methods=['POST'])
 def submit_evolution_task():
-    """Submit task to evolution engine"""
+    """Submit task to real evolution engine"""
     try:
         data = request.get_json()
         task = data.get('task', '').strip()
@@ -1499,31 +1633,41 @@ def submit_evolution_task():
         if not task:
             return jsonify({'success': False, 'error': 'Task required'})
         
-        # Log the task
-        conn = sqlite3.connect('frontier_elite.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-        INSERT INTO evolution_logs (event_type, description, details, impact_score)
-        VALUES (?, ?, ?, ?)
-        ''', ("User Task", f"🎯 {task}", "User-submitted task for implementation", 95))
-        conn.commit()
-        conn.close()
-        
-        # Emit real-time update
-        socketio.emit('evolution_update', {
-            'type': 'user_task',
-            'data': {
-                'task': task,
-                'timestamp': datetime.now().isoformat(),
-                'impact_score': 95
-            }
-        })
-        
-        return jsonify({'success': True, 'message': 'Task submitted successfully'})
+        if real_evolution_engine:
+            task_id = real_evolution_engine.implement_user_task(task)
+            return jsonify({'success': True, 'task_id': task_id, 'message': 'Task submitted for real implementation'})
+        else:
+            return jsonify({'success': False, 'error': 'Evolution engine not available'})
         
     except Exception as e:
-        logger.error(f"Error submitting task: {e}")
+        logger.error(f"Error submitting evolution task: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/real_metrics')
+def get_real_metrics():
+    """Get real-time system metrics"""
+    try:
+        if real_evolution_engine:
+            metrics = real_evolution_engine.get_real_metrics()
+            return jsonify(metrics)
+        else:
+            return jsonify({'error': 'Evolution engine not available'})
+    except Exception as e:
+        logger.error(f"Error getting real metrics: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/api/github_status')
+def github_status():
+    """Get real GitHub repository status"""
+    try:
+        if real_evolution_engine:
+            status = real_evolution_engine.monitor_github_repo()
+            return jsonify(status)
+        else:
+            return jsonify({'status': 'error', 'error': 'Evolution engine not available'})
+    except Exception as e:
+        logger.error(f"Error getting GitHub status: {e}")
+        return jsonify({'status': 'error', 'error': str(e)})
 
 @app.route('/health')
 def health():
