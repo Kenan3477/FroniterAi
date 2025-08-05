@@ -24,6 +24,8 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 
 # Import the real evolution engine
 from real_evolution_engine import RealEvolutionEngine
+# Import the ACTUALLY WORKING implementor
+from actual_implementor import ActualTaskImplementor
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -193,6 +195,7 @@ class BusinessIntegrationManager:
 # Initialize managers
 business_manager = BusinessIntegrationManager()
 evolution_engine = None  # Will be initialized after socketio is ready
+actual_implementor = ActualTaskImplementor()  # REAL implementor that actually works
 
 # Main Dashboard Template
 MAIN_DASHBOARD_TEMPLATE = '''
@@ -1143,7 +1146,7 @@ def github_status():
 
 @app.route('/api/submit_task', methods=['POST'])
 def submit_task():
-    """Submit task to evolution engine"""
+    """Submit task to REAL implementor that actually works"""
     try:
         data = request.get_json()
         task = data.get('task', '').strip()
@@ -1151,11 +1154,20 @@ def submit_task():
         if not task:
             return jsonify({'success': False, 'error': 'Task description is required'})
         
-        if evolution_engine:
-            task_id = evolution_engine.implement_user_task(task)
-            return jsonify({'success': True, 'task_id': task_id})
+        # Use the ACTUAL implementor that really works
+        result = actual_implementor.implement_task_for_real(task)
         
-        return jsonify({'success': False, 'error': 'Evolution engine not initialized'})
+        if result['success']:
+            return jsonify({
+                'success': True, 
+                'task_id': result['commit_hash'],
+                'file_created': result['file_created'],
+                'commit_hash': result['commit_hash'],
+                'message': f"REAL IMPLEMENTATION COMPLETE: {result['file_created']} committed as {result['commit_hash']}"
+            })
+        else:
+            return jsonify({'success': False, 'error': result['error']})
+        
     except Exception as e:
         logger.error(f"Error submitting task: {e}")
         return jsonify({'success': False, 'error': str(e)})
