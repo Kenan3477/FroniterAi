@@ -101,12 +101,18 @@ class RealEvolutionEngine:
                     self.perform_real_performance_optimization()
                     self.perform_real_documentation_update()
                     
-                    # Sleep for real-time monitoring (not fake processing)
-                    time.sleep(300)  # Check every 5 minutes for real improvements
+                    # REAL WORK DONE - No fake sleep timers, just check if more work is needed
+                    self.check_for_pending_tasks()
+                    
+                    # Only brief pause to prevent CPU spinning - NOT fake processing delay
+                    import time
+                    time.sleep(1)  # 1 second to prevent excessive CPU usage
                     
                 except Exception as e:
                     logger.error(f"Real evolution loop error: {e}")
-                    time.sleep(60)  # Wait 1 minute before retrying
+                    # Brief pause before retry - NOT fake processing delay
+                    import time  
+                    time.sleep(5)  # 5 seconds before retry, not fake waiting
         
         self.evolution_thread = threading.Thread(target=evolution_loop, daemon=True)
         self.evolution_thread.start()
@@ -339,6 +345,42 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
                 
         except Exception as e:
             logger.error(f"Error updating real metrics: {e}")
+    
+    def check_for_pending_tasks(self):
+        """Check for any pending tasks that need immediate attention - NO FAKE DELAYS"""
+        try:
+            # Check git status for uncommitted changes
+            result = subprocess.run(['git', 'status', '--porcelain'], 
+                                  capture_output=True, text=True, cwd=os.getcwd())
+            if result.returncode == 0 and result.stdout.strip():
+                # There are uncommitted changes - commit them immediately
+                subprocess.run(['git', 'add', '.'], cwd=os.getcwd())
+                subprocess.run(['git', 'commit', '-m', 'REAL EVOLUTION: Auto-commit pending changes'], 
+                             cwd=os.getcwd())
+                self.log_evolution_event(
+                    event_type="AUTO_COMMIT",
+                    description="Automatically committed pending changes",
+                    changes_made="Committed all staged changes",
+                    impact_score=10
+                )
+            
+            # Check for critical security issues that need immediate fixes
+            critical_files = ['frontend_dashboard.py', 'frontier_ai_complete_system.py', 'real_evolution_engine.py']
+            for file_path in critical_files:
+                if Path(file_path).exists():
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    if 'password123' in content.lower() or 'secret_key' in content.lower():
+                        # Critical security issue - flag for immediate attention
+                        self.log_evolution_event(
+                            event_type="CRITICAL_SECURITY_ALERT",
+                            description=f"Critical security issue detected in {file_path}",
+                            changes_made="Flagged for immediate manual review",
+                            impact_score=100
+                        )
+                        
+        except Exception as e:
+            logger.error(f"Error checking pending tasks: {e}")
     
     def implement_user_task(self, task_description: str) -> int:
         """Implement a user-submitted task"""
