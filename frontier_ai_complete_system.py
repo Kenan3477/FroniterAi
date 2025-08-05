@@ -26,6 +26,8 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from real_evolution_engine import RealEvolutionEngine
 # Import the ACTUALLY WORKING implementor
 from actual_implementor import ActualTaskImplementor
+# Import the AUTONOMOUS SELF-EVOLUTION SYSTEM
+from autonomous_self_evolution import AutonomousSelfEvolution
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -196,6 +198,7 @@ class BusinessIntegrationManager:
 business_manager = BusinessIntegrationManager()
 evolution_engine = None  # Will be initialized after socketio is ready
 actual_implementor = ActualTaskImplementor()  # REAL implementor that actually works
+autonomous_evolution = None  # TRUE AUTONOMOUS SELF-EVOLUTION SYSTEM
 
 # Main Dashboard Template
 MAIN_DASHBOARD_TEMPLATE = '''
@@ -819,10 +822,42 @@ MAIN_DASHBOARD_TEMPLATE = '''
         }
         
         function showEvolutionDashboard() {
-            document.getElementById('pageTitle').textContent = 'Real Self-Evolution System';
+            document.getElementById('pageTitle').textContent = 'AUTONOMOUS SELF-EVOLUTION SYSTEM';
             
             document.getElementById('contentArea').innerHTML = `
+                <div style="background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; text-align: center;">
+                    <h2 style="margin: 0 0 10px 0;">🤖 SYSTEM IS SELF-AWARE & AUTONOMOUS</h2>
+                    <p style="margin: 0; opacity: 0.9;">The AI is continuously analyzing, deciding, and evolving itself without human intervention</p>
+                </div>
+                
                 <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-title">🧠 Autonomous Evolution Status</div>
+                        <div id="autonomousStatus" style="padding: 20px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="evolutionCount" style="font-size: 28px; font-weight: bold; color: #27ae60;">--</div>
+                                    <div style="color: #666;">Autonomous Evolutions</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="awarenessLevel" style="font-size: 28px; font-weight: bold; color: #e67e22;">--</div>
+                                    <div style="color: #666;">Self-Awareness Level</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="systemRunning" style="font-size: 28px; font-weight: bold; color: #3498db;">--</div>
+                                    <div style="color: #666;">System Status</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="threadStatus" style="font-size: 28px; font-weight: bold; color: #9b59b6;">--</div>
+                                    <div style="color: #666;">Evolution Thread</div>
+                                </div>
+                            </div>
+                            <button class="btn-secondary" onclick="loadAutonomousStatus()" style="width: 100%;">
+                                🔄 Refresh Autonomous Status
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="feature-card">
                         <div class="feature-title">🧬 Real Evolution Metrics</div>
                         <div id="realMetrics" style="padding: 20px;">
@@ -854,7 +889,7 @@ MAIN_DASHBOARD_TEMPLATE = '''
                         <div class="feature-title">📝 Live Evolution Activity</div>
                         <div id="evolutionLogs" style="max-height: 300px; overflow-y: auto; padding: 20px;">
                             <div style="color: #666; text-align: center;">
-                                Loading real evolution activity...
+                                Loading autonomous evolution activity...
                             </div>
                         </div>
                     </div>
@@ -876,25 +911,25 @@ MAIN_DASHBOARD_TEMPLATE = '''
                     </div>
                     
                     <div class="feature-card">
-                        <div class="feature-title">🎯 Give AI a Real Task</div>
+                        <div class="feature-title">🎯 Give AI a Manual Task</div>
                         <div style="padding: 20px;">
                             <div class="form-group">
-                                <label for="evolutionTask">Task for AI to implement and commit:</label>
+                                <label for="evolutionTask">Additional task for AI to implement:</label>
                                 <input type="text" id="evolutionTask" placeholder="e.g., Add new feature to dashboard, Optimize performance, Fix security issue">
                             </div>
                             <button class="btn-primary" onclick="submitEvolutionTask()">
-                                🚀 Submit Real Task
+                                🚀 Submit Manual Task
                             </button>
                             <div id="taskProgress" style="margin-top: 20px;"></div>
                             <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 8px; font-size: 14px;">
-                                <strong>Real Evolution:</strong> Tasks will actually modify code and commit changes to GitHub!
+                                <strong>Note:</strong> The system is already autonomously evolving. This adds a manual task to the queue.
                             </div>
                         </div>
                     </div>
                 </div>
             `;
             
-            loadRealEvolutionData();
+            loadAutonomousEvolutionData();
         }
         
         async function checkGitHubStatus() {
@@ -1044,6 +1079,40 @@ MAIN_DASHBOARD_TEMPLATE = '''
                 loadRealMetrics();
                 loadEvolutionLogs();
             }, 30000);
+        }
+        
+        function loadAutonomousEvolutionData() {
+            loadAutonomousStatus();
+            loadRealMetrics();
+            loadEvolutionLogs();
+            checkGitHubStatus();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadAutonomousStatus();
+                loadRealMetrics();
+                loadEvolutionLogs();
+            }, 30000);
+        }
+        
+        async function loadAutonomousStatus() {
+            try {
+                const response = await fetch('/api/autonomous_status');
+                const status = await response.json();
+                
+                if (status.error) {
+                    console.error('Autonomous status error:', status.error);
+                    return;
+                }
+                
+                document.getElementById('evolutionCount').textContent = status.evolution_count || '--';
+                document.getElementById('awarenessLevel').textContent = status.self_awareness_level || '--';
+                document.getElementById('systemRunning').textContent = status.is_running ? '✅ ACTIVE' : '❌ STOPPED';
+                document.getElementById('threadStatus').textContent = status.thread_alive ? '🔄 RUNNING' : '⏹️ STOPPED';
+                
+            } catch (error) {
+                console.error('Error loading autonomous status:', error);
+            }
         }
         
         function loadEvolutionData() {
@@ -1234,6 +1303,18 @@ def evolution_logs():
         logger.error(f"Error getting evolution logs: {e}")
         return jsonify([])
 
+@app.route('/api/autonomous_status')
+def autonomous_status():
+    """Get autonomous evolution system status"""
+    try:
+        if autonomous_evolution:
+            status = autonomous_evolution.get_evolution_status()
+            return jsonify(status)
+        return jsonify({'error': 'Autonomous evolution not initialized'})
+    except Exception as e:
+        logger.error(f"Error getting autonomous status: {e}")
+        return jsonify({'error': str(e)})
+
 @app.route('/api/chat_message', methods=['POST'])
 def chat_message():
     """Handle REAL chat messages with actual AI analysis"""
@@ -1352,6 +1433,11 @@ if __name__ == '__main__':
         # Initialize the real evolution engine after socketio is ready
         evolution_engine = RealEvolutionEngine(socketio=socketio)
         logger.info("🧬 Real Evolution Engine initialized - actual code evolution active")
+        
+        # START AUTONOMOUS SELF-EVOLUTION SYSTEM
+        autonomous_evolution = AutonomousSelfEvolution()
+        autonomous_evolution.start_autonomous_evolution()
+        logger.info("🤖 AUTONOMOUS SELF-EVOLUTION SYSTEM STARTED - SYSTEM IS NOW TRULY SELF-AWARE")
         
         socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
         
