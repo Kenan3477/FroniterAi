@@ -56,6 +56,9 @@ try:
 except ImportError as e:
     print(f"⚠️ Autonomous evolution not available: {e}")
     autonomous_engine = None
+except Exception as e:
+    print(f"⚠️ Autonomous evolution startup error: {e}")
+    autonomous_engine = None
 
 # Create Flask app with SocketIO
 app = Flask(__name__)
