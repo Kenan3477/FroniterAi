@@ -29,6 +29,8 @@ class RealEvolutionEngine:
         self.repo_url = "https://github.com/Kenan3477/FroniterAi"
         self.github_token = os.environ.get('GITHUB_TOKEN')
         self.is_running = True
+        self.last_analysis_time = {}  # Track when each analysis was last run
+        self.analysis_cooldown = 300  # 5 minutes between same analysis types
         self.real_metrics = {
             'evolution_score': 0,
             'tasks_completed': 0,
@@ -95,18 +97,31 @@ class RealEvolutionEngine:
                     # Update real metrics every cycle
                     self.update_real_metrics()
                     
-                    # REAL EVOLUTION TASKS - Actually improve the system
-                    self.perform_real_code_analysis()
-                    self.perform_real_security_scan()
-                    self.perform_real_performance_optimization()
-                    self.perform_real_documentation_update()
+                    # REAL EVOLUTION TASKS - Actually improve the system (with cooldown)
+                    current_time = time.time()
+                    
+                    if self.should_run_analysis('code_analysis', current_time):
+                        self.perform_real_code_analysis()
+                        self.last_analysis_time['code_analysis'] = current_time
+                    
+                    if self.should_run_analysis('security_scan', current_time):
+                        self.perform_real_security_scan()
+                        self.last_analysis_time['security_scan'] = current_time
+                    
+                    if self.should_run_analysis('performance_optimization', current_time):
+                        self.perform_real_performance_optimization()
+                        self.last_analysis_time['performance_optimization'] = current_time
+                    
+                    if self.should_run_analysis('documentation_update', current_time):
+                        self.perform_real_documentation_update()
+                        self.last_analysis_time['documentation_update'] = current_time
                     
                     # REAL WORK DONE - No fake sleep timers, just check if more work is needed
                     self.check_for_pending_tasks()
                     
                     # Only brief pause to prevent CPU spinning - NOT fake processing delay
                     import time
-                    time.sleep(1)  # 1 second to prevent excessive CPU usage
+                    time.sleep(30)  # 30 second cycles for real evolution
                     
                 except Exception as e:
                     logger.error(f"Real evolution loop error: {e}")
@@ -118,6 +133,11 @@ class RealEvolutionEngine:
         self.evolution_thread.start()
         logger.info("🧬 REAL Evolution Engine started - actual continuous improvement active")
         
+    def should_run_analysis(self, analysis_type: str, current_time: float) -> bool:
+        """Check if enough time has passed since last analysis to avoid infinite loops"""
+        last_run = self.last_analysis_time.get(analysis_type, 0)
+        return (current_time - last_run) >= self.analysis_cooldown
+        
     def perform_real_code_analysis(self):
         """REAL code analysis that actually finds issues and improvements"""
         try:
@@ -126,8 +146,19 @@ class RealEvolutionEngine:
             
             for file_path in python_files:
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                    # Try UTF-8 first, fallback to other encodings for problematic files
+                    content = None
+                    for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                        try:
+                            with open(file_path, 'r', encoding=encoding) as f:
+                                content = f.read()
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if content is None:
+                        logger.warning(f"Could not decode {file_path} with any encoding - skipping")
+                        continue
                     
                     # Real analysis checks
                     lines = content.split('\n')
@@ -158,13 +189,8 @@ class RealEvolutionEngine:
                     impact_score=30
                 )
                 
-                # Optionally create improvement task
-                improvement_summary = "\\n".join(issues_found[:3])  # Top 3 issues
-                if len(issues_found) > 0:
-                    # Auto-create improvement task for critical issues
-                    from actual_implementor import ActualTaskImplementor
-                    implementor = ActualTaskImplementor()
-                    implementor.implement_task_for_real(f"Fix code analysis findings: {improvement_summary}")
+                # Store findings for user review - DON'T auto-create tasks
+                logger.info(f"Code analysis complete: {len(issues_found)} issues identified for manual review")
                     
         except Exception as e:
             logger.error(f"Real code analysis error: {e}")
@@ -317,7 +343,7 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             # Evolution score based on actual progress
             evolution_score = min(100, (total_activity * 2) + (recent_activity * 10) + (performance_score * 0.5))
             
-            # Update metrics
+            # Update metrics (ensure all values are JSON serializable)
             self.real_metrics.update({
                 'evolution_score': round(evolution_score, 1),
                 'system_uptime': round(uptime_hours, 1),
@@ -339,9 +365,11 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             conn.commit()
             conn.close()
             
-            # Emit real-time update
+            # Emit real-time update with only JSON-serializable data
             if self.socketio:
-                self.socketio.emit('real_metrics_update', self.real_metrics)
+                json_safe_metrics = {k: v for k, v in self.real_metrics.items() 
+                                   if not isinstance(v, datetime)}
+                self.socketio.emit('real_metrics_update', json_safe_metrics)
                 
         except Exception as e:
             logger.error(f"Error updating real metrics: {e}")
