@@ -270,7 +270,7 @@ class RealEvolutionFeed:
                     'scan_result',
                     f'✅ {file_path.name} Clean',
                     f'No security issues found in {file_path.name}',
-                    {'clean_file': True, 'lines_scanned': len(open(file_path, 'r').readlines())},
+                    {'clean_file': True, 'lines_scanned': len(open(file_path, 'r', encoding='utf-8', errors='ignore').readlines())},
                     [str(file_path)],
                     'INFO',
                     10
