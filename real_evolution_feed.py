@@ -88,7 +88,7 @@ class RealEvolutionFeed:
         security_issues = []
         
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
                 
             for line_num, line in enumerate(lines, 1):
