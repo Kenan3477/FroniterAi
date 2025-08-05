@@ -10,92 +10,6 @@ import traceback
 import subprocess
 import time
 
-def try_frontier_complete_system():
-    """Try to start the complete FrontierAI system first"""
-    try:
-        print("🌟 Attempting to start FrontierAI Complete System...")
-        
-        # Try importing dependencies
-        import flask
-        import flask_cors
-        import flask_socketio
-        import sqlite3
-        import requests
-        
-        print("✅ All dependencies available")
-        
-        # If we get here, try starting the complete system
-        print("🔄 Starting FrontierAI Complete System...")
-        from frontier_ai_complete_system import app, socketio
-        
-        port = int(os.environ.get('PORT', 5000))
-        print(f"📍 FrontierAI Complete System starting on port {port}")
-        
-        socketio.run(app, host='0.0.0.0', port=port, debug=False)
-        
-    except Exception as e:
-        print(f"❌ FrontierAI Complete System failed: {e}")
-        print("🔄 Falling back to Production Dashboard...")
-        return False
-    
-    return True
-
-def try_elite_frontier_system():
-    """Try to start the Elite FrontierAI System first (best version)"""
-    try:
-        print("🚀 Attempting to start Elite FrontierAI System...")
-        
-        # Try importing dependencies
-        import flask
-        import flask_cors
-        import flask_socketio
-        from dotenv import load_dotenv
-        
-        print("✅ All dependencies available")
-        
-        # Try importing the elite system
-        from elite_frontier_system import app, socketio
-        
-        port = int(os.environ.get('PORT', 5000))
-        print(f"📍 Elite FrontierAI System starting on port {port}")
-        
-        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
-        
-    except Exception as e:
-        print(f"❌ Elite FrontierAI System failed: {e}")
-        print("🔄 Falling back to FrontierAI Complete System...")
-        return False
-    
-    return True
-
-def try_frontier_complete_system():
-    """Try to start the FrontierAI Complete System"""
-    try:
-        print("🚀 Attempting to start FrontierAI Complete System...")
-        
-        # Try importing dependencies
-        import flask
-        import flask_cors
-        import flask_socketio
-        from dotenv import load_dotenv
-        
-        print("✅ All dependencies available")
-        
-        # Try importing the complete system
-        from frontier_ai_complete_system import app, socketio
-        
-        port = int(os.environ.get('PORT', 5000))
-        print(f"📍 FrontierAI Complete System starting on port {port}")
-        
-        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
-        
-    except Exception as e:
-        print(f"❌ FrontierAI Complete System failed: {e}")
-        print("🔄 Falling back to Production Dashboard...")
-        return False
-    
-    return True
-
 def try_production_dashboard():
     """Try to start the production dashboard first"""
     try:
@@ -116,7 +30,7 @@ def try_production_dashboard():
         port = int(os.environ.get('PORT', 5000))
         print(f"📍 Production Dashboard starting on port {port}")
         
-        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
         
     except Exception as e:
         print(f"❌ Production Dashboard failed: {e}")
@@ -152,7 +66,7 @@ def try_complete_dashboard():
         port = int(os.environ.get('PORT', 5000))
         print(f"📍 Complete Dashboard starting on port {port}")
         
-        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
         
     except Exception as e:
         print(f"❌ Complete Dashboard failed: {e}")
@@ -221,25 +135,21 @@ def start_emergency_dashboard():
         sys.exit(1)
 
 def main():
-    """Main startup function with Elite System priority"""
-    print("🎯 FrontierAI Smart Startup v4.0 ELITE")
+    """Main startup function with production-first hierarchy"""
+    print("🎯 FrontierAI Smart Startup v2.0")
     print(f"🐍 Python: {sys.version}")
     print(f"📁 Working Directory: {os.getcwd()}")
     print(f"🚪 Port: {os.environ.get('PORT', '5000')}")
-    print("=" * 70)
+    print("=" * 60)
     
-    # Try Elite FrontierAI system first (highest quality)
-    if not try_elite_frontier_system():
-        # Then try complete FrontierAI system
-        if not try_frontier_complete_system():
-            # Then try production dashboard (Railway-optimized)
-            if not try_production_dashboard():
-                # Then try complete dashboard
-                if not try_complete_dashboard():
-                    # Then try advanced dashboard
-                    if not try_advanced_dashboard():
-                        # Finally use emergency dashboard
-                        start_emergency_dashboard()
+    # Try production dashboard first (Railway-optimized)
+    if not try_production_dashboard():
+        # Then try complete dashboard
+        if not try_complete_dashboard():
+            # Then try advanced dashboard
+            if not try_advanced_dashboard():
+                # Finally use emergency dashboard
+                start_emergency_dashboard()
 
 if __name__ == '__main__':
     main()
