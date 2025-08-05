@@ -24,10 +24,12 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 
 # Import the real evolution engine
 from real_evolution_engine import RealEvolutionEngine
-# Import the ACTUALLY WORKING implementor
-from actual_implementor import ActualTaskImplementor
+# Import the INTELLIGENT IMPLEMENTOR that creates functional code
+from intelligent_implementor import ActualTaskImplementor
 # Import the AUTONOMOUS SELF-EVOLUTION SYSTEM
 from autonomous_self_evolution import AutonomousSelfEvolution
+# Import the REAL EVOLUTION FEED SYSTEM
+from real_evolution_feed import RealEvolutionFeed
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -199,6 +201,7 @@ business_manager = BusinessIntegrationManager()
 evolution_engine = None  # Will be initialized after socketio is ready
 actual_implementor = ActualTaskImplementor()  # REAL implementor that actually works
 autonomous_evolution = None  # TRUE AUTONOMOUS SELF-EVOLUTION SYSTEM
+evolution_feed = RealEvolutionFeed()  # DETAILED EVOLUTION FEED SYSTEM
 
 # Main Dashboard Template
 MAIN_DASHBOARD_TEMPLATE = '''
@@ -1192,6 +1195,15 @@ def index():
     """Main dashboard route"""
     return render_template_string(MAIN_DASHBOARD_TEMPLATE)
 
+@app.route('/evolution')
+def evolution_dashboard():
+    """Enhanced Evolution Dashboard with detailed feed"""
+    try:
+        with open('enhanced_evolution_dashboard.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Enhanced Evolution Dashboard not found", 404
+
 @app.route('/api/create_business', methods=['POST'])
 def create_business():
     """Create new business workspace"""
@@ -1313,6 +1325,75 @@ def autonomous_status():
         return jsonify({'error': 'Autonomous evolution not initialized'})
     except Exception as e:
         logger.error(f"Error getting autonomous status: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/api/detailed_evolution_feed')
+def detailed_evolution_feed():
+    """Get detailed evolution activities feed with clickable entries"""
+    try:
+        activities = evolution_feed.get_recent_activities(limit=50)
+        return jsonify(activities)
+    except Exception as e:
+        logger.error(f"Error getting evolution feed: {e}")
+        return jsonify([])
+
+@app.route('/api/security_scan_results')
+def security_scan_results():
+    """Get detailed security scan results"""
+    try:
+        file_path = request.args.get('file_path')
+        issues = evolution_feed.get_security_issues(file_path)
+        return jsonify(issues)
+    except Exception as e:
+        logger.error(f"Error getting security scan results: {e}")
+        return jsonify([])
+
+@app.route('/api/trigger_security_scan', methods=['POST'])
+def trigger_security_scan():
+    """Trigger a comprehensive security scan"""
+    try:
+        result = evolution_feed.scan_and_report_security_issues()
+        return jsonify({
+            'success': True,
+            'files_scanned': result['files_scanned'],
+            'issues_found': result['issues_found'],
+            'scan_id': result['scan_id']
+        })
+    except Exception as e:
+        logger.error(f"Error triggering security scan: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/activity_details/<int:activity_id>')
+def activity_details(activity_id):
+    """Get detailed information about a specific evolution activity"""
+    try:
+        conn = sqlite3.connect('evolution_feed.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM evolution_activities WHERE id = ?', (activity_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            activity = {
+                'id': row[0],
+                'activity_type': row[1],
+                'title': row[2],
+                'description': row[3],
+                'details': json.loads(row[4]) if row[4] else {},
+                'files_affected': json.loads(row[5]) if row[5] else [],
+                'implementation_steps': row[6],
+                'severity': row[7],
+                'impact_score': row[8],
+                'status': row[9],
+                'created_at': row[10],
+                'completed_at': row[11],
+                'clickable_data': json.loads(row[12]) if row[12] else {}
+            }
+            return jsonify(activity)
+        else:
+            return jsonify({'error': 'Activity not found'})
+    except Exception as e:
+        logger.error(f"Error getting activity details: {e}")
         return jsonify({'error': str(e)})
 
 @app.route('/api/chat_message', methods=['POST'])
