@@ -22,6 +22,9 @@ from flask import Flask, render_template_string, request, jsonify, session, redi
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
+# Import the real evolution engine
+from real_evolution_engine import RealEvolutionEngine
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -184,156 +187,12 @@ class BusinessIntegrationManager:
         conn.close()
         return businesses
 
-# Self-Evolution Engine
-class SelfEvolutionEngine:
-    """Advanced self-evolution system for continuous improvement"""
-    
-    def __init__(self):
-        self.repo_url = "https://github.com/Kenan3477/FroniterAi"
-        self.github_token = os.environ.get('GITHUB_TOKEN')
-        self.evolution_active = True
-        
-    def monitor_github_repo(self) -> Dict[str, Any]:
-        """Monitor GitHub repository for analysis"""
-        try:
-            # Get repo stats using GitHub API
-            headers = {}
-            if self.github_token:
-                headers['Authorization'] = f'token {self.github_token}'
-            
-            response = requests.get(f"https://api.github.com/repos/Kenan3477/FroniterAi", headers=headers)
-            repo_data = response.json() if response.status_code == 200 else {}
-            
-            # Update monitoring table
-            conn = sqlite3.connect('frontier_ai_system.db')
-            cursor = conn.cursor()
-            cursor.execute('''
-            INSERT OR REPLACE INTO github_monitoring 
-            (repo_url, last_check, connection_status, repo_stats, heartbeat_status)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (
-                self.repo_url,
-                datetime.now().isoformat(),
-                'connected' if response.status_code == 200 else 'error',
-                json.dumps(repo_data),
-                'active'
-            ))
-            conn.commit()
-            conn.close()
-            
-            return {
-                'status': 'connected' if response.status_code == 200 else 'error',
-                'repo_stats': repo_data,
-                'last_check': datetime.now().isoformat()
-            }
-        except Exception as e:
-            logger.error(f"GitHub monitoring error: {e}")
-            return {'status': 'error', 'error': str(e)}
-    
-    def analyze_market_upgrades(self) -> List[Dict[str, Any]]:
-        """Analyze market for potential upgrades"""
-        potential_upgrades = [
-            {
-                'upgrade_type': 'Enhanced NLP Processing',
-                'description': 'Advanced natural language understanding for better business communication',
-                'priority': 'high',
-                'estimated_benefit': 'Improved user interaction and automation accuracy',
-                'implementation_complexity': 'medium'
-            },
-            {
-                'upgrade_type': 'Real-time Analytics Engine',
-                'description': 'Live business metrics and predictive analytics',
-                'priority': 'high',
-                'estimated_benefit': 'Better decision making and trend prediction',
-                'implementation_complexity': 'high'
-            },
-            {
-                'upgrade_type': 'Advanced Integration Hub',
-                'description': 'Support for 100+ business tools and APIs',
-                'priority': 'medium',
-                'estimated_benefit': 'Broader ecosystem connectivity',
-                'implementation_complexity': 'medium'
-            },
-            {
-                'upgrade_type': 'AI-Powered Business Strategy',
-                'description': 'Automated business strategy generation and optimization',
-                'priority': 'high',
-                'estimated_benefit': 'Superior strategic insights and recommendations',
-                'implementation_complexity': 'high'
-            }
-        ]
-        return potential_upgrades
-    
-    def implement_task(self, task_description: str) -> int:
-        """Add task to evolution queue and return task ID"""
-        conn = sqlite3.connect('frontier_ai_system.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-        INSERT INTO evolution_tasks (task_description, status, progress)
-        VALUES (?, ?, ?)
-        ''', (task_description, 'processing', 0))
-        task_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        # Start background processing
-        self._process_task_background(task_id)
-        return task_id
-    
-    def _process_task_background(self, task_id: int):
-        """Process task in background (simulated)"""
-        import threading
-        
-        def process():
-            try:
-                # Simulate processing stages
-                stages = [
-                    (20, "Analyzing task requirements"),
-                    (40, "Researching implementation approaches"),
-                    (60, "Simulating changes"),
-                    (80, "Testing implementation"),
-                    (100, "Task completed successfully")
-                ]
-                
-                for progress, status in stages:
-                    time.sleep(2)  # Simulate processing time
-                    
-                    conn = sqlite3.connect('frontier_ai_system.db')
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                    UPDATE evolution_tasks 
-                    SET progress = ?, implementation_details = ?
-                    WHERE id = ?
-                    ''', (progress, status, task_id))
-                    
-                    if progress == 100:
-                        cursor.execute('''
-                        UPDATE evolution_tasks 
-                        SET status = ?, completed_at = ?, digital_record = ?
-                        WHERE id = ?
-                        ''', ('completed', datetime.now().isoformat(), 
-                              f"Task implemented successfully. Benefits: Enhanced system capabilities.", task_id))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    # Emit progress update
-                    socketio.emit('task_progress', {
-                        'task_id': task_id,
-                        'progress': progress,
-                        'status': status
-                    })
-                    
-            except Exception as e:
-                logger.error(f"Task processing error: {e}")
-        
-        thread = threading.Thread(target=process)
-        thread.daemon = True
-        thread.start()
+# Self-Evolution Engine (REMOVED - Using Real Engine Instead)
+# The fake SelfEvolutionEngine has been replaced with RealEvolutionEngine
 
 # Initialize managers
 business_manager = BusinessIntegrationManager()
-evolution_engine = SelfEvolutionEngine()
+evolution_engine = None  # Will be initialized after socketio is ready
 
 # Main Dashboard Template
 MAIN_DASHBOARD_TEMPLATE = '''
@@ -957,12 +816,48 @@ MAIN_DASHBOARD_TEMPLATE = '''
         }
         
         function showEvolutionDashboard() {
-            document.getElementById('pageTitle').textContent = 'Self-Evolution Monitoring';
+            document.getElementById('pageTitle').textContent = 'Real Self-Evolution System';
             
             document.getElementById('contentArea').innerHTML = `
                 <div class="feature-grid">
                     <div class="feature-card">
-                        <div class="feature-title">💓 GitHub Heartbeat Monitor</div>
+                        <div class="feature-title">🧬 Real Evolution Metrics</div>
+                        <div id="realMetrics" style="padding: 20px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="evolutionScore" style="font-size: 28px; font-weight: bold; color: #27ae60;">--</div>
+                                    <div style="color: #666;">Evolution Score</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="tasksCompleted" style="font-size: 28px; font-weight: bold; color: #3498db;">--</div>
+                                    <div style="color: #666;">Tasks Completed</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="commitsMade" style="font-size: 28px; font-weight: bold; color: #e67e22;">--</div>
+                                    <div style="color: #666;">Git Commits</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div id="systemUptime" style="font-size: 28px; font-weight: bold; color: #9b59b6;">--</div>
+                                    <div style="color: #666;">Uptime (hrs)</div>
+                                </div>
+                            </div>
+                            <button class="btn-secondary" onclick="loadRealMetrics()" style="width: 100%;">
+                                🔄 Refresh Real Metrics
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-title">📝 Live Evolution Activity</div>
+                        <div id="evolutionLogs" style="max-height: 300px; overflow-y: auto; padding: 20px;">
+                            <div style="color: #666; text-align: center;">
+                                Loading real evolution activity...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-title">💓 GitHub Repository Status</div>
                         <div id="githubStatus" style="padding: 20px;">
                             <div style="display: flex; align-items: center; margin-bottom: 15px;">
                                 <span class="status-indicator status-active"></span>
@@ -972,49 +867,31 @@ MAIN_DASHBOARD_TEMPLATE = '''
                                 Last Check: <span id="lastCheck">Loading...</span>
                             </div>
                             <button class="btn-secondary" onclick="checkGitHubStatus()" style="margin-top: 15px;">
-                                🔄 Refresh Status
+                                🔄 Check Repository
                             </button>
                         </div>
                     </div>
                     
                     <div class="feature-card">
-                        <div class="feature-title">🧬 Evolution Footprint</div>
-                        <div id="evolutionFeed" style="max-height: 300px; overflow-y: auto; padding: 20px;">
-                            <div style="color: #666; text-align: center;">
-                                Evolution feed will appear here...
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-title">🎯 Task Implementer</div>
+                        <div class="feature-title">🎯 Give AI a Real Task</div>
                         <div style="padding: 20px;">
                             <div class="form-group">
-                                <label for="evolutionTask">Give the AI a task to implement:</label>
-                                <input type="text" id="evolutionTask" placeholder="e.g., Improve dashboard performance">
+                                <label for="evolutionTask">Task for AI to implement and commit:</label>
+                                <input type="text" id="evolutionTask" placeholder="e.g., Add new feature to dashboard, Optimize performance, Fix security issue">
                             </div>
                             <button class="btn-primary" onclick="submitEvolutionTask()">
-                                🚀 Submit Task
+                                🚀 Submit Real Task
                             </button>
                             <div id="taskProgress" style="margin-top: 20px;"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-title">📊 Market Analysis</div>
-                        <div id="marketAnalysis" style="padding: 20px;">
-                            <p style="color: #666; margin-bottom: 15px;">
-                                Analyzing market for potential upgrades...
-                            </p>
-                            <button class="btn-secondary" onclick="loadMarketAnalysis()">
-                                📈 Load Analysis
-                            </button>
+                            <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 8px; font-size: 14px;">
+                                <strong>Real Evolution:</strong> Tasks will actually modify code and commit changes to GitHub!
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
             
-            loadEvolutionData();
+            loadRealEvolutionData();
         }
         
         async function checkGitHubStatus() {
@@ -1103,6 +980,67 @@ MAIN_DASHBOARD_TEMPLATE = '''
             } catch (error) {
                 console.error('Error loading market analysis:', error);
             }
+        }
+        
+        async function loadRealMetrics() {
+            try {
+                const response = await fetch('/api/real_metrics');
+                const metrics = await response.json();
+                
+                if (metrics.error) {
+                    console.error('Metrics error:', metrics.error);
+                    return;
+                }
+                
+                document.getElementById('evolutionScore').textContent = metrics.evolution_score || '--';
+                document.getElementById('tasksCompleted').textContent = metrics.tasks_completed || '--';
+                document.getElementById('commitsMade').textContent = metrics.commits_made || '--';
+                document.getElementById('systemUptime').textContent = metrics.system_uptime || '--';
+                
+            } catch (error) {
+                console.error('Error loading real metrics:', error);
+            }
+        }
+        
+        async function loadEvolutionLogs() {
+            try {
+                const response = await fetch('/api/evolution_logs');
+                const logs = await response.json();
+                
+                const container = document.getElementById('evolutionLogs');
+                if (logs.length === 0) {
+                    container.innerHTML = `
+                        <div style="color: #666; text-align: center; padding: 20px;">
+                            No evolution activity yet. Submit a task to see real evolution in action!
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = logs.map(log => `
+                        <div style="background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 10px; border-left: 4px solid #27ae60;">
+                            <div style="font-weight: 600; color: #333;">${log.action_type}</div>
+                            <div style="color: #666; font-size: 14px; margin: 5px 0;">${log.description}</div>
+                            <div style="font-size: 12px; color: #999;">
+                                ${new Date(log.timestamp).toLocaleString()}
+                                ${log.commit_hash ? ` • Commit: ${log.commit_hash.substring(0, 7)}` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading evolution logs:', error);
+            }
+        }
+        
+        function loadRealEvolutionData() {
+            loadRealMetrics();
+            loadEvolutionLogs();
+            checkGitHubStatus();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadRealMetrics();
+                loadEvolutionLogs();
+            }, 30000);
         }
         
         function loadEvolutionData() {
@@ -1195,8 +1133,10 @@ def get_businesses():
 def github_status():
     """Get GitHub repository status"""
     try:
-        status = evolution_engine.monitor_github_repo()
-        return jsonify(status)
+        if evolution_engine:
+            status = evolution_engine.monitor_github_repo()
+            return jsonify(status)
+        return jsonify({'status': 'error', 'error': 'Evolution engine not initialized'})
     except Exception as e:
         logger.error(f"Error getting GitHub status: {e}")
         return jsonify({'status': 'error', 'error': str(e)})
@@ -1211,8 +1151,11 @@ def submit_task():
         if not task:
             return jsonify({'success': False, 'error': 'Task description is required'})
         
-        task_id = evolution_engine.implement_task(task)
-        return jsonify({'success': True, 'task_id': task_id})
+        if evolution_engine:
+            task_id = evolution_engine.implement_user_task(task)
+            return jsonify({'success': True, 'task_id': task_id})
+        
+        return jsonify({'success': False, 'error': 'Evolution engine not initialized'})
     except Exception as e:
         logger.error(f"Error submitting task: {e}")
         return jsonify({'success': False, 'error': str(e)})
@@ -1221,10 +1164,36 @@ def submit_task():
 def market_analysis():
     """Get market analysis for potential upgrades"""
     try:
-        analysis = evolution_engine.analyze_market_upgrades()
-        return jsonify(analysis)
+        if evolution_engine:
+            analysis = evolution_engine.analyze_market_upgrades()
+            return jsonify(analysis)
+        return jsonify([])
     except Exception as e:
         logger.error(f"Error getting market analysis: {e}")
+        return jsonify([])
+
+@app.route('/api/real_metrics')
+def real_metrics():
+    """Get real evolution metrics"""
+    try:
+        if evolution_engine:
+            metrics = evolution_engine.get_real_metrics()
+            return jsonify(metrics)
+        return jsonify({'error': 'Evolution engine not initialized'})
+    except Exception as e:
+        logger.error(f"Error getting real metrics: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/api/evolution_logs')
+def evolution_logs():
+    """Get recent evolution activity logs"""
+    try:
+        if evolution_engine:
+            logs = evolution_engine.get_real_evolution_logs(limit=10)
+            return jsonify(logs)
+        return jsonify([])
+    except Exception as e:
+        logger.error(f"Error getting evolution logs: {e}")
         return jsonify([])
 
 @app.route('/health')
@@ -1286,6 +1255,10 @@ if __name__ == '__main__':
     try:
         port = int(os.environ.get('PORT', 5000))
         logger.info(f"📍 FrontierAI Complete System starting on port {port}")
+        
+        # Initialize the real evolution engine after socketio is ready
+        evolution_engine = RealEvolutionEngine(socketio=socketio)
+        logger.info("🧬 Real Evolution Engine initialized - actual code evolution active")
         
         socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
         
