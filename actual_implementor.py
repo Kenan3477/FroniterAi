@@ -96,6 +96,18 @@ if __name__ == "__main__":
             subprocess.run(['git', 'commit', '-m', commit_msg], cwd=self.workspace_path, check=True)
             print("Git commit successful")
             
+            # PUSH TO GITHUB - This was missing!
+            try:
+                # Try to push to remote repository
+                subprocess.run(['git', 'push', 'origin', 'main'], cwd=self.workspace_path, check=True, 
+                             capture_output=True, text=True)
+                print("Git push to GitHub successful")
+                git_pushed = True
+            except subprocess.CalledProcessError as push_error:
+                print(f"Git push failed: {push_error}")
+                print("Note: Commit was made locally but couldn't push to GitHub (likely authentication issue in deployment)")
+                git_pushed = False
+            
             # Get commit hash
             result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
                                   capture_output=True, text=True, check=True, cwd=self.workspace_path)
@@ -106,8 +118,10 @@ if __name__ == "__main__":
                 'success': True,
                 'file_created': filename,
                 'commit_hash': commit_hash,
+                'git_pushed': git_pushed,
                 'task': task_description,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
+                'message': f'File created and committed' + (f' and pushed to GitHub' if git_pushed else ' (local only - push failed)')
             }
             
         except subprocess.CalledProcessError as e:
