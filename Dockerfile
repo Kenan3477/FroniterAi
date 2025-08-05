@@ -35,14 +35,14 @@ RUN mkdir -p /app/frontend \
     /app/.comprehensive_backups
 
 # Set permissions
-RUN chmod +x main.py
+RUN chmod +x emergency_main.py
 
 # Expose port
 EXPOSE $PORT
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:$PORT/ || exit 1
+    CMD curl -f http://localhost:$PORT/health || exit 1
 
 # Run the application
-CMD ["python", "main.py"]
+CMD ["python", "emergency_main.py"]
