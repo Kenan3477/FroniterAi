@@ -39,10 +39,41 @@ class FrontierAIComplete:
         self.competitive_data = {}
         self.system_start_time = time.time()
         
+        # Railway GitHub configuration for autonomous commits
+        self.github_token = os.getenv('GITHUB_TOKEN')
+        self.github_repo = os.getenv('GITHUB_REPO', 'Kenan3477/FroniterAi')
+        self.github_user = os.getenv('GITHUB_USER', 'Kenan3477')
+        self.repo_url_with_auth = None
+        
+        if self.github_token:
+            self.repo_url_with_auth = f"https://{self.github_token}@github.com/{self.github_repo}.git"
+            logger.info("🔑 GitHub authentication configured for Railway autonomous commits")
+            self.setup_git_config()
+        else:
+            logger.warning("⚠️ No GitHub token found - set GITHUB_TOKEN environment variable for autonomous commits")
+        
         self.init_databases()
         self.start_autonomous_processes()
         
         logger.info("🔥 FRONTIER AI COMPLETE SYSTEM INITIALIZED")
+    
+    def setup_git_config(self):
+        """Configure Git for Railway autonomous commits"""
+        try:
+            # Configure Git user
+            subprocess.run(['git', 'config', 'user.email', f"{self.github_user}@users.noreply.github.com"], 
+                         check=True, capture_output=True)
+            subprocess.run(['git', 'config', 'user.name', f"{self.github_user}"], 
+                         check=True, capture_output=True)
+            
+            # Set remote URL with authentication
+            subprocess.run(['git', 'remote', 'set-url', 'origin', self.repo_url_with_auth], 
+                         check=True, capture_output=True)
+            
+            logger.info("✅ Git configured for Railway autonomous commits")
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"❌ Git configuration failed: {e}")
     
     def init_databases(self):
         """Initialize all system databases"""
@@ -1164,6 +1195,45 @@ def railway_autonomous_evolution_api():
                 "railway_autonomous_enhancement_*.py",
                 "railway_autonomous_security_*.py", 
                 "railway_autonomous_intelligence_*.py"
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat(),
+            "status": "RAILWAY_EVOLUTION_FAILED"
+        })
+
+@app.route('/api/railway-autonomous-evolution', methods=['POST'])
+def railway_autonomous_evolution_api():
+    """Trigger Railway autonomous evolution with GitHub commits"""
+    try:
+        if not frontier_complete.github_token:
+            return jsonify({
+                "status": "ERROR",
+                "message": "GitHub token not configured. Set GITHUB_TOKEN environment variable.",
+                "setup_required": True,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        
+        logger.info("🚀 RAILWAY AUTONOMOUS EVOLUTION TRIGGERED BY API")
+        
+        # Run evolution in background thread
+        def run_railway_evolution():
+            frontier_complete.autonomous_code_evolution()
+        
+        threading.Thread(target=run_railway_evolution, daemon=True).start()
+        
+        return jsonify({
+            "status": "RAILWAY_EVOLUTION_TRIGGERED",
+            "message": "Railway autonomous code generation and GitHub commits initiated",
+            "github_repo": frontier_complete.github_repo,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "expected_outputs": [
+                "railway_autonomous_enhancement_*.py",
+                "railway_autonomous_security_*.py", 
+                "railway_autonomous_optimizer_*.py"
             ]
         })
         
