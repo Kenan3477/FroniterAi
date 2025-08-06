@@ -16,7 +16,23 @@ from flask import Flask, render_template_string, jsonify, request, Response
 from typing import Dict, List, Any
 import logging
 
-# Import Railway autonomous evolution
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+print("🔥 STARTING REAL EVOLUTION SYSTEM WITH LIVE DATA FEEDS")
+
+# Import GitHub API autonomous evolution (no cloning, stable)
+try:
+    from github_api_autonomous_evolution import github_api_evolution
+    GITHUB_API_EVOLUTION_AVAILABLE = True
+    logger.info("✅ GitHub API autonomous evolution loaded")
+except ImportError as e:
+    GITHUB_API_EVOLUTION_AVAILABLE = False
+    github_api_evolution = None
+    logger.error(f"❌ GitHub API evolution import failed: {e}")
+
+# Import Railway autonomous evolution (legacy, may cause crashes)
 try:
     from railway_autonomous_evolution import railway_evolution
     RAILWAY_EVOLUTION_AVAILABLE = True
@@ -27,8 +43,6 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-print("🔥 STARTING REAL EVOLUTION SYSTEM WITH LIVE DATA FEEDS")
 
 class FrontierAIComplete:
     def __init__(self):
@@ -383,36 +397,61 @@ class FrontierAIComplete:
         conn.close()
     
     def autonomous_code_evolution(self):
-        """Railway-compatible autonomous code evolution with GitHub integration"""
-        logger.info("� RAILWAY AUTONOMOUS CODE EVOLUTION STARTING...")
+        """GitHub API autonomous evolution - stable, no cloning"""
+        logger.info("🚀 AUTONOMOUS CODE EVOLUTION STARTING...")
         
-        if not RAILWAY_EVOLUTION_AVAILABLE or not railway_evolution:
-            logger.error("❌ Railway autonomous evolution not available")
-            return
+        # Prefer GitHub API approach (stable, no crashes)
+        if GITHUB_API_EVOLUTION_AVAILABLE and github_api_evolution:
+            try:
+                logger.info("✅ Using GitHub API approach (no repository cloning)")
+                result = github_api_evolution.run_github_api_autonomous_evolution()
+                
+                if result["success"]:
+                    logger.info(f"✅ GITHUB API AUTONOMOUS EVOLUTION SUCCESS!")
+                    logger.info(f"📁 Files generated: {result['files_generated']}")
+                    logger.info(f"📝 Commits made: {result['commits_made']}")
+                    logger.info(f"🔗 GitHub repo: {result['github_repo']}")
+                    
+                    # Log to database with real numbers
+                    self.log_real_autonomous_evolution(
+                        result["files_generated"], 
+                        result["commits_made"]
+                    )
+                    return
+                    
+                else:
+                    logger.error(f"❌ GITHUB API AUTONOMOUS EVOLUTION FAILED: {result['error']}")
+                    
+            except Exception as e:
+                logger.error(f"❌ GITHUB API AUTONOMOUS EVOLUTION EXCEPTION: {e}")
         
-        try:
-            # Run Railway autonomous evolution
-            result = railway_evolution.run_railway_autonomous_evolution()
-            
-            if result["success"]:
-                logger.info(f"✅ RAILWAY AUTONOMOUS EVOLUTION SUCCESS!")
-                logger.info(f"📁 Files generated: {result['files_generated']}")
-                logger.info(f"📝 Commits made: {result['commits_made']}")
-                logger.info(f"� GitHub repo: {result['github_repo']}")
+        # Fallback to Railway evolution (may cause crashes)
+        elif RAILWAY_EVOLUTION_AVAILABLE and railway_evolution:
+            logger.warning("⚠️ Falling back to Railway evolution (may cause instability)")
+            try:
+                result = railway_evolution.run_railway_autonomous_evolution()
                 
-                # Log to database with real numbers
-                self.log_real_autonomous_evolution(
-                    result["files_generated"], 
-                    result["commits_made"]
-                )
-                
-            else:
-                logger.error(f"❌ RAILWAY AUTONOMOUS EVOLUTION FAILED: {result['error']}")
-                
-        except Exception as e:
-            logger.error(f"❌ RAILWAY AUTONOMOUS EVOLUTION EXCEPTION: {e}")
-            import traceback
-            traceback.print_exc()
+                if result["success"]:
+                    logger.info(f"✅ RAILWAY AUTONOMOUS EVOLUTION SUCCESS!")
+                    logger.info(f"📁 Files generated: {result['files_generated']}")
+                    logger.info(f"📝 Commits made: {result['commits_made']}")
+                    logger.info(f"🔗 GitHub repo: {result['github_repo']}")
+                    
+                    # Log to database with real numbers
+                    self.log_real_autonomous_evolution(
+                        result["files_generated"], 
+                        result["commits_made"]
+                    )
+                    
+                else:
+                    logger.error(f"❌ RAILWAY AUTONOMOUS EVOLUTION FAILED: {result['error']}")
+                    
+            except Exception as e:
+                logger.error(f"❌ RAILWAY AUTONOMOUS EVOLUTION EXCEPTION: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            logger.error("❌ No autonomous evolution modules available")
     
     def log_real_autonomous_evolution(self, files_generated, commits_made):
         """Log REAL autonomous evolution activities with actual numbers"""
@@ -1210,6 +1249,55 @@ def railway_autonomous_evolution_api():
             "error": str(e),
             "timestamp": datetime.datetime.now().isoformat(),
             "status": "RAILWAY_EVOLUTION_FAILED"
+        })
+
+@app.route('/api/github-api-evolution', methods=['POST'])
+def github_api_autonomous_evolution():
+    """Trigger GitHub API autonomous evolution (no cloning, stable)"""
+    try:
+        logger.info("🚀 GITHUB API AUTONOMOUS EVOLUTION TRIGGERED")
+        
+        if not GITHUB_API_EVOLUTION_AVAILABLE:
+            return jsonify({
+                "error": "GitHub API autonomous evolution not available",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "status": "GITHUB_API_EVOLUTION_UNAVAILABLE"
+            })
+        
+        # Check environment variables
+        github_token = os.getenv('GITHUB_TOKEN')
+        if not github_token:
+            return jsonify({
+                "error": "GITHUB_TOKEN not configured",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "status": "GITHUB_TOKEN_MISSING",
+                "instructions": "Add GITHUB_TOKEN to environment variables"
+            })
+        
+        # Run GitHub API evolution in background thread
+        def run_github_api_evolution():
+            result = github_api_evolution.run_github_api_autonomous_evolution()
+            logger.info(f"🚀 GitHub API evolution result: {result}")
+        
+        threading.Thread(target=run_github_api_evolution, daemon=True).start()
+        
+        return jsonify({
+            "status": "GITHUB_API_EVOLUTION_TRIGGERED",
+            "message": "GitHub API autonomous evolution initiated (stable, no cloning)",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "github_repo": f"{os.getenv('GITHUB_USER', 'Kenan3477')}/{os.getenv('GITHUB_REPO', 'FroniterAi')}",
+            "platform": "GITHUB_API_DIRECT",
+            "method": "NO_CLONING_STABLE",
+            "expected_outputs": [
+                "github_api_autonomous_enhancement_*.py"
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat(),
+            "status": "GITHUB_API_EVOLUTION_FAILED"
         })
 
 @app.route('/api/git-status')
