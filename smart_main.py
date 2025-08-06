@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 
 print("🔥 STARTING REAL EVOLUTION SYSTEM WITH LIVE DATA FEEDS")
 
+# Import REAL autonomous evolution (analyzes and improves code)
+try:
+    from real_autonomous_evolution import real_autonomous_evolution
+    REAL_EVOLUTION_AVAILABLE = True
+    logger.info("✅ REAL autonomous evolution engine loaded")
+except ImportError as e:
+    REAL_EVOLUTION_AVAILABLE = False
+    real_autonomous_evolution = None
+    logger.error(f"❌ REAL evolution engine import failed: {e}")
+
 # Import GitHub API autonomous evolution (no cloning, stable)
 try:
     from github_api_autonomous_evolution import github_api_evolution
@@ -397,25 +407,56 @@ class FrontierAIComplete:
         conn.close()
     
     def autonomous_code_evolution(self):
-        """GitHub API autonomous evolution - stable, no cloning"""
-        logger.info("🚀 AUTONOMOUS CODE EVOLUTION STARTING...")
+        """REAL autonomous evolution - actual code improvements, not spam"""
+        logger.info("� REAL AUTONOMOUS CODE EVOLUTION STARTING...")
         
-        # Prefer GitHub API approach (stable, no crashes)
-        if GITHUB_API_EVOLUTION_AVAILABLE and github_api_evolution:
+        # PRIORITIZE REAL EVOLUTION - analyzes and improves actual code
+        if REAL_EVOLUTION_AVAILABLE and real_autonomous_evolution:
             try:
-                logger.info("✅ Using GitHub API approach (no repository cloning)")
+                logger.info("⭐ Using REAL autonomous evolution (actual code analysis & improvement)")
+                result = real_autonomous_evolution.run_real_autonomous_evolution()
+                
+                if result["success"]:
+                    logger.info(f"✅ REAL AUTONOMOUS EVOLUTION SUCCESS!")
+                    logger.info(f"🔧 Files improved: {result['files_improved']}")
+                    logger.info(f"📝 Commits made: {result['commits_made']}")
+                    logger.info(f"🎯 Evolution target: {result['evolution_target']}")
+                    logger.info(f"📊 Improvements: {result['improvements']}")
+                    
+                    # Log to database with REAL improvements
+                    self.log_real_autonomous_evolution(
+                        result["files_improved"], 
+                        result["commits_made"],
+                        evolution_type="REAL_CODE_IMPROVEMENT",
+                        validation_status="VALIDATED"
+                    )
+                    return
+                    
+                else:
+                    logger.error(f"❌ REAL AUTONOMOUS EVOLUTION FAILED: {result.get('error', 'Unknown error')}")
+                    
+            except Exception as e:
+                logger.error(f"❌ REAL AUTONOMOUS EVOLUTION EXCEPTION: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # FALLBACK: GitHub API approach (stable, but generates duplicates)
+        elif GITHUB_API_EVOLUTION_AVAILABLE and github_api_evolution:
+            logger.warning("⚠️ REAL evolution unavailable, falling back to GitHub API (may generate duplicates)")
+            try:
                 result = github_api_evolution.run_github_api_autonomous_evolution()
                 
                 if result["success"]:
                     logger.info(f"✅ GITHUB API AUTONOMOUS EVOLUTION SUCCESS!")
                     logger.info(f"📁 Files generated: {result['files_generated']}")
                     logger.info(f"📝 Commits made: {result['commits_made']}")
-                    logger.info(f"🔗 GitHub repo: {result['github_repo']}")
                     
-                    # Log to database with real numbers
+                    # Log to database with warning about duplicates
                     self.log_real_autonomous_evolution(
                         result["files_generated"], 
-                        result["commits_made"]
+                        result["commits_made"],
+                        evolution_type="GITHUB_API_FALLBACK",
+                        validation_status="DUPLICATE_RISK"
                     )
                     return
                     
@@ -425,9 +466,9 @@ class FrontierAIComplete:
             except Exception as e:
                 logger.error(f"❌ GITHUB API AUTONOMOUS EVOLUTION EXCEPTION: {e}")
         
-        # Fallback to Railway evolution (may cause crashes)
+        # LAST RESORT: Railway evolution (may cause crashes)
         elif RAILWAY_EVOLUTION_AVAILABLE and railway_evolution:
-            logger.warning("⚠️ Falling back to Railway evolution (may cause instability)")
+            logger.warning("⚠️ Falling back to Railway evolution (CRASH RISK)")
             try:
                 result = railway_evolution.run_railway_autonomous_evolution()
                 
@@ -435,12 +476,13 @@ class FrontierAIComplete:
                     logger.info(f"✅ RAILWAY AUTONOMOUS EVOLUTION SUCCESS!")
                     logger.info(f"📁 Files generated: {result['files_generated']}")
                     logger.info(f"📝 Commits made: {result['commits_made']}")
-                    logger.info(f"🔗 GitHub repo: {result['github_repo']}")
                     
-                    # Log to database with real numbers
+                    # Log to database with crash risk warning
                     self.log_real_autonomous_evolution(
                         result["files_generated"], 
-                        result["commits_made"]
+                        result["commits_made"],
+                        evolution_type="RAILWAY_FALLBACK",
+                        validation_status="CRASH_RISK"
                     )
                     
                 else:
@@ -453,8 +495,8 @@ class FrontierAIComplete:
         else:
             logger.error("❌ No autonomous evolution modules available")
     
-    def log_real_autonomous_evolution(self, files_generated, commits_made):
-        """Log REAL autonomous evolution activities with actual numbers"""
+    def log_real_autonomous_evolution(self, files_count, commits_made, evolution_type="UNKNOWN", validation_status="PENDING"):
+        """Log REAL autonomous evolution activities with actual numbers and validation"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -462,7 +504,7 @@ class FrontierAIComplete:
             CREATE TABLE IF NOT EXISTS real_autonomous_evolution (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                files_generated INTEGER,
+                files_count INTEGER,
                 commits_made INTEGER,
                 evolution_type TEXT,
                 validation_status TEXT
@@ -471,17 +513,14 @@ class FrontierAIComplete:
         
         cursor.execute('''
             INSERT INTO real_autonomous_evolution 
-            (files_generated, commits_made, evolution_type, validation_status)
+            (files_count, commits_made, evolution_type, validation_status)
             VALUES (?, ?, ?, ?)
-        ''', (
-            files_generated,
-            commits_made,
-            "REAL_CODE_GENERATION_AND_COMMITS",
-            "VERIFIED_AUTONOMOUS_EVOLUTION"
-        ))
+        ''', (files_count, commits_made, evolution_type, validation_status))
         
         conn.commit()
         conn.close()
+        
+        logger.info(f"📊 Logged evolution: {files_count} files, {commits_made} commits, type: {evolution_type}, status: {validation_status}")
 
     def generate_competitive_analysis_improvement(self):
         """Generate improved competitive analysis code"""
@@ -1298,6 +1337,42 @@ def github_api_autonomous_evolution():
             "error": str(e),
             "timestamp": datetime.datetime.now().isoformat(),
             "status": "GITHUB_API_EVOLUTION_FAILED"
+        })
+
+@app.route('/api/real-autonomous-evolution', methods=['POST'])
+def real_autonomous_evolution_endpoint():
+    """Trigger REAL autonomous evolution (actual code improvements)"""
+    try:
+        logger.info("🔥 API REQUEST: Real Autonomous Evolution")
+        
+        if not REAL_EVOLUTION_AVAILABLE:
+            return jsonify({
+                "success": False,
+                "error": "Real autonomous evolution module not available",
+                "fallback": "Using GitHub API evolution instead"
+            })
+        
+        # Run the REAL evolution
+        result = real_autonomous_evolution.run_real_autonomous_evolution()
+        
+        return jsonify({
+            "success": result["success"],
+            "files_improved": result.get("files_improved", 0),
+            "commits_made": result.get("commits_made", 0),
+            "evolution_target": result.get("evolution_target", "Unknown"),
+            "improvements": result.get("improvements", []),
+            "timestamp": datetime.datetime.now().isoformat(),
+            "evolution_type": "REAL_CODE_IMPROVEMENT"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Real autonomous evolution API error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
         })
 
 @app.route('/api/git-status')
