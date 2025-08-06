@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """
 🔥 FRONTIER AI COMPLETE AUTONOMOUS SYSTEM 🔥
-LIVE DASHBOARD WITH REAL-TIME DATA FEEDS
+Railway Deployment Version
+
+Features:
+- Hourly competitive analysis against market leaders
+- Autonomous feature development and implementation
+- Self-validation and quality assurance
+- Real-time security monitoring
+- Performance optimization
+- Comprehensive dashboard
 """
 
 import os
@@ -12,7 +20,7 @@ import threading
 import time
 import subprocess
 import random
-from flask import Flask, render_template_string, jsonify, request, Response
+from flask import Flask, render_template_string, jsonify, request
 from typing import Dict, List, Any
 import logging
 
@@ -20,7 +28,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-print("🔥 STARTING REAL EVOLUTION SYSTEM WITH LIVE DATA FEEDS")
+print("🔥 STARTING REAL EVOLUTION SYSTEM - NO MORE BULLSHIT")
 
 class FrontierAIComplete:
     def __init__(self):
@@ -29,7 +37,6 @@ class FrontierAIComplete:
         self.evolution_active = True
         self.last_evolution = None
         self.competitive_data = {}
-        self.system_start_time = time.time()
         
         self.init_databases()
         self.start_autonomous_processes()
@@ -417,7 +424,7 @@ class FrontierAIComplete:
             
             while self.evolution_active:
                 try:
-                    time.sleep(1800)  # 30 minutes between cycles for more frequent updates
+                    time.sleep(3600)  # 1 hour between cycles
                     self.complete_evolution_cycle()
                 except Exception as e:
                     logger.error(f"❌ EVOLUTION LOOP ERROR: {e}")
@@ -427,10 +434,10 @@ class FrontierAIComplete:
             while self.evolution_active:
                 try:
                     self.monitor_system_health()
-                    time.sleep(60)  # 1 minute for more frequent health checks
+                    time.sleep(300)  # 5 minutes
                 except Exception as e:
                     logger.error(f"❌ HEALTH MONITORING ERROR: {e}")
-                    time.sleep(30)
+                    time.sleep(60)
         
         # Start background threads
         threading.Thread(target=evolution_loop, daemon=True).start()
@@ -461,7 +468,7 @@ class FrontierAIComplete:
         cursor.execute('''
             SELECT component, status, response_time, error_rate, uptime_percentage, resource_usage
             FROM system_health 
-            WHERE timestamp > datetime('now', '-1 hour')
+            WHERE timestamp > datetime('now', '-2 hours')
             ORDER BY timestamp DESC
         ''')
         system_health = cursor.fetchall()
@@ -530,7 +537,6 @@ class FrontierAIComplete:
             "competitive_data": self.competitive_data,
             "last_evolution": self.last_evolution.isoformat() if self.last_evolution else None,
             "system_status": "autonomous_evolution_active",
-            "uptime_seconds": int(time.time() - self.system_start_time),
             "timestamp": datetime.datetime.now().isoformat()
         }
 
@@ -540,8 +546,8 @@ frontier_complete = FrontierAIComplete()
 
 @app.route('/')
 def main_dashboard():
-    """Main comprehensive dashboard with live data"""
-    return render_template_string(LIVE_DASHBOARD_TEMPLATE)
+    """Main comprehensive dashboard"""
+    return render_template_string(COMPLETE_DASHBOARD_TEMPLATE)
 
 @app.route('/api/dashboard-data')
 def get_dashboard_data():
@@ -575,46 +581,14 @@ def security_scan_api():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-@app.route('/api/system-pulse')
-def system_pulse():
-    """Real-time system pulse data"""
-    pulse_data = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "cpu_usage": random.uniform(15, 85),
-        "memory_usage": random.uniform(40, 90),
-        "network_io": random.uniform(1, 100),
-        "evolution_progress": random.uniform(0, 100),
-        "threats_detected": random.randint(0, 15),
-        "features_deployed": random.randint(0, 8),
-        "uptime_seconds": int(time.time() - frontier_complete.system_start_time)
-    }
-    return jsonify(pulse_data)
-
-@app.route('/api/evolution-status')
-def evolution_status():
-    """Get current evolution cycle status"""
-    return jsonify({
-        "status": "ACTIVELY_EVOLVING",
-        "current_phase": random.choice([
-            "COMPETITIVE_ANALYSIS",
-            "FEATURE_DEVELOPMENT", 
-            "SECURITY_SCANNING",
-            "PERFORMANCE_OPTIMIZATION",
-            "THREAT_ASSESSMENT"
-        ]),
-        "progress": random.uniform(0, 100),
-        "next_evolution": (datetime.datetime.now() + datetime.timedelta(minutes=random.randint(5, 30))).isoformat(),
-        "improvements_this_cycle": random.randint(3, 12)
-    })
-
-# Live Dashboard Template with Real-Time Data Feeds
-LIVE_DASHBOARD_TEMPLATE = '''
+# Complete Dashboard Template
+COMPLETE_DASHBOARD_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔥 FRONTIER AI - LIVE AUTONOMOUS SYSTEM</title>
+    <title>🔥 FRONTIER AI - COMPLETE AUTONOMOUS SYSTEM</title>
     <style>
         * {
             margin: 0;
@@ -623,365 +597,463 @@ LIVE_DASHBOARD_TEMPLATE = '''
         }
         
         body {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            background: #000011;
-            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0000 25%, #000033 50%, #1a0000 75%, #000000 100%);
+            color: #ff0000;
             min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
+            animation: backgroundShift 10s ease-in-out infinite;
         }
         
-        /* Matrix-style background animation */
-        .matrix-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-            opacity: 0.1;
-        }
-        
-        .matrix-bg::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                #00ff41 2px,
-                #00ff41 4px
-            );
-            animation: matrixScroll 20s linear infinite;
-        }
-        
-        @keyframes matrixScroll {
-            0% { transform: translateY(-100px); }
-            100% { transform: translateY(100vh); }
+        @keyframes backgroundShift {
+            0%, 100% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(30deg); }
         }
         
         .header {
-            background: linear-gradient(135deg, #001100, #003300);
-            border-bottom: 3px solid #00ff41;
-            padding: 20px;
+            background: rgba(255, 0, 0, 0.15);
+            border-bottom: 3px solid #ff0000;
+            padding: 25px;
             text-align: center;
             position: relative;
-            box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 0, 0.3), transparent);
+            animation: scan 4s infinite;
+        }
+        
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
         }
         
         .header h1 {
-            font-size: 4em;
-            text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #00ff41;
-            margin-bottom: 10px;
-            animation: pulse 2s ease-in-out infinite alternate;
+            font-size: 3.5em;
+            text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
+            margin-bottom: 15px;
+            animation: glow 3s ease-in-out infinite alternate;
         }
         
-        @keyframes pulse {
+        @keyframes glow {
             from { 
-                text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #00ff41;
+                text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000; 
                 transform: scale(1);
             }
             to { 
-                text-shadow: 0 0 15px #00ff41, 0 0 30px #00ff41, 0 0 45px #00ff41;
+                text-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000, 0 0 90px #ff0000; 
                 transform: scale(1.02);
             }
         }
         
-        .live-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff0000;
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            box-shadow: 0 0 20px #ff0000;
-            animation: blink 1s infinite;
-            z-index: 1000;
+        .subtitle {
+            font-size: 1.3em;
+            color: #ff6666;
+            margin-bottom: 10px;
         }
+        
+        .status-banner {
+            background: linear-gradient(45deg, #ff0000, #cc0000, #ff3333, #cc0000, #ff0000);
+            background-size: 400% 400%;
+            color: #fff;
+            padding: 18px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.3em;
+            animation: gradientShift 3s ease infinite, textPulse 2s infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes textPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .main-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+        }
+        
+        .card {
+            background: rgba(255, 0, 0, 0.08);
+            border: 2px solid #ff0000;
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(15px);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 0, 0, 0.3);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #ff0000, transparent);
+            animation: borderScan 3s infinite;
+        }
+        
+        @keyframes borderScan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .card h2 {
+            color: #ff4444;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-size: 1.5em;
+            border-bottom: 2px solid #ff0000;
+            padding-bottom: 10px;
+            position: relative;
+        }
+        
+        .evolution-status {
+            font-size: 2.2em;
+            text-align: center;
+            padding: 35px;
+            background: rgba(255, 0, 0, 0.12);
+            border-radius: 20px;
+            margin-bottom: 25px;
+            position: relative;
+            border: 1px solid #ff0000;
+        }
+        
+        .system-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .metric-card {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #ff0000;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .metric-card:hover {
+            background: rgba(255, 0, 0, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            color: #00ff00;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .metric-label {
+            color: #ff0000;
+            font-size: 1em;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+        
+        .health-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 5px currentColor;
+        }
+        
+        .healthy { background: #00ff00; color: #00ff00; }
+        .warning { background: #ffaa00; color: #ffaa00; animation: blink 1s infinite; }
+        .error { background: #ff0000; color: #ff0000; animation: blink 0.5s infinite; }
         
         @keyframes blink {
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0.3; }
         }
         
-        .status-banner {
-            background: linear-gradient(45deg, #ff0000, #00ff41, #0099ff, #ff0000);
-            background-size: 400% 400%;
-            color: #000;
-            padding: 15px;
-            font-weight: bold;
-            text-align: center;
-            font-size: 1.2em;
-            animation: rainbowShift 3s ease infinite;
-        }
-        
-        @keyframes rainbowShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        .main-container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-        }
-        
-        .card {
-            background: rgba(0, 17, 17, 0.9);
-            border: 2px solid #00ff41;
-            border-radius: 15px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 5px 15px rgba(0, 255, 65, 0.2);
+        .feature-item {
+            padding: 18px;
+            margin: 12px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            border-left: 5px solid #ff0000;
             transition: all 0.3s;
         }
         
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 255, 65, 0.4);
-            border-color: #ff0000;
+        .feature-item:hover {
+            background: rgba(255, 0, 0, 0.1);
+            transform: translateX(5px);
         }
         
-        .card h2 {
-            color: #00ff41;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            font-size: 1.3em;
-            border-bottom: 2px solid #00ff41;
-            padding-bottom: 10px;
+        .feature-completed {
+            border-left-color: #00ff00;
+            background: rgba(0, 255, 0, 0.05);
         }
         
-        .live-metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+        .feature-in-progress {
+            border-left-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.05);
         }
         
-        .metric-card {
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #00ff41;
-            border-radius: 10px;
+        .vulnerability-item {
             padding: 15px;
-            text-align: center;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            border-left: 4px solid #ff0000;
             transition: all 0.3s;
         }
         
-        .metric-card:hover {
-            background: rgba(0, 255, 65, 0.1);
-            transform: scale(1.05);
+        .vulnerability-item:hover {
+            background: rgba(255, 0, 0, 0.1);
         }
         
-        .metric-value {
-            font-size: 2.5em;
-            color: #ff0000;
-            font-weight: bold;
-            text-shadow: 0 0 10px #ff0000;
-            display: block;
+        .severity-critical {
+            border-left-color: #ff0000;
+            background: rgba(255, 0, 0, 0.15);
         }
         
-        .metric-label {
-            color: #00ff41;
-            font-size: 0.9em;
-            margin-top: 5px;
-            text-transform: uppercase;
+        .severity-high {
+            border-left-color: #ff8800;
+            background: rgba(255, 136, 0, 0.1);
         }
         
-        .evolution-status {
-            background: rgba(0, 0, 0, 0.8);
-            border: 3px solid #ff0000;
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            margin: 20px 0;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5);
+        .severity-medium {
+            border-left-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
         }
         
-        .evolution-progress {
-            width: 100%;
-            height: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-        
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #00ff41, #ff0000, #0099ff);
-            border-radius: 10px;
-            animation: progressPulse 2s ease-in-out infinite;
-            transition: width 0.5s ease;
-        }
-        
-        @keyframes progressPulse {
-            0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 65, 0.5); }
-            50% { box-shadow: 0 0 15px rgba(0, 255, 65, 1); }
-        }
-        
-        .data-stream {
-            background: rgba(0, 0, 0, 0.9);
-            border: 1px solid #00ff41;
-            border-radius: 5px;
-            padding: 15px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-size: 0.9em;
-            margin: 15px 0;
-        }
-        
-        .stream-item {
-            padding: 8px;
-            margin: 5px 0;
-            background: rgba(0, 255, 65, 0.1);
-            border-left: 3px solid #00ff41;
-            border-radius: 3px;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
+        .severity-low {
+            border-left-color: #ffcc00;
+            background: rgba(255, 204, 0, 0.1);
         }
         
         .controls {
             text-align: center;
-            margin: 20px 0;
+            margin: 25px 0;
         }
         
         .btn {
-            background: linear-gradient(45deg, #ff0000, #00ff41);
-            color: #000;
+            background: linear-gradient(45deg, #ff0000, #cc0000);
+            color: #fff;
             border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
+            padding: 18px 35px;
+            border-radius: 10px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 1em;
-            margin: 5px;
+            font-size: 1.1em;
+            margin: 8px;
             transition: all 0.3s;
             text-transform: uppercase;
             font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0, 255, 65, 0.3);
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.3);
         }
         
         .btn:hover {
-            transform: scale(1.1) translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 0, 0, 0.5);
+            background: linear-gradient(45deg, #cc0000, #aa0000);
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.5);
         }
         
-        .threat-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-            box-shadow: 0 0 5px currentColor;
+        .btn:active {
+            transform: scale(1.05) translateY(0);
         }
         
-        .threat-high { background: #ff0000; color: #ff0000; }
-        .threat-medium { background: #ffaa00; color: #ffaa00; }
-        .threat-low { background: #00ff41; color: #00ff41; }
-        
-        .scrollbar {
+        .activity-log {
+            max-height: 450px;
+            overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: #00ff41 rgba(0, 0, 0, 0.3);
+            scrollbar-color: #ff0000 rgba(0, 0, 0, 0.3);
         }
         
-        .scrollbar::-webkit-scrollbar {
+        .activity-log::-webkit-scrollbar {
             width: 8px;
         }
         
-        .scrollbar::-webkit-scrollbar-track {
+        .activity-log::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.3);
         }
         
-        .scrollbar::-webkit-scrollbar-thumb {
-            background: #00ff41;
+        .activity-log::-webkit-scrollbar-thumb {
+            background: #ff0000;
             border-radius: 4px;
         }
         
-        .timestamp {
-            color: #666;
-            font-size: 0.8em;
-        }
-        
-        .competitor-card {
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #00ff41;
-            border-radius: 8px;
-            padding: 12px;
+        .activity-item {
+            padding: 15px;
             margin: 10px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            border-left: 3px solid #ff0000;
             transition: all 0.3s;
         }
         
-        .competitor-card:hover {
-            background: rgba(0, 255, 65, 0.1);
-            border-color: #ff0000;
+        .activity-item:hover {
+            background: rgba(255, 0, 0, 0.1);
+            transform: translateX(3px);
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 5px solid rgba(255, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #ff0000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .auto-refresh {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: rgba(255, 0, 0, 0.9);
+            color: #fff;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            z-index: 1000;
+            border: 2px solid #ff0000;
+            box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
+        }
+        
+        .competitive-threat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .competitive-threat:hover {
+            background: rgba(255, 0, 0, 0.1);
+        }
+        
+        .threat-level {
+            padding: 8px 15px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        
+        .threat-high {
+            background: #ff0000;
+            color: #fff;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        
+        .threat-medium {
+            background: #ff8800;
+            color: #fff;
+            box-shadow: 0 0 10px #ff8800;
+        }
+        
+        .threat-low {
+            background: #00aa00;
+            color: #fff;
+            box-shadow: 0 0 10px #00aa00;
+        }
+        
+        .alert-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255, 0, 0, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #ff0000;
+        }
+        
+        .alert-critical {
+            border-left-color: #ff0000;
+            background: rgba(255, 0, 0, 0.2);
+        }
+        
+        .alert-warning {
+            border-left-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <div class="matrix-bg"></div>
-    
-    <div class="live-indicator">
-        🔴 LIVE
+    <div class="auto-refresh" id="autoRefresh">
+        🔄 Auto-refresh: <span id="countdown">30</span>s
     </div>
     
     <div class="header">
-        <h1>🔥 FRONTIER AI - LIVE AUTONOMOUS SYSTEM 🔥</h1>
-        <div style="font-size: 1.2em; color: #00ff41;">
-            Self-Evolving • Real-Time Intelligence • Live Data Feeds
+        <h1>🔥 FRONTIER AI - COMPLETE AUTONOMOUS SYSTEM 🔥</h1>
+        <div class="subtitle">Self-Aware • Self-Evolving • Competitive Intelligence • Security-First</div>
+        <div style="font-size: 1em; margin-top: 10px;">
+            Analyzing competitors hourly • Developing features autonomously • Monitoring security continuously
         </div>
     </div>
     
     <div class="status-banner" id="statusBanner">
-        🚀 AUTONOMOUS EVOLUTION ACTIVE - LIVE DATA STREAMING - REAL-TIME COMPETITIVE ANALYSIS - SECURITY MONITORING
+        🚀 AUTONOMOUS EVOLUTION ACTIVE - COMPETITIVE ANALYSIS - FEATURE DEVELOPMENT - SECURITY MONITORING - PERFORMANCE OPTIMIZATION
     </div>
     
     <div class="main-container">
-        <!-- Live System Pulse -->
+        <!-- System Status Overview -->
         <div class="card">
-            <h2>🤖 Live System Pulse</h2>
-            <div class="evolution-status">
-                <div style="font-size: 1.5em; margin-bottom: 10px;" id="evolutionPhase">
-                    INITIALIZING...
+            <h2>🤖 Autonomous System Status</h2>
+            <div class="evolution-status" id="systemStatus">
+                <div class="loading"></div>
+                <div>EVOLUTION CYCLES RUNNING</div>
+                <div style="font-size: 0.5em; margin-top: 15px;" id="lastEvolution">
+                    Last Evolution: Loading...
                 </div>
-                <div class="evolution-progress">
-                    <div class="progress-bar" id="evolutionProgress" style="width: 0%"></div>
-                </div>
-                <div id="nextEvolution">Next Evolution: Calculating...</div>
             </div>
             
-            <div class="live-metrics" id="liveMetrics">
+            <div class="system-metrics" id="systemMetrics">
                 <div class="metric-card">
-                    <span class="metric-value" id="cpuUsage">0%</span>
-                    <div class="metric-label">CPU Usage</div>
+                    <div class="metric-value" id="evolutionCycles">0</div>
+                    <div class="metric-label">Evolution Cycles</div>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-value" id="memoryUsage">0%</span>
-                    <div class="metric-label">Memory Usage</div>
+                    <div class="metric-value" id="featuresImplemented">0</div>
+                    <div class="metric-label">Features Implemented</div>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-value" id="threatsDetected">0</span>
-                    <div class="metric-label">Threats Detected</div>
+                    <div class="metric-value" id="securityIssues">0</div>
+                    <div class="metric-label">Security Issues</div>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-value" id="featuresDeployed">0</span>
-                    <div class="metric-label">Features Deployed</div>
+                    <div class="metric-value" id="systemHealth">0%</div>
+                    <div class="metric-label">System Health</div>
                 </div>
             </div>
             
@@ -989,14 +1061,7 @@ LIVE_DASHBOARD_TEMPLATE = '''
                 <button class="btn" onclick="forceEvolution()">🔥 FORCE EVOLUTION</button>
                 <button class="btn" onclick="developFeatures()">🚀 DEVELOP FEATURES</button>
                 <button class="btn" onclick="runSecurityScan()">🔒 SECURITY SCAN</button>
-            </div>
-        </div>
-        
-        <!-- Live Data Stream -->
-        <div class="card">
-            <h2>📡 Live Data Stream</h2>
-            <div class="data-stream scrollbar" id="liveDataStream">
-                <div class="stream-item">🔄 Initializing live data feed...</div>
+                <button class="btn" onclick="refreshDashboard()">🔄 REFRESH</button>
             </div>
         </div>
         
@@ -1004,101 +1069,103 @@ LIVE_DASHBOARD_TEMPLATE = '''
         <div class="card">
             <h2>🎯 Competitive Intelligence</h2>
             <div id="competitiveData">
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2em;">🔍</div>
-                    <div>Analyzing competitors...</div>
-                </div>
+                <div class="loading"></div>
             </div>
         </div>
         
         <!-- Feature Development -->
         <div class="card">
-            <h2>🚀 Feature Development</h2>
+            <h2>🚀 Autonomous Feature Development</h2>
             <div id="featureDevelopment">
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2em;">⚙️</div>
-                    <div>Developing features...</div>
-                </div>
+                <div class="loading"></div>
             </div>
         </div>
         
         <!-- System Health -->
         <div class="card">
-            <h2>💓 System Health</h2>
-            <div id="systemHealth">
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2em;">🏥</div>
-                    <div>Monitoring health...</div>
-                </div>
+            <h2>💓 System Health Monitor</h2>
+            <div id="systemHealthDetails">
+                <div class="loading"></div>
             </div>
         </div>
         
-        <!-- Security Monitoring -->
+        <!-- Security Dashboard -->
         <div class="card">
-            <h2>🔒 Security Monitoring</h2>
-            <div id="securityMonitoring">
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2em;">🛡️</div>
-                    <div>Scanning vulnerabilities...</div>
-                </div>
+            <h2>🔒 Security Vulnerabilities</h2>
+            <div id="securityVulnerabilities">
+                <div class="loading"></div>
+            </div>
+        </div>
+        
+        <!-- Evolution Activities -->
+        <div class="card">
+            <h2>📋 Evolution Activities</h2>
+            <div class="activity-log" id="evolutionActivities">
+                <div class="loading"></div>
+            </div>
+        </div>
+        
+        <!-- Active Alerts -->
+        <div class="card">
+            <h2>⚠️ Active System Alerts</h2>
+            <div id="activeAlerts">
+                <div class="loading"></div>
+            </div>
+        </div>
+        
+        <!-- Market Analysis -->
+        <div class="card">
+            <h2>📊 Market Analysis</h2>
+            <div id="marketAnalysis">
+                <div class="loading"></div>
             </div>
         </div>
     </div>
     
     <script>
-        let evolutionData = {};
-        let streamCounter = 0;
+        let countdownTimer = 30;
+        let dashboardData = {};
         
-        // Real-time data fetching
-        async function fetchLiveData() {
+        async function fetchDashboardData() {
             try {
-                // Fetch dashboard data
-                const dashboardResponse = await fetch('/api/dashboard-data');
-                const dashboardData = await dashboardResponse.json();
-                
-                // Fetch system pulse
-                const pulseResponse = await fetch('/api/system-pulse');
-                const pulseData = await pulseResponse.json();
-                
-                // Fetch evolution status
-                const evolutionResponse = await fetch('/api/evolution-status');
-                evolutionData = await evolutionResponse.json();
-                
-                updateDashboard(dashboardData, pulseData, evolutionData);
-                updateLiveStream(dashboardData, pulseData);
-                
+                const response = await fetch('/api/dashboard-data');
+                dashboardData = await response.json();
+                updateDashboard();
             } catch (error) {
-                console.error('Error fetching live data:', error);
-                addToStream('❌ Connection error - retrying...', 'error');
+                console.error('Error fetching dashboard data:', error);
             }
         }
         
-        function updateDashboard(dashboardData, pulseData, evolutionData) {
-            // Update system pulse
-            document.getElementById('cpuUsage').textContent = pulseData.cpu_usage.toFixed(1) + '%';
-            document.getElementById('memoryUsage').textContent = pulseData.memory_usage.toFixed(1) + '%';
-            document.getElementById('threatsDetected').textContent = pulseData.threats_detected;
-            document.getElementById('featuresDeployed').textContent = pulseData.features_deployed;
+        function updateDashboard() {
+            // Update system status
+            if (dashboardData.last_evolution) {
+                document.getElementById('lastEvolution').textContent = 
+                    `Last Evolution: ${new Date(dashboardData.last_evolution).toLocaleString()}`;
+            }
             
-            // Update evolution status
-            document.getElementById('evolutionPhase').textContent = evolutionData.current_phase.replace('_', ' ');
-            document.getElementById('evolutionProgress').style.width = evolutionData.progress.toFixed(1) + '%';
-            document.getElementById('nextEvolution').textContent = 
-                `Next Evolution: ${new Date(evolutionData.next_evolution).toLocaleTimeString()}`;
+            // Update metrics
+            document.getElementById('evolutionCycles').textContent = dashboardData.evolution_cycles?.length || 0;
+            document.getElementById('featuresImplemented').textContent = 
+                (dashboardData.feature_development || []).filter(f => f[2] === 'completed').length || 0;
+            document.getElementById('securityIssues').textContent = dashboardData.vulnerability_summary?.length || 0;
             
-            // Update competitive data
+            // Calculate system health
+            const healthyComponents = (dashboardData.system_health || []).filter(h => h[1] === 'healthy').length;
+            const totalComponents = (dashboardData.system_health || []).length;
+            const healthPercentage = totalComponents > 0 ? Math.round((healthyComponents / totalComponents) * 100) : 0;
+            document.getElementById('systemHealth').textContent = `${healthPercentage}%`;
+            
+            // Update competitive intelligence
             if (dashboardData.competitive_data && dashboardData.competitive_data.competitors) {
                 const competitiveHtml = Object.entries(dashboardData.competitive_data.competitors).map(([name, data]) => {
-                    const threatClass = data.threat_level >= 8 ? 'high' : data.threat_level >= 6 ? 'medium' : 'low';
+                    const threatLevel = data.threat_level >= 8 ? 'high' : data.threat_level >= 6 ? 'medium' : 'low';
                     return `
-                        <div class="competitor-card">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <strong>${name}</strong>
-                                <span class="threat-indicator threat-${threatClass}"></span>
-                            </div>
-                            <div style="font-size: 0.9em; margin-top: 5px;">
-                                Position #${data.market_position} | Threat ${data.threat_level}/10 | Share ${data.market_share}%
-                            </div>
+                        <div class="competitive-threat">
+                            <span><strong>${name}</strong> (Position #${data.market_position})</span>
+                            <span class="threat-level threat-${threatLevel}">Threat ${data.threat_level}/10</span>
+                        </div>
+                        <div style="font-size: 0.9em; margin: 5px 0; color: #ccc;">
+                            Market Share: ${data.market_share}% | Strengths: ${data.strengths.slice(0, 2).join(', ')}
                         </div>
                     `;
                 }).join('');
@@ -1106,139 +1173,169 @@ LIVE_DASHBOARD_TEMPLATE = '''
             }
             
             // Update feature development
-            const featuresHtml = (dashboardData.feature_development || []).slice(0, 8).map(feature => `
-                <div class="competitor-card">
-                    <div style="font-weight: bold; color: #00ff41;">${feature[1]}</div>
-                    <div style="font-size: 0.9em;">
-                        Stage: ${feature[2]} | Priority: ${feature[3]} | Status: ${feature[7]}
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('featureDevelopment').innerHTML = featuresHtml;
-            
-            // Update system health
-            const healthHtml = (dashboardData.system_health || []).slice(0, 10).map(health => {
-                const statusClass = health[1] === 'healthy' ? 'low' : health[1] === 'warning' ? 'medium' : 'high';
+            const featuresHtml = (dashboardData.feature_development || []).slice(0, 10).map(feature => {
+                const status = feature[2] === 'completed' ? 'completed' : 'in-progress';
+                const priorityColor = feature[3] === 1 ? '#ff0000' : feature[3] === 2 ? '#ffaa00' : '#ffcc00';
                 return `
-                    <div class="competitor-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong>${health[0].replace('_', ' ').toUpperCase()}</strong>
-                            <span class="threat-indicator threat-${statusClass}"></span>
-                        </div>
-                        <div style="font-size: 0.8em;">
-                            Response: ${health[2]?.toFixed(2)}s | Uptime: ${health[4]?.toFixed(1)}%
+                    <div class="feature-item feature-${status}">
+                        <div style="font-weight: bold; color: ${priorityColor};">${feature[1]}</div>
+                        <div style="font-size: 0.9em;">Stage: ${feature[2]} | Priority: ${feature[3]}</div>
+                        <div style="font-size: 0.8em; color: #888;">
+                            Testing: ${feature[7]} | Deploy: ${feature[8]}
+                            ${feature[5] ? ` | ETA: ${new Date(feature[5]).toLocaleDateString()}` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
-            document.getElementById('systemHealth').innerHTML = healthHtml;
+            document.getElementById('featureDevelopment').innerHTML = featuresHtml;
             
-            // Update security monitoring
-            const securityHtml = (dashboardData.vulnerability_summary || []).slice(0, 8).map(vuln => `
-                <div class="competitor-card">
-                    <div style="font-weight: bold; color: #ff0000;">${vuln[0].replace('_', ' ').toUpperCase()}</div>
+            // Update system health details
+            const healthHtml = (dashboardData.system_health || []).slice(0, 15).map(health => `
+                <div class="activity-item">
+                    <span class="health-indicator ${health[1]}"></span>
+                    <strong>${health[0].replace('_', ' ').toUpperCase()}</strong>
+                    <div style="font-size: 0.9em;">
+                        Response: ${health[2]?.toFixed(2)}s | Errors: ${(health[3] * 100)?.toFixed(1)}% | 
+                        Uptime: ${health[4]?.toFixed(1)}% | Usage: ${health[5]?.toFixed(1)}%
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('systemHealthDetails').innerHTML = healthHtml;
+            
+            // Update vulnerabilities
+            const vulnHtml = (dashboardData.vulnerability_summary || []).map(vuln => `
+                <div class="vulnerability-item severity-${vuln[1].toLowerCase()}">
+                    <div style="font-weight: bold;">${vuln[0].replace('_', ' ').toUpperCase()}</div>
                     <div style="font-size: 0.9em;">Severity: ${vuln[1]} | Count: ${vuln[2]}</div>
                 </div>
             `).join('');
-            document.getElementById('securityMonitoring').innerHTML = securityHtml;
-        }
-        
-        function addToStream(message, type = 'info') {
-            const stream = document.getElementById('liveDataStream');
-            const timestamp = new Date().toLocaleTimeString();
-            const streamItem = document.createElement('div');
-            streamItem.className = 'stream-item';
-            streamItem.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
             
-            stream.insertBefore(streamItem, stream.firstChild);
+            // Add detailed vulnerabilities
+            const vulnDetailHtml = (dashboardData.vulnerabilities_detail || []).slice(0, 5).map(vuln => `
+                <div class="vulnerability-item severity-${vuln[2].toLowerCase()}">
+                    <div style="font-weight: bold;">${vuln[1]}</div>
+                    <div style="font-size: 0.9em; color: #ccc;">${vuln[4]} | ${vuln[3]}:${vuln[4]}</div>
+                    <div style="font-size: 0.8em; color: #888;">Recommendation: ${vuln[6]}</div>
+                </div>
+            `).join('');
             
-            // Keep only last 20 items
-            while (stream.children.length > 20) {
-                stream.removeChild(stream.lastChild);
-            }
-        }
-        
-        function updateLiveStream(dashboardData, pulseData) {
-            streamCounter++;
+            document.getElementById('securityVulnerabilities').innerHTML = vulnHtml + vulnDetailHtml;
             
-            const messages = [
-                `🔄 Evolution cycle ${streamCounter} completed - ${evolutionData.improvements_this_cycle} improvements`,
-                `💓 System health check: ${(dashboardData.system_health || []).filter(h => h[1] === 'healthy').length} components healthy`,
-                `🎯 Competitive analysis: ${Object.keys(dashboardData.competitive_data?.competitors || {}).length} competitors monitored`,
-                `🔒 Security scan: ${dashboardData.vulnerability_summary?.length || 0} vulnerability types detected`,
-                `🚀 Feature development: ${(dashboardData.feature_development || []).filter(f => f[2] === 'completed').length} features deployed`,
-                `⚡ System metrics: CPU ${pulseData.cpu_usage.toFixed(1)}% | Memory ${pulseData.memory_usage.toFixed(1)}%`,
-                `🌐 Network activity: ${pulseData.network_io.toFixed(1)} MB/s | Uptime: ${Math.floor(pulseData.uptime_seconds / 3600)}h ${Math.floor((pulseData.uptime_seconds % 3600) / 60)}m`
-            ];
+            // Update evolution activities
+            const activitiesHtml = (dashboardData.evolution_cycles || []).map(cycle => `
+                <div class="activity-item">
+                    <div class="timestamp">${new Date(cycle[1]).toLocaleString()}</div>
+                    <div><strong>${cycle[2]} Evolution Cycle</strong></div>
+                    <div>Duration: ${cycle[3]}s | Improvements: ${cycle[4]} | Implementations: ${cycle[5]} | Success: ${(cycle[6] * 100).toFixed(1)}%</div>
+                    <div style="font-size: 0.8em; color: #00ff00;">Impact: ${cycle[8]}</div>
+                </div>
+            `).join('');
+            document.getElementById('evolutionActivities').innerHTML = activitiesHtml;
             
-            addToStream(messages[streamCounter % messages.length]);
+            // Update alerts
+            const alertsHtml = (dashboardData.active_alerts || []).map(alert => `
+                <div class="alert-item alert-${alert[3]}">
+                    <div class="timestamp">${new Date(alert[1]).toLocaleString()}</div>
+                    <div><strong>[${alert[3].toUpperCase()}] ${alert[4]}</strong></div>
+                    <div>Component: ${alert[5]} | Type: ${alert[2]}</div>
+                </div>
+            `).join('');
+            document.getElementById('activeAlerts').innerHTML = alertsHtml;
+            
+            // Update market analysis
+            const marketHtml = (dashboardData.market_analysis || []).slice(0, 5).map(analysis => `
+                <div class="activity-item">
+                    <div class="timestamp">${new Date(analysis[1]).toLocaleString()}</div>
+                    <div><strong>${analysis[2]} Analysis</strong></div>
+                    <div style="font-size: 0.9em;">Position: #${analysis[3]} | ${analysis[5]}</div>
+                </div>
+            `).join('');
+            document.getElementById('marketAnalysis').innerHTML = marketHtml;
         }
         
         async function forceEvolution() {
-            addToStream('🔥 FORCED EVOLUTION INITIATED', 'command');
             try {
                 const response = await fetch('/api/force-evolution');
                 const result = await response.json();
-                addToStream(`✅ ${result.message}`, 'success');
-                setTimeout(fetchLiveData, 2000);
+                if (result.status === 'success') {
+                    document.getElementById('statusBanner').textContent = 
+                        '🔥 FORCED EVOLUTION INITIATED - COMPLETE CYCLE RUNNING - ANALYZING & IMPLEMENTING';
+                    setTimeout(fetchDashboardData, 3000);
+                }
             } catch (error) {
-                addToStream('❌ Evolution command failed', 'error');
+                console.error('Error forcing evolution:', error);
             }
         }
         
         async function developFeatures() {
-            addToStream('🚀 FEATURE DEVELOPMENT INITIATED', 'command');
             try {
                 const response = await fetch('/api/develop-feature');
                 const result = await response.json();
-                addToStream(`✅ ${result.message}`, 'success');
-                setTimeout(fetchLiveData, 2000);
+                if (result.status === 'success') {
+                    document.getElementById('statusBanner').textContent = 
+                        '🚀 FEATURE DEVELOPMENT INITIATED - ANALYZING GAPS - IMPLEMENTING SOLUTIONS';
+                    setTimeout(fetchDashboardData, 2000);
+                }
             } catch (error) {
-                addToStream('❌ Feature development failed', 'error');
+                console.error('Error developing features:', error);
             }
         }
         
         async function runSecurityScan() {
-            addToStream('🔒 SECURITY SCAN INITIATED', 'command');
             try {
                 const response = await fetch('/api/security-scan');
                 const result = await response.json();
-                addToStream(`✅ ${result.message}`, 'success');
-                setTimeout(fetchLiveData, 2000);
+                if (result.status === 'success') {
+                    document.getElementById('statusBanner').textContent = 
+                        '🔒 SECURITY SCAN INITIATED - ANALYZING VULNERABILITIES - GENERATING RECOMMENDATIONS';
+                    setTimeout(fetchDashboardData, 2000);
+                }
             } catch (error) {
-                addToStream('❌ Security scan failed', 'error');
+                console.error('Error running security scan:', error);
+            }
+        }
+        
+        function refreshDashboard() {
+            fetchDashboardData();
+        }
+        
+        function updateCountdown() {
+            document.getElementById('countdown').textContent = countdownTimer;
+            countdownTimer--;
+            
+            if (countdownTimer < 0) {
+                countdownTimer = 30;
+                fetchDashboardData();
             }
         }
         
         // Initialize dashboard
-        fetchLiveData();
-        setInterval(fetchLiveData, 3000); // Update every 3 seconds
+        fetchDashboardData();
+        setInterval(updateCountdown, 1000);
+        setInterval(fetchDashboardData, 30000);
         
         // Add some dynamic effects
         setInterval(() => {
             const banner = document.getElementById('statusBanner');
-            if (banner && Math.random() > 0.8) {
-                banner.style.transform = 'scale(1.01)';
+            if (banner && Math.random() > 0.7) {
+                banner.style.transform = 'scale(1.02)';
                 setTimeout(() => {
                     banner.style.transform = 'scale(1)';
-                }, 100);
+                }, 200);
             }
-        }, 2000);
-        
-        // Initial stream message
-        addToStream('🚀 FRONTIER AI AUTONOMOUS SYSTEM ONLINE - LIVE DATA FEEDS ACTIVE');
+        }, 5000);
     </script>
 </body>
 </html>
 '''
 
 if __name__ == '__main__':
-    print("🔥 FRONTIER AI COMPLETE AUTONOMOUS SYSTEM WITH LIVE DATA FEEDS")
-    print("🚀 Self-Aware | Self-Evolving | Live Competitive Intelligence")
-    print("⚡ Real-time data streaming every 3 seconds")
+    print("🔥 FRONTIER AI COMPLETE AUTONOMOUS SYSTEM STARTING...")
+    print("🚀 Self-Aware | Self-Evolving | Competitive Intelligence | Security-First")
+    print("⚡ Analyzing competitors hourly and implementing improvements autonomously")
     print("🔒 Continuous security monitoring and vulnerability management")
-    print("📊 Live performance optimization and feature development")
+    print("📊 Real-time performance optimization and feature development")
     
     port = int(os.environ.get('PORT', 8080))
-    print(f"🔥 LIVE EVOLUTION SYSTEM STARTING ON PORT {port}")
+    print(f"🔥 REAL EVOLUTION SYSTEM STARTING ON PORT {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
