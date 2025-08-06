@@ -28,9 +28,19 @@ class RailwayAutonomousEvolution:
     def setup_git_config(self):
         """Configure Git for Railway environment"""
         try:
+            # First check if we're in a git repository, if not initialize one
+            try:
+                subprocess.run(['git', 'status'], capture_output=True, check=True)
+            except subprocess.CalledProcessError:
+                # Not in a git repo, initialize one
+                subprocess.run(['git', 'init'], check=True)
+                logger.info("✅ Git repository initialized")
+            
+            # Configure Git user
             subprocess.run(['git', 'config', '--global', 'user.name', self.git_user_name], check=True)
             subprocess.run(['git', 'config', '--global', 'user.email', self.git_user_email], check=True)
             subprocess.run(['git', 'config', '--global', 'init.defaultBranch', 'main'], check=True)
+            subprocess.run(['git', 'config', '--global', 'safe.directory', '*'], check=True)
             logger.info("✅ Git configuration complete")
             return True
         except Exception as e:
