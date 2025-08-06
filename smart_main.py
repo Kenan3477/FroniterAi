@@ -1025,9 +1025,9 @@ def get_dashboard_data():
     """Get all dashboard data"""
     return jsonify(frontier_complete.get_dashboard_data())
 
-@app.route('/api/force-evolution')
-def force_evolution():
-    """Force immediate evolution cycle"""
+@app.route('/api/trigger-evolution')
+def trigger_evolution():
+    """GET endpoint to trigger evolution cycle"""
     try:
         threading.Thread(target=frontier_complete.complete_evolution_cycle, daemon=True).start()
         return jsonify({"status": "success", "message": "Complete evolution cycle initiated"})
@@ -1053,7 +1053,7 @@ def security_scan_api():
         return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/api/force-evolution', methods=['POST'])
-def force_evolution():
+def force_autonomous_evolution():
     """Force immediate autonomous evolution with code generation"""
     try:
         logger.info("🔥 FORCED AUTONOMOUS EVOLUTION TRIGGERED BY USER")
