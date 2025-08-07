@@ -1,1 +1,1 @@
-web: python bulletproof.py
+web: python railway_simple.py
