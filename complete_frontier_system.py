@@ -559,7 +559,7 @@ if __name__ == "__main__":
         def evolution_loop():
             while True:
                 try:
-                    time.sleep(300)  # Evolution cycle every 5 minutes
+                    time.sleep(30)  # Evolution cycle every 30 seconds for LIVE activity
                     self.perform_autonomous_evolution()
                 except Exception as e:
                     logger.error(f"❌ Evolution cycle failed: {e}")
@@ -573,7 +573,7 @@ if __name__ == "__main__":
         def market_loop():
             while True:
                 try:
-                    time.sleep(600)  # Market analysis every 10 minutes
+                    time.sleep(45)  # Market analysis every 45 seconds for LIVE activity
                     self.analyze_market_trends()
                 except Exception as e:
                     logger.error(f"❌ Market analysis failed: {e}")
@@ -587,7 +587,7 @@ if __name__ == "__main__":
         def competitor_loop():
             while True:
                 try:
-                    time.sleep(900)  # Competitor analysis every 15 minutes
+                    time.sleep(60)  # Competitor analysis every 60 seconds for LIVE activity
                     self.analyze_competitors()
                 except Exception as e:
                     logger.error(f"❌ Competitor analysis failed: {e}")
