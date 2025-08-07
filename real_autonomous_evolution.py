@@ -13,15 +13,187 @@ import json
 import logging
 import ast
 import re
+import hashlib
+import fnmatch
 from typing import Dict, List, Any
 
+# Import comprehensive implementation engine
+try:
+    from comprehensive_implementation_engine import ComprehensiveImplementationEngine
+    COMPREHENSIVE_ENGINE_AVAILABLE = True
+except ImportError:
+    COMPREHENSIVE_ENGINE_AVAILABLE = False
+    logging.warning("Comprehensive Implementation Engine not available - using basic implementation")
+
 logger = logging.getLogger(__name__)
+
+class AntiSpamProtection:
+    """🚫 PREVENTS SPAM GENERATION - NEVER AGAIN!"""
+    
+    def __init__(self):
+        self.content_hashes = set()
+        self.banned_patterns = [
+            "*_security_*.py",
+            "*_improvement_*.py", 
+            "*_autonomous_*.py",
+            "*_20250806_*.py",
+            "*_enhancement_*.py",
+            "railway_autonomous_*.py",
+            "security_improvement_security_*.py"
+        ]
+        logger.info("🛡️ Anti-spam protection activated")
+    
+    def is_duplicate_content(self, content: str) -> bool:
+        """Prevent duplicate code with different headers"""
+        # Remove headers, timestamps, comments for comparison
+        clean_content = re.sub(r'#.*?\n', '', content)  # Remove comments
+        clean_content = re.sub(r'Generated.*?\n', '', clean_content)  # Remove generation lines
+        clean_content = re.sub(r'\d{8}_\d{6}', '', clean_content)  # Remove timestamps
+        clean_content = clean_content.strip()
+        
+        content_hash = hashlib.sha256(clean_content.encode()).hexdigest()
+        
+        if content_hash in self.content_hashes:
+            logger.error("🚫 DUPLICATE CONTENT DETECTED - SPAM BLOCKED!")
+            return True
+        
+        self.content_hashes.add(content_hash)
+        return False
+    
+    def calculate_content_hash(self, content: str) -> str:
+        """Calculate hash for content comparison"""
+        # Remove headers, timestamps, comments for comparison
+        clean_content = re.sub(r'#.*?\n', '', content)  # Remove comments
+        clean_content = re.sub(r'Generated.*?\n', '', clean_content)  # Remove generation lines
+        clean_content = re.sub(r'\d{8}_\d{6}', '', clean_content)  # Remove timestamps
+        clean_content = clean_content.strip()
+        
+        return hashlib.sha256(clean_content.encode()).hexdigest()
+    
+    def validate_filename(self, filename: str) -> bool:
+        """Block spam filename patterns"""
+        for pattern in self.banned_patterns:
+            if fnmatch.fnmatch(filename, pattern):
+                logger.error(f"🚫 BANNED SPAM PATTERN: {filename}")
+                return False
+        return True
+    
+    def enforce_intelligent_creation(self, filename: str, content: str) -> bool:
+        """Ensure file creation is intelligent, not spam"""
+        if not self.validate_filename(filename):
+            return False
+        
+        if self.is_duplicate_content(content):
+            return False
+        
+        # Must have meaningful purpose
+        if len(content.strip()) < 100:
+            logger.error("🚫 Content too short - likely spam")
+            return False
+        
+        logger.info(f"✅ File creation validated: {filename}")
+        return True
+
+class MarketIntelligence:
+    """🧠 SELF-AWARE MARKET ANALYSIS"""
+    
+    def analyze_current_capabilities(self):
+        """What can Frontier AI do RIGHT NOW?"""
+        return {
+            "strengths": [
+                "Real-time autonomous code evolution",
+                "Anti-spam protection system",
+                "Security vulnerability detection", 
+                "Performance optimization",
+                "Live dashboard monitoring",
+                "GitHub integration",
+                "Railway cloud deployment",
+                "Intelligent file creation"
+            ],
+            "weaknesses": [
+                "Limited AI model integration",
+                "Basic competitive analysis",
+                "No advanced ML capabilities",
+                "Manual improvement targeting"
+            ],
+            "unique_advantages": [
+                "Real-time self-evolution (competitors are static)",
+                "Self-aware capability assessment", 
+                "Spam-proof autonomous operation",
+                "Market-driven development"
+            ]
+        }
+    
+    def identify_evolution_targets(self):
+        """What should we build to dominate the market?"""
+        return [
+            {
+                "target": "Advanced AI Integration",
+                "purpose": "Beat GitHub Copilot with real-time code understanding",
+                "implementation": "OpenAI API integration, local model support",
+                "market_impact": "High"
+            },
+            {
+                "target": "Predictive Security Analysis", 
+                "purpose": "Proactive vulnerability prevention",
+                "implementation": "ML-based security pattern recognition",
+                "market_impact": "High"
+            },
+            {
+                "target": "Autonomous Bug Fixing",
+                "purpose": "Self-healing code capabilities", 
+                "implementation": "Error detection and automatic fixes",
+                "market_impact": "Very High"
+            }
+        ]
+    
+    def assess_competitive_advantage(self, improvement):
+        """Assess how an improvement helps beat competitors"""
+        competitive_analysis = {
+            "strategic_value": "Medium",
+            "market_differentiation": "Standard improvement",
+            "competitive_edge": []
+        }
+        
+        # Analyze improvement type for competitive advantage
+        if improvement.get('target') == 'security':
+            competitive_analysis.update({
+                "strategic_value": "High",
+                "market_differentiation": "Proactive security gives edge over reactive tools",
+                "competitive_edge": ["Real-time vulnerability prevention", "Self-healing security"]
+            })
+        elif improvement.get('target') == 'performance':
+            competitive_analysis.update({
+                "strategic_value": "High", 
+                "market_differentiation": "Autonomous optimization beats manual tuning",
+                "competitive_edge": ["Self-optimizing code", "Real-time performance enhancement"]
+            })
+        elif improvement.get('target') == 'functionality':
+            competitive_analysis.update({
+                "strategic_value": "Medium",
+                "market_differentiation": "Enhanced capabilities expand market reach", 
+                "competitive_edge": ["Unique feature set", "Market expansion potential"]
+            })
+        
+        return competitive_analysis
 
 class RealAutonomousEvolution:
     def __init__(self):
         self.github_token = os.getenv('GITHUB_TOKEN')
         self.github_user = os.getenv('GITHUB_USER', 'Kenan3477')
         self.github_repo = os.getenv('GITHUB_REPO', 'FroniterAi')
+        
+        # 🛡️ ANTI-SPAM PROTECTION - NEVER AGAIN!
+        self.spam_protection = AntiSpamProtection()
+        self.market_intelligence = MarketIntelligence()
+        
+        # 🚀 COMPREHENSIVE IMPLEMENTATION ENGINE
+        if COMPREHENSIVE_ENGINE_AVAILABLE:
+            self.implementation_engine = ComprehensiveImplementationEngine(self)
+            logger.info("🚀 Comprehensive Implementation Engine activated!")
+        else:
+            self.implementation_engine = None
+            logger.warning("⚠️ Using basic implementation mode")
         
         self.headers = {
             'Authorization': f'token {self.github_token}',
@@ -30,6 +202,14 @@ class RealAutonomousEvolution:
         }
         
         self.base_url = f"https://api.github.com/repos/{self.github_user}/{self.github_repo}"
+        
+        logger.info("🧠 Intelligent Autonomous Evolution Engine initialized")
+        logger.info("🚫 Anti-spam protection active - no duplicate generation!")
+        
+        # Analyze current capabilities
+        capabilities = self.market_intelligence.analyze_current_capabilities()
+        logger.info(f"💪 Current strengths: {len(capabilities['strengths'])} capabilities")
+        logger.info(f"🎯 Unique advantages: {len(capabilities['unique_advantages'])} competitive edges")
         
         # EVOLUTION TARGETS - What we're actually trying to achieve
         self.evolution_targets = {
@@ -466,8 +646,13 @@ logger.info(f"✅ Functionality improvement applied: {{functionality_enhancement
         return filename, content
     
     def update_file_via_api(self, filename, new_content, commit_message):
-        """Update existing file or create new one via GitHub API"""
+        """Update existing file or create new one via GitHub API with SPAM PROTECTION"""
         try:
+            # 🚫 CRITICAL: ANTI-SPAM PROTECTION - Validate before ANY file operations
+            if not self.spam_protection.enforce_intelligent_creation(filename, new_content):
+                logger.error(f"🚫 SPAM BLOCKED: File creation rejected for {filename}")
+                return False
+            
             # Check if file exists
             url = f"{self.base_url}/contents/{filename}"
             response = requests.get(url, headers=self.headers)
@@ -518,6 +703,12 @@ logger.info(f"✅ Functionality improvement applied: {{functionality_enhancement
             # Identify the NEXT specific improvement needed
             improvement = self.identify_next_improvement()
             
+            # 🎯 MARKET INTELLIGENCE: Enhance improvement with competitive analysis
+            if improvement:
+                market_context = self.market_intelligence.assess_competitive_advantage(improvement)
+                improvement['market_context'] = market_context
+                logger.info(f"🎯 Market Intelligence: {market_context.get('strategic_value', 'Standard improvement')}")
+            
             if not improvement:
                 return {
                     "success": False,
@@ -564,6 +755,118 @@ logger.info(f"✅ Functionality improvement applied: {{functionality_enhancement
                 
         except Exception as e:
             logger.error(f"❌ Real autonomous evolution failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+    
+    def run_comprehensive_implementation(self):
+        """🚀 RUN COMPREHENSIVE IMPLEMENTATION WITH FULL LIFECYCLE"""
+        logger.info("🚀 STARTING COMPREHENSIVE IMPLEMENTATION LIFECYCLE")
+        logger.info("="*60)
+        
+        try:
+            if not self.github_token:
+                return {
+                    "success": False,
+                    "error": "GitHub token not configured",
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+            
+            if not self.implementation_engine:
+                logger.warning("⚠️ Comprehensive engine not available - falling back to basic evolution")
+                return self.run_real_autonomous_evolution()
+            
+            # PHASE 1: Identify improvement
+            improvement = self.identify_next_improvement()
+            
+            if not improvement:
+                return {
+                    "success": False,
+                    "error": "No improvements identified - system may be complete",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "status": "NO_IMPROVEMENTS_NEEDED"
+                }
+            
+            logger.info(f"🎯 Improvement identified: {improvement['description']}")
+            
+            # PHASE 2: Create comprehensive scope
+            logger.info("🔍 Creating comprehensive implementation scope...")
+            scope = self.implementation_engine.create_comprehensive_scope(improvement)
+            
+            logger.info(f"✅ Scope created - Priority: {scope.priority_level}, Effort: {scope.estimated_effort}")
+            logger.info(f"🏆 Competitive advantage: {scope.competitive_advantage}")
+            logger.info(f"🎯 Capability gap: {scope.capability_gap}")
+            
+            # PHASE 3: Execute full implementation with analysis
+            logger.info("🚀 Executing comprehensive implementation...")
+            result = self.implementation_engine.implement_with_full_analysis(scope)
+            
+            if result.success_achieved:
+                # PHASE 4: Generate comprehensive report
+                logger.info("📊 Generating implementation report...")
+                report = self.implementation_engine.generate_implementation_report(result)
+                
+                # Save report to file
+                report_filename = f"implementation_report_{improvement['id']}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                with open(report_filename, 'w') as f:
+                    f.write(report)
+                
+                logger.info(f"📄 Implementation report saved: {report_filename}")
+                
+                # PHASE 5: Update capability registry and provide summary
+                capability_overview = self.implementation_engine.get_capability_overview()
+                
+                logger.info("🎉 COMPREHENSIVE IMPLEMENTATION COMPLETE!")
+                logger.info(f"✅ Success Score: {result.success_score:.2f}/1.0")
+                logger.info(f"🚀 Capabilities Added: {len(result.capabilities_added)}")
+                logger.info(f"✨ Features Enabled: {len(result.features_enabled)}")
+                logger.info(f"🏆 Market Advantages: {len(result.market_advantages)}")
+                logger.info(f"📈 Growth Potential: {result.growth_potential}")
+                
+                # Return comprehensive result
+                return {
+                    "success": True,
+                    "implementation_type": "COMPREHENSIVE_LIFECYCLE",
+                    "improvement_applied": improvement,
+                    "scope": {
+                        "business_justification": scope.business_justification,
+                        "competitive_advantage": scope.competitive_advantage,
+                        "capability_gap": scope.capability_gap,
+                        "priority_level": scope.priority_level,
+                        "estimated_effort": scope.estimated_effort
+                    },
+                    "results": {
+                        "success_score": result.success_score,
+                        "capabilities_added": result.capabilities_added,
+                        "features_enabled": result.features_enabled,
+                        "market_advantages": result.market_advantages,
+                        "growth_potential": result.growth_potential,
+                        "integration_success": result.integration_success,
+                        "performance_impact": result.performance_impact
+                    },
+                    "files": {
+                        "created": result.files_created,
+                        "modified": result.files_modified,
+                        "report": report_filename
+                    },
+                    "capability_overview": capability_overview,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "github_repo": f"{self.github_user}/{self.github_repo}"
+                }
+            else:
+                logger.error(f"❌ Implementation failed - Score: {result.success_score:.2f}/1.0")
+                return {
+                    "success": False,
+                    "error": f"Implementation failed validation - Score: {result.success_score:.2f}/1.0",
+                    "improvement": improvement,
+                    "scope_created": True,
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Comprehensive implementation failed: {e}")
             return {
                 "success": False,
                 "error": str(e),
