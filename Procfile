@@ -1,1 +1,1 @@
-web: python minimal.py
+web: python full_frontier_evolution_system.py

@@ -44,5 +44,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the MINIMAL version - absolutely guaranteed to work
-CMD ["python", "minimal.py"]
+# Run the FULL FRONTIER AI EVOLUTION SYSTEM
+CMD ["python", "full_frontier_evolution_system.py"]
