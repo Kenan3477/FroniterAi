@@ -623,6 +623,40 @@ def api_real_status():
         "system": "REAL_IMPLEMENTATION"
     })
 
+@app.route('/api/system-status')
+def api_system_status():
+    """Railway compatibility endpoint - maps to REAL status"""
+    try:
+        conn = sqlite3.connect('real_frontier.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM real_improvements')
+        total_improvements = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM analyzed_files')
+        analyzed_files = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            "status": "operational",
+            "system": "REAL_FRONTIER_AI",
+            "uptime": int(time.time() - real_ai.start_time),
+            "real_improvements": total_improvements,
+            "analyzed_files": analyzed_files,
+            "duplicate_protection": "ACTIVE",
+            "tracked_hashes": len(real_ai.improvement_hashes),
+            "implementation": "ACTUAL_CODE_NO_PLACEHOLDERS",
+            "endpoint": "system-status",
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "system": "REAL_FRONTIER_AI"
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("🔥 STARTING REAL FRONTIER AI - NO PLACEHOLDERS")
