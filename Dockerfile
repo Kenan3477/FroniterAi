@@ -3,11 +3,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Flask only
-RUN pip install flask==3.0.0
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy just the app file
-COPY railway_simple.py .
+# Copy the emergency working system
+COPY railway_main.py .
 
 # Railway will set PORT, expose standard port
 EXPOSE 8080
