@@ -44,5 +44,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the FULL FRONTIER AI EVOLUTION SYSTEM
-CMD ["python", "full_frontier_evolution_system.py"]
+# Run the EMERGENCY STABLE SYSTEM - Guaranteed to work
+CMD ["python", "emergency_stable_system.py"]

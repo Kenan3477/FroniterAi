@@ -1,1 +1,1 @@
-web: python full_frontier_evolution_system.py
+web: python emergency_stable_system.py
