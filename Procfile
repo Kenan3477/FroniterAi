@@ -1,1 +1,1 @@
-web: python emergency_working_system.py
+web: python ultra_minimal_system.py
