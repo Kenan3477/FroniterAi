@@ -1,3 +1,5 @@
-# Emergency working system - minimal dependencies
+# Frontier AI Complete System - All Dependencies
 flask==3.0.0
 flask-cors==4.0.0
+requests==2.31.0
+gitpython==3.1.40
