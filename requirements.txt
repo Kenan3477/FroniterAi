@@ -1,9 +1,2 @@
-# FrontierAI Dashboard - Complete Autonomous Evolution Requirements
+# Minimal requirements - guaranteed compatibility
 flask==3.0.0
-flask-cors==4.0.0
-flask-socketio==5.3.5
-requests==2.31.0
-python-dotenv==1.0.0
-GitPython==3.1.40
-schedule==1.2.0
-psutil==5.9.6

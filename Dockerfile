@@ -44,5 +44,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the EMERGENCY STABLE version - guaranteed to work
-CMD ["python", "emergency_stable.py"]
+# Run the MINIMAL version - absolutely guaranteed to work
+CMD ["python", "minimal.py"]

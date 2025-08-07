@@ -1,1 +1,1 @@
-web: python emergency_stable.py
+web: python minimal.py
