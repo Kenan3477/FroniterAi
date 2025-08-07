@@ -69,6 +69,9 @@ class FrontierAIComplete:
         self.github_user = os.getenv('GITHUB_USER', 'Kenan3477')
         self.repo_url_with_auth = None
         
+        # Initialize databases
+        self.init_databases()
+        
         if self.github_token:
             self.repo_url_with_auth = f"https://{self.github_token}@github.com/{self.github_repo}.git"
             logger.info("🔑 GitHub authentication configured for Railway autonomous commits")
@@ -76,7 +79,6 @@ class FrontierAIComplete:
         else:
             logger.warning("⚠️ No GitHub token found - set GITHUB_TOKEN environment variable for autonomous commits")
         
-        self.init_databases()
         self.start_autonomous_processes()
         
         logger.info("🔥 FRONTIER AI COMPLETE SYSTEM INITIALIZED")
@@ -1005,11 +1007,23 @@ if __name__ == "__main__":
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # Ensure real_autonomous_evolution table exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS real_autonomous_evolution (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    files_count INTEGER,
+                    commits_made INTEGER,
+                    evolution_type TEXT,
+                    validation_status TEXT
+                )
+            ''')
+            
             # Get actual autonomous evolution counts
             cursor.execute('SELECT COUNT(*) FROM real_autonomous_evolution WHERE timestamp > datetime("now", "-1 hour")')
             recent_evolutions = cursor.fetchone()[0] if cursor.fetchone() else 0
             
-            cursor.execute('SELECT SUM(files_generated), SUM(commits_made) FROM real_autonomous_evolution WHERE timestamp > datetime("now", "-1 hour")')
+            cursor.execute('SELECT SUM(files_count), SUM(commits_made) FROM real_autonomous_evolution WHERE timestamp > datetime("now", "-1 hour")')
             result = cursor.fetchone()
             real_files_generated = result[0] if result and result[0] else 0
             real_commits_made = result[1] if result and result[1] else 0

@@ -543,7 +543,10 @@ logger.info(f"✅ Functionality improvement applied: {{functionality_enhancement
                     "improvement_applied": improvement,
                     "filename": filename,
                     "commits_made": 1,
-                    "files_generated": 1,
+                    "files_improved": 1,
+                    "files_generated": 1,  # Keep for backward compatibility
+                    "evolution_target": improvement['target'],
+                    "improvements": [improvement['description']],
                     "evolution_type": "TARGETED_IMPROVEMENT",
                     "timestamp": datetime.datetime.now().isoformat(),
                     "platform": "REAL_EVOLUTION_ENGINE",
