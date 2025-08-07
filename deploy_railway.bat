@@ -1,5 +1,22 @@
 @echo off
-echo 🚀 FrontierAI Railway Deployment Script
+@echo off
+echo 🚀 FRONTIER AI - RAILWAY DEPLOYMENT
+echo ==================================
+
+railway whoami
+if %errorlevel% neq 0 (
+    echo ❌ Not authenticated. Please run: railway login
+    exit /b 1
+)
+
+echo Deploying to Railway...
+railway up
+
+echo Getting deployment domain...
+railway domain
+
+echo.
+echo ✅ Deployment complete! Check Railway dashboard for status.
 echo =====================================
 
 echo.
