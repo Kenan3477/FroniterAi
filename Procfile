@@ -1,1 +1,1 @@
-web: python ultra_minimal_system.py
+web: python absolute_minimal.py

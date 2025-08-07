@@ -43,5 +43,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# Run the ULTRA MINIMAL SYSTEM - absolutely guaranteed to work
-CMD ["python", "ultra_minimal_system.py"]
+# Run the ABSOLUTE MINIMAL SYSTEM - guaranteed to work
+CMD ["python", "absolute_minimal.py"]
