@@ -927,8 +927,9 @@ def dashboard():
             }}, 2000);
         }}
         
-        // Auto-refresh system status
+        // Auto-refresh system status AND live feed
         setInterval(() => {{
+            // Update system metrics
             fetch('/api/status')
                 .then(r => r.json())
                 .then(data => {{
@@ -936,22 +937,26 @@ def dashboard():
                     document.getElementById('evolution-cycles').textContent = data.evolution_cycles;
                     document.getElementById('repo-commits').textContent = data.repository_commits;
                     document.getElementById('competitor-analyses').textContent = data.competitor_analyses;
-                    
-                    // Random system activity
-                    const activities = [
-                        '🧠 Analyzing system performance metrics',
-                        '🔍 Scanning for optimization opportunities', 
-                        '📊 Processing market intelligence data',
-                        '🎯 Monitoring competitor activities',
-                        '⚡ Optimizing neural pathways',
-                        '🚀 Preparing next evolution cycle'
-                    ];
-                    
-                    if(Math.random() < 0.3) {{
-                        addToFeed(activities[Math.floor(Math.random() * activities.length)]);
-                    }}
                 }});
-        }}, 10000);
+            
+            // Update live activity feed with REAL data
+            fetch('/api/live-feed')
+                .then(r => r.json())
+                .then(data => {{
+                    const feed = document.getElementById('activity-feed');
+                    
+                    // Clear old entries
+                    feed.innerHTML = '';
+                    
+                    // Add real activities
+                    data.activities.forEach(activity => {{
+                        const entry = document.createElement('div');
+                        entry.className = 'feed-entry';
+                        entry.textContent = `[${{new Date().toLocaleTimeString()}}] ${{activity}}`;
+                        feed.appendChild(entry);
+                    }});
+                }});
+        }}, 5000);  // Update every 5 seconds for LIVE data
         
         // Matrix rain effect
         function matrixRain() {{
@@ -1131,6 +1136,43 @@ def api_intelligence():
             "uptime": int(time.time() - SYSTEM_START_TIME)
         }
     })
+
+@app.route('/api/live-feed')
+def api_live_feed():
+    """Get live activity feed"""
+    try:
+        # Get recent activities from the system
+        recent_activities = []
+        
+        # Add evolution activities
+        if EVOLUTION_CYCLES > 0:
+            recent_activities.append(f"🚀 Evolution cycle #{EVOLUTION_CYCLES} completed")
+        
+        # Add competitor analysis activities  
+        if COMPETITOR_ANALYSES > 0:
+            recent_activities.append(f"🎯 Competitor analysis #{COMPETITOR_ANALYSES} completed")
+            
+        # Add repository activities
+        if REPOSITORY_COMMITS > 0:
+            recent_activities.append(f"💾 Repository commit #{REPOSITORY_COMMITS} completed")
+            
+        # Add recent improvements
+        for improvement in ACTIVE_IMPROVEMENTS[-3:]:
+            recent_activities.append(f"✅ {improvement.get('type', 'Unknown')} improvement applied")
+        
+        # Add system status
+        uptime = int(time.time() - SYSTEM_START_TIME)
+        recent_activities.append(f"🖥️ System operational for {uptime//60} minutes")
+        
+        return jsonify({
+            "activities": recent_activities[-10:],  # Last 10 activities
+            "evolution_cycles": EVOLUTION_CYCLES,
+            "competitor_analyses": COMPETITOR_ANALYSES,
+            "repository_commits": REPOSITORY_COMMITS,
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "activities": []}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
