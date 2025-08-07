@@ -7,7 +7,6 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PORT=8889
 ENV RAILWAY_ENVIRONMENT=production
 
 # Install system dependencies
@@ -37,12 +36,12 @@ RUN mkdir -p /app/frontend \
 # Set permissions
 RUN chmod +x advanced_dashboard.py emergency_main.py smart_main.py
 
-# Expose port
-EXPOSE $PORT
+# Expose port (Railway will set PORT environment variable)
+EXPOSE 8080
 
-# Health check
+# Health check (use PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:$PORT/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
 # Run the ULTRA MINIMAL SYSTEM - absolutely guaranteed to work
 CMD ["python", "ultra_minimal_system.py"]
