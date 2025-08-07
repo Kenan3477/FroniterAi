@@ -13,4 +13,5 @@ COPY railway_simple.py .
 EXPOSE 8080
 
 # Simple startup
-CMD ["python", "railway_simple.py"]
+# Run the WORKING SMART MAIN SYSTEM - restore functionality
+CMD ["python", "railway_main.py"]
