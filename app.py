@@ -1550,6 +1550,7 @@ def start_background_services():
     except Exception as e:
         logger.error(f"Background services error: {e}")
 
+# Only run directly if this file is executed, not when imported by main.py
 if __name__ == '__main__':
     logger.info("🚀 FRONTIER AI - COMPLETE SYSTEM STARTING")
     logger.info("🏢 ChatGPT-style interface with business integrations")
