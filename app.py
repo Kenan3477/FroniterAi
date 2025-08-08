@@ -17,6 +17,9 @@ from typing import Dict, List, Optional, Any
 import hashlib
 import logging
 
+# Import our code analyzer
+from code_analyzer import CodeAnalyzer, analyze_repository, CodeAnalysisScheduler
+
 # Flask imports with error handling
 try:
     from flask import Flask, jsonify, render_template_string, request, redirect, url_for
@@ -34,6 +37,395 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
+
+# HTML Templates
+CODE_ANALYSIS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontierAI - Code Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #21262d;
+            border-bottom: 1px solid #30363d;
+        }
+        .btn-primary {
+            background-color: #238636;
+            border-color: #238636;
+        }
+        .btn-primary:hover {
+            background-color: #2ea043;
+            border-color: #2ea043;
+        }
+        .badge {
+            font-size: 0.9em;
+        }
+        .progress {
+            height: 8px;
+            background-color: #21262d;
+        }
+        .progress-bar {
+            background-color: #238636;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+        }
+        .stat-card i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #58a6ff;
+        }
+        .stat-card .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+        pre {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 15px;
+            white-space: pre-wrap;
+        }
+        .markdown-body {
+            padding: 20px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+            color: #c9d1d9;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 0.3em;
+        }
+        .markdown-body h1 {
+            font-size: 2em;
+        }
+        .markdown-body h2 {
+            font-size: 1.5em;
+        }
+        .markdown-body h3 {
+            font-size: 1.25em;
+        }
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 2em;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        .markdown-body li {
+            margin-top: 0.25em;
+        }
+        .markdown-body code {
+            background-color: #161b22;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 85%;
+        }
+        .markdown-body hr {
+            height: 0.25em;
+            padding: 0;
+            margin: 24px 0;
+            background-color: #30363d;
+            border: 0;
+        }
+        #loadingIndicator {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .spinner-border {
+            color: #238636;
+        }
+        .issue-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        .issue-critical {
+            background-color: #f85149;
+            color: white;
+        }
+        .issue-warning {
+            background-color: #f0883e;
+            color: black;
+        }
+        .issue-improvement {
+            background-color: #3fb950;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="bi bi-braces"></i> FrontierAI Code Analysis</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/code-analysis"><i class="bi bi-code-square"></i> Code Analysis</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-code-square"></i> Code Analysis Dashboard</h5>
+                        <button id="runAnalysisBtn" class="btn btn-primary btn-sm">
+                            <i class="bi bi-play-fill"></i> Run Analysis
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p>This tool analyzes your FrontierAI GitHub repository to identify code quality issues and improvement opportunities.</p>
+                        <div id="loadingIndicator">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Analyzing repository... This may take a few minutes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4" id="summaryStats" style="display: none;">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <i class="bi bi-file-code"></i>
+                    <div class="stat-value" id="filesAnalyzed">0</div>
+                    <div class="stat-label">Files Analyzed</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <i class="bi bi-code-slash"></i>
+                    <div class="stat-value" id="totalLines">0</div>
+                    <div class="stat-label">Lines of Code</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <div class="stat-value" id="totalIssues">0</div>
+                    <div class="stat-label">Issues Found</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <i class="bi bi-lightbulb"></i>
+                    <div class="stat-value" id="totalOpportunities">0</div>
+                    <div class="stat-label">Improvements</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-clock"></i> Scheduled Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="schedulerStatus">Loading scheduler status...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card" id="reportCard" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-file-text"></i> Analysis Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="markdown-body" id="reportContent">
+                            <!-- Report content will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const runAnalysisBtn = document.getElementById('runAnalysisBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const summaryStats = document.getElementById('summaryStats');
+            const reportCard = document.getElementById('reportCard');
+            const reportContent = document.getElementById('reportContent');
+            const schedulerStatus = document.getElementById('schedulerStatus');
+            
+            // Format numbers with commas
+            function formatNumber(num) {
+                return num.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
+            }
+            
+            // Check if analysis results exist
+            fetch('/api/code-analysis-results')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        updateStats(data.data.summary);
+                        
+                        // Get the markdown report
+                        fetch('/api/code-analysis-report')
+                            .then(response => response.json())
+                            .then(reportData => {
+                                if (reportData.success && reportData.markdown) {
+                                    reportContent.innerHTML = marked.parse(reportData.markdown);
+                                    reportCard.style.display = 'block';
+                                }
+                            });
+                    }
+                });
+            
+            // Run analysis button click handler
+            runAnalysisBtn.addEventListener('click', function() {
+                runAnalysisBtn.disabled = true;
+                loadingIndicator.style.display = 'block';
+                
+                fetch('/api/run-code-analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateStats(data.summary);
+                        
+                        // Get the markdown report
+                        fetch('/api/code-analysis-report')
+                            .then(response => response.json())
+                            .then(reportData => {
+                                if (reportData.success && reportData.markdown) {
+                                    reportContent.innerHTML = marked.parse(reportData.markdown);
+                                    reportCard.style.display = 'block';
+                                }
+                                
+                                runAnalysisBtn.disabled = false;
+                                loadingIndicator.style.display = 'none';
+                            });
+                    } else {
+                        alert('Analysis failed: ' + data.error);
+                        runAnalysisBtn.disabled = false;
+                        loadingIndicator.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                    runAnalysisBtn.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                });
+            });
+            
+            // Update stats display
+            function updateStats(summary) {
+                document.getElementById('filesAnalyzed').textContent = summary.files_analyzed;
+                document.getElementById('totalLines').textContent = formatNumber(summary.total_lines);
+                document.getElementById('totalIssues').textContent = summary.total_issues;
+                document.getElementById('totalOpportunities').textContent = summary.total_opportunities;
+                summaryStats.style.display = 'flex';
+            }
+            
+            // Get scheduler status
+            function updateSchedulerStatus() {
+                fetch('/api/code-analysis-scheduler')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const status = data.status;
+                            let html = '<div class="d-flex justify-content-between align-items-center">';
+                            
+                            // Status badge
+                            html += '<div><span class="badge ' + (status.running ? 'bg-success' : 'bg-secondary') + '">' + 
+                                   (status.running ? 'Active' : 'Inactive') + '</span></div>';
+                            
+                            // Status details   
+                            html += '<div>';
+                            if (status.last_run) {
+                                const lastRunDate = new Date(status.last_run);
+                                html += '<div>Last analysis: ' + lastRunDate.toLocaleString() + '</div>';
+                            }
+                            
+                            if (status.next_run) {
+                                const nextRunDate = new Date(status.next_run);
+                                html += '<div>Next scheduled: ' + nextRunDate.toLocaleString() + '</div>';
+                            }
+                            
+                            html += '<div>Analysis frequency: Every ' + status.interval_hours + ' hours</div>';
+                            html += '</div>';
+                            html += '</div>';
+                            
+                            schedulerStatus.innerHTML = html;
+                        } else {
+                            schedulerStatus.innerHTML = '<div class="alert alert-warning">Unable to get scheduler status: ' + data.error + '</div>';
+                        }
+                    })
+                    .catch(error => {
+                        schedulerStatus.innerHTML = '<div class="alert alert-danger">Error: ' + error + '</div>';
+                    });
+            }
+            
+            // Initial load
+            updateSchedulerStatus();
+            
+            // Refresh scheduler status every 60 seconds
+            setInterval(updateSchedulerStatus, 60000);
+        });
+    </script>
+</body>
+</html>
+"""
 
 # Global variables
 businesses = {}
@@ -276,6 +668,8 @@ class SelfEvolutionEngine:
 db_manager = DatabaseManager()
 github_monitor = GitHubMonitor()
 evolution_engine = SelfEvolutionEngine()
+# Initialize code analysis scheduler with 12-hour interval
+code_analyzer_scheduler = CodeAnalysisScheduler(os.getcwd(), interval_hours=12)
 
 # Main Dashboard HTML Template
 MAIN_DASHBOARD = """
@@ -610,6 +1004,9 @@ MAIN_DASHBOARD = """
                 <div class="nav-item" onclick="showTaskCenter()">
                     <span>⚙️</span> Task Center
                 </div>
+                <div class="nav-item" onclick="window.location.href='/code-analysis'">
+                    <span>🔍</span> Code Analysis
+                </div>
             </div>
             
             <div class="nav-section">
@@ -669,6 +1066,14 @@ MAIN_DASHBOARD = """
                             <div class="feature-title">Task Implementation</div>
                             <div class="feature-desc">
                                 Assign tasks to the self-evolving system with progress tracking and automated implementation.
+                            </div>
+                        </div>
+                        
+                        <div class="feature-card" onclick="window.location.href='/code-analysis'">
+                            <div class="feature-icon">🔍</div>
+                            <div class="feature-title">Code Analysis</div>
+                            <div class="feature-desc">
+                                Analyze repository code quality, detect issues, and receive improvement recommendations automatically.
                             </div>
                         </div>
                         
@@ -938,11 +1343,209 @@ def health():
         }
     })
 
+# Code Analysis Routes
+@app.route('/code-analysis')
+def code_analysis_dashboard():
+    """Dashboard for code analysis results"""
+    return render_template_string(CODE_ANALYSIS_TEMPLATE)
+
+@app.route('/api/run-code-analysis', methods=['POST'])
+def run_code_analysis():
+    """Run code analysis on the repository"""
+    try:
+        data = request.json or {}
+        # Check if we're analyzing a GitHub repository
+        github_repo = data.get('github_repo')
+        github_token = data.get('github_token') or os.environ.get('GITHUB_TOKEN')
+        
+        # Get repo path - local or from Railway adapter
+        if hasattr(CodeAnalyzer, 'RailwayEnvironmentAdapter') and CodeAnalyzer.RailwayEnvironmentAdapter.is_railway_environment():
+            repo_path = CodeAnalyzer.RailwayEnvironmentAdapter.get_repo_path()
+            output_dir = CodeAnalyzer.RailwayEnvironmentAdapter.setup_analysis_dir()
+        else:
+            repo_path = os.environ.get('REPO_PATH', os.getcwd())
+            output_dir = os.path.join(repo_path, 'analysis')
+            os.makedirs(output_dir, exist_ok=True)
+            
+        output_md = os.path.join(output_dir, "code_analysis_report.md")
+        output_json = os.path.join(output_dir, "code_analysis_data.json")
+        
+        # Initialize analyzer with GitHub repo info if provided
+        if github_repo:
+            logger.info(f"Analyzing GitHub repository: {github_repo}")
+            # Create a temporary directory for the cloned repo
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Clone the repo
+                analyzer = CodeAnalyzer(temp_dir, github_repo=github_repo, github_token=github_token)
+                analyzer.clone_github_repo(target_dir=temp_dir)
+                # Run analysis on the cloned repo
+                analyzer.scan_repository()
+                analyzer.generate_report(output_md)
+                analyzer.save_results(output_json)
+        else:
+            # Run analysis on local repo
+            logger.info(f"Starting code analysis on {repo_path}")
+            analyzer = analyze_repository(repo_path, output_md, output_json)
+        
+        # Update system metrics
+        system_metrics["files_analyzed"] = analyzer.get_summary_stats()["files_analyzed"]
+        
+        return jsonify({
+            "success": True,
+            "summary": analyzer.get_summary_stats(),
+            "report_path": output_md
+        })
+    except Exception as e:
+        logger.error(f"Code analysis error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+        
+@app.route('/api/github-analysis', methods=['POST'])
+def github_repo_analysis():
+    """Run code analysis on a GitHub repository"""
+    try:
+        data = request.json
+        if not data or 'repo' not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing required parameter: 'repo'"
+            }), 400
+            
+        github_repo = data['repo']  # Format: "username/repo"
+        github_token = data.get('token') or os.environ.get('GITHUB_TOKEN')
+        branch = data.get('branch', 'main')
+        
+        logger.info(f"Starting GitHub repository analysis: {github_repo}")
+        
+        # Create a temporary directory for the cloned repo
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                # Initialize analyzer with GitHub repo info
+                analyzer = CodeAnalyzer(temp_dir, github_repo=github_repo, github_token=github_token)
+                
+                # Get repository info from GitHub API
+                repo_info = analyzer.get_github_repo_info()
+                if not repo_info:
+                    return jsonify({
+                        "success": False,
+                        "error": "Failed to fetch repository information"
+                    }), 400
+                
+                # Clone the repository
+                analyzer.clone_github_repo(target_dir=temp_dir, branch=branch)
+                
+                # Run analysis
+                results = analyzer.scan_repository()
+                
+                # Set up output paths using Railway adapter if available
+                if hasattr(analyzer, 'is_railway') and analyzer.is_railway:
+                    from code_analyzer import RailwayEnvironmentAdapter
+                    output_dir = RailwayEnvironmentAdapter.setup_analysis_dir()
+                else:
+                    output_dir = os.path.join(os.getcwd(), 'analysis')
+                    os.makedirs(output_dir, exist_ok=True)
+                
+                # Generate timestamp for unique filenames
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                repo_slug = github_repo.replace('/', '_')
+                output_md = os.path.join(output_dir, f"{repo_slug}_{timestamp}_analysis.md")
+                output_json = os.path.join(output_dir, f"{repo_slug}_{timestamp}_analysis.json")
+                
+                # Generate report and save results
+                analyzer.generate_report(output_md)
+                analyzer.save_results(output_json)
+                
+                # Return results
+                return jsonify({
+                    "success": True,
+                    "repository": github_repo,
+                    "analysis_timestamp": timestamp,
+                    "repository_info": {
+                        "name": repo_info.get('name'),
+                        "description": repo_info.get('description'),
+                        "stars": repo_info.get('stargazers_count'),
+                        "forks": repo_info.get('forks_count'),
+                        "created_at": repo_info.get('created_at'),
+                        "updated_at": repo_info.get('updated_at'),
+                        "default_branch": repo_info.get('default_branch')
+                    },
+                    "summary": analyzer.get_summary_stats(),
+                    "report_path": output_md,
+                    "data_path": output_json
+                })
+            except Exception as e:
+                logger.error(f"Error analyzing GitHub repository: {str(e)}")
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to analyze repository: {str(e)}"
+                }), 500
+    except Exception as e:
+        logger.error(f"Error in GitHub analysis endpoint: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/code-analysis-results')
+def get_code_analysis_results():
+    """Get the latest code analysis results"""
+    try:
+        repo_path = os.environ.get('REPO_PATH', os.getcwd())
+        json_path = os.path.join(repo_path, 'analysis', 'code_analysis_data.json')
+        
+        if os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify({"success": True, "data": data})
+        else:
+            return jsonify({
+                "success": False, 
+                "error": "No analysis results found", 
+                "message": "Run analysis first"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/code-analysis-report')
+def get_code_analysis_report():
+    """Get the latest code analysis report in Markdown"""
+    try:
+        repo_path = os.environ.get('REPO_PATH', os.getcwd())
+        md_path = os.path.join(repo_path, 'analysis', 'code_analysis_report.md')
+        
+        if os.path.exists(md_path):
+            with open(md_path, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+            return jsonify({"success": True, "markdown": markdown_content})
+        else:
+            return jsonify({
+                "success": False, 
+                "error": "No analysis report found",
+                "message": "Run analysis first"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/code-analysis-scheduler')
+def get_code_analysis_scheduler_status():
+    """Get the status of the code analysis scheduler"""
+    try:
+        status = code_analyzer_scheduler.get_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 def start_background_services():
     """Start all background monitoring services"""
     try:
         github_monitor.start_monitoring()
         evolution_engine.start_evolution()
+        code_analyzer_scheduler.start_scheduling()
         logger.info("✅ All background services started")
     except Exception as e:
         logger.error(f"Background services error: {e}")
@@ -951,6 +1554,7 @@ if __name__ == '__main__':
     logger.info("🚀 FRONTIER AI - COMPLETE SYSTEM STARTING")
     logger.info("🏢 ChatGPT-style interface with business integrations")
     logger.info("🧬 Self-evolution monitoring for https://github.com/Kenan3477/FroniterAi")
+    logger.info("🔍 Code analysis module integrated with automatic scheduling")
     
     # Start background services
     start_background_services()

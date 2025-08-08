@@ -1,2 +1,5 @@
 flask==3.0.0
 flask-cors
+gitpython>=3.1.30
+requests>=2.28.0
+python-dotenv>=1.0.0
