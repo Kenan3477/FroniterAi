@@ -1,1 +1,1 @@
-web: python frontier_complete_system.py
+web: python app.py

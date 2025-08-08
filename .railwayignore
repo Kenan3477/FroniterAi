@@ -11,7 +11,6 @@ true_evolution_system.py
 real_evolution_system.py
 
 # Old app files that might conflict
-app.py
 web_ui.py
 enhanced_frontier_dashboard.py
 market_integrated_dashboard.py
