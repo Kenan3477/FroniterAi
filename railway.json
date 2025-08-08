@@ -1,5 +1,5 @@
 {
   "deploy": {
-    "startCommand": "python app.py"
+    "startCommand": "python railway_test.py"
   }
 }
