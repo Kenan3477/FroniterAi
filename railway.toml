@@ -1,5 +1,6 @@
 # Railway Project Configuration
 # This file helps Railway understand how to deploy your application
+# UPDATED: Force Railway to use main.py entry point
 
 [build]
   builder = "NIXPACKS"
@@ -12,3 +13,4 @@
 [env]
   PORT = "8080"
   PYTHONUNBUFFERED = "1"
+  RAILWAY_ENVIRONMENT = "production"

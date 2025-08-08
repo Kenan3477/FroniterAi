@@ -1,10 +1,13 @@
 
+# Nixpacks configuration for FrontierAI
+# Force use of main.py as entry point
+
 [phases.setup]
 nixPkgs = ["python310", "python310Packages.pip"]
 cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["echo 'Building FrontierAI Dashboard...'"]
+cmds = ["echo 'Building FrontierAI Dashboard...'", "ls -la", "echo 'main.py exists:' && ls -la main.py"]
 
 [start]
 cmd = "python main.py"

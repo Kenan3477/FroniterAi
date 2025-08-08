@@ -2,6 +2,7 @@
 """
 FrontierAI - Railway Entry Point
 Main entry point for Railway deployment
+UPDATED: Force Railway redeploy to fix main.py detection
 """
 
 import os
