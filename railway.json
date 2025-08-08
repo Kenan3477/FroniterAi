@@ -1,5 +1,5 @@
 {
   "deploy": {
-    "startCommand": "python railway_main.py"
+    "startCommand": "python frontier_complete_system.py"
   }
 }
