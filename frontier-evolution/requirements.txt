@@ -1,0 +1,25 @@
+# Required Python packages for the Frontier Evolution project
+
+# Core dependencies
+numpy==1.23.5
+pandas==1.5.3
+requests==2.28.1
+
+# Git integration
+GitPython==3.1.30
+
+# Database management
+SQLAlchemy==1.4.41
+
+# Web framework (if needed for dashboard)
+Flask==2.2.2
+
+# Testing framework
+pytest==7.2.0
+
+# Documentation generation
+Sphinx==5.3.0
+
+# Additional utilities
+black==22.3.0
+flake8==4.0.1
