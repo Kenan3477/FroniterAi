@@ -5,7 +5,6 @@ Makes comprehensive improvements: entire code blocks, web pages, UI designs, and
 """
 
 import os
-import logging
 import json
 import time
 import threading
@@ -59,8 +58,8 @@ class AdvancedEvolutionSystem:
         
     def start_goal_focused_evolution(self, goal_description=None, priority='critical'):
         """Start goal-focused evolution that stops all other processes"""
-        logging.info("🎯 STARTING GOAL-FOCUSED EVOLUTION")
-        logging.info("⚡ Stopping all other evolution processes...")
+        print("🎯 STARTING GOAL-FOCUSED EVOLUTION")
+        print("⚡ Stopping all other evolution processes...")
         
         # Stop current evolution
         self.running = False
@@ -76,10 +75,10 @@ class AdvancedEvolutionSystem:
             'status': 'active'
         }
         
-        logging.info(f"🚨 FOCUS MODE ACTIVATED")
-        logging.info(f"🎯 Goal: {goal_description}")
-        logging.info(f"⚡ Priority: {priority}")
-        logging.info("🔥 All resources dedicated to achieving this goal!")
+        print(f"🚨 FOCUS MODE ACTIVATED")
+        print(f"🎯 Goal: {goal_description}")
+        print(f"⚡ Priority: {priority}")
+        print("🔥 All resources dedicated to achieving this goal!")
         
         # Start focused evolution
         self.running = True
@@ -91,7 +90,7 @@ class AdvancedEvolutionSystem:
     
     def _goal_focused_loop(self, goal_description):
         """Main loop for goal-focused evolution"""
-        logging.info(f"\n🚀 Starting goal-focused evolution for: {goal_description}")
+        print(f"\n🚀 Starting goal-focused evolution for: {goal_description}")
         
         cycle_count = 0
         max_cycles = 50  # Intensive focus
@@ -99,8 +98,8 @@ class AdvancedEvolutionSystem:
         while self.running and cycle_count < max_cycles:
             try:
                 cycle_count += 1
-                logging.info(f"\n⚡ GOAL-FOCUSED CYCLE {cycle_count}/{max_cycles}")
-                logging.info(f"🎯 Target: {goal_description}")
+                print(f"\n⚡ GOAL-FOCUSED CYCLE {cycle_count}/{max_cycles}")
+                print(f"🎯 Target: {goal_description}")
                 
                 # Analyze goal and determine strategy
                 strategy = self._analyze_goal_strategy(goal_description)
@@ -114,27 +113,27 @@ class AdvancedEvolutionSystem:
                     if self._apply_comprehensive_improvement(improvement):
                         success_count += 1
                 
-                logging.info(f"✅ Applied {success_count}/{len(improvements)} comprehensive improvements")
+                print(f"✅ Applied {success_count}/{len(improvements)} comprehensive improvements")
                 
                 # Update metrics
                 self._update_advanced_metrics(improvements, success_count)
                 
                 # Check if goal is achieved
                 if self._check_goal_completion(goal_description, strategy):
-                    logging.info(f"🎉 GOAL ACHIEVED: {goal_description}")
+                    print(f"🎉 GOAL ACHIEVED: {goal_description}")
                     break
                 
                 # Short pause between intensive cycles
                 time.sleep(10)
                 
             except Exception as e:
-                logging.info(f"❌ Goal-focused cycle error: {e}")
+                print(f"❌ Goal-focused cycle error: {e}")
                 time.sleep(5)
         
         # Exit focus mode
         self.evolution_data['focus_mode'] = False
         self.evolution_data['current_goal']['status'] = 'completed'
-        logging.info(f"\n🏁 Goal-focused evolution completed after {cycle_count} cycles")
+        print(f"\n🏁 Goal-focused evolution completed after {cycle_count} cycles")
     
     def _analyze_goal_strategy(self, goal_description):
         """Analyze the goal and determine comprehensive improvement strategy"""
@@ -182,9 +181,9 @@ class AdvancedEvolutionSystem:
             strategy['techniques'] = ['full_stack_improvement']
             strategy['priority_areas'] = ['general_improvement']
         
-        logging.info(f"📋 Strategy: {strategy['improvement_types']}")
-        logging.info(f"🎯 Techniques: {strategy['techniques']}")
-        logging.info(f"📁 Target files: {len(strategy['target_files'])} files")
+        print(f"📋 Strategy: {strategy['improvement_types']}")
+        print(f"🎯 Techniques: {strategy['techniques']}")
+        print(f"📁 Target files: {len(strategy['target_files'])} files")
         
         return strategy
     
@@ -200,7 +199,7 @@ class AdvancedEvolutionSystem:
                 file_improvements = self._generate_file_improvements(file_path, strategy, goal_description)
                 improvements.extend(file_improvements)
             except Exception as e:
-                logging.info(f"⚠️ Could not improve {file_path}: {e}")
+                print(f"⚠️ Could not improve {file_path}: {e}")
         
         # Add new file creation if needed
         if 'ui_enhancement' in strategy['improvement_types']:
@@ -503,21 +502,21 @@ class AdvancedEvolutionSystem:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(improvement['improved_content'])
             
-            logging.info(f"✅ COMPREHENSIVELY IMPROVED: {file_path.name}")
-            logging.info(f"🔧 Type: {improvement['type']}")
-            logging.info(f"📝 Changes: {improvement['changes']}")
+            print(f"✅ COMPREHENSIVELY IMPROVED: {file_path.name}")
+            print(f"🔧 Type: {improvement['type']}")
+            print(f"📝 Changes: {improvement['changes']}")
             
             # Test the improvement
             if self._test_comprehensive_improvement(improvement):
-                logging.info(f"🧪 Tests passed for {file_path.name}")
+                print(f"🧪 Tests passed for {file_path.name}")
                 return True
             else:
-                logging.info(f"❌ Tests failed, rolling back {file_path.name}")
+                print(f"❌ Tests failed, rolling back {file_path.name}")
                 self._rollback_improvement(file_path, backup_path)
                 return False
                 
         except Exception as e:
-            logging.info(f"❌ Failed to apply improvement: {e}")
+            print(f"❌ Failed to apply improvement: {e}")
             return False
     
     def _create_advanced_backup(self, file_path):
@@ -527,7 +526,7 @@ class AdvancedEvolutionSystem:
         backup_path = self.backup_dir / backup_name
         
         shutil.copy2(file_path, backup_path)
-        logging.info(f"📋 Advanced backup: {backup_path}")
+        print(f"📋 Advanced backup: {backup_path}")
         
         return backup_path
     
@@ -556,9 +555,9 @@ class AdvancedEvolutionSystem:
         """Rollback failed improvement"""
         try:
             shutil.copy2(backup_path, file_path)
-            logging.info(f"🔙 Rolled back: {file_path.name}")
+            print(f"🔙 Rolled back: {file_path.name}")
         except Exception as e:
-            logging.info(f"❌ Rollback failed: {e}")
+            print(f"❌ Rollback failed: {e}")
     
     def _find_ui_files(self):
         """Find UI-related files"""
@@ -761,7 +760,7 @@ export default EnhancedDashboard;
         
         metrics['user_experience_score'] = min(95, metrics['user_experience_score'] + success_count * 2)
         
-        logging.info(f"📊 Updated metrics: UI improved: {metrics['ui_components_improved']}, Features added: {metrics['features_added']}")
+        print(f"📊 Updated metrics: UI improved: {metrics['ui_components_improved']}, Features added: {metrics['features_added']}")
     
     def _check_goal_completion(self, goal_description, strategy):
         """Check if the goal has been achieved"""
@@ -788,10 +787,10 @@ def start_advanced_evolution(goal=None):
     if goal:
         evolution_system.start_goal_focused_evolution(goal, 'critical')
     else:
-        logging.info("Please provide a goal for the advanced evolution system")
-        logging.info("Example: 'Enhance UI to be more modern and visually appealing'")
-        logging.info("Example: 'Optimize performance and add new features'")
-        logging.info("Example: 'Create comprehensive dashboard with advanced functionality'")
+        print("Please provide a goal for the advanced evolution system")
+        print("Example: 'Enhance UI to be more modern and visually appealing'")
+        print("Example: 'Optimize performance and add new features'")
+        print("Example: 'Create comprehensive dashboard with advanced functionality'")
 
 if __name__ == "__main__":
     import sys
