@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-08-08T16:45:27.791146",
+  "total_tests": 8,
+  "actually_working": 0,
+  "fake_or_broken": 8,
+  "reality_score": 0.0,
+  "total_duration": 17.05,
+  "detailed_results": {
+    "API Response Validation": {
+      "real_functionality": false,
+      "real_apis": 0,
+      "fake_apis": 8,
+      "details": {
+        "/api/metrics": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/api/evolution-log": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/health": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/api/businesses": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/api/code-analysis-results": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/api/github-analysis": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/market/analysis": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        },
+        "/api/market/data": {
+          "status": "NOT_IMPLEMENTED",
+          "code": 404
+        }
+      },
+      "reason": "Only 0/8 APIs actually work",
+      "duration": 3.330239772796631
+    },
+    "Code Analysis Functionality": {
+      "real_functionality": false,
+      "reason": "No real analysis functionality - status 404",
+      "duration": 0.3793816566467285
+    },
+    "GitHub Integration Reality": {
+      "real_functionality": false,
+      "reason": "No real GitHub integration detected",
+      "duration": 0.434495210647583
+    },
+    "Database Operations": {
+      "real_functionality": false,
+      "reason": "Database operations not working",
+      "duration": 0.523021936416626
+    },
+    "Evolution System Reality": {
+      "real_functionality": false,
+      "reason": "No real evolution activity detected",
+      "duration": 0.45878076553344727
+    },
+    "Market Analysis Truth": {
+      "real_functionality": false,
+      "reason": "No real market analysis data found",
+      "duration": 0.797386646270752
+    },
+    "System Health Real Check": {
+      "real_functionality": false,
+      "reason": "No real health monitoring detected",
+      "duration": 0.3632545471191406
+    },
+    "Background Services Truth": {
+      "real_functionality": false,
+      "reason": "No background service activity detected",
+      "duration": 2.7426769733428955
+    }
+  }
+}

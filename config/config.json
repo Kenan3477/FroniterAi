@@ -1,0 +1,219 @@
+{
+  "frontier_ai": {
+    "version": "1.0.0",
+    "name": "FrontierAI Autonomous Evolution System",
+    "description": "Real autonomous AI system that evolves GitHub repositories",
+    "log_level": "INFO",
+    "debug": false,
+    "database": {
+      "path": "autonomous_evolution.db",
+      "backup_enabled": true,
+      "backup_interval_hours": 24,
+      "max_backups": 7
+    },
+    "evolution": {
+      "enabled": true,
+      "interval_minutes": 30,
+      "max_concurrent_evolutions": 3,
+      "min_confidence_threshold": 0.7,
+      "max_daily_evolutions": 50,
+      "learning_rate": 0.1,
+      "adaptation_factors": {
+        "code_quality": 0.25,
+        "security": 0.25,
+        "performance": 0.20,
+        "maintainability": 0.15,
+        "innovation": 0.15
+      }
+    },
+    "monitoring": {
+      "enabled": true,
+      "interval_seconds": 60,
+      "metrics_retention_days": 30,
+      "alert_thresholds": {
+        "cpu_usage": 80.0,
+        "memory_usage": 85.0,
+        "disk_usage": 90.0,
+        "evolution_errors": 5,
+        "response_time": 5.0
+      },
+      "health_check_endpoints": [
+        "/health",
+        "/api/status",
+        "/api/evolution/status"
+      ]
+    },
+    "github": {
+      "enabled": false,
+      "token": "",
+      "default_repo": "",
+      "api_base_url": "https://api.github.com",
+      "rate_limit_per_hour": 5000,
+      "timeout_seconds": 30,
+      "max_retries": 3,
+      "backup_before_evolution": true,
+      "create_evolution_branches": true
+    },
+    "security": {
+      "enable_sandbox": true,
+      "max_file_size_mb": 10,
+      "allowed_file_extensions": [
+        ".py",
+        ".js",
+        ".ts",
+        ".json",
+        ".md",
+        ".txt",
+        ".yml",
+        ".yaml"
+      ],
+      "blocked_operations": [
+        "rm -rf",
+        "del /s",
+        "format",
+        "sudo",
+        "chmod 777"
+      ],
+      "code_analysis": {
+        "check_syntax": true,
+        "detect_vulnerabilities": true,
+        "scan_for_secrets": true
+      }
+    },
+    "api": {
+      "host": "0.0.0.0",
+      "port": 5000,
+      "debug": false,
+      "cors_enabled": true,
+      "rate_limiting": {
+        "enabled": true,
+        "requests_per_minute": 60,
+        "burst": 10
+      },
+      "authentication": {
+        "enabled": false,
+        "method": "token",
+        "secret_key": "change-this-in-production"
+      }
+    },
+    "analysis": {
+      "deep_code_analysis": true,
+      "security_scanning": true,
+      "performance_profiling": true,
+      "dependency_analysis": true,
+      "code_metrics": {
+        "complexity_threshold": 10,
+        "duplication_threshold": 0.05,
+        "test_coverage_threshold": 0.8
+      }
+    },
+    "evolution_strategies": {
+      "code_improvement": {
+        "enabled": true,
+        "weight": 0.3,
+        "techniques": [
+          "refactoring",
+          "optimization",
+          "modernization"
+        ]
+      },
+      "security_enhancement": {
+        "enabled": true,
+        "weight": 0.25,
+        "techniques": [
+          "vulnerability_fixes",
+          "security_best_practices",
+          "dependency_updates"
+        ]
+      },
+      "feature_development": {
+        "enabled": true,
+        "weight": 0.2,
+        "techniques": [
+          "new_features",
+          "api_improvements",
+          "user_experience"
+        ]
+      },
+      "documentation": {
+        "enabled": true,
+        "weight": 0.15,
+        "techniques": [
+          "code_comments",
+          "api_docs",
+          "readme_updates"
+        ]
+      },
+      "testing": {
+        "enabled": true,
+        "weight": 0.1,
+        "techniques": [
+          "unit_tests",
+          "integration_tests",
+          "performance_tests"
+        ]
+      }
+    },
+    "deployment": {
+      "platform": "github",
+      "auto_deploy": false,
+      "environments": {
+        "development": {
+          "branch": "develop",
+          "auto_merge": false
+        },
+        "staging": {
+          "branch": "staging",
+          "auto_merge": false
+        },
+        "production": {
+          "branch": "main",
+          "auto_merge": false,
+          "require_approval": true
+        }
+      },
+      "rollback": {
+        "enabled": true,
+        "automatic_on_failure": true,
+        "keep_last_n_versions": 5
+      }
+    },
+    "notifications": {
+      "enabled": false,
+      "channels": {
+        "email": {
+          "enabled": false,
+          "smtp_server": "",
+          "smtp_port": 587,
+          "username": "",
+          "password": "",
+          "recipients": []
+        },
+        "webhook": {
+          "enabled": false,
+          "url": "",
+          "secret": ""
+        },
+        "slack": {
+          "enabled": false,
+          "webhook_url": "",
+          "channel": "#frontier-ai"
+        }
+      },
+      "events": {
+        "evolution_started": true,
+        "evolution_completed": true,
+        "evolution_failed": true,
+        "critical_errors": true,
+        "security_alerts": true
+      }
+    },
+    "experimental": {
+      "ai_assisted_evolution": false,
+      "machine_learning_insights": false,
+      "predictive_evolution": false,
+      "multi_repo_orchestration": false,
+      "quantum_evolution_algorithms": false
+    }
+  }
+}

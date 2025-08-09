@@ -1,0 +1,150 @@
+{
+  "competitors": {
+    "Shopify": {
+      "name": "Shopify",
+      "website": "https://www.shopify.com",
+      "stock_symbol": "SHOP",
+      "market_cap": 194772762624,
+      "revenue": 10014000128,
+      "employees": 8100,
+      "technologies": [
+        "React",
+        "Salesforce",
+        "Shopify"
+      ],
+      "key_features": [
+        "analytics",
+        "integration",
+        "custom",
+        "scale",
+        "mobile",
+        "ai"
+      ],
+      "pricing_model": "Unknown",
+      "target_market": [],
+      "strengths": [
+        "Modern web technology stack",
+        "Fast website performance",
+        "Strong market capitalization",
+        "High revenue",
+        "Active content marketing"
+      ],
+      "weaknesses": [],
+      "threat_level": 9
+    },
+    "Stripe": {
+      "name": "Stripe",
+      "website": "https://stripe.com",
+      "stock_symbol": null,
+      "market_cap": null,
+      "revenue": null,
+      "employees": null,
+      "technologies": [
+        "React",
+        "Shopify",
+        "Stripe",
+        "Squarespace",
+        "Salesforce",
+        "Bootstrap"
+      ],
+      "key_features": [
+        "apis",
+        "api",
+        "integration",
+        "automation",
+        "ai",
+        "cloud",
+        "scale",
+        "custom",
+        "mobile",
+        "saas",
+        "data",
+        "insights",
+        "reporting",
+        "ios",
+        "workflows",
+        "dashboard",
+        "integrations"
+      ],
+      "pricing_model": "Unknown",
+      "target_market": [],
+      "strengths": [
+        "Modern web technology stack",
+        "Fast website performance",
+        "Active content marketing"
+      ],
+      "weaknesses": [],
+      "threat_level": 8
+    },
+    "PayPal": {
+      "name": "PayPal",
+      "website": "https://www.paypal.com",
+      "stock_symbol": "PYPL",
+      "market_cap": 64631320576,
+      "revenue": 32291999744,
+      "employees": 24400,
+      "technologies": [
+        "React",
+        "Google Analytics",
+        "PayPal"
+      ],
+      "key_features": [
+        "secure",
+        "mobile"
+      ],
+      "pricing_model": "Unknown",
+      "target_market": [],
+      "strengths": [
+        "Modern web technology stack",
+        "Fast website performance",
+        "Strong market capitalization",
+        "High revenue"
+      ],
+      "weaknesses": [
+        "Limited content marketing"
+      ],
+      "threat_level": 8
+    },
+    "Salesforce": {
+      "name": "Salesforce",
+      "website": "https://www.salesforce.com",
+      "stock_symbol": "CRM",
+      "market_cap": 229927550976,
+      "revenue": 38591000576,
+      "employees": 76453,
+      "technologies": [
+        "Google Analytics",
+        "Salesforce",
+        "WordPress"
+      ],
+      "key_features": [
+        "analytics",
+        "real-time",
+        "automation",
+        "api",
+        "cloud",
+        "scale",
+        "data",
+        "artificial intelligence",
+        "insights",
+        "workflow",
+        "reporting",
+        "workflows",
+        "scalable",
+        "ai"
+      ],
+      "pricing_model": "Unknown",
+      "target_market": [],
+      "strengths": [
+        "Fast website performance",
+        "Strong market capitalization",
+        "High revenue",
+        "Active content marketing"
+      ],
+      "weaknesses": [],
+      "threat_level": 9
+    }
+  },
+  "generated_at": "2025-08-09T11:41:26.967281",
+  "total_analyzed": 4
+}

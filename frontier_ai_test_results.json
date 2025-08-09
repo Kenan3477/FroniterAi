@@ -1,0 +1,195 @@
+{
+  "Basic Connectivity": {
+    "success": true,
+    "status_code": 200,
+    "content_length": 27024,
+    "has_title": true,
+    "response_time": 0.621832
+  },
+  "Dashboard Access": {
+    "success": true,
+    "checks": {
+      "has_title": true,
+      "has_autonomous": true,
+      "has_evolution": true,
+      "has_github": true,
+      "has_analysis": true,
+      "has_live_feed": true
+    },
+    "content_length": 27024
+  },
+  "API Health Check": {
+    "success": false,
+    "endpoints_tested": 4,
+    "successful_endpoints": 0,
+    "results": {
+      "/api/health": {
+        "status": 404,
+        "success": false
+      },
+      "/api/status": {
+        "status": 404,
+        "success": false
+      },
+      "/health": {
+        "status": 404,
+        "success": false
+      },
+      "/status": {
+        "status": 404,
+        "success": false
+      }
+    }
+  },
+  "GitHub Integration": {
+    "success": true,
+    "github_in_main_page": true,
+    "endpoint_results": {
+      "/github/status": {
+        "status": 404,
+        "accessible": false
+      },
+      "/api/github/repos": {
+        "status": 404,
+        "accessible": false
+      },
+      "/github/monitor": {
+        "status": 404,
+        "accessible": false
+      }
+    }
+  },
+  "Code Analysis": {
+    "success": true,
+    "analysis_in_main_page": true,
+    "endpoint_results": {
+      "/analysis/status": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/analysis/summary": {
+        "status": 404,
+        "accessible": true
+      },
+      "/code-analysis": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Evolution System": {
+    "success": true,
+    "evolution_in_main_page": true,
+    "endpoint_results": {
+      "/evolution/status": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/evolution/feed": {
+        "status": 404,
+        "accessible": true
+      },
+      "/evolution/goals": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Autonomous Features": {
+    "success": true,
+    "features_found": {
+      "has_autonomous_keyword": true,
+      "has_self_keyword": true,
+      "has_automatic_keyword": false,
+      "has_ai_keyword": true,
+      "has_monitoring": true,
+      "has_real_time": true
+    },
+    "feature_count": 5
+  },
+  "Market Analysis": {
+    "success": true,
+    "market_in_main_page": true,
+    "endpoint_results": {
+      "/market/analysis": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/market/data": {
+        "status": 404,
+        "accessible": true
+      },
+      "/market/intelligence": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Compliance Engine": {
+    "success": true,
+    "compliance_in_main_page": false,
+    "endpoint_results": {
+      "/compliance/check": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/compliance/status": {
+        "status": 404,
+        "accessible": true
+      },
+      "/compliance/report": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Background Services": {
+    "success": true,
+    "main_page_accessible": true,
+    "endpoint_results": {
+      "/services/status": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/services/health": {
+        "status": 404,
+        "accessible": true
+      },
+      "/background/status": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Database Connectivity": {
+    "success": true,
+    "dynamic_content_detected": true,
+    "endpoint_results": {
+      "/db/status": {
+        "status": 404,
+        "accessible": true
+      },
+      "/api/db/health": {
+        "status": 404,
+        "accessible": true
+      },
+      "/database/check": {
+        "status": 404,
+        "accessible": true
+      }
+    }
+  },
+  "Performance Metrics": {
+    "success": true,
+    "response_time": 0.7282905578613281,
+    "content_size": 27168,
+    "status_code": 200,
+    "performance_criteria": {
+      "fast_response": true,
+      "reasonable_size": true,
+      "successful_response": true,
+      "contains_content": true
+    },
+    "performance_score": "4/4"
+  }
+}

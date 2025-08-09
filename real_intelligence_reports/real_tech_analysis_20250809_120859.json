@@ -1,0 +1,737 @@
+[
+  {
+    "company_name": "Notion",
+    "domain": "notion.so",
+    "analyzed_at": "2025-08-09T12:08:08.273447",
+    "technology_stack": {
+      "detected_technologies": [
+        "Cloudflare",
+        "React",
+        "Next.js",
+        "Angular"
+      ],
+      "frontend_frameworks": [
+        "React",
+        "Angular",
+        "Next.js"
+      ],
+      "backend_technologies": [],
+      "databases": [],
+      "cloud_services": [],
+      "cdn_services": [
+        "Cloudflare"
+      ],
+      "analytics_tools": [],
+      "confidence_scores": {
+        "React": 0.8,
+        "Angular": 0.8,
+        "Next.js": 0.8
+      }
+    },
+    "api_capabilities": {
+      "discovered_apis": [
+        {
+          "endpoint": "/v1",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/v2",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/graphql",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/rest",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/docs",
+          "status_code": 200,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 244095
+        },
+        {
+          "endpoint": "/swagger",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/openapi",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        },
+        {
+          "endpoint": "/api-docs",
+          "status_code": 401,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 13946
+        }
+      ],
+      "api_documentation": [],
+      "graphql_endpoints": [
+        "/graphql"
+      ],
+      "rest_endpoints": [
+        "/v1",
+        "/v2",
+        "/rest",
+        "/docs",
+        "/swagger",
+        "/openapi",
+        "/api-docs"
+      ],
+      "websocket_support": false,
+      "api_versioning": [],
+      "authentication_methods": [
+        "Required",
+        "Required",
+        "Required",
+        "Required",
+        "Required",
+        "Required",
+        "Required"
+      ],
+      "rate_limiting": false
+    },
+    "infrastructure_analysis": {
+      "dns_records": {
+        "ip_addresses": [
+          "192.168.1.254",
+          "208.103.161.1",
+          "208.103.161.2"
+        ]
+      },
+      "ssl_certificate": {
+        "enabled": true,
+        "protocol": "HTTPS",
+        "redirect_from_http": true
+      },
+      "hosting_provider": "Cloudflare",
+      "cdn_usage": [
+        "Cloudflare"
+      ],
+      "load_balancer": true,
+      "geographic_distribution": []
+    },
+    "security_assessment": {
+      "ssl_grade": "A",
+      "security_headers": {
+        "Content-Security-Policy": false,
+        "X-Frame-Options": false,
+        "X-Content-Type-Options": false,
+        "Strict-Transport-Security": true,
+        "X-XSS-Protection": false
+      },
+      "vulnerabilities": [],
+      "privacy_compliance": {
+        "gdpr_compliant": true,
+        "privacy_policy": false,
+        "cookie_policy": true,
+        "data_protection": false
+      },
+      "authentication_security": {}
+    },
+    "performance_metrics": {
+      "response_time_ms": 295.9859371185303,
+      "page_size_kb": 192.078125,
+      "resource_counts": {
+        "images": 58,
+        "scripts": 25,
+        "stylesheets": 4,
+        "total_elements": 938
+      },
+      "optimization_score": 100
+    },
+    "competitive_intelligence": {
+      "business_model": "Marketplace",
+      "target_market": [
+        "SMB",
+        "Enterprise",
+        "Startup",
+        "Developer",
+        "Marketing"
+      ],
+      "key_features": [
+        "dashboard",
+        "analytics",
+        "integration",
+        "workflow",
+        "ai",
+        "api"
+      ],
+      "pricing_model": "Freemium",
+      "competitive_advantages": [],
+      "market_position": "Unknown"
+    },
+    "threat_assessment": {
+      "threat_level": "CRITICAL",
+      "threat_score": 89,
+      "key_threats": [
+        "Modern React frontend",
+        "GraphQL API"
+      ],
+      "competitive_gaps": []
+    }
+  },
+  {
+    "company_name": "Airtable",
+    "domain": "airtable.com",
+    "analyzed_at": "2025-08-09T12:08:19.235593",
+    "technology_stack": {
+      "detected_technologies": [
+        "Next.js",
+        "Angular"
+      ],
+      "frontend_frameworks": [
+        "Angular",
+        "Next.js"
+      ],
+      "backend_technologies": [],
+      "databases": [],
+      "cloud_services": [],
+      "cdn_services": [],
+      "analytics_tools": [],
+      "confidence_scores": {
+        "Angular": 0.8,
+        "Next.js": 0.8
+      }
+    },
+    "api_capabilities": {
+      "discovered_apis": [
+        {
+          "endpoint": "/api",
+          "status_code": 200,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 541458
+        }
+      ],
+      "api_documentation": [
+        "/api"
+      ],
+      "graphql_endpoints": [],
+      "rest_endpoints": [
+        "/api"
+      ],
+      "websocket_support": false,
+      "api_versioning": [],
+      "authentication_methods": [],
+      "rate_limiting": false
+    },
+    "infrastructure_analysis": {
+      "dns_records": {
+        "ip_addresses": [
+          "52.54.120.228",
+          "23.22.17.173",
+          "3.209.127.27",
+          "54.82.98.17",
+          "52.22.8.7",
+          "192.168.1.254",
+          "34.236.181.147"
+        ]
+      },
+      "ssl_certificate": {
+        "enabled": true,
+        "protocol": "HTTPS",
+        "redirect_from_http": true
+      },
+      "hosting_provider": "Amazon AWS",
+      "cdn_usage": [],
+      "load_balancer": true,
+      "geographic_distribution": []
+    },
+    "security_assessment": {
+      "ssl_grade": "A",
+      "security_headers": {
+        "Content-Security-Policy": true,
+        "X-Frame-Options": false,
+        "X-Content-Type-Options": false,
+        "Strict-Transport-Security": false,
+        "X-XSS-Protection": false
+      },
+      "vulnerabilities": [],
+      "privacy_compliance": {
+        "gdpr_compliant": false,
+        "privacy_policy": true,
+        "cookie_policy": true,
+        "data_protection": true
+      },
+      "authentication_security": {}
+    },
+    "performance_metrics": {
+      "response_time_ms": 729.733943939209,
+      "page_size_kb": 733.27734375,
+      "resource_counts": {
+        "images": 64,
+        "scripts": 40,
+        "stylesheets": 7,
+        "total_elements": 1728
+      },
+      "optimization_score": 100
+    },
+    "competitive_intelligence": {
+      "business_model": "Marketplace",
+      "target_market": [
+        "Enterprise",
+        "Startup",
+        "Developer",
+        "Marketing",
+        "Sales"
+      ],
+      "key_features": [
+        "reporting",
+        "integration",
+        "automation",
+        "workflow",
+        "ai",
+        "api"
+      ],
+      "pricing_model": "Freemium",
+      "competitive_advantages": [],
+      "market_position": "Unknown"
+    },
+    "threat_assessment": {
+      "threat_level": "MEDIUM",
+      "threat_score": 43,
+      "key_threats": [],
+      "competitive_gaps": []
+    }
+  },
+  {
+    "company_name": "Slack",
+    "domain": "slack.com",
+    "analyzed_at": "2025-08-09T12:08:30.459654",
+    "technology_stack": {
+      "detected_technologies": [
+        "Bootstrap",
+        "AWS",
+        "Google Analytics",
+        "Angular",
+        "Bulma"
+      ],
+      "frontend_frameworks": [
+        "Angular",
+        "Bootstrap",
+        "Bulma"
+      ],
+      "backend_technologies": [],
+      "databases": [],
+      "cloud_services": [
+        "AWS"
+      ],
+      "cdn_services": [],
+      "analytics_tools": [
+        "Google Analytics"
+      ],
+      "confidence_scores": {
+        "Angular": 0.8
+      }
+    },
+    "api_capabilities": {
+      "discovered_apis": [
+        {
+          "endpoint": "/api",
+          "status_code": 200,
+          "content_type": "text/html; charset=utf-8",
+          "response_size": 141481
+        },
+        {
+          "endpoint": "/api/v1",
+          "status_code": 200,
+          "content_type": "application/json; charset=utf-8",
+          "response_size": 55
+        },
+        {
+          "endpoint": "/api/v2",
+          "status_code": 200,
+          "content_type": "application/json; charset=utf-8",
+          "response_size": 55
+        },
+        {
+          "endpoint": "/api/docs",
+          "status_code": 200,
+          "content_type": "application/json; charset=utf-8",
+          "response_size": 57
+        }
+      ],
+      "api_documentation": [],
+      "graphql_endpoints": [],
+      "rest_endpoints": [
+        "/api",
+        "/api/v1",
+        "/api/v2",
+        "/api/docs"
+      ],
+      "websocket_support": false,
+      "api_versioning": [],
+      "authentication_methods": [],
+      "rate_limiting": false
+    },
+    "infrastructure_analysis": {
+      "dns_records": {
+        "ip_addresses": [
+          "18.134.215.41",
+          "18.168.172.238",
+          "18.169.61.189",
+          "192.168.1.254",
+          "18.169.120.191"
+        ]
+      },
+      "ssl_certificate": {
+        "enabled": true,
+        "protocol": "HTTPS",
+        "redirect_from_http": true
+      },
+      "hosting_provider": "Unknown",
+      "cdn_usage": [],
+      "load_balancer": true,
+      "geographic_distribution": []
+    },
+    "security_assessment": {
+      "ssl_grade": "A",
+      "security_headers": {
+        "Content-Security-Policy": false,
+        "X-Frame-Options": false,
+        "X-Content-Type-Options": false,
+        "Strict-Transport-Security": false,
+        "X-XSS-Protection": false
+      },
+      "vulnerabilities": [],
+      "privacy_compliance": {
+        "gdpr_compliant": false,
+        "privacy_policy": false,
+        "cookie_policy": true,
+        "data_protection": false
+      },
+      "authentication_security": {}
+    },
+    "performance_metrics": {
+      "response_time_ms": 16.143321990966797,
+      "page_size_kb": 0.0,
+      "resource_counts": {
+        "images": 0,
+        "scripts": 0,
+        "stylesheets": 0,
+        "total_elements": 0
+      },
+      "optimization_score": 100
+    },
+    "competitive_intelligence": {
+      "business_model": "Subscription (SaaS)",
+      "target_market": [
+        "SMB",
+        "Enterprise",
+        "Developer",
+        "Marketing",
+        "Sales"
+      ],
+      "key_features": [
+        "analytics",
+        "integration",
+        "automation",
+        "collaboration",
+        "workflow",
+        "ai",
+        "api"
+      ],
+      "pricing_model": "Freemium",
+      "competitive_advantages": [],
+      "market_position": "Unknown"
+    },
+    "threat_assessment": {
+      "threat_level": "CRITICAL",
+      "threat_score": 80,
+      "key_threats": [
+        "Cloud-native infrastructure"
+      ],
+      "competitive_gaps": []
+    }
+  },
+  {
+    "company_name": "Discord",
+    "domain": "discord.com",
+    "analyzed_at": "2025-08-09T12:08:37.808660",
+    "technology_stack": {
+      "detected_technologies": [
+        "Cloudflare",
+        "Bootstrap",
+        "AWS",
+        "Angular",
+        "Google Cloud",
+        "jQuery",
+        "Foundation",
+        "Bulma"
+      ],
+      "frontend_frameworks": [
+        "Angular",
+        "jQuery",
+        "Bootstrap",
+        "Foundation",
+        "Bulma"
+      ],
+      "backend_technologies": [],
+      "databases": [],
+      "cloud_services": [
+        "AWS",
+        "Google Cloud"
+      ],
+      "cdn_services": [
+        "Cloudflare"
+      ],
+      "analytics_tools": [],
+      "confidence_scores": {
+        "Angular": 0.8,
+        "jQuery": 0.8
+      }
+    },
+    "api_capabilities": {
+      "discovered_apis": [
+        {
+          "endpoint": "/api/v1",
+          "status_code": 403,
+          "content_type": "application/json",
+          "response_size": 52
+        },
+        {
+          "endpoint": "/api/v2",
+          "status_code": 403,
+          "content_type": "application/json",
+          "response_size": 52
+        }
+      ],
+      "api_documentation": [],
+      "graphql_endpoints": [],
+      "rest_endpoints": [
+        "/api/v1",
+        "/api/v2"
+      ],
+      "websocket_support": false,
+      "api_versioning": [],
+      "authentication_methods": [],
+      "rate_limiting": false
+    },
+    "infrastructure_analysis": {
+      "dns_records": {
+        "ip_addresses": [
+          "162.159.128.233",
+          "162.159.137.232",
+          "162.159.136.232",
+          "162.159.135.232",
+          "162.159.138.232",
+          "192.168.1.254"
+        ]
+      },
+      "ssl_certificate": {
+        "enabled": true,
+        "protocol": "HTTPS",
+        "redirect_from_http": true
+      },
+      "hosting_provider": "Cloudflare",
+      "cdn_usage": [
+        "Cloudflare"
+      ],
+      "load_balancer": true,
+      "geographic_distribution": []
+    },
+    "security_assessment": {
+      "ssl_grade": "A",
+      "security_headers": {
+        "Content-Security-Policy": true,
+        "X-Frame-Options": true,
+        "X-Content-Type-Options": true,
+        "Strict-Transport-Security": true,
+        "X-XSS-Protection": true
+      },
+      "vulnerabilities": [],
+      "privacy_compliance": {
+        "gdpr_compliant": false,
+        "privacy_policy": false,
+        "cookie_policy": true,
+        "data_protection": false
+      },
+      "authentication_security": {}
+    },
+    "performance_metrics": {
+      "response_time_ms": 108.72840881347656,
+      "page_size_kb": 154.0478515625,
+      "resource_counts": {
+        "images": 170,
+        "scripts": 28,
+        "stylesheets": 2,
+        "total_elements": 936
+      },
+      "optimization_score": 100
+    },
+    "competitive_intelligence": {
+      "business_model": "Unknown",
+      "target_market": [
+        "Developer"
+      ],
+      "key_features": [
+        "ai",
+        "api"
+      ],
+      "pricing_model": "Paid Plans",
+      "competitive_advantages": [],
+      "market_position": "Unknown"
+    },
+    "threat_assessment": {
+      "threat_level": "CRITICAL",
+      "threat_score": 89,
+      "key_threats": [
+        "Cloud-native infrastructure"
+      ],
+      "competitive_gaps": []
+    }
+  },
+  {
+    "company_name": "Figma",
+    "domain": "figma.com",
+    "analyzed_at": "2025-08-09T12:08:43.895555",
+    "technology_stack": {
+      "detected_technologies": [
+        "Bootstrap",
+        "Vercel",
+        "Angular",
+        "Tailwind CSS",
+        "Google Cloud",
+        "Foundation",
+        "Mixpanel",
+        "Bulma",
+        "Next.js"
+      ],
+      "frontend_frameworks": [
+        "Angular",
+        "Next.js",
+        "Bootstrap",
+        "Tailwind CSS",
+        "Foundation",
+        "Bulma"
+      ],
+      "backend_technologies": [],
+      "databases": [],
+      "cloud_services": [
+        "Google Cloud",
+        "Vercel"
+      ],
+      "cdn_services": [],
+      "analytics_tools": [
+        "Mixpanel"
+      ],
+      "confidence_scores": {
+        "Angular": 0.8,
+        "Next.js": 0.8
+      }
+    },
+    "api_capabilities": {
+      "discovered_apis": [
+        {
+          "endpoint": "/api",
+          "status_code": 200,
+          "content_type": "text/html;charset=utf-8",
+          "response_size": 353995
+        }
+      ],
+      "api_documentation": [],
+      "graphql_endpoints": [],
+      "rest_endpoints": [
+        "/api"
+      ],
+      "websocket_support": false,
+      "api_versioning": [],
+      "authentication_methods": [],
+      "rate_limiting": false
+    },
+    "infrastructure_analysis": {
+      "dns_records": {
+        "ip_addresses": [
+          "18.245.162.124",
+          "18.245.162.68",
+          "18.245.162.75",
+          "18.245.162.31",
+          "192.168.1.254"
+        ]
+      },
+      "ssl_certificate": {
+        "enabled": true,
+        "protocol": "HTTPS",
+        "redirect_from_http": true
+      },
+      "hosting_provider": "Amazon AWS",
+      "cdn_usage": [],
+      "load_balancer": true,
+      "geographic_distribution": []
+    },
+    "security_assessment": {
+      "ssl_grade": "A",
+      "security_headers": {
+        "Content-Security-Policy": false,
+        "X-Frame-Options": false,
+        "X-Content-Type-Options": false,
+        "Strict-Transport-Security": false,
+        "X-XSS-Protection": false
+      },
+      "vulnerabilities": [],
+      "privacy_compliance": {
+        "gdpr_compliant": false,
+        "privacy_policy": true,
+        "cookie_policy": true,
+        "data_protection": false
+      },
+      "authentication_security": {}
+    },
+    "performance_metrics": {
+      "response_time_ms": 389.2509937286377,
+      "page_size_kb": 1054.5361328125,
+      "resource_counts": {
+        "images": 63,
+        "scripts": 79,
+        "stylesheets": 3,
+        "total_elements": 1419
+      },
+      "optimization_score": 90
+    },
+    "competitive_intelligence": {
+      "business_model": "Subscription (SaaS)",
+      "target_market": [
+        "SMB",
+        "Enterprise",
+        "Startup",
+        "Developer",
+        "Marketing",
+        "Sales"
+      ],
+      "key_features": [
+        "dashboard",
+        "analytics",
+        "integration",
+        "collaboration",
+        "workflow",
+        "ai",
+        "api"
+      ],
+      "pricing_model": "Freemium",
+      "competitive_advantages": [],
+      "market_position": "Unknown"
+    },
+    "threat_assessment": {
+      "threat_level": "HIGH",
+      "threat_score": 77,
+      "key_threats": [
+        "Cloud-native infrastructure"
+      ],
+      "competitive_gaps": []
+    }
+  }
+]

@@ -1,1 +1,1 @@
-web: python main.py
+web: python deploy_evolution_app.py

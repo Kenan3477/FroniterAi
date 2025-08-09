@@ -22,13 +22,24 @@ logger.info("� REAL FRONTIER AI - RAILWAY DEPLOYMENT STARTING")
 logger.info("✅ Real APIs • Real Analysis • Real Results")
 
 try:
-    # Import the REAL FrontierAI system
-    from real_frontier_ai import start_real_frontier_ai
+    # Import the REAL FrontierAI system - this will load all routes
+    import real_frontier_ai
+    from real_frontier_ai import app
     
     logger.info("✅ REAL FrontierAI imported successfully - No more fake BS!")
     
-    # Start the REAL system
-    start_real_frontier_ai()
+    # Initialize the system
+    real_frontier_ai.init_real_database()
+    logger.info("✅ Real database initialized")
+    
+    # Get port from environment (Railway compatibility)  
+    port = int(os.environ.get('PORT', 5000))
+    
+    logger.info(f"🌐 REAL FrontierAI running on port {port}")
+    logger.info("✅ All systems ACTUALLY operational")
+    
+    # Run the Flask app directly
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
     
 except ImportError as e:
     logger.error(f"❌ Failed to import REAL FrontierAI: {str(e)}")

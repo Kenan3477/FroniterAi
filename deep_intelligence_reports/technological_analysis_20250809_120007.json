@@ -1,0 +1,1016 @@
+[
+  {
+    "company_name": "Notion",
+    "url": "https://www.notion.so",
+    "analyzed_at": "2025-08-09T11:59:40.030562",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "Angular",
+          "Next.js"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": false,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [
+          "chatbot_ai"
+        ],
+        "real_time_processing": true,
+        "collaboration_tools": [],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": true,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text",
+          "ARIA states"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": true,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": false,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [
+          "slack",
+          "salesforce",
+          "google"
+        ],
+        "sso_support": false
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Airtable",
+    "url": "https://www.airtable.com",
+    "analyzed_at": "2025-08-09T11:59:43.579169",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "Angular",
+          "Next.js"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": true,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [],
+        "real_time_processing": true,
+        "collaboration_tools": [
+          "permissions"
+        ],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [
+          "inventory",
+          "product catalog"
+        ],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": false,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text",
+          "ARIA states"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": true,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [
+          "slack",
+          "salesforce",
+          "google"
+        ],
+        "sso_support": true
+      },
+      "enterprise_features": {
+        "role_based_access": true,
+        "audit_logs": true,
+        "backup_recovery": false,
+        "compliance_tools": [
+          "HIPAA",
+          "COMPLIANCE"
+        ],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Monday.com",
+    "url": "https://monday.com",
+    "analyzed_at": "2025-08-09T11:59:47.587264",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "React",
+          "Angular",
+          "Next.js"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [
+          "AWS"
+        ],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": true,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [
+          "recommendation_engine"
+        ],
+        "real_time_processing": true,
+        "collaboration_tools": [],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [
+          "sales pipeline"
+        ],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": true,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons",
+          "forms"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": true,
+        "custom_reports": false,
+        "data_export": false,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [],
+        "sso_support": true
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Asana",
+    "url": "https://asana.com",
+    "analyzed_at": "2025-08-09T11:59:52.477997",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "Angular",
+          "Next.js"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [
+          "Cloudflare"
+        ],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": true,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [],
+        "real_time_processing": false,
+        "collaboration_tools": [],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": false,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text",
+          "ARIA states"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": false,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [],
+        "sso_support": true
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Figma",
+    "url": "https://www.figma.com",
+    "analyzed_at": "2025-08-09T11:59:55.895479",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "React",
+          "Angular",
+          "Next.js"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [
+          "Google Cloud",
+          "Cloudflare",
+          "Vercel"
+        ],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": true,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": false,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [],
+        "real_time_processing": true,
+        "collaboration_tools": [
+          "comments"
+        ],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": false,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text",
+          "ARIA states"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": false,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [],
+        "sso_support": true
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Slack",
+    "url": "https://slack.com",
+    "analyzed_at": "2025-08-09T12:00:00.400595",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "Angular"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [
+          "AWS"
+        ],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": true,
+        "reporting_analytics": true,
+        "integration_hub": true
+      },
+      "advanced_features": {
+        "ai_ml_integration": [],
+        "real_time_processing": true,
+        "collaboration_tools": [
+          "sharing"
+        ],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": true,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text",
+          "ARIA states"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [
+          "buttons"
+        ],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": true,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": true,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [
+          "slack",
+          "salesforce"
+        ],
+        "sso_support": true
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [
+          "COMPLIANCE"
+        ],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  },
+  {
+    "company_name": "Discord",
+    "url": "https://discord.com",
+    "analyzed_at": "2025-08-09T12:00:03.963924",
+    "technology_assessment": {
+      "frontend_technologies": {
+        "frameworks": [
+          "Angular"
+        ],
+        "libraries": [],
+        "build_tools": [],
+        "css_frameworks": []
+      },
+      "backend_indicators": {
+        "server_technologies": [],
+        "databases": [],
+        "apis": [],
+        "microservices": false
+      },
+      "cloud_infrastructure": {
+        "providers": [
+          "AWS",
+          "Google Cloud"
+        ],
+        "services": [],
+        "cdn_usage": [],
+        "containerization": false
+      },
+      "development_practices": {
+        "version_control": [],
+        "ci_cd": [],
+        "testing_frameworks": [],
+        "monitoring_tools": []
+      },
+      "modern_tech_adoption": {
+        "spa_framework": true,
+        "pwa_support": false,
+        "mobile_first": true,
+        "api_first": false
+      }
+    },
+    "functional_capabilities": {
+      "core_functions": {
+        "user_management": false,
+        "data_processing": false,
+        "workflow_automation": false,
+        "reporting_analytics": false,
+        "integration_hub": false
+      },
+      "advanced_features": {
+        "ai_ml_integration": [],
+        "real_time_processing": true,
+        "collaboration_tools": [],
+        "customization_options": [],
+        "api_ecosystem": false
+      },
+      "business_functions": {
+        "crm_capabilities": [],
+        "e_commerce_features": [],
+        "content_management": [],
+        "marketing_automation": [],
+        "financial_tools": []
+      },
+      "technical_capabilities": {
+        "search_functionality": false,
+        "multi_language": false,
+        "offline_support": false,
+        "bulk_operations": false,
+        "data_export_import": false
+      }
+    },
+    "usability_analysis": {
+      "design_quality": {
+        "responsive_design": true,
+        "modern_ui": true,
+        "accessibility_features": [
+          "ARIA labels",
+          "Alt text"
+        ],
+        "visual_hierarchy": "Unknown",
+        "color_scheme_quality": "Unknown"
+      },
+      "navigation_analysis": {
+        "navigation_complexity": "Complex",
+        "menu_structure": "Unknown",
+        "search_prominence": false,
+        "breadcrumb_navigation": false
+      },
+      "user_experience": {
+        "onboarding_flow": false,
+        "help_documentation": true,
+        "error_handling": "Unknown",
+        "loading_indicators": false,
+        "progressive_disclosure": false
+      },
+      "interaction_design": {
+        "interactive_elements": [],
+        "feedback_mechanisms": [],
+        "keyboard_navigation": false,
+        "touch_optimized": false
+      }
+    },
+    "feature_detection": {
+      "automation_features": {
+        "workflow_builder": false,
+        "scheduled_tasks": false,
+        "trigger_based_actions": false,
+        "batch_processing": false
+      },
+      "data_features": {
+        "data_visualization": true,
+        "custom_reports": false,
+        "data_export": true,
+        "data_import": false,
+        "real_time_sync": false
+      },
+      "integration_capabilities": {
+        "webhook_support": false,
+        "api_marketplace": false,
+        "third_party_apps": [],
+        "sso_support": false
+      },
+      "enterprise_features": {
+        "role_based_access": false,
+        "audit_logs": false,
+        "backup_recovery": false,
+        "compliance_tools": [],
+        "white_labeling": false
+      }
+    },
+    "performance_metrics": {},
+    "security_analysis": {},
+    "scalability_indicators": {},
+    "innovation_level": "Unknown",
+    "competitive_threat_score": 0,
+    "technological_maturity": "Unknown",
+    "error": "'TechnologicalCapabilityAnalyzer' object has no attribute '_analyze_performance_metrics'"
+  }
+]
