@@ -1,0 +1,11 @@
+{
+  "timestamp": 1754756297.8904438,
+  "duration_seconds": 4.920499324798584,
+  "repository": "Kenan3477/FroniterAi",
+  "files_analyzed": 289,
+  "issues_found": 6765,
+  "improvements_identified": 459,
+  "improvements_applied": 0,
+  "committed_to_github": false,
+  "real_changes_made": []
+}

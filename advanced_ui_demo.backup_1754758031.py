@@ -5,7 +5,6 @@ Comprehensive demonstration of the conversational interface capabilities
 """
 
 import asyncio
-import logging
 import json
 import time
 from datetime import datetime
@@ -13,8 +12,8 @@ from advanced_ui import AdvancedConversationalUI, NaturalLanguageProcessor, Cont
 
 def demonstrate_nlp_capabilities():
     """Demonstrate natural language processing features"""
-    logging.info("🧠 Natural Language Processing Demo")
-    logging.info("=" * 50)
+    print("🧠 Natural Language Processing Demo")
+    print("=" * 50)
     
     nlp = NaturalLanguageProcessor()
     
@@ -29,24 +28,24 @@ def demonstrate_nlp_capabilities():
     
     for message in test_messages:
         intent, entities, confidence = nlp.process_message(message)
-        logging.info(f"\n📝 Message: {message}")
-        logging.info(f"🎯 Intent: {intent} (confidence: {confidence:.2f})")
+        print(f"\n📝 Message: {message}")
+        print(f"🎯 Intent: {intent} (confidence: {confidence:.2f})")
         if entities:
             entity_strings = [f"{e['type']}:{e['value']}" for e in entities]
-            logging.info(f"🏷️  Entities: {', '.join(entity_strings)}")
+            print(f"🏷️  Entities: {', '.join(entity_strings)}")
         else:
-            logging.info("🏷️  Entities: None detected")
+            print("🏷️  Entities: None detected")
 
 def demonstrate_context_management():
     """Demonstrate conversation context and memory"""
-    logging.info("\n💭 Context Management Demo")
-    logging.info("=" * 50)
+    print("\n💭 Context Management Demo")
+    print("=" * 50)
     
     context_manager = ContextManager()
     
     # Create a conversation
     conversation_id = context_manager.create_conversation("demo_user")
-    logging.info(f"✅ Created conversation: {conversation_id}")
+    print(f"✅ Created conversation: {conversation_id}")
     
     # Simulate adding messages
     from advanced_ui import ConversationMessage
@@ -76,14 +75,14 @@ def demonstrate_context_management():
     
     # Retrieve context
     context = context_manager.get_conversation_context(conversation_id)
-    logging.info(f"💬 Messages in conversation: {len(context.messages)}")
-    logging.info(f"🎯 Active topics: {context.active_topics}")
-    logging.info(f"⏰ Last updated: {context.last_updated}")
+    print(f"💬 Messages in conversation: {len(context.messages)}")
+    print(f"🎯 Active topics: {context.active_topics}")
+    print(f"⏰ Last updated: {context.last_updated}")
 
 async def demonstrate_response_generation():
     """Demonstrate intelligent response generation"""
-    logging.info("\n🤖 Response Generation Demo")
-    logging.info("=" * 50)
+    print("\n🤖 Response Generation Demo")
+    print("=" * 50)
     
     ui = AdvancedConversationalUI()
     conversation_id = ui.start_conversation("demo_user")
@@ -98,15 +97,15 @@ async def demonstrate_response_generation():
     ]
     
     for query in test_queries:
-        logging.info(f"\n👤 User: {query}")
+        print(f"\n👤 User: {query}")
         response = await ui.process_message(conversation_id, query)
-        logging.info(f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}")
-        logging.info("-" * 40)
+        print(f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}")
+        print("-" * 40)
 
 def demonstrate_conversation_export():
     """Demonstrate conversation export functionality"""
-    logging.info("\n📄 Conversation Export Demo")
-    logging.info("=" * 50)
+    print("\n📄 Conversation Export Demo")
+    print("=" * 50)
     
     ui = AdvancedConversationalUI()
     conversation_id = ui.start_conversation("export_demo_user")
@@ -126,22 +125,22 @@ def demonstrate_conversation_export():
     asyncio.run(create_sample_conversation())
     
     # Export in different formats
-    logging.info("📊 Exporting conversation in JSON format:")
+    print("📊 Exporting conversation in JSON format:")
     json_export = ui.export_conversation(conversation_id, 'json')
     export_data = json.loads(json_export)
-    logging.info(f"   • Conversation ID: {export_data['conversation_id']}")
-    logging.info(f"   • Message count: {export_data['message_count']}")
-    logging.info(f"   • Active topics: {export_data['active_topics']}")
+    print(f"   • Conversation ID: {export_data['conversation_id']}")
+    print(f"   • Message count: {export_data['message_count']}")
+    print(f"   • Active topics: {export_data['active_topics']}")
     
-    logging.info("\n📝 Exporting conversation in text format:")
+    print("\n📝 Exporting conversation in text format:")
     text_export = ui.export_conversation(conversation_id, 'text')
-    logging.info(f"   • Text export length: {len(text_export)} characters")
-    logging.info(f"   • Preview: {text_export[:200]}...")
+    print(f"   • Text export length: {len(text_export)} characters")
+    print(f"   • Preview: {text_export[:200]}...")
 
 def demonstrate_multi_turn_conversation():
     """Demonstrate multi-turn conversation with context awareness"""
-    logging.info("\n💬 Multi-Turn Conversation Demo")
-    logging.info("=" * 50)
+    print("\n💬 Multi-Turn Conversation Demo")
+    print("=" * 50)
     
     ui = AdvancedConversationalUI()
     conversation_id = ui.start_conversation("multi_turn_user")
@@ -159,14 +158,14 @@ def demonstrate_multi_turn_conversation():
         ]
         
         for i, (message, context_note) in enumerate(conversation_flow, 1):
-            logging.info(f"\n🔄 Turn {i}: {context_note}")
-            logging.info(f"👤 User: {message}")
+            print(f"\n🔄 Turn {i}: {context_note}")
+            print(f"👤 User: {message}")
             
             start_time = time.time()
             response = await ui.process_message(conversation_id, message)
             response_time = time.time() - start_time
             
-            logging.info(f"🤖 Assistant ({response_time:.2f}s): {response[:150]}{'...' if len(response) > 150 else ''}")
+            print(f"🤖 Assistant ({response_time:.2f}s): {response[:150]}{'...' if len(response) > 150 else ''}")
             
             # Show conversation history context
             history = ui.get_conversation_history(conversation_id, limit=3)
@@ -175,14 +174,14 @@ def demonstrate_multi_turn_conversation():
                 if msg.get('intent'):
                     topics.add(msg['intent'])
             
-            logging.info(f"🧠 Context: {len(history)} recent messages, topics: {', '.join(topics)}")
+            print(f"🧠 Context: {len(history)} recent messages, topics: {', '.join(topics)}")
     
     asyncio.run(simulate_conversation())
 
 def performance_benchmark():
     """Benchmark the system performance"""
-    logging.info("\n⚡ Performance Benchmark")
-    logging.info("=" * 50)
+    print("\n⚡ Performance Benchmark")
+    print("=" * 50)
     
     ui = AdvancedConversationalUI()
     
@@ -200,7 +199,7 @@ def performance_benchmark():
         total_time = 0
         response_times = []
         
-        logging.info(f"🔥 Processing {len(test_messages)} messages...")
+        print(f"🔥 Processing {len(test_messages)} messages...")
         
         for i, message in enumerate(test_messages, 1):
             start_time = time.time()
@@ -212,27 +211,27 @@ def performance_benchmark():
             total_time += response_time
             
             if i % 5 == 0:
-                logging.info(f"   Processed {i}/{len(test_messages)} messages...")
+                print(f"   Processed {i}/{len(test_messages)} messages...")
         
         # Calculate statistics
         avg_response_time = sum(response_times) / len(response_times)
         min_response_time = min(response_times)
         max_response_time = max(response_times)
         
-        logging.info(f"\n📊 Performance Results:")
-        logging.info(f"   • Total messages: {len(test_messages)}")
-        logging.info(f"   • Total time: {total_time:.2f} seconds")
-        logging.info(f"   • Average response time: {avg_response_time:.3f} seconds")
-        logging.info(f"   • Fastest response: {min_response_time:.3f} seconds")
-        logging.info(f"   • Slowest response: {max_response_time:.3f} seconds")
-        logging.info(f"   • Messages per second: {len(test_messages)/total_time:.2f}")
+        print(f"\n📊 Performance Results:")
+        print(f"   • Total messages: {len(test_messages)}")
+        print(f"   • Total time: {total_time:.2f} seconds")
+        print(f"   • Average response time: {avg_response_time:.3f} seconds")
+        print(f"   • Fastest response: {min_response_time:.3f} seconds")
+        print(f"   • Slowest response: {max_response_time:.3f} seconds")
+        print(f"   • Messages per second: {len(test_messages)/total_time:.2f}")
     
     asyncio.run(benchmark_responses())
 
 def demonstrate_integration_scenarios():
     """Demonstrate real-world integration scenarios"""
-    logging.info("\n🔧 Integration Scenarios Demo")
-    logging.info("=" * 50)
+    print("\n🔧 Integration Scenarios Demo")
+    print("=" * 50)
     
     ui = AdvancedConversationalUI()
     
@@ -260,17 +259,17 @@ def demonstrate_integration_scenarios():
     }
     
     async def run_scenario(role, messages):
-        logging.info(f"\n👨‍💼 {role} Scenario:")
+        print(f"\n👨‍💼 {role} Scenario:")
         conversation_id = ui.start_conversation(f"{role.lower().replace(' ', '_')}_user")
         
         for message in messages:
-            logging.info(f"   💬 {message}")
+            print(f"   💬 {message}")
             response = await ui.process_message(conversation_id, message)
-            logging.info(f"   🤖 Response type: {response.split('.')[0] if '.' in response else response[:50]}...")
+            print(f"   🤖 Response type: {response.split('.')[0] if '.' in response else response[:50]}...")
         
         # Show conversation summary
         history = ui.get_conversation_history(conversation_id)
-        logging.info(f"   📊 Conversation: {len(history)} messages exchanged")
+        print(f"   📊 Conversation: {len(history)} messages exchanged")
     
     for role, messages in scenarios.items():
         asyncio.run(run_scenario(role, messages))
@@ -278,17 +277,17 @@ def demonstrate_integration_scenarios():
 def main():
     """Run comprehensive demonstration of Advanced UI capabilities"""
     
-    logging.info("🚀 FrontierAI Advanced Conversational UI - Comprehensive Demo")
-    logging.info("=" * 70)
-    logging.info("This demonstration showcases the full capabilities of the advanced UI system:")
-    logging.info("• Natural Language Processing and Intent Recognition")
-    logging.info("• Context Management and Conversation Memory")
-    logging.info("• Intelligent Response Generation")
-    logging.info("• Multi-turn Conversation Handling")
-    logging.info("• Integration with FrontierAI Components")
-    logging.info("• Performance Optimization")
-    logging.info("• Real-world Usage Scenarios")
-    logging.info("=" * 70)
+    print("🚀 FrontierAI Advanced Conversational UI - Comprehensive Demo")
+    print("=" * 70)
+    print("This demonstration showcases the full capabilities of the advanced UI system:")
+    print("• Natural Language Processing and Intent Recognition")
+    print("• Context Management and Conversation Memory")
+    print("• Intelligent Response Generation")
+    print("• Multi-turn Conversation Handling")
+    print("• Integration with FrontierAI Components")
+    print("• Performance Optimization")
+    print("• Real-world Usage Scenarios")
+    print("=" * 70)
     
     try:
         # Run all demonstrations
@@ -300,24 +299,24 @@ def main():
         performance_benchmark()
         demonstrate_integration_scenarios()
         
-        logging.info("\n🎉 Comprehensive Demo Complete!")
-        logging.info("\n✅ Key Achievements Demonstrated:")
-        logging.info("   • Natural language understanding with high accuracy")
-        logging.info("   • Context-aware conversation management")
-        logging.info("   • Intelligent response generation combining multiple data sources")
-        logging.info("   • Seamless integration with existing FrontierAI components")
-        logging.info("   • High-performance processing with sub-second response times")
-        logging.info("   • Professional-grade conversation export and analysis")
-        logging.info("   • Real-world applicability across different user roles")
+        print("\n🎉 Comprehensive Demo Complete!")
+        print("\n✅ Key Achievements Demonstrated:")
+        print("   • Natural language understanding with high accuracy")
+        print("   • Context-aware conversation management")
+        print("   • Intelligent response generation combining multiple data sources")
+        print("   • Seamless integration with existing FrontierAI components")
+        print("   • High-performance processing with sub-second response times")
+        print("   • Professional-grade conversation export and analysis")
+        print("   • Real-world applicability across different user roles")
         
-        logging.info("\n🔧 Integration Ready:")
-        logging.info("   • Use AdvancedConversationalUI class for programmatic access")
-        logging.info("   • Run web_ui.py for browser-based chat interface")
-        logging.info("   • Extend NaturalLanguageProcessor for custom intents")
-        logging.info("   • Customize ResponseGenerator for domain-specific knowledge")
+        print("\n🔧 Integration Ready:")
+        print("   • Use AdvancedConversationalUI class for programmatic access")
+        print("   • Run web_ui.py for browser-based chat interface")
+        print("   • Extend NaturalLanguageProcessor for custom intents")
+        print("   • Customize ResponseGenerator for domain-specific knowledge")
         
     except Exception as e:
-        logging.info(f"\n❌ Demo failed: {e}")
+        print(f"\n❌ Demo failed: {e}")
         import traceback
         traceback.print_exc()
 

@@ -28,7 +28,7 @@ try:
     from market_analysis import MarketAnalysisEngine, MarketIntelligence
     from command_center import CommandRegistry, SyntaxHighlighter, CommandResult
 except ImportError as e:
-    logging.info(f"Warning: Some FrontierAI components not available: {e}")
+    print(f"Warning: Some FrontierAI components not available: {e}")
 
 # Configure logging
 logging.basicConfig(
@@ -1193,15 +1193,15 @@ class AdvancedConversationalUI:
 def demonstrate_advanced_ui():
     """Demonstrate the advanced conversational UI capabilities"""
     
-    logging.info("🤖 Advanced Conversational UI Demonstration")
-    logging.info("=" * 60)
+    print("🤖 Advanced Conversational UI Demonstration")
+    print("=" * 60)
     
     # Initialize the UI system
     ui = AdvancedConversationalUI()
     
     # Start a conversation
     conversation_id = ui.start_conversation("demo_user")
-    logging.info(f"✅ Started conversation: {conversation_id}")
+    print(f"✅ Started conversation: {conversation_id}")
     
     # Simulate conversation flow
     test_messages = [
@@ -1223,34 +1223,34 @@ def demonstrate_advanced_ui():
     
     async def run_conversation():
         for i, message in enumerate(test_messages, 1):
-            logging.info(f"\n👤 User: {message}")
+            print(f"\n👤 User: {message}")
             response = await ui.process_message(conversation_id, message)
-            logging.info(f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}")
-            logging.info("-" * 40)
+            print(f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}")
+            print("-" * 40)
     
     # Run the conversation
     import asyncio
     asyncio.run(run_conversation())
     
     # Export conversation
-    logging.info(f"\n📄 Conversation History:")
+    print(f"\n📄 Conversation History:")
     history = ui.get_conversation_history(conversation_id, limit=3)
     for msg in history:
-        logging.info(f"  {msg['role']}: {msg['content'][:100]}{'...' if len(msg['content']) > 100 else ''}")
+        print(f"  {msg['role']}: {msg['content'][:100]}{'...' if len(msg['content']) > 100 else ''}")
     
-    logging.info(f"\n🎯 Advanced UI Features Demonstrated:")
-    logging.info(f"   ✅ Natural language processing and intent recognition")
-    logging.info(f"   ✅ Context management and conversation memory")
-    logging.info(f"   ✅ Multi-turn conversation handling")
-    logging.info(f"   ✅ Integration with FrontierAI components")
-    logging.info(f"   ✅ Intelligent response generation")
-    logging.info(f"   ✅ Conversation export and history")
-    logging.info(f"   ✅ Command center with syntax highlighting")
-    logging.info(f"   ✅ Direct command execution (/command format)")
-    logging.info(f"   ✅ Natural language command detection")
-    logging.info(f"   ✅ Parameter validation and help system")
-    logging.info(f"   ✅ Command registry with categorization")
-    logging.info(f"   ✅ Error handling and command suggestions")
+    print(f"\n🎯 Advanced UI Features Demonstrated:")
+    print(f"   ✅ Natural language processing and intent recognition")
+    print(f"   ✅ Context management and conversation memory")
+    print(f"   ✅ Multi-turn conversation handling")
+    print(f"   ✅ Integration with FrontierAI components")
+    print(f"   ✅ Intelligent response generation")
+    print(f"   ✅ Conversation export and history")
+    print(f"   ✅ Command center with syntax highlighting")
+    print(f"   ✅ Direct command execution (/command format)")
+    print(f"   ✅ Natural language command detection")
+    print(f"   ✅ Parameter validation and help system")
+    print(f"   ✅ Command registry with categorization")
+    print(f"   ✅ Error handling and command suggestions")
     
     return ui
 
@@ -1258,9 +1258,9 @@ if __name__ == "__main__":
     # Run demonstration
     try:
         ui_system = demonstrate_advanced_ui()
-        logging.info(f"\n🚀 Advanced Conversational UI is ready!")
-        logging.info(f"💡 Use the AdvancedConversationalUI class to integrate with your applications")
+        print(f"\n🚀 Advanced Conversational UI is ready!")
+        print(f"💡 Use the AdvancedConversationalUI class to integrate with your applications")
     except Exception as e:
-        logging.info(f"\n❌ Demonstration failed: {e}")
+        print(f"\n❌ Demonstration failed: {e}")
         import traceback
         traceback.print_exc()

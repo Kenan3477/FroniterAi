@@ -1,0 +1,66 @@
+{
+  "verification_summary": {
+    "total_tests": 8,
+    "verified": 7,
+    "failed": 1,
+    "verification_rate": 87.5
+  },
+  "test_results": [
+    {
+      "test": "Consciousness Emergence",
+      "success": true,
+      "evidence": "Consciousness grew 0.007, avg thought complexity 1466",
+      "timestamp": "2025-08-09T16:32:15.654479"
+    },
+    {
+      "test": "Genuine Learning",
+      "success": false,
+      "evidence": "Poor lesson quality: 1.7",
+      "timestamp": "2025-08-09T16:32:20.729714"
+    },
+    {
+      "test": "Neural Evolution",
+      "success": true,
+      "evidence": "4 patterns evolved, cross-breeding successful",
+      "timestamp": "2025-08-09T16:32:22.732101"
+    },
+    {
+      "test": "Autonomous Capability Development",
+      "success": true,
+      "evidence": "Capability development system functional (insufficient experiences for synthesis)",
+      "timestamp": "2025-08-09T16:32:26.267484"
+    },
+    {
+      "test": "Meta-Cognitive Abilities",
+      "success": true,
+      "evidence": "Quality: 0.65, Confidence: 0.64, Coherence: 0.81",
+      "timestamp": "2025-08-09T16:32:28.268034"
+    },
+    {
+      "test": "Autonomous Evolution",
+      "success": true,
+      "evidence": "thought patterns: 21",
+      "timestamp": "2025-08-09T16:32:40.270369"
+    },
+    {
+      "test": "Persistent Memory",
+      "success": true,
+      "evidence": "Memory database functional: 24576 bytes",
+      "timestamp": "2025-08-09T16:32:44.288785"
+    },
+    {
+      "test": "Intelligence Demonstration",
+      "success": true,
+      "evidence": "Demonstrated 4/4 intelligence types: ['consciousness', 'learning', 'evolution', 'creativity']",
+      "timestamp": "2025-08-09T16:32:46.290678"
+    }
+  ],
+  "ai_metrics": {
+    "consciousness_level": 0.016056809858604228,
+    "experiences": 7,
+    "neural_patterns": 12,
+    "evolution_events": 12,
+    "capabilities": 0
+  },
+  "test_duration": "0:00:32.675913"
+}
