@@ -1475,3 +1475,110 @@ model CampaignActivity {
   @@index([activityType, timestamp])
   @@map("campaign_activities")
 }
+
+// ============================================================================
+// CONTACTS & CUSTOMERS
+// ============================================================================
+
+model Contact {
+  id          String    @id @default(cuid())
+  contactId   String    @unique // Business identifier
+  listId      String    // Associated list/campaign
+  
+  // Personal information
+  firstName   String
+  lastName    String
+  phone       String?
+  mobile      String?
+  email       String?
+  
+  // Address
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  
+  // Status and metadata
+  status      String    @default("new") // "new" | "contacted" | "qualified" | "converted" | "inactive"
+  notes       String?
+  customData  String?   // JSON custom fields
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  interactions Interaction[]
+  
+  @@index([phone])
+  @@index([mobile])
+  @@index([email])
+  @@index([listId])
+  @@map("contacts")
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  phoneNumber String    @unique
+  
+  // Personal information
+  firstName   String
+  lastName    String
+  email       String?
+  
+  // Address
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  
+  // Metadata
+  status      String    @default("active")
+  notes       String?
+  customData  String?   // JSON custom fields
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([phoneNumber])
+  @@map("customers")
+}
+
+model Interaction {
+  id            String    @id @default(cuid())
+  interactionId String?   @unique // Business identifier (optional, can be set by application)
+  contactId     String
+  agentId       String
+  campaignId    String
+  
+  // Interaction details
+  type          String    // "call" | "email" | "sms" | "chat"
+  direction     String    // "inbound" | "outbound"
+  status        String    // "completed" | "failed" | "scheduled" | "cancelled"
+  
+  // Call specific
+  duration      Int?      // Duration in seconds
+  recording     String?   // Recording URL
+  
+  // Outcome
+  outcome       String?   // Disposition/result
+  notes         String?
+  
+  // Metadata
+  customData    String?   // JSON custom fields
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@index([contactId])
+  @@index([agentId])
+  @@index([campaignId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("interactions")
+}
