@@ -1,0 +1,204 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const campaignId = searchParams.get('campaignId');
+
+    if (campaignId) {
+      // Get dispositions for a specific campaign
+      const campaignDispositions = await prisma.campaignDisposition.findMany({
+        where: { campaignId },
+        include: {
+          disposition: true
+        },
+        orderBy: { sortOrder: 'asc' }
+      });
+
+      const dispositions = campaignDispositions.map(cd => ({
+        ...cd.disposition,
+        isRequired: cd.isRequired,
+        sortOrder: cd.sortOrder
+      }));
+
+      return NextResponse.json({ dispositions });
+    } else {
+      // Get all dispositions
+      const dispositions = await prisma.disposition.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' }
+      });
+
+      return NextResponse.json({ dispositions });
+    }
+
+  } catch (error) {
+    console.error('Error fetching dispositions:', error);
+    return NextResponse.json({ error: 'Failed to fetch dispositions' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { callId, dispositionId, notes, scheduleCallback } = await request.json();
+
+    if (!callId || !dispositionId) {
+      return NextResponse.json({ 
+        error: 'Call ID and disposition ID are required' 
+      }, { status: 400 });
+    }
+
+    // Get the disposition details
+    const disposition = await prisma.disposition.findUnique({
+      where: { id: dispositionId }
+    });
+
+    if (!disposition) {
+      return NextResponse.json({ error: 'Disposition not found' }, { status: 404 });
+    }
+
+    // Update call record with disposition
+    const callRecord = await prisma.callRecord.update({
+      where: { callId },
+      data: {
+        dispositionId,
+        notes: notes || '',
+        endTime: new Date()
+      }
+    });
+
+    // Handle disposition-specific actions
+    await handleDispositionActions(callRecord, disposition, scheduleCallback);
+
+    // Complete the work item
+    const workItem = await prisma.workItem.findFirst({
+      where: { callId }
+    });
+
+    if (workItem) {
+      await prisma.workItem.update({
+        where: { id: workItem.id },
+        data: {
+          status: 'completed',
+          endTime: new Date()
+        }
+      });
+
+      // Update agent status back to Available or AfterCall
+      await prisma.agent.update({
+        where: { agentId: workItem.agentId },
+        data: {
+          status: 'AfterCall',
+          currentCall: null
+        }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      callRecord,
+      message: `Call disposed as: ${disposition.name}`
+    });
+
+  } catch (error) {
+    console.error('Error applying disposition:', error);
+    return NextResponse.json({ error: 'Failed to apply disposition' }, { status: 500 });
+  }
+}
+
+// Handle disposition-specific actions
+async function handleDispositionActions(
+  callRecord: any, 
+  disposition: any, 
+  scheduleCallback?: { date: string; time: string; notes?: string }
+) {
+  const contactId = callRecord.contactId;
+
+  // Update contact status based on disposition
+  const contactUpdateData: any = {
+    attemptCount: { increment: 1 },
+    lastAttempt: new Date()
+  };
+
+  switch (disposition.category) {
+    case 'sale':
+      contactUpdateData.status = 'completed';
+      break;
+
+    case 'callback':
+      contactUpdateData.status = 'callback';
+      if (scheduleCallback) {
+        const callbackTime = new Date(`${scheduleCallback.date}T${scheduleCallback.time}`);
+        contactUpdateData.nextAttempt = callbackTime;
+      }
+      break;
+
+    case 'not_interested':
+      contactUpdateData.status = 'completed';
+      break;
+
+    case 'do_not_call':
+      contactUpdateData.status = 'do_not_call';
+      break;
+
+    case 'invalid':
+      contactUpdateData.status = 'invalid';
+      break;
+
+    case 'no_answer':
+    case 'busy':
+    case 'voicemail':
+      if (disposition.retryEligible) {
+        const retryTime = new Date();
+        retryTime.setMinutes(retryTime.getMinutes() + (disposition.retryDelay || 60));
+        contactUpdateData.nextAttempt = retryTime;
+        contactUpdateData.status = 'retry_eligible';
+      } else {
+        contactUpdateData.status = 'completed';
+      }
+      break;
+
+    default:
+      contactUpdateData.status = 'attempted';
+  }
+
+  // Update contact
+  await prisma.contact.update({
+    where: { contactId },
+    data: contactUpdateData
+  });
+
+  // Update or remove from dial queue
+  const queueEntry = await prisma.dialQueueEntry.findFirst({
+    where: { contactId }
+  });
+
+  if (queueEntry) {
+    if (disposition.retryEligible && (disposition.category === 'callback' || 
+        ['no_answer', 'busy', 'voicemail'].includes(disposition.category))) {
+      // Update queue entry for retry
+      await prisma.dialQueueEntry.update({
+        where: { id: queueEntry.id },
+        data: {
+          status: 'queued',
+          assignedAgentId: null,
+          queuedAt: contactUpdateData.nextAttempt || new Date(),
+          priority: queueEntry.priority + 10 // Lower priority for retries
+        }
+      });
+    } else {
+      // Remove from queue (completed/do not call/invalid)
+      await prisma.dialQueueEntry.update({
+        where: { id: queueEntry.id },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+          outcome: disposition.name
+        }
+      });
+    }
+  }
+}

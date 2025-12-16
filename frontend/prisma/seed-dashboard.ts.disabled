@@ -1,0 +1,236 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const CURRENT_AGENT_ID = 'AGENT_001';
+
+async function main() {
+  console.log('🌱 Seeding Kennex dashboard system...');
+
+  // Clear existing dashboard data
+  await prisma.sale.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.interaction.deleteMany();
+  
+  // Keep existing Kennex data - just add dashboard data
+  console.log('💫 Creating dashboard-specific data...');
+
+  // Ensure we have agents
+  const agents = await prisma.agent.findMany();
+  console.log('Existing agents:', agents.map(a => a.agentId));
+  if (agents.length === 0) {
+    console.log('Creating default agents...');
+    await prisma.agent.createMany({
+      data: [
+        {
+          agentId: CURRENT_AGENT_ID,
+          firstName: 'John',
+          lastName: 'Smith',
+          email: 'john.smith@kennex.com',
+          status: 'Available',
+          extension: '1001',
+        },
+        {
+          agentId: 'agent_002',
+          firstName: 'Sarah',
+          lastName: 'Johnson',
+          email: 'sarah.johnson@kennex.com',
+          status: 'OnCall',
+          extension: '1002',
+        },
+        {
+          agentId: 'agent_003',
+          firstName: 'Mike',
+          lastName: 'Wilson',
+          email: 'mike.wilson@kennex.com',
+          status: 'Break',
+          extension: '1003',
+        }
+      ]
+    });
+  }
+
+  // Ensure we have campaigns
+  let campaigns = await prisma.campaign.findMany();
+  console.log('Existing campaigns:', campaigns.map(c => c.campaignId));
+  if (campaigns.length === 0) {
+    console.log('Creating default campaigns...');
+    await prisma.campaign.createMany({
+      data: [
+        {
+          campaignId: 'camp_001',
+          name: 'Holiday Sales',
+          description: 'Holiday sales campaign',
+          status: 'Active'
+        },
+        {
+          campaignId: 'camp_002',
+          name: 'Product Launch',
+          description: 'New product launch campaign',
+          status: 'Active'
+        }
+      ]
+    });
+    campaigns = await prisma.campaign.findMany();
+  }
+
+  // Ensure we have contacts
+  let contacts = await prisma.contact.findMany();
+  if (contacts.length === 0) {
+    console.log('Creating default data list and contacts...');
+    
+    // First create a data list
+    await prisma.dataList.create({
+      data: {
+        listId: 'list_001',
+        name: 'Dashboard Contacts',
+        active: true,
+        totalContacts: 50,
+      }
+    });
+
+    const contactData = [];
+    for (let i = 1; i <= 50; i++) {
+      contactData.push({
+        contactId: `contact_${i.toString().padStart(3, '0')}`,
+        listId: 'list_001',
+        firstName: `Contact${i}`,
+        lastName: 'Smith',
+        fullName: `Contact${i} Smith`,
+        phone: `555-0${i.toString().padStart(3, '0')}`,
+        email: `contact${i}@example.com`,
+      });
+    }
+    await prisma.contact.createMany({ data: contactData });
+    contacts = await prisma.contact.findMany();
+  }
+
+  // Create interactions for the last 30 days
+  console.log('📞 Creating interactions (last 30 days)...');
+  const now = new Date();
+  const interactions = [];
+  const sales = [];
+  const tasks = [];
+
+  for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - dayOffset);
+    
+    // Random interactions per day (5-20)
+    const interactionsPerDay = Math.floor(Math.random() * 16) + 5;
+    
+    for (let i = 0; i < interactionsPerDay; i++) {
+      const contact = contacts[Math.floor(Math.random() * contacts.length)];
+      const campaign = campaigns[Math.floor(Math.random() * campaigns.length)];
+      const availableAgents = ['AGENT_001', 'AGENT003', 'AGENT001', 'AGENT002'];
+      const agentId = Math.random() > 0.7 ? CURRENT_AGENT_ID : availableAgents[Math.floor(Math.random() * availableAgents.length)];
+      
+      const startTime = new Date(date);
+      startTime.setHours(Math.floor(Math.random() * 8) + 9); // 9 AM - 5 PM
+      startTime.setMinutes(Math.floor(Math.random() * 60));
+      
+      const duration = Math.floor(Math.random() * 600) + 30; // 30 seconds to 10 minutes
+      const endTime = new Date(startTime.getTime() + duration * 1000);
+      
+      const outcomes = ['positive', 'neutral', 'negative'];
+      const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+      const isDmc = Math.random() > 0.7; // 30% are DMCs
+      
+      const channels = ['voice', 'email', 'sms', 'chat'];
+      const channel = channels[Math.floor(Math.random() * channels.length)];
+      
+      const results = ['sale', 'callback', 'no_answer', 'not_interested', 'busy'];
+      const result = results[Math.floor(Math.random() * results.length)];
+
+      const interactionId = `int_${dayOffset}_${i}`;
+      
+      interactions.push({
+        id: interactionId,
+        agentId,
+        contactId: contact.contactId,
+        campaignId: campaign.campaignId,
+        channel,
+        outcome,
+        isDmc,
+        startedAt: startTime,
+        endedAt: endTime,
+        durationSeconds: duration,
+        result,
+      });
+
+      // Create sale for positive interactions (40% chance)
+      if (outcome === 'positive' && Math.random() > 0.6) {
+        sales.push({
+          interactionId,
+          contactId: contact.contactId,
+          agentId,
+          amount: Math.floor(Math.random() * 2000) + 100, // $100 - $2100
+          status: Math.random() > 0.9 ? 'cancelled' : 'success',
+          createdAt: endTime,
+        });
+      }
+
+      // Create tasks for callbacks (20% chance)
+      if (result === 'callback' && Math.random() > 0.8) {
+        const dueDate = new Date(endTime);
+        dueDate.setDate(dueDate.getDate() + Math.floor(Math.random() * 7) + 1); // 1-7 days later
+        
+        tasks.push({
+          assignedUserId: agentId,
+          contactId: contact.contactId,
+          campaignId: campaign.campaignId,
+          type: Math.random() > 0.5 ? 'callback' : 'follow_up',
+          notes: `Follow up from ${channel} interaction`,
+          dueAt: dueDate,
+          status: Math.random() > 0.8 ? 'completed' : 'open',
+          createdAt: endTime,
+        });
+      }
+    }
+  }
+
+  // Insert interactions in batches
+  console.log(`📊 Inserting ${interactions.length} interactions...`);
+  for (let i = 0; i < interactions.length; i += 100) {
+    const batch = interactions.slice(i, i + 100);
+    await prisma.interaction.createMany({ data: batch });
+  }
+
+  // Insert sales
+  if (sales.length > 0) {
+    console.log(`💰 Inserting ${sales.length} sales...`);
+    await prisma.sale.createMany({ data: sales });
+  }
+
+  // Insert tasks
+  if (tasks.length > 0) {
+    console.log(`📋 Inserting ${tasks.length} tasks...`);
+    await prisma.task.createMany({ data: tasks });
+  }
+
+  // Update agent status for current agent
+  await prisma.agent.update({
+    where: { agentId: CURRENT_AGENT_ID },
+    data: {
+      status: 'Available',
+      lastStatusChange: new Date(),
+      isLoggedIn: true,
+    }
+  });
+
+  console.log('✅ Kennex dashboard system seeded successfully!');
+  console.log(`Created:`);
+  console.log(`- ${interactions.length} interactions`);
+  console.log(`- ${sales.length} sales`);
+  console.log(`- ${tasks.length} tasks`);
+  console.log(`- Current agent: ${CURRENT_AGENT_ID}`);
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding dashboard:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

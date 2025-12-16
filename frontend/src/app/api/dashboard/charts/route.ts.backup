@@ -1,0 +1,342 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/middleware/auth';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// GET /api/dashboard/charts - Get chart data for dashboard analytics
+export const GET = requireAuth(async (request, user) => {
+  try {
+    const { searchParams } = new URL(request.url);
+    const chartType = searchParams.get('type') || 'calls'; // calls, contacts, campaigns, agents
+    const period = searchParams.get('period') || 'week'; // day, week, month, year
+    const agentId = searchParams.get('agentId');
+
+    // Build user filter for agent permissions
+    let userFilter: any = {};
+    if (user.role === 'AGENT') {
+      userFilter = { agentId: user.userId?.toString() };
+    } else if (agentId && (user.role === 'ADMIN' || user.role === 'SUPERVISOR')) {
+      userFilter = { agentId: agentId };
+    }
+
+    // Define date ranges based on period
+    const now = new Date();
+    let startDate: Date;
+    let dateFormat: string;
+    let groupInterval: string;
+
+    switch (period) {
+      case 'day':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        dateFormat = 'YYYY-MM-DD HH:00:00';
+        groupInterval = 'hour';
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateFormat = 'YYYY-MM-DD';
+        groupInterval = 'day';
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        dateFormat = 'YYYY-MM-DD';
+        groupInterval = 'day';
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        dateFormat = 'YYYY-MM';
+        groupInterval = 'month';
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateFormat = 'YYYY-MM-DD';
+        groupInterval = 'day';
+    }
+
+    let chartData: any[] = [];
+
+    switch (chartType) {
+      case 'calls':
+        // Call analytics over time
+        const callsQuery = `
+          SELECT 
+            DATE(startTime) as date,
+            COUNT(*) as totalCalls,
+            COUNT(CASE WHEN outcome = 'answered' THEN 1 END) as answeredCalls,
+            COUNT(CASE WHEN outcome = 'connected' THEN 1 END) as connectedCalls,
+            COUNT(CASE WHEN outcome = 'completed' THEN 1 END) as completedCalls,
+            AVG(duration) as avgDuration,
+            SUM(duration) as totalDuration
+          FROM call_records 
+          WHERE startTime >= ?
+          ${userFilter.agentId ? 'AND agentId = ?' : ''}
+          GROUP BY DATE(startTime)
+          ORDER BY date ASC
+        `;
+
+        const callsParams: string[] = [startDate.toISOString()];
+        if (userFilter.agentId) {
+          callsParams.push(userFilter.agentId);
+        }
+
+        const callsResult = await prisma.$queryRawUnsafe(callsQuery, ...callsParams) as any[];
+        
+        chartData = callsResult.map((row: any) => ({
+          date: row.date,
+          totalCalls: Number(row.totalCalls) || 0,
+          answeredCalls: Number(row.answeredCalls) || 0,
+          connectedCalls: Number(row.connectedCalls) || 0,
+          completedCalls: Number(row.completedCalls) || 0,
+          avgDuration: Math.round(Number(row.avgDuration) || 0),
+          totalDuration: Math.round(Number(row.totalDuration) || 0),
+          answerRate: Number(row.totalCalls) > 0 ? 
+            Math.round((Number(row.answeredCalls) / Number(row.totalCalls)) * 100) : 0,
+          completionRate: Number(row.totalCalls) > 0 ? 
+            Math.round((Number(row.completedCalls) / Number(row.totalCalls)) * 100) : 0,
+        }));
+        break;
+
+      case 'contacts':
+        // Contact growth over time
+        const contactsQuery = `
+          SELECT 
+            DATE(createdAt) as date,
+            COUNT(*) as newContacts,
+            COUNT(CASE WHEN status = 'qualified' THEN 1 END) as qualifiedContacts,
+            COUNT(CASE WHEN status = 'converted' THEN 1 END) as convertedContacts
+          FROM contacts 
+          WHERE createdAt >= ?
+          GROUP BY DATE(createdAt)
+          ORDER BY date ASC
+        `;
+
+        const contactsResult = await prisma.$queryRawUnsafe(contactsQuery, startDate.toISOString()) as any[];
+        
+        chartData = contactsResult.map((row: any) => ({
+          date: row.date,
+          newContacts: Number(row.newContacts) || 0,
+          qualifiedContacts: Number(row.qualifiedContacts) || 0,
+          convertedContacts: Number(row.convertedContacts) || 0,
+          conversionRate: Number(row.newContacts) > 0 ? 
+            Math.round((Number(row.convertedContacts) / Number(row.newContacts)) * 100) : 0,
+        }));
+        break;
+
+      case 'dispositions':
+        // Disposition distribution
+        const dispositionsQuery = `
+          SELECT 
+            d.category,
+            d.subcategory,
+            COUNT(*) as count,
+            AVG(cr.duration) as avgDuration,
+            COUNT(CASE WHEN cr.outcome = 'completed' THEN 1 END) as successfulCalls
+          FROM call_records cr
+          LEFT JOIN dispositions d ON cr.dispositionId = d.id
+          WHERE cr.startTime >= ?
+          ${userFilter.agentId ? 'AND cr.agentId = ?' : ''}
+          GROUP BY d.category, d.subcategory
+          ORDER BY count DESC
+        `;
+
+        const dispositionsParams: string[] = [startDate.toISOString()];
+        if (userFilter.agentId) {
+          dispositionsParams.push(userFilter.agentId);
+        }
+
+        const dispositionsResult = await prisma.$queryRawUnsafe(dispositionsQuery, ...dispositionsParams) as any[];
+        
+        chartData = dispositionsResult.map((row: any) => ({
+          category: row.category || 'No Disposition',
+          subcategory: row.subcategory || '',
+          count: Number(row.count) || 0,
+          avgDuration: Math.round(Number(row.avgDuration) || 0),
+          successfulCalls: Number(row.successfulCalls) || 0,
+          successRate: Number(row.count) > 0 ? 
+            Math.round((Number(row.successfulCalls) / Number(row.count)) * 100) : 0,
+        }));
+        break;
+
+      case 'campaigns':
+        // Campaign performance
+        const campaignsQuery = `
+          SELECT 
+            c.campaignId,
+            c.name,
+            c.status,
+            COUNT(cr.id) as totalCalls,
+            COUNT(CASE WHEN cr.outcome = 'completed' THEN 1 END) as completedCalls,
+            AVG(cr.duration) as avgDuration,
+            COUNT(DISTINCT cr.contactId) as uniqueContacts,
+            COUNT(DISTINCT cr.agentId) as assignedAgents
+          FROM campaigns c
+          LEFT JOIN call_records cr ON c.campaignId = cr.campaignId AND cr.startTime >= ?
+          WHERE c.createdAt <= ?
+          ${user.role === 'AGENT' ? 'AND EXISTS (SELECT 1 FROM agent_campaign_assignments aca WHERE aca.campaignId = c.campaignId AND aca.agentId = ?)' : ''}
+          GROUP BY c.campaignId, c.name, c.status
+          ORDER BY totalCalls DESC
+        `;
+
+        const campaignsParams: string[] = [startDate.toISOString(), now.toISOString()];
+        if (user.role === 'AGENT') {
+          campaignsParams.push(user.userId?.toString() || '');
+        }
+
+        const campaignsResult = await prisma.$queryRawUnsafe(campaignsQuery, ...campaignsParams) as any[];
+        
+        chartData = campaignsResult.map((row: any) => ({
+          campaignId: row.campaignId,
+          name: row.name,
+          status: row.status,
+          totalCalls: Number(row.totalCalls) || 0,
+          completedCalls: Number(row.completedCalls) || 0,
+          avgDuration: Math.round(Number(row.avgDuration) || 0),
+          uniqueContacts: Number(row.uniqueContacts) || 0,
+          assignedAgents: Number(row.assignedAgents) || 0,
+          completionRate: Number(row.totalCalls) > 0 ? 
+            Math.round((Number(row.completedCalls) / Number(row.totalCalls)) * 100) : 0,
+        }));
+        break;
+
+      case 'agents':
+        // Agent performance (only for admins/supervisors)
+        if (user.role === 'AGENT') {
+          return NextResponse.json(
+            { success: false, message: 'Insufficient permissions to view agent analytics' },
+            { status: 403 }
+          );
+        }
+
+        const agentsQuery = `
+          SELECT 
+            u.id,
+            u.firstName,
+            u.lastName,
+            u.email,
+            u.status,
+            COUNT(cr.id) as totalCalls,
+            COUNT(CASE WHEN cr.outcome = 'completed' THEN 1 END) as completedCalls,
+            AVG(cr.duration) as avgDuration,
+            SUM(cr.duration) as totalDuration,
+            COUNT(DISTINCT cr.contactId) as uniqueContacts
+          FROM users u
+          LEFT JOIN call_records cr ON u.id = CAST(cr.agentId AS INTEGER) AND cr.startTime >= ?
+          WHERE u.role = 'AGENT' AND u.isActive = true
+          GROUP BY u.id, u.firstName, u.lastName, u.email, u.status
+          ORDER BY totalCalls DESC
+        `;
+
+        const agentsResult = await prisma.$queryRawUnsafe(agentsQuery, startDate.toISOString()) as any[];
+        
+        chartData = agentsResult.map((row: any) => ({
+          agentId: row.id,
+          name: `${row.firstName} ${row.lastName}`,
+          email: row.email,
+          status: row.status,
+          totalCalls: Number(row.totalCalls) || 0,
+          completedCalls: Number(row.completedCalls) || 0,
+          avgDuration: Math.round(Number(row.avgDuration) || 0),
+          totalDuration: Math.round(Number(row.totalDuration) || 0),
+          uniqueContacts: Number(row.uniqueContacts) || 0,
+          completionRate: Number(row.totalCalls) > 0 ? 
+            Math.round((Number(row.completedCalls) / Number(row.totalCalls)) * 100) : 0,
+          productivity: Number(row.totalDuration) > 0 ? 
+            Math.round(Number(row.completedCalls) / (Number(row.totalDuration) / 3600)) : 0, // calls per hour
+        }));
+        break;
+
+      default:
+        return NextResponse.json(
+          { success: false, message: 'Invalid chart type' },
+          { status: 400 }
+        );
+    }
+
+    // Fill in missing dates for time-series data
+    if (['calls', 'contacts'].includes(chartType)) {
+      chartData = fillMissingDates(chartData, startDate, now, groupInterval);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        type: chartType,
+        period,
+        dateRange: {
+          start: startDate.toISOString(),
+          end: now.toISOString(),
+        },
+        charts: chartData,
+        metadata: {
+          totalDataPoints: chartData.length,
+          userId: user.userId,
+          userRole: user.role,
+          agentFilter: userFilter.agentId || null,
+        },
+      },
+    });
+
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'Failed to fetch chart data',
+        error: process.env.NODE_ENV === 'development' ? error : undefined,
+      },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+// Helper function to fill missing dates in time-series data
+function fillMissingDates(data: any[], startDate: Date, endDate: Date, interval: string): any[] {
+  const filledData: any[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0];
+    const existing = data.find(d => d.date === dateStr);
+    
+    if (existing) {
+      filledData.push(existing);
+    } else {
+      // Create empty data point
+      filledData.push({
+        date: dateStr,
+        totalCalls: 0,
+        answeredCalls: 0,
+        connectedCalls: 0,
+        completedCalls: 0,
+        avgDuration: 0,
+        totalDuration: 0,
+        answerRate: 0,
+        completionRate: 0,
+        newContacts: 0,
+        qualifiedContacts: 0,
+        convertedContacts: 0,
+        conversionRate: 0,
+      });
+    }
+
+    // Increment date based on interval
+    switch (interval) {
+      case 'hour':
+        current.setHours(current.getHours() + 1);
+        break;
+      case 'day':
+        current.setDate(current.getDate() + 1);
+        break;
+      case 'month':
+        current.setMonth(current.getMonth() + 1);
+        break;
+      default:
+        current.setDate(current.getDate() + 1);
+    }
+  }
+
+  return filledData;
+}

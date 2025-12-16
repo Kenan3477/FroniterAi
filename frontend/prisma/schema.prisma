@@ -1,0 +1,1018 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model DataList {
+  id            String           @id @default(cuid())
+  listId        String           @unique
+  name          String
+  campaignId    String?
+  active        Boolean          @default(false)
+  blendWeight   Int?
+  totalContacts Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  contacts      Contact[]
+  queueEntries  DialQueueEntry[]
+
+  @@map("data_lists")
+}
+
+model Contact {
+  id           String           @id @default(cuid())
+  contactId    String           @unique
+  listId       String
+  firstName    String
+  lastName     String
+  fullName     String?
+  title        String?          // Mr, Mrs, Ms, etc.
+  phone        String
+  mobile       String?
+  workPhone    String?
+  homePhone    String?
+  email        String?
+  company      String?
+  jobTitle     String?
+  department   String?
+  industry     String?
+  address      String?
+  address2     String?
+  address3     String?          // Additional address line
+  city         String?
+  state        String?          // Maps to county from Excel
+  zipCode      String?          // Maps to postcode from Excel
+  country      String?
+  website      String?
+  linkedIn     String?
+  notes        String?
+  tags         String?
+  leadSource   String?
+  leadScore    Int              @default(0)
+  deliveryDate DateTime?        // From delivery_date in Excel
+  ageRange     String?          // From age_range in Excel
+  residentialStatus String?     // From residential_status in Excel
+  custom1      String?          // Available for additional data
+  custom2      String?          // Available for additional data
+  custom3      String?
+  custom4      String?
+  custom5      String?
+  status       String           @default("new")
+  attemptCount Int              @default(0)
+  maxAttempts  Int              @default(3)
+  lastAgentId  String?          // Track which agent last called this lead
+  lastOutcome  String?          // Last call outcome (answered, no-answer, busy, etc.)
+  locked       Boolean          @default(false)
+  lockedBy     String?
+  lockedAt     DateTime?
+  lastAttempt  DateTime?        // Last call attempt timestamp
+  nextAttempt  DateTime?        // Next scheduled attempt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  callRecords  CallRecord[]     // Full call history
+  list         DataList         @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  queueEntries DialQueueEntry[]
+  interactions Interaction[]
+  sales        Sale[]
+  tasks        Task[]
+  workItems    WorkItem[]
+  callKPIs     CallKPI[]
+
+  @@map("contacts")
+}
+
+model DialQueueEntry {
+  id              String    @id @default(cuid())
+  queueId         String    @unique
+  campaignId      String
+  listId          String
+  contactId       String
+  status          String    @default("queued")
+  assignedAgentId String?
+  priority        Int       @default(100)
+  queuedAt        DateTime  @default(now())
+  dialedAt        DateTime?
+  completedAt     DateTime?
+  outcome         String?
+  notes           String?
+  contact         Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  list            DataList  @relation(fields: [listId], references: [listId], onDelete: Cascade)
+
+  @@map("dial_queue")
+}
+
+model Campaign {
+  id                   String                    @id @default(cuid())
+  campaignId           String                    @unique
+  name                 String
+  dialMethod           String                    @default("Progressive")
+  speed                Float                     @default(2.0)
+  dropPercentage       Float                     @default(0.0)
+  status               String                    @default("Inactive")
+  description          String?
+  maxLines             Int?
+  dialRatio            Float?
+  recordCalls          Boolean                   @default(false)
+  allowTransfers       Boolean                   @default(false)
+  campaignScript       String?
+  fieldMapping         String?
+  retrySettings        String?
+  hoursOfOperation     String?
+  abandonRateThreshold Float?                    @default(0.05)
+  pacingMultiplier     Float?                    @default(1.0)
+  maxCallsPerAgent     Int?                      @default(1)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  createdById          Int?
+  agentAssignments     AgentCampaignAssignment[]
+  callRecords          CallRecord[]
+  campaignDispositions CampaignDisposition[]
+  createdBy            User?                     @relation("CampaignCreator", fields: [createdById], references: [id])
+  interactions         Interaction[]
+  tasks                Task[]
+  workItems            WorkItem[]
+  callKPIs             CallKPI[]
+
+  @@map("campaigns")
+}
+
+model Agent {
+  id                  String                    @id @default(cuid())
+  agentId             String                    @unique
+  firstName           String
+  lastName            String
+  email               String                    @unique
+  status              String                    @default("Offline")
+  lastStatusChange    DateTime                  @default(now())
+  extension           String?
+  skills              String?
+  isLoggedIn          Boolean                   @default(false)
+  currentCall         String?
+  sipUsername         String?
+  sipPassword         String?
+  maxConcurrentCalls  Int                       @default(1)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  campaignAssignments AgentCampaignAssignment[]
+  callRecords         CallRecord[]
+  interactions        Interaction[]
+  sales               Sale[]
+  tasks               Task[]
+  workItems           WorkItem[]
+  callKPIs            CallKPI[]
+
+  @@map("agents")
+}
+
+model AgentCampaignAssignment {
+  id         String   @id @default(cuid())
+  agentId    String
+  campaignId String
+  isActive   Boolean  @default(true)
+  assignedAt DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  agent      Agent    @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([agentId, campaignId])
+  @@map("agent_campaign_assignments")
+}
+
+model WorkItem {
+  id          String    @id @default(cuid())
+  workItemId  String    @unique
+  agentId     String
+  campaignId  String
+  contactId   String
+  callId      String?
+  status      String    @default("active")
+  contactData String?
+  scriptData  String?
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  contact     Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  campaign    Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  agent       Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@map("work_items")
+}
+
+model Disposition {
+  id                   String                @id @default(cuid())
+  name                 String
+  description          String?
+  category             String?
+  isActive             Boolean               @default(true)
+  retryEligible        Boolean               @default(false)
+  retryDelay           Int?
+  createdAt            DateTime              @default(now())
+  callRecords          CallRecord[]
+  campaignDispositions CampaignDisposition[]
+
+  @@map("dispositions")
+}
+
+model CampaignDisposition {
+  id            String      @id @default(cuid())
+  campaignId    String
+  dispositionId String
+  isRequired    Boolean     @default(false)
+  sortOrder     Int         @default(0)
+  disposition   Disposition @relation(fields: [dispositionId], references: [id], onDelete: Cascade)
+  campaign      Campaign    @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+
+  @@unique([campaignId, dispositionId])
+  @@map("campaign_dispositions")
+}
+
+model CallKPI {
+  id                  String   @id @default(cuid())
+  campaignId          String
+  agentId             String
+  contactId           String
+  callId              String   @unique
+  disposition         String
+  dispositionCategory String   // positive, neutral, negative
+  callDuration        Int      // seconds
+  callDate            DateTime
+  hourOfDay           Int      // 0-23
+  dayOfWeek           Int      // 0-6 (Sunday=0)
+  listId              String?
+  outcome             String
+  notes               String?
+  createdAt           DateTime @default(now())
+  agent               Agent    @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  campaign            Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact             Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+
+  @@map("call_kpis")
+}
+
+model CallRecord {
+  id            String       @id @default(cuid())
+  callId        String       @unique
+  campaignId    String
+  contactId     String
+  agentId       String?
+  phoneNumber   String
+  dialedNumber  String?
+  callType      String       @default("outbound")
+  startTime     DateTime
+  endTime       DateTime?
+  duration      Int?
+  outcome       String?
+  dispositionId String?
+  notes         String?
+  recording     String?
+  transferTo    String?
+  createdAt     DateTime     @default(now())
+  disposition   Disposition? @relation(fields: [dispositionId], references: [id])
+  agent         Agent?       @relation(fields: [agentId], references: [agentId])
+  contact       Contact      @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  campaign      Campaign     @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  recordingFile Recording?   // One-to-one relation
+
+  @@map("call_records")
+}
+
+model Interaction {
+  id              String    @id @default(cuid())
+  agentId         String
+  contactId       String
+  campaignId      String
+  channel         String    @default("voice")
+  outcome         String
+  isDmc           Boolean   @default(false)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  result          String?
+  campaign        Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact         Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  agent           Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  sales           Sale[]
+
+  @@map("interactions")
+}
+
+model Sale {
+  id            String      @id @default(cuid())
+  interactionId String
+  contactId     String
+  agentId       String
+  amount        Float
+  status        String      @default("success")
+  createdAt     DateTime    @default(now())
+  agent         Agent       @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  contact       Contact     @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  interaction   Interaction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@map("sales")
+}
+
+model Task {
+  id             String   @id @default(cuid())
+  assignedUserId String
+  contactId      String
+  campaignId     String
+  type           String   @default("callback")
+  notes          String?
+  dueAt          DateTime
+  status         String   @default("open")
+  createdAt      DateTime @default(now())
+  campaign       Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact        Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  assignedUser   Agent    @relation(fields: [assignedUserId], references: [agentId], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model User {
+  id                    Int                    @id @default(autoincrement())
+  username              String                 @unique
+  email                 String                 @unique
+  password              String                 // bcrypt hashed password
+  firstName             String
+  lastName              String
+  name                  String                 // computed: firstName + " " + lastName
+  role                  String                 @default("AGENT") // ADMIN, SUPERVISOR, AGENT
+  isActive              Boolean                @default(true)
+  lastLogin             DateTime?
+  lastLoginAttempt      DateTime?
+  failedLoginAttempts   Int                    @default(0)
+  accountLockedUntil    DateTime?
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean                @default(false)
+  refreshTokenVersion   Int                    @default(0) // for JWT refresh token invalidation
+  preferences           String?                // JSON string for user preferences
+  status                String                 @default("away")
+  statusSince           DateTime               @default(now())
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  
+  // Relations
+  createdCampaigns      Campaign[]             @relation("CampaignCreator")
+  channelActivities     ChannelActivity[]      @relation("ChannelActivityUser")
+  assignedChannels      ChannelAssignment[]    @relation("ChannelAssigner")
+  channelAssignments    ChannelAssignment[]    @relation("ChannelUserAssignment")
+  channelConfigurations ChannelConfiguration[] @relation("ChannelConfigCreator")
+  channelSchedules      ChannelSchedule[]      @relation("ChannelScheduleCreator")
+  updatedChannels       Channel[]              @relation("ChannelUpdater")
+  createdChannels       Channel[]              @relation("ChannelCreator")
+  flows                 Flow[]
+  refreshTokens         RefreshToken[]
+  integrations          Integration[]          @relation("UserIntegrations")
+  webhooks              Webhook[]              @relation("UserWebhooks")
+  notifications         Notification[]         @relation("UserNotifications")
+  acknowledgedAlerts    SystemAlert[]          @relation("AlertAcknowledger")
+  resolvedAlerts        SystemAlert[]          @relation("AlertResolver")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
+}
+
+model Flow {
+  id              String        @id @default(cuid())
+  name            String
+  description     String
+  status          String        @default("INACTIVE")
+  createdByUserId Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  versions        FlowVersion[]
+  createdBy       User          @relation(fields: [createdByUserId], references: [id])
+
+  @@map("flows")
+}
+
+model FlowVersion {
+  id            String     @id @default(cuid())
+  flowId        String
+  versionNumber Int
+  isActive      Boolean    @default(false)
+  isDraft       Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  publishedAt   DateTime?
+  edges         FlowEdge[]
+  nodes         FlowNode[]
+  runs          FlowRun[]
+  flow          Flow       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, versionNumber])
+  @@map("flow_versions")
+}
+
+model FlowNode {
+  id            String      @id @default(cuid())
+  flowVersionId String
+  type          String
+  label         String
+  category      String
+  x             Float
+  y             Float
+  config        String
+  isEntry       Boolean     @default(false)
+  targetEdges   FlowEdge[]  @relation("TargetNode")
+  sourceEdges   FlowEdge[]  @relation("SourceNode")
+  flowVersion   FlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+
+  @@map("flow_nodes")
+}
+
+model FlowEdge {
+  id            String      @id @default(cuid())
+  flowVersionId String
+  sourceNodeId  String
+  targetNodeId  String
+  sourcePort    String
+  label         String?
+  targetNode    FlowNode    @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  sourceNode    FlowNode    @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  flowVersion   FlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+
+  @@map("flow_edges")
+}
+
+model NodeTypeDefinition {
+  id          String  @id @default(cuid())
+  type        String  @unique
+  category    String
+  displayName String
+  icon        String?
+  schema      String
+  ports       String
+
+  @@map("node_type_definitions")
+}
+
+model FlowRun {
+  id                String        @id @default(cuid())
+  flowVersionId     String
+  externalReference String?
+  status            String        @default("RUNNING")
+  startedAt         DateTime      @default(now())
+  finishedAt        DateTime?
+  context           String
+  steps             FlowRunStep[]
+  flowVersion       FlowVersion   @relation(fields: [flowVersionId], references: [id])
+
+  @@map("flow_runs")
+}
+
+model FlowRunStep {
+  id         String    @id @default(cuid())
+  flowRunId  String
+  nodeId     String
+  status     String    @default("PENDING")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  output     String?
+  flowRun    FlowRun   @relation(fields: [flowRunId], references: [id], onDelete: Cascade)
+
+  @@map("flow_run_steps")
+}
+
+model Organization {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  displayName String
+  description String?
+  website     String?
+  industry    String?
+  size        String?
+  timezone    String    @default("UTC")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  channels    Channel[]
+
+  @@map("organizations")
+}
+
+model Team {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  displayName        String
+  description        String?
+  department         String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  channelAssignments ChannelAssignment[] @relation("ChannelTeamAssignment")
+
+  @@map("teams")
+}
+
+model Role {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  displayName        String
+  description        String?
+  permissions        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  channelAssignments ChannelAssignment[] @relation("ChannelRoleAssignment")
+
+  @@map("roles")
+}
+
+model Channel {
+  id                 String                 @id @default(cuid())
+  name               String                 @unique
+  displayName        String
+  description        String?
+  type               String
+  status             String                 @default("ACTIVE")
+  priority           Int                    @default(1)
+  isInbound          Boolean                @default(true)
+  isOutbound         Boolean                @default(true)
+  isBlended          Boolean                @default(false)
+  maxConcurrentCalls Int                    @default(100)
+  maxQueueSize       Int                    @default(1000)
+  maxWaitTime        Int                    @default(300)
+  predictiveMode     Boolean                @default(false)
+  progressiveMode    Boolean                @default(true)
+  previewMode        Boolean                @default(false)
+  manualMode         Boolean                @default(false)
+  dialingRatio       Float                  @default(1.0)
+  abandonThreshold   Float                  @default(0.05)
+  pacingMultiplier   Float                  @default(1.0)
+  timezone           String                 @default("UTC")
+  dialingStart       String?
+  dialingEnd         String?
+  dncCompliance      Boolean                @default(true)
+  tcpaCompliance     Boolean                @default(true)
+  gdprCompliance     Boolean                @default(true)
+  callRecording      Boolean                @default(true)
+  qualityMonitoring  Boolean                @default(true)
+  screenRecording    Boolean                @default(false)
+  slaAnswerTime      Int?
+  slaResolutionTime  Int?
+  slaEscalationTime  Int?
+  tags               String?
+  customFields       String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  createdBy          Int?
+  updatedBy          Int?
+  organizationId     String
+  activities         ChannelActivity[]
+  assignments        ChannelAssignment[]
+  capacities         ChannelCapacity[]
+  configurations     ChannelConfiguration[]
+  metrics            ChannelMetrics[]
+  routes             ChannelRoute[]
+  schedules          ChannelSchedule[]
+  updater            User?                  @relation("ChannelUpdater", fields: [updatedBy], references: [id])
+  creator            User?                  @relation("ChannelCreator", fields: [createdBy], references: [id])
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("channels")
+}
+
+model ChannelRoute {
+  id              String   @id @default(cuid())
+  name            String
+  displayName     String
+  description     String?
+  routeType       String
+  priority        Int      @default(1)
+  isActive        Boolean  @default(true)
+  conditions      String
+  actions         String
+  fallbackRoute   String?
+  loadBalancing   String   @default("ROUND_ROBIN")
+  weightingFactor Float    @default(1.0)
+  maxConcurrent   Int      @default(10)
+  timeoutSeconds  Int      @default(30)
+  retryAttempts   Int      @default(3)
+  businessHours   String?
+  holidaySchedule String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  channelId       String
+  channel         Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([routeType])
+  @@index([priority])
+  @@index([isActive])
+  @@map("channel_routes")
+}
+
+model ChannelConfiguration {
+  id          String   @id @default(cuid())
+  configType  String
+  name        String
+  description String?
+  settings    String
+  parameters  String?
+  validation  String?
+  version     String   @default("1.0.0")
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  environment String   @default("PRODUCTION")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   Int?
+  channelId   String
+  creator     User?    @relation("ChannelConfigCreator", fields: [createdBy], references: [id])
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, configType, name])
+  @@index([channelId])
+  @@index([configType])
+  @@index([environment])
+  @@map("channel_configurations")
+}
+
+model ChannelSchedule {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  scheduleType  String
+  timezone      String    @default("UTC")
+  startTime     String
+  endTime       String
+  daysOfWeek    String
+  dates         String?
+  exceptions    String?
+  maxConcurrent Int?
+  maxQueue      Int?
+  dialingRatio  Float?
+  isActive      Boolean   @default(true)
+  priority      Int       @default(1)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  channelId     String
+  creator       User?     @relation("ChannelScheduleCreator", fields: [createdBy], references: [id])
+  channel       Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([scheduleType])
+  @@index([effectiveFrom])
+  @@index([effectiveTo])
+  @@map("channel_schedules")
+}
+
+model ChannelCapacity {
+  id                   String   @id @default(cuid())
+  capacityType         String
+  maxConcurrent        Int
+  currentUtilization   Int      @default(0)
+  peakUtilization      Int      @default(0)
+  averageUtilization   Float    @default(0)
+  successfulCalls      Int      @default(0)
+  failedCalls          Int      @default(0)
+  droppedCalls         Int      @default(0)
+  abandonedCalls       Int      @default(0)
+  averageWaitTime      Float    @default(0)
+  averageHandleTime    Float    @default(0)
+  averageHoldTime      Float    @default(0)
+  firstCallResolution  Float    @default(0)
+  customerSatisfaction Float    @default(0)
+  agentUtilization     Float    @default(0)
+  periodStart          DateTime
+  periodEnd            DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  channelId            String
+  channel              Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([capacityType])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@map("channel_capacities")
+}
+
+model ChannelAssignment {
+  id                   String   @id @default(cuid())
+  assignmentType       String
+  priority             Int      @default(1)
+  isActive             Boolean  @default(true)
+  maxConcurrent        Int?
+  skillRequirement     String?
+  scheduleOverride     String?
+  availabilityWindow   String?
+  minimumExperience    Int?
+  performanceThreshold Float?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  assignedAt           DateTime @default(now())
+  assignedBy           Int?
+  channelId            String
+  userId               Int?
+  teamId               String?
+  roleId               String?
+  assigner             User?    @relation("ChannelAssigner", fields: [assignedBy], references: [id])
+  role                 Role?    @relation("ChannelRoleAssignment", fields: [roleId], references: [id], onDelete: Cascade)
+  team                 Team?    @relation("ChannelTeamAssignment", fields: [teamId], references: [id], onDelete: Cascade)
+  user                 User?    @relation("ChannelUserAssignment", fields: [userId], references: [id], onDelete: Cascade)
+  channel              Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([assignmentType])
+  @@index([userId])
+  @@index([teamId])
+  @@index([roleId])
+  @@index([assignedAt])
+  @@map("channel_assignments")
+}
+
+model ChannelMetrics {
+  id                   String   @id @default(cuid())
+  metricType           String
+  totalCalls           Int      @default(0)
+  successfulCalls      Int      @default(0)
+  failedCalls          Int      @default(0)
+  droppedCalls         Int      @default(0)
+  abandonedCalls       Int      @default(0)
+  inboundCalls         Int      @default(0)
+  outboundCalls        Int      @default(0)
+  peakConcurrent       Int      @default(0)
+  averageConcurrent    Float    @default(0)
+  totalCallDuration    Int      @default(0)
+  averageCallDuration  Float    @default(0)
+  totalWaitTime        Int      @default(0)
+  averageWaitTime      Float    @default(0)
+  totalHandleTime      Int      @default(0)
+  averageHandleTime    Float    @default(0)
+  serviceLevel         Float    @default(0)
+  abandonRate          Float    @default(0)
+  firstCallResolution  Float    @default(0)
+  transferRate         Float    @default(0)
+  agentUtilization     Float    @default(0)
+  channelUtilization   Float    @default(0)
+  costPerCall          Float    @default(0)
+  revenuePerCall       Float    @default(0)
+  customerSatisfaction Float    @default(0)
+  netPromoterScore     Float    @default(0)
+  complaintsReceived   Int      @default(0)
+  complimentsReceived  Int      @default(0)
+  periodType           String
+  periodStart          DateTime
+  periodEnd            DateTime
+  calculatedAt         DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  channelId            String
+  channel              Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([metricType])
+  @@index([periodType])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@index([calculatedAt])
+  @@map("channel_metrics")
+}
+
+model ChannelActivity {
+  id            String   @id @default(cuid())
+  activityType  String
+  description   String
+  details       String?
+  oldValues     String?
+  newValues     String?
+  ipAddress     String?
+  userAgent     String?
+  sessionId     String?
+  impactLevel   String   @default("LOW")
+  affectedUsers Int      @default(0)
+  timestamp     DateTime @default(now())
+  channelId     String
+  userId        Int?
+  user          User?    @relation("ChannelActivityUser", fields: [userId], references: [id])
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([activityType])
+  @@index([timestamp])
+  @@index([userId])
+  @@index([impactLevel])
+  @@map("channel_activities")
+}
+
+// ============================================================================
+// INTEGRATION MANAGEMENT MODELS
+// ============================================================================
+
+model Integration {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   // "CRM", "EMAIL", "SMS", "WEBHOOK", "API"
+  description   String?
+  provider      String   // "Salesforce", "HubSpot", "Twilio", etc.
+  isActive      Boolean  @default(true)
+  configuration String   // JSON configuration
+  credentials   String?  // Encrypted credentials
+  lastSync      DateTime?
+  syncStatus    String   @default("inactive") // "active", "inactive", "error", "syncing"
+  errorMessage  String?
+  createdBy     Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  creator       User              @relation("UserIntegrations", fields: [createdBy], references: [id])
+  webhooks      Webhook[]
+  syncLogs      IntegrationLog[]
+  
+  @@map("integrations")
+}
+
+model IntegrationLog {
+  id            String      @id @default(cuid())
+  integrationId String
+  action        String      // "sync", "send", "receive", "error"
+  status        String      // "success", "error", "warning"
+  message       String
+  details       String?     // JSON details
+  recordsProcessed Int?
+  errorCount    Int?
+  duration      Int?        // milliseconds
+  timestamp     DateTime    @default(now())
+  
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  
+  @@index([integrationId])
+  @@index([timestamp])
+  @@index([status])
+  @@map("integration_logs")
+}
+
+model Webhook {
+  id            String      @id @default(cuid())
+  name          String
+  url           String
+  secret        String?     // Webhook signature secret
+  events        String      // JSON array of event types
+  isActive      Boolean     @default(true)
+  integrationId String?
+  retryPolicy   String?     // JSON retry configuration
+  headers       String?     // JSON custom headers
+  createdBy     Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  creator       User        @relation("UserWebhooks", fields: [createdBy], references: [id])
+  integration   Integration? @relation(fields: [integrationId], references: [id])
+  deliveries    WebhookDelivery[]
+  
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id            String   @id @default(cuid())
+  webhookId     String
+  eventType     String
+  payload       String   // JSON payload
+  status        String   // "pending", "success", "failed", "retrying"
+  responseCode  Int?
+  responseBody  String?
+  attemptCount  Int      @default(0)
+  maxAttempts   Int      @default(3)
+  nextRetry     DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+  
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  
+  @@index([webhookId])
+  @@index([status])
+  @@index([eventType])
+  @@index([nextRetry])
+  @@map("webhook_deliveries")
+}
+
+// ============================================================================
+// CALL RECORDING & TRANSCRIPTION MODELS
+// ============================================================================
+
+model Recording {
+  id            String       @id @default(cuid())
+  callRecordId  String
+  fileName      String
+  filePath      String       // Storage path/URL
+  fileSize      Int?         // bytes
+  duration      Int?         // seconds
+  format        String       @default("wav") // "wav", "mp3", "m4a"
+  quality       String       @default("standard") // "low", "standard", "high"
+  storageType   String       @default("local") // "local", "s3", "azure", "gcs"
+  isEncrypted   Boolean      @default(false)
+  uploadStatus  String       @default("pending") // "pending", "uploading", "completed", "failed"
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  callRecord    CallRecord   @relation(fields: [callRecordId], references: [id], onDelete: Cascade)
+  transcriptions Transcription[]
+  
+  @@unique([callRecordId])
+  @@index([uploadStatus])
+  @@map("recordings")
+}
+
+model Transcription {
+  id            String      @id @default(cuid())
+  recordingId   String
+  provider      String      // "openai", "google", "aws", "azure"
+  language      String      @default("en")
+  text          String      // Full transcription text
+  segments      String?     // JSON array of timed segments
+  confidence    Float?      // Overall confidence score
+  wordCount     Int?
+  processingTime Int?       // milliseconds
+  cost          Float?      // Processing cost
+  status        String      @default("pending") // "pending", "processing", "completed", "failed"
+  errorMessage  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  recording     Recording   @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  
+  @@unique([recordingId])
+  @@index([status])
+  @@index([language])
+  @@map("transcriptions")
+}
+
+// ============================================================================
+// NOTIFICATION & ALERT MODELS
+// ============================================================================
+
+model Notification {
+  id            String      @id @default(cuid())
+  userId        Int
+  title         String
+  message       String
+  type          String      @default("info") // "info", "warning", "error", "success"
+  category      String?     // "system", "campaign", "call", "task"
+  priority      String      @default("normal") // "low", "normal", "high", "urgent"
+  isRead        Boolean     @default(false)
+  actionUrl     String?     // Optional URL for action
+  actionLabel   String?     // Optional action button label
+  metadata      String?     // JSON additional data
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  
+  user          User        @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model SystemAlert {
+  id            String      @id @default(cuid())
+  title         String
+  message       String
+  alertType     String      // "system_down", "high_cpu", "queue_overflow", "integration_error"
+  severity      String      // "low", "medium", "high", "critical"
+  status        String      @default("active") // "active", "acknowledged", "resolved"
+  source        String?     // Component or service that triggered the alert
+  metadata      String?     // JSON additional data
+  acknowledgedBy Int?
+  acknowledgedAt DateTime?
+  resolvedBy    Int?
+  resolvedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  
+  acknowledger  User?       @relation("AlertAcknowledger", fields: [acknowledgedBy], references: [id])
+  resolver      User?       @relation("AlertResolver", fields: [resolvedBy], references: [id])
+  
+  @@index([alertType])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@map("system_alerts")
+}

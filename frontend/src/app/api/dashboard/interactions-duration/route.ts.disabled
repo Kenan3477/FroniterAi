@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+const CURRENT_AGENT_ID = 'AGENT_001';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const daysParam = searchParams.get('days');
+    const days = daysParam ? parseInt(daysParam) : 5;
+
+    const now = new Date();
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    // Get interactions for the last N days
+    const interactions = await prisma.interaction.findMany({
+      where: {
+        agentId: CURRENT_AGENT_ID,
+        startedAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        startedAt: true,
+        channel: true,
+        durationSeconds: true,
+      },
+    });
+
+    // Group by date and channel
+    const groupedData: { [key: string]: { [channel: string]: { total: number; count: number } } } = {};
+
+    interactions.forEach(interaction => {
+      const date = interaction.startedAt.toISOString().split('T')[0];
+      const channel = interaction.channel;
+      const duration = interaction.durationSeconds || 0;
+
+      if (!groupedData[date]) {
+        groupedData[date] = {};
+      }
+      if (!groupedData[date][channel]) {
+        groupedData[date][channel] = { total: 0, count: 0 };
+      }
+
+      groupedData[date][channel].total += duration;
+      groupedData[date][channel].count += 1;
+    });
+
+    // Convert to array format
+    const result: Array<{
+      date: string;
+      channel: string;
+      avg_duration_seconds: number;
+      total_duration_seconds: number;
+    }> = [];
+
+    Object.entries(groupedData).forEach(([date, channels]) => {
+      Object.entries(channels).forEach(([channel, stats]) => {
+        result.push({
+          date,
+          channel,
+          avg_duration_seconds: Math.round(stats.total / stats.count),
+          total_duration_seconds: stats.total,
+        });
+      });
+    });
+
+    // Sort by date
+    result.sort((a, b) => a.date.localeCompare(b.date));
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Error fetching interactions duration:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

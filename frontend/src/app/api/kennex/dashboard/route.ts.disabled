@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Mock data for the dashboard summary
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  
+  // Mock data that matches the Kennex dashboard interface
+  const dashboardData = {
+    agent: {
+      status: 'away',
+      statusSince: new Date(Date.now() - 1000 * 60 * 39).toISOString() // 39 minutes ago
+    },
+    summary: {
+      interactionsToday: 503,
+      interactionsChangePct: -12,
+      interactionOutcomes: {
+        positive: 44,
+        neutral: 165,
+        negative: 294
+      },
+      interactionsTimeSeconds: 3433, // 57:13
+      dmcs: 317,
+      conversions: 29,
+      conversionRate: 9.1
+    },
+    salesData: {
+      totalSalesCount: 272,
+      dailyBreakdown: [
+        { date: '2025-12-01', salesCount: 8 },
+        { date: '2025-12-02', salesCount: 12 },
+        { date: '2025-12-03', salesCount: 15 },
+        { date: '2025-12-04', salesCount: 22 },
+        { date: '2025-12-05', salesCount: 18 },
+        { date: '2025-12-06', salesCount: 25 },
+        { date: '2025-12-07', salesCount: 30 },
+        { date: '2025-12-08', salesCount: 28 },
+        { date: '2025-12-09', salesCount: 35 },
+        { date: '2025-12-10', salesCount: 42 },
+        { date: '2025-12-11', salesCount: 37 },
+        { date: '2025-12-12', salesCount: 0 }
+      ]
+    },
+    interactionsDuration: [
+      { date: '2025-12-08', channel: 'voice', avgDurationSeconds: 180, totalDurationSeconds: 2160 },
+      { date: '2025-12-08', channel: 'email', avgDurationSeconds: 45, totalDurationSeconds: 270 },
+      { date: '2025-12-09', channel: 'voice', avgDurationSeconds: 165, totalDurationSeconds: 1980 },
+      { date: '2025-12-09', channel: 'chat', avgDurationSeconds: 120, totalDurationSeconds: 600 },
+      { date: '2025-12-10', channel: 'voice', avgDurationSeconds: 195, totalDurationSeconds: 2730 },
+      { date: '2025-12-10', channel: 'email', avgDurationSeconds: 60, totalDurationSeconds: 360 },
+      { date: '2025-12-11', channel: 'voice', avgDurationSeconds: 210, totalDurationSeconds: 3360 },
+      { date: '2025-12-11', channel: 'chat', avgDurationSeconds: 90, totalDurationSeconds: 810 },
+      { date: '2025-12-12', channel: 'voice', avgDurationSeconds: 175, totalDurationSeconds: 1225 }
+    ],
+    latestContacts: [
+      { id: 1, name: 'Kathleen Langan', phone: '+1-555-0123', lastContactedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString() },
+      { id: 2, name: 'Geraldine M Olden', phone: '+1-555-0124', lastContactedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString() },
+      { id: 3, name: 'Not Set', phone: '+1-555-0125', lastContactedAt: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString() },
+      { id: 4, name: 'Not Set', phone: '+1-555-0126', lastContactedAt: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString() },
+      { id: 5, name: 'Not Set', phone: '+1-555-0127', lastContactedAt: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString() }
+    ],
+    tasks: {
+      items: [],
+      totalCount: 0
+    }
+  };
+
+  return NextResponse.json({
+    success: true,
+    data: dashboardData
+  });
+}
+
+// POST /api/kennex/dashboard - Update agent status
+export async function POST(request: NextRequest) {
+  const { status } = await request.json();
+  
+  return NextResponse.json({
+    success: true,
+    data: {
+      status,
+      statusSince: new Date().toISOString()
+    }
+  });
+}

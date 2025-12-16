@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-kennex-600 hover:bg-kennex-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+  
+  .btn-outline {
+    @apply border border-kennex-600 text-kennex-600 hover:bg-kennex-600 hover:text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-kennex-500 focus:border-kennex-500;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+  
+  .sidebar-item {
+    @apply flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-gray-100 transition-colors duration-150;
+  }
+  
+  .sidebar-item.active {
+    @apply bg-kennex-100 text-kennex-900 border-r-2 border-kennex-600;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .gradient-border {
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(45deg, #14b8a6, #22c55e) border-box;
+    border: 2px solid transparent;
+  }
+
+  /* 3D Transform Utilities */
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  
+  .translate-z-16 {
+    transform: translateZ(64px);
+  }
+  
+  .rotate-y-180 {
+    transform: rotateY(180deg) translateZ(64px);
+  }
+  
+  .rotate-y-90 {
+    transform: rotateY(90deg) translateZ(64px);
+  }
+  
+  .rotate-y-\[-90deg\] {
+    transform: rotateY(-90deg) translateZ(64px);
+  }
+  
+  .rotate-x-90 {
+    transform: rotateX(90deg) translateZ(64px);
+  }
+  
+  .rotate-x-\[-90deg\] {
+    transform: rotateX(-90deg) translateZ(64px);
+  }
+
+  /* Custom animations */
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0px) scale(1); 
+    }
+    25% { 
+      transform: translateY(-10px) scale(1.05); 
+    }
+    50% { 
+      transform: translateY(-5px) scale(1.1); 
+    }
+    75% { 
+      transform: translateY(-15px) scale(1.05); 
+    }
+  }
+
+  @keyframes matrix-pulse {
+    0%, 100% { 
+      opacity: 0.6; 
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); 
+    }
+    50% { 
+      opacity: 1; 
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.6); 
+    }
+  }
+
+  @keyframes cube-rotate {
+    0% { 
+      transform: perspective(1000px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); 
+    }
+    100% { 
+      transform: perspective(1000px) rotateX(360deg) rotateY(360deg) rotateZ(180deg); 
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-matrix-pulse {
+    animation: matrix-pulse 4s ease-in-out infinite;
+  }
+
+  .animate-cube-rotate {
+    animation: cube-rotate 20s linear infinite;
+  }
+}

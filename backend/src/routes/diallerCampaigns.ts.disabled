@@ -1,0 +1,194 @@
+import express from 'express';
+import { campaignService } from '../services/campaignService';
+
+const router = express.Router();
+
+// Create new campaign
+router.post('/', async (req, res) => {
+  try {
+    const campaign = await campaignService.createCampaign(req.body);
+    res.status(201).json(campaign);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// List campaigns
+router.get('/', async (req, res) => {
+  try {
+    const { status, mode, createdById, isActive, limit, offset } = req.query;
+    const campaigns = await campaignService.listCampaigns({
+      status: status as any,
+      mode: mode as any,
+      createdById: createdById as string,
+      isActive: isActive === 'true',
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+    });
+    res.json(campaigns);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get campaign by ID
+router.get('/:campaignId', async (req, res) => {
+  try {
+    const campaign = await campaignService.getCampaign(req.params.campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    res.json(campaign);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update campaign
+router.patch('/:campaignId', async (req, res) => {
+  try {
+    const campaign = await campaignService.updateCampaign(req.params.campaignId, req.body);
+    res.json(campaign);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update campaign status
+router.patch('/:campaignId/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const campaign = await campaignService.updateCampaignStatus(req.params.campaignId, status);
+    res.json(campaign);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Add records to campaign
+router.post('/:campaignId/records', async (req, res) => {
+  try {
+    const { records } = req.body;
+    const result = await campaignService.addCampaignRecords(req.params.campaignId, records);
+    res.status(201).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get campaign records
+router.get('/:campaignId/records', async (req, res) => {
+  try {
+    const { status, priority, hasData, limit, offset, orderBy, order } = req.query;
+    const records = await campaignService.getCampaignRecords(req.params.campaignId, {
+      status: status as any,
+      priority: priority ? parseInt(priority as string) : undefined,
+      hasData: hasData === 'true',
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+      orderBy: orderBy as any,
+      order: order as any,
+    });
+    res.json(records);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get next records to dial
+router.get('/:campaignId/records/next', async (req, res) => {
+  try {
+    const { agentId, limit } = req.query;
+    const records = await campaignService.getNextRecordsToDial(
+      req.params.campaignId,
+      agentId as string,
+      limit ? parseInt(limit as string) : undefined
+    );
+    res.json(records);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update campaign record
+router.patch('/:campaignId/records/:recordId', async (req, res) => {
+  try {
+    const record = await campaignService.updateCampaignRecord(req.params.recordId, req.body);
+    res.json(record);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get campaign statistics
+router.get('/:campaignId/stats', async (req, res) => {
+  try {
+    const stats = await campaignService.getCampaignStats(req.params.campaignId);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Assign agents to campaign
+router.post('/:campaignId/agents', async (req, res) => {
+  try {
+    const { agentIds, priority = 1 } = req.body;
+    const assignments = await campaignService.assignAgentsToCampaign(
+      req.params.campaignId,
+      agentIds,
+      priority
+    );
+    res.status(201).json(assignments);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get campaign agents
+router.get('/:campaignId/agents', async (req, res) => {
+  try {
+    const agents = await campaignService.getCampaignAgents(req.params.campaignId);
+    res.json(agents);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove agents from campaign
+router.delete('/:campaignId/agents', async (req, res) => {
+  try {
+    const { agentIds } = req.body;
+    await campaignService.removeAgentsFromCampaign(req.params.campaignId, agentIds);
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Import records from CSV
+router.post('/:campaignId/import-csv', async (req, res) => {
+  try {
+    const { csvData, mapping } = req.body;
+    const result = await campaignService.importRecordsFromCSV(
+      req.params.campaignId,
+      csvData,
+      mapping
+    );
+    res.status(201).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Delete campaign (soft delete)
+router.delete('/:campaignId', async (req, res) => {
+  try {
+    const campaign = await campaignService.deleteCampaign(req.params.campaignId);
+    res.json(campaign);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+export default router;

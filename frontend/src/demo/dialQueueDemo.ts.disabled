@@ -1,0 +1,344 @@
+/**
+ * KENNEX Dial Queue System Demo
+ * Demonstrates the complete workflow exactly like Kennex
+ */
+
+import {
+  assignListToCampaign,
+  activateListInDialStrategy,
+  deactivateList,
+  getActiveListsByCampaign,
+  addMockList,
+  addMockCampaign
+} from '../services/listCampaignService';
+
+import {
+  startDialQueueEngine,
+  stopDialQueueEngine,
+  getEngineStatus,
+  getQueueStats,
+  addMockContact,
+  clearDialQueue
+} from '../services/dialQueueEngine';
+
+import {
+  updateRecordAfterCall,
+  getContactStatusReport,
+  resetContactAttempts,
+  markContactAsDoNotCall,
+  scheduleCallback
+} from '../services/recordStatusService';
+
+import { DataList, Contact } from '../types/dialQueue';
+
+/**
+ * Demo Script: Complete Kennex Workflow
+ * 🎯 Data List → Assign to Campaign → Activate in Strategy → Auto-feed into Dial Queue
+ */
+
+export async function runCompleteDemo() {
+  console.log('\n🚀 KENNEX Dial Queue System Demo - Kennex Workflow');
+  console.log('='.repeat(60));
+
+  // 1️⃣ Setup: Create mock data lists and contacts
+  await setupMockData();
+
+  // 2️⃣ Step 1: Assign lists to campaigns
+  await demonstrateListAssignment();
+
+  // 3️⃣ Step 2: Activate lists in dial strategy
+  await demonstrateDialStrategyActivation();
+
+  // 4️⃣ Step 3: Start the dial queue engine
+  await demonstrateDialQueueEngine();
+
+  // 5️⃣ Step 4: Simulate dialing and outcomes
+  await simulateDialingActivity();
+
+  // 6️⃣ Step 5: Show reporting and analytics
+  await demonstrateReporting();
+
+  // 7️⃣ Cleanup
+  await cleanup();
+
+  console.log('\n✅ Demo completed successfully!');
+  console.log('\nThis demonstrates the complete Kennex workflow:');
+  console.log('✔ Multi-list blending');
+  console.log('✔ Weighted picking');
+  console.log('✔ Locked records');
+  console.log('✔ Attempt tracking');
+  console.log('✔ Real-time queue population');
+}
+
+/**
+ * Setup mock data to demonstrate the system
+ */
+async function setupMockData() {
+  console.log('\n📋 Step 1: Setting up mock data lists and contacts...');
+
+  // Add more mock lists
+  const mockLists: DataList[] = [
+    {
+      listId: 'list_003',
+      name: 'Q1 Hot Prospects',
+      campaignId: undefined,
+      active: false,
+      blendWeight: undefined,
+      totalContacts: 2500,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    },
+    {
+      listId: 'list_004',
+      name: 'Renewal Customers',
+      campaignId: undefined,
+      active: false,
+      blendWeight: undefined,
+      totalContacts: 800,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    }
+  ];
+
+  mockLists.forEach(list => addMockList(list));
+
+  // Add more mock contacts
+  const mockContacts: Contact[] = [
+    {
+      contactId: 'contact_004',
+      listId: 'list_003',
+      firstName: 'Alice',
+      lastName: 'Williams',
+      phone: '+447700111222',
+      email: 'alice.williams@example.com',
+      status: 'NotAttempted',
+      attemptCount: 0,
+      maxAttempts: 5,
+      locked: false,
+      customFields: { priority: 'high' },
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    },
+    {
+      contactId: 'contact_005',
+      listId: 'list_004',
+      firstName: 'Charlie',
+      lastName: 'Brown',
+      phone: '+447700333444',
+      email: 'charlie.brown@example.com',
+      status: 'NotAttempted',
+      attemptCount: 0,
+      maxAttempts: 3,
+      locked: false,
+      customFields: { customerType: 'renewal' },
+      createdAt: new Date('2024-01-15'),
+      updatedAt: new Date('2024-01-15')
+    }
+  ];
+
+  mockContacts.forEach(contact => addMockContact(contact));
+
+  console.log('✅ Created 2 additional data lists and 2 contacts');
+}
+
+/**
+ * Demonstrate list-campaign assignment
+ */
+async function demonstrateListAssignment() {
+  console.log('\n🔗 Step 2: Demonstrating List-Campaign Assignment...');
+
+  // Assign lists to campaigns
+  const assignments = [
+    { listId: 'list_001', campaignId: '1125' },
+    { listId: 'list_002', campaignId: '1125' },
+    { listId: 'list_003', campaignId: '6002' },
+    { listId: 'list_004', campaignId: '6002' }
+  ];
+
+  for (const { listId, campaignId } of assignments) {
+    const result = await assignListToCampaign(listId, campaignId);
+    console.log(`   ${result.success ? '✅' : '❌'} ${result.message}`);
+  }
+
+  // Demonstrate migration
+  console.log('\n   Testing migration scenario...');
+  const migrationResult = await assignListToCampaign('list_001', '6666', { allowMigration: true });
+  console.log(`   ${migrationResult.success ? '✅' : '❌'} Migration: ${migrationResult.message}`);
+}
+
+/**
+ * Demonstrate dial strategy activation
+ */
+async function demonstrateDialStrategyActivation() {
+  console.log('\n🚀 Step 3: Demonstrating Dial Strategy Activation...');
+
+  // Activate lists with different blend weights
+  const activations = [
+    { listId: 'list_001', weight: 60 },
+    { listId: 'list_002', weight: 40 },
+    { listId: 'list_003', weight: 70 },
+    { listId: 'list_004', weight: 30 }
+  ];
+
+  for (const { listId, weight } of activations) {
+    const result = await activateListInDialStrategy(listId, weight);
+    console.log(`   ${result.success ? '✅' : '❌'} ${result.message}`);
+  }
+
+  console.log('\n   Active lists by campaign:');
+  ['1125', '6002', '6666'].forEach(campaignId => {
+    const activeLists = getActiveListsByCampaign(campaignId);
+    console.log(`   Campaign ${campaignId}: ${activeLists.length} active lists`);
+    activeLists.forEach(list => {
+      console.log(`     - ${list.name} (${list.blendWeight}% blend weight)`);
+    });
+  });
+}
+
+/**
+ * Demonstrate dial queue engine
+ */
+async function demonstrateDialQueueEngine() {
+  console.log('\n⚙️ Step 4: Demonstrating Dial Queue Engine...');
+
+  // Clear any existing queue
+  clearDialQueue();
+
+  // Start the engine
+  console.log('   Starting dial queue engine...');
+  startDialQueueEngine({
+    loopInterval: 1000,  // 1 second for demo
+    maxQueueSize: 10,
+    blendAlgorithm: 'weighted'
+  });
+
+  // Let it run for a few seconds
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  const status = getEngineStatus();
+  console.log(`   Engine running: ${status.running}`);
+  console.log(`   Total queue size: ${status.totalQueueSize}`);
+
+  // Show queue statistics
+  const stats = getQueueStats();
+  console.log('\n   Queue statistics:');
+  stats.forEach(stat => {
+    console.log(`   Campaign ${stat.campaignId}:`);
+    console.log(`     - Queued: ${stat.totalQueued}`);
+    console.log(`     - Dialing: ${stat.totalDialing}`);
+    console.log(`     - Active lists: ${stat.activeListCount}`);
+    console.log(`     - Available agents: ${stat.availableAgents}`);
+  });
+}
+
+/**
+ * Simulate dialing activity and outcomes
+ */
+async function simulateDialingActivity() {
+  console.log('\n📞 Step 5: Simulating Dialing Activity...');
+
+  // Simulate various call outcomes
+  const outcomes = [
+    { contactId: 'contact_001', outcome: 'Answered', agentId: 'agent_001', duration: 120 },
+    { contactId: 'contact_002', outcome: 'No Answer', agentId: 'agent_002', duration: 0 },
+    { contactId: 'contact_003', outcome: 'Busy', agentId: 'agent_001', duration: 0 },
+    { contactId: 'contact_004', outcome: 'Voicemail', agentId: 'agent_003', duration: 45 },
+    { contactId: 'contact_005', outcome: 'Do Not Call', agentId: 'agent_002', duration: 30 }
+  ];
+
+  for (const { contactId, outcome, agentId, duration } of outcomes) {
+    const result = await updateRecordAfterCall(contactId, outcome, {
+      agentId,
+      callDuration: duration,
+      notes: `Demo call - ${outcome}`
+    });
+    
+    console.log(`   ${result.success ? '✅' : '❌'} Contact ${contactId}: ${outcome} (${duration}s)`);
+  }
+
+  // Demonstrate additional functions
+  console.log('\n   Additional record management:');
+  
+  // Reset attempts
+  const resetResult = await resetContactAttempts('contact_002');
+  console.log(`   ${resetResult.success ? '✅' : '❌'} Reset attempts: ${resetResult.message}`);
+
+  // Schedule callback
+  const callbackResult = await scheduleCallback(
+    'contact_001', 
+    new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+    'Customer requested callback tomorrow'
+  );
+  console.log(`   ${callbackResult.success ? '✅' : '❌'} Schedule callback: ${callbackResult.message}`);
+
+  // Mark as DNC
+  const dncResult = await markContactAsDoNotCall('contact_003', 'Requested to be removed');
+  console.log(`   ${dncResult.success ? '✅' : '❌'} Mark DNC: ${dncResult.message}`);
+}
+
+/**
+ * Demonstrate reporting and analytics
+ */
+async function demonstrateReporting() {
+  console.log('\n📊 Step 6: Demonstrating Reporting & Analytics...');
+
+  // Generate contact status reports for each campaign
+  const campaigns = ['1125', '6002', '6666'];
+  
+  for (const campaignId of campaigns) {
+    const report = await getContactStatusReport(undefined, campaignId);
+    
+    if (report) {
+      console.log(`\n   Campaign ${campaignId} Status Report:`);
+      console.log(`     Total contacts: ${report.totalContacts}`);
+      console.log(`     Not attempted: ${report.statusBreakdown.NotAttempted}`);
+      console.log(`     Answered: ${report.statusBreakdown.Answered}`);
+      console.log(`     No answer: ${report.statusBreakdown.NoAnswer}`);
+      console.log(`     Retry eligible: ${report.statusBreakdown.RetryEligible}`);
+      console.log(`     Do not call: ${report.statusBreakdown.DoNotCall}`);
+      console.log(`     Contact rate: ${(report.contactRate * 100).toFixed(1)}%`);
+      console.log(`     Average attempts: ${report.averageAttempts.toFixed(1)}`);
+      console.log(`     Pending contacts: ${report.pendingContacts}`);
+    }
+  }
+}
+
+/**
+ * Cleanup and stop the demo
+ */
+async function cleanup() {
+  console.log('\n🧹 Step 7: Cleanup...');
+  
+  // Stop the dial queue engine
+  stopDialQueueEngine();
+  console.log('   ✅ Dial queue engine stopped');
+  
+  // Clear the queue
+  clearDialQueue();
+  console.log('   ✅ Dial queue cleared');
+}
+
+/**
+ * Quick demo function for testing individual features
+ */
+export async function quickDemo() {
+  console.log('\n⚡ Quick Demo: Core Dial Queue Functions');
+  
+  // Test list assignment
+  const assignResult = await assignListToCampaign('list_001', '1125');
+  console.log(`Assign list: ${assignResult.success ? '✅' : '❌'} ${assignResult.message}`);
+  
+  // Test activation
+  const activateResult = await activateListInDialStrategy('list_001', 100);
+  console.log(`Activate list: ${activateResult.success ? '✅' : '❌'} ${activateResult.message}`);
+  
+  // Test record update
+  const updateResult = await updateRecordAfterCall('contact_001', 'Answered');
+  console.log(`Update record: ${updateResult.success ? '✅' : '❌'} ${updateResult.message}`);
+}
+
+// Export for use in admin interface
+export {
+  runCompleteDemo,
+  quickDemo
+};

@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function POST(request: NextRequest) {
+  try {
+    const { campaignId, agentId } = await request.json();
+
+    if (!campaignId || !agentId) {
+      return NextResponse.json({ error: 'Campaign ID and Agent ID required' }, { status: 400 });
+    }
+
+    // Find the highest priority queued contact
+    const queueEntry = await prisma.dialQueueEntry.findFirst({
+      where: {
+        campaignId,
+        status: 'queued'
+      },
+      include: {
+        contact: true
+      },
+      orderBy: {
+        priority: 'desc'
+      }
+    });
+
+    if (!queueEntry) {
+      return NextResponse.json({ 
+        error: 'No contacts available in queue',
+        contact: null 
+      }, { status: 404 });
+    }
+
+    // Lock the contact
+    await prisma.contact.update({
+      where: { contactId: queueEntry.contactId },
+      data: {
+        locked: true,
+        lockedBy: agentId,
+        lockedAt: new Date()
+      }
+    });
+
+    // Update queue entry status
+    await prisma.dialQueueEntry.update({
+      where: { id: queueEntry.id },
+      data: {
+        status: 'dialing',
+        assignedAgentId: agentId,
+        dialedAt: new Date()
+      }
+    });
+
+    return NextResponse.json({ 
+      contact: queueEntry.contact,
+      queueEntry: queueEntry,
+      message: 'Contact assigned for dialing'
+    });
+
+  } catch (error) {
+    console.error('Error getting next contact:', error);
+    return NextResponse.json({ error: 'Failed to get next contact' }, { status: 500 });
+  }
+}

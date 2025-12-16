@@ -1,0 +1,192 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const campaignId = searchParams.get('campaignId');
+
+    if (!campaignId) {
+      return NextResponse.json({ error: 'Campaign ID required' }, { status: 400 });
+    }
+
+    // Get contacts from data lists assigned to this campaign
+    const dataLists = await prisma.dataList.findMany({
+      where: {
+        campaignId: campaignId,
+        active: true
+      },
+      select: {
+        listId: true
+      }
+    });
+
+    const listIds = dataLists.map(list => list.listId);
+
+    if (listIds.length === 0) {
+      return NextResponse.json({ contacts: [] });
+    }
+
+    // Get all contacts from these lists
+    const contacts = await prisma.contact.findMany({
+      where: {
+        listId: {
+          in: listIds
+        }
+      },
+      orderBy: [
+        { status: 'asc' },
+        { attemptCount: 'asc' },
+        { createdAt: 'asc' }
+      ]
+    });
+
+    return NextResponse.json({ contacts });
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { contacts, listId, validationOptions } = body;
+
+    if (!contacts || !Array.isArray(contacts) || !listId) {
+      return NextResponse.json({ error: 'Contacts array and listId are required' }, { status: 400 });
+    }
+
+    // Validate that the data list exists
+    const dataList = await prisma.dataList.findUnique({
+      where: { listId }
+    });
+
+    if (!dataList) {
+      return NextResponse.json({ error: 'Data list not found' }, { status: 404 });
+    }
+
+    let processedContacts = [...contacts];
+    let stats = {
+      total: contacts.length,
+      processed: 0,
+      skipped: 0,
+      errors: 0
+    };
+
+    // Apply validation options
+    if (validationOptions?.skipEmptyRows) {
+      processedContacts = processedContacts.filter(contact => {
+        // Check if contact has at least one non-empty field
+        return Object.values(contact).some(value => value && String(value).trim() !== '');
+      });
+      stats.skipped += stats.total - processedContacts.length;
+    }
+
+    if (validationOptions?.validatePhones) {
+      processedContacts = processedContacts.filter(contact => {
+        if (!contact.phone) return true; // Allow contacts without phone
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        return phoneRegex.test(String(contact.phone).replace(/[\s\-\(\)]/g, ''));
+      });
+    }
+
+    if (validationOptions?.validateEmails) {
+      processedContacts = processedContacts.filter(contact => {
+        if (!contact.email) return true; // Allow contacts without email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(String(contact.email));
+      });
+    }
+
+    // Skip duplicates if requested
+    if (validationOptions?.skipDuplicates) {
+      const uniqueContacts = [];
+      const seen = new Set();
+
+      for (const contact of processedContacts) {
+        const key = [contact.phone, contact.email].filter(Boolean).join('|');
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          uniqueContacts.push(contact);
+        } else if (!key) {
+          uniqueContacts.push(contact); // Include contacts without phone/email
+        }
+      }
+      
+      stats.skipped += processedContacts.length - uniqueContacts.length;
+      processedContacts = uniqueContacts;
+    }
+
+    // Prepare contacts for database insertion
+    const contactsToInsert = processedContacts.map(contact => ({
+      listId,
+      firstName: contact.firstName || '',
+      lastName: contact.lastName || '',
+      fullName: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+      email: contact.email || '',
+      phone: contact.phone || '',
+      mobile: contact.mobile || '',
+      workPhone: contact.workPhone || '',
+      homePhone: contact.homePhone || '',
+      company: contact.company || '',
+      jobTitle: contact.jobTitle || '',
+      department: contact.department || '',
+      industry: contact.industry || '',
+      address: contact.address || '',
+      address2: contact.address2 || '',
+      city: contact.city || '',
+      state: contact.state || '',
+      zipCode: contact.zipCode || '',
+      country: contact.country || '',
+      website: contact.website || '',
+      linkedIn: contact.linkedIn || '',
+      notes: contact.notes || '',
+      tags: contact.tags || '',
+      leadSource: contact.leadSource || '',
+      leadScore: parseInt(contact.leadScore) || 0,
+      custom1: contact.custom1 || '',
+      custom2: contact.custom2 || '',
+      custom3: contact.custom3 || '',
+      custom4: contact.custom4 || '',
+      custom5: contact.custom5 || '',
+      status: 'new',
+      attemptCount: 0,
+      lastAttempt: null,
+      nextAttempt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+
+    // Insert contacts in batches to handle large uploads
+    const batchSize = 100;
+    const insertedContacts = [];
+
+    for (let i = 0; i < contactsToInsert.length; i += batchSize) {
+      const batch = contactsToInsert.slice(i, i + batchSize);
+      try {
+        const result = await prisma.contact.createMany({
+          data: batch,
+          skipDuplicates: true
+        });
+        insertedContacts.push(...batch);
+        stats.processed += result.count;
+      } catch (error) {
+        console.error(`Error inserting batch ${i / batchSize + 1}:`, error);
+        stats.errors += batch.length;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      stats,
+      message: `Successfully processed ${stats.processed} contacts`
+    });
+
+  } catch (error) {
+    console.error('Error creating contacts:', error);
+    return NextResponse.json({ error: 'Failed to create contacts' }, { status: 500 });
+  }
+}

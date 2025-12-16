@@ -1,0 +1,973 @@
+import { Request, Response } from 'express';
+import { prisma } from '../database';
+import { z } from 'zod';
+
+// Validation schemas
+const organizationSchema = z.object({
+  name: z.string().min(1).max(100),
+  displayName: z.string().min(1).max(100),
+  description: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  website: z.string().url().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  postalCode: z.string().optional(),
+  timezone: z.string().default('UTC'),
+  currency: z.string().default('USD'),
+  dateFormat: z.string().default('MM/dd/yyyy'),
+  timeFormat: z.string().default('12'),
+  logoUrl: z.string().url().optional(),
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  accentColor: z.string().optional(),
+});
+
+const businessSettingSchema = z.object({
+  organizationId: z.string(),
+  category: z.enum(['GENERAL', 'SECURITY', 'NOTIFICATIONS', 'INTEGRATIONS', 'BILLING', 'COMPLIANCE']),
+  settingKey: z.string().min(1),
+  settingValue: z.string(),
+  settingType: z.enum(['string', 'number', 'boolean', 'json', 'encrypted']).default('string'),
+  description: z.string().optional(),
+  isEditable: z.boolean().default(true),
+  isVisible: z.boolean().default(true),
+  sortOrder: z.number().optional(),
+  validationRules: z.string().optional(),
+  allowedValues: z.string().optional(),
+});
+
+const companyProfileSchema = z.object({
+  organizationId: z.string(),
+  legalName: z.string().min(1),
+  tradingName: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  taxId: z.string().optional(),
+  vatNumber: z.string().optional(),
+  industry: z.string().optional(),
+  subIndustry: z.string().optional(),
+  companySize: z.enum(['STARTUP', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE']).optional(),
+  annualRevenue: z.string().optional(),
+  mainEmail: z.string().email(),
+  supportEmail: z.string().email().optional(),
+  salesEmail: z.string().email().optional(),
+  mainPhone: z.string().optional(),
+  supportPhone: z.string().optional(),
+  faxNumber: z.string().optional(),
+  billingAddress: z.string(),
+  billingCity: z.string(),
+  billingState: z.string(),
+  billingCountry: z.string(),
+  billingPostal: z.string(),
+  shippingAddress: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingState: z.string().optional(),
+  shippingCountry: z.string().optional(),
+  shippingPostal: z.string().optional(),
+  linkedinUrl: z.string().url().optional(),
+  twitterUrl: z.string().url().optional(),
+  facebookUrl: z.string().url().optional(),
+  certifications: z.string().optional(),
+  regulations: z.string().optional(),
+});
+
+const operationalParametersSchema = z.object({
+  organizationId: z.string(),
+  category: z.enum(['DIALER', 'QUEUE', 'AGENT', 'CAMPAIGN', 'COMPLIANCE', 'PERFORMANCE']),
+  dialingMode: z.enum(['PREDICTIVE', 'PROGRESSIVE', 'PREVIEW', 'MANUAL']).optional(),
+  dialRatio: z.number().optional(),
+  maxConcurrentCalls: z.number().optional(),
+  callTimeout: z.number().optional(),
+  ringTimeout: z.number().optional(),
+  queueStrategy: z.enum(['FIFO', 'PRIORITY', 'ROUND_ROBIN', 'LEAST_BUSY']).optional(),
+  maxQueueTime: z.number().optional(),
+  queueTimeout: z.number().optional(),
+  maxAgentIdleTime: z.number().optional(),
+  autoAnswer: z.boolean().default(false),
+  screenPopup: z.boolean().default(true),
+  callRecording: z.boolean().default(false),
+  retryAttempts: z.number().optional(),
+  retryInterval: z.number().optional(),
+  callbackWindow: z.number().optional(),
+  dncCompliance: z.boolean().default(true),
+  tcpaCompliance: z.boolean().default(true),
+  callTimeZoneRespect: z.boolean().default(true),
+  minAnswerTime: z.number().optional(),
+  maxTalkTime: z.number().optional(),
+  acwTimeout: z.number().optional(),
+  customParams: z.string().optional(),
+  effectiveFrom: z.string().datetime().optional(),
+  effectiveTo: z.string().datetime().optional(),
+});
+
+const businessRuleSchema = z.object({
+  organizationId: z.string(),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  category: z.enum(['VALIDATION', 'WORKFLOW', 'SECURITY', 'COMPLIANCE', 'AUTOMATION']),
+  ruleType: z.enum(['CONDITION', 'ACTION', 'TRIGGER', 'SCHEDULE']),
+  conditions: z.string().optional(),
+  actions: z.string().optional(),
+  triggers: z.string().optional(),
+  schedule: z.string().optional(),
+  priority: z.number().default(0),
+  executionOrder: z.number().optional(),
+  isParallel: z.boolean().default(false),
+  isEditable: z.boolean().default(true),
+});
+
+// ============================================================================
+// ORGANIZATIONS
+// ============================================================================
+
+export const getOrganizations = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const [organizations, total] = await Promise.all([
+      prisma.organization.findMany({
+        skip,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              businessSettings: true,
+              companyProfiles: true,
+              operationalParams: true,
+              businessRules: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.organization.count(),
+    ]);
+
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
+
+    res.json({ data: organizations, pagination });
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizations',
+    });
+  }
+};
+
+export const getOrganizationById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const organization = await prisma.organization.findUnique({
+      where: { id },
+      include: {
+        businessSettings: true,
+        companyProfiles: true,
+        operationalParams: true,
+        businessRules: true,
+        _count: {
+          select: {
+            businessSettings: true,
+            companyProfiles: true,
+            operationalParams: true,
+            businessRules: true,
+          },
+        },
+      },
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found',
+      });
+    }
+
+    res.json({ data: organization });
+  } catch (error) {
+    console.error('Error fetching organization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organization',
+    });
+  }
+};
+
+export const createOrganization = async (req: Request, res: Response) => {
+  try {
+    const validatedData = organizationSchema.parse(req.body);
+
+    const organization = await prisma.organization.create({
+      data: validatedData,
+      include: {
+        _count: {
+          select: {
+            businessSettings: true,
+            companyProfiles: true,
+            operationalParams: true,
+            businessRules: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: organization,
+      message: 'Organization created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating organization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create organization',
+    });
+  }
+};
+
+export const updateOrganization = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const validatedData = organizationSchema.partial().parse(req.body);
+
+    const organization = await prisma.organization.update({
+      where: { id },
+      data: validatedData,
+      include: {
+        _count: {
+          select: {
+            businessSettings: true,
+            companyProfiles: true,
+            operationalParams: true,
+            businessRules: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: organization,
+      message: 'Organization updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating organization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update organization',
+    });
+  }
+};
+
+export const deleteOrganization = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.organization.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Organization deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting organization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete organization',
+    });
+  }
+};
+
+// ============================================================================
+// BUSINESS SETTINGS
+// ============================================================================
+
+export const getBusinessSettings = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const category = req.query.category as string;
+
+    const whereClause: any = { organizationId };
+    if (category) {
+      whereClause.category = category;
+    }
+
+    const settings = await prisma.businessSettings.findMany({
+      where: whereClause,
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { settingKey: 'asc' }],
+    });
+
+    res.json({ data: settings });
+  } catch (error) {
+    console.error('Error fetching business settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch business settings',
+    });
+  }
+};
+
+export const createBusinessSetting = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = businessSettingSchema.parse(req.body);
+
+    const setting = await prisma.businessSettings.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: setting,
+      message: 'Business setting created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating business setting:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create business setting',
+    });
+  }
+};
+
+export const updateBusinessSetting = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = businessSettingSchema.partial().parse(req.body);
+
+    const setting = await prisma.businessSettings.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: setting,
+      message: 'Business setting updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating business setting:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update business setting',
+    });
+  }
+};
+
+export const deleteBusinessSetting = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.businessSettings.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Business setting deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting business setting:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete business setting',
+    });
+  }
+};
+
+// ============================================================================
+// COMPANY PROFILES
+// ============================================================================
+
+export const getCompanyProfiles = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+
+    const profiles = await prisma.companyProfile.findMany({
+      where: { organizationId },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ data: profiles });
+  } catch (error) {
+    console.error('Error fetching company profiles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch company profiles',
+    });
+  }
+};
+
+export const createCompanyProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = companyProfileSchema.parse(req.body);
+
+    const profile = await prisma.companyProfile.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: profile,
+      message: 'Company profile created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating company profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create company profile',
+    });
+  }
+};
+
+export const updateCompanyProfile = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = companyProfileSchema.partial().parse(req.body);
+
+    const profile = await prisma.companyProfile.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: profile,
+      message: 'Company profile updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating company profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update company profile',
+    });
+  }
+};
+
+export const deleteCompanyProfile = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.companyProfile.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Company profile deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting company profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete company profile',
+    });
+  }
+};
+
+// ============================================================================
+// OPERATIONAL PARAMETERS
+// ============================================================================
+
+export const getOperationalParameters = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const category = req.query.category as string;
+
+    const whereClause: any = { organizationId };
+    if (category) {
+      whereClause.category = category;
+    }
+
+    const parameters = await prisma.operationalParameters.findMany({
+      where: whereClause,
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { category: 'asc' },
+    });
+
+    res.json({ data: parameters });
+  } catch (error) {
+    console.error('Error fetching operational parameters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch operational parameters',
+    });
+  }
+};
+
+export const createOperationalParameters = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = operationalParametersSchema.parse(req.body);
+
+    const parameters = await prisma.operationalParameters.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: parameters,
+      message: 'Operational parameters created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating operational parameters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create operational parameters',
+    });
+  }
+};
+
+export const updateOperationalParameters = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = operationalParametersSchema.partial().parse(req.body);
+
+    const parameters = await prisma.operationalParameters.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: parameters,
+      message: 'Operational parameters updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating operational parameters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update operational parameters',
+    });
+  }
+};
+
+export const deleteOperationalParameters = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.operationalParameters.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Operational parameters deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting operational parameters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete operational parameters',
+    });
+  }
+};
+
+// ============================================================================
+// BUSINESS RULES
+// ============================================================================
+
+export const getBusinessRules = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const category = req.query.category as string;
+    const ruleType = req.query.ruleType as string;
+
+    const whereClause: any = { organizationId };
+    if (category) {
+      whereClause.category = category;
+    }
+    if (ruleType) {
+      whereClause.ruleType = ruleType;
+    }
+
+    const rules = await prisma.businessRule.findMany({
+      where: whereClause,
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: [{ priority: 'desc' }, { executionOrder: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    res.json({ data: rules });
+  } catch (error) {
+    console.error('Error fetching business rules:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch business rules',
+    });
+  }
+};
+
+export const createBusinessRule = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = businessRuleSchema.parse(req.body);
+
+    const rule = await prisma.businessRule.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: rule,
+      message: 'Business rule created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating business rule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create business rule',
+    });
+  }
+};
+
+export const updateBusinessRule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = businessRuleSchema.partial().parse(req.body);
+
+    const rule = await prisma.businessRule.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: rule,
+      message: 'Business rule updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating business rule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update business rule',
+    });
+  }
+};
+
+export const deleteBusinessRule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.businessRule.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Business rule deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting business rule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete business rule',
+    });
+  }
+};
+
+// ============================================================================
+// BUSINESS SETTINGS STATS
+// ============================================================================
+
+export const getBusinessSettingsStats = async (req: Request, res: Response) => {
+  try {
+    const [
+      totalOrganizations,
+      totalSettings,
+      totalProfiles,
+      totalParameters,
+      totalRules,
+      settingsByCategory,
+      parametersByCategory,
+      rulesByCategory
+    ] = await Promise.all([
+      prisma.organization.count(),
+      prisma.businessSettings.count(),
+      prisma.companyProfile.count(),
+      prisma.operationalParameters.count(),
+      prisma.businessRule.count(),
+      prisma.businessSettings.groupBy({
+        by: ['category'],
+        _count: true,
+      }),
+      prisma.operationalParameters.groupBy({
+        by: ['category'],
+        _count: true,
+      }),
+      prisma.businessRule.groupBy({
+        by: ['category'],
+        _count: true,
+      }),
+    ]);
+
+    const stats = {
+      organizations: {
+        total: totalOrganizations,
+      },
+      settings: {
+        total: totalSettings,
+        byCategory: settingsByCategory.reduce((acc: any, item: any) => {
+          acc[item.category] = item._count;
+          return acc;
+        }, {}),
+      },
+      profiles: {
+        total: totalProfiles,
+      },
+      parameters: {
+        total: totalParameters,
+        byCategory: parametersByCategory.reduce((acc: any, item: any) => {
+          acc[item.category] = item._count;
+          return acc;
+        }, {}),
+      },
+      rules: {
+        total: totalRules,
+        byCategory: rulesByCategory.reduce((acc: any, item: any) => {
+          acc[item.category] = item._count;
+          return acc;
+        }, {}),
+      },
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching business settings stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch business settings stats',
+    });
+  }
+};

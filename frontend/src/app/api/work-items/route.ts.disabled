@@ -1,0 +1,119 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const agentId = searchParams.get('agentId');
+    const status = searchParams.get('status') || 'active';
+
+    if (!agentId) {
+      return NextResponse.json({ error: 'Agent ID required' }, { status: 400 });
+    }
+
+    const workItems = await prisma.workItem.findMany({
+      where: {
+        agentId,
+        status
+      },
+      include: {
+        contact: true,
+        campaign: true
+      },
+      orderBy: {
+        startTime: 'desc'
+      }
+    });
+
+    return NextResponse.json({ workItems });
+
+  } catch (error) {
+    console.error('Error fetching work items:', error);
+    return NextResponse.json({ error: 'Failed to fetch work items' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { agentId, campaignId, contactId, callId, contactData, scriptData } = await request.json();
+
+    if (!agentId || !campaignId || !contactId) {
+      return NextResponse.json({ 
+        error: 'Agent ID, campaign ID, and contact ID are required' 
+      }, { status: 400 });
+    }
+
+    const workItem = await prisma.workItem.create({
+      data: {
+        workItemId: `WI_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        agentId,
+        campaignId,
+        contactId,
+        callId,
+        contactData: JSON.stringify(contactData || {}),
+        scriptData: JSON.stringify(scriptData || {}),
+        status: 'active'
+      }
+    });
+
+    // Update agent status to OnCall
+    await prisma.agent.update({
+      where: { agentId },
+      data: { 
+        status: 'OnCall',
+        currentCall: callId
+      }
+    });
+
+    return NextResponse.json({ workItem, message: 'Work item created successfully' });
+
+  } catch (error) {
+    console.error('Error creating work item:', error);
+    return NextResponse.json({ error: 'Failed to create work item' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { workItemId, status, endTime, notes } = await request.json();
+
+    if (!workItemId) {
+      return NextResponse.json({ error: 'Work item ID required' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    
+    if (status) updateData.status = status;
+    if (endTime) updateData.endTime = new Date(endTime);
+
+    const workItem = await prisma.workItem.update({
+      where: { workItemId },
+      data: updateData
+    });
+
+    // If work item is completed, update agent status
+    if (status === 'completed') {
+      const agent = await prisma.agent.findUnique({
+        where: { agentId: workItem.agentId }
+      });
+
+      if (agent) {
+        await prisma.agent.update({
+          where: { agentId: workItem.agentId },
+          data: { 
+            status: 'AfterCall',
+            currentCall: null
+          }
+        });
+      }
+    }
+
+    return NextResponse.json({ workItem, message: 'Work item updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating work item:', error);
+    return NextResponse.json({ error: 'Failed to update work item' }, { status: 500 });
+  }
+}

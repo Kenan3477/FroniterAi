@@ -1,0 +1,197 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('Seeding Kennex call center system...');
+
+  // Create default dispositions
+  console.log('Creating dispositions...');
+  const dispositions = await Promise.all([
+    prisma.disposition.create({
+      data: {
+        name: 'Sale',
+        description: 'Successful sale completed',
+        category: 'sale',
+        retryEligible: false,
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Callback',
+        description: 'Customer requested callback',
+        category: 'callback',
+        retryEligible: true,
+        retryDelay: 60, // 1 hour
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Not Interested',
+        description: 'Customer not interested',
+        category: 'not_interested',
+        retryEligible: false,
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Wrong Number',
+        description: 'Incorrect phone number',
+        category: 'invalid',
+        retryEligible: false,
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'No Answer',
+        description: 'No one answered the call',
+        category: 'no_answer',
+        retryEligible: true,
+        retryDelay: 240, // 4 hours
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Busy',
+        description: 'Line was busy',
+        category: 'busy',
+        retryEligible: true,
+        retryDelay: 120, // 2 hours
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Voicemail',
+        description: 'Reached voicemail',
+        category: 'voicemail',
+        retryEligible: true,
+        retryDelay: 480, // 8 hours
+      }
+    }),
+    prisma.disposition.create({
+      data: {
+        name: 'Do Not Call',
+        description: 'Customer requested no more calls',
+        category: 'do_not_call',
+        retryEligible: false,
+      }
+    }),
+  ]);
+
+  // Create sample agents
+  console.log('Creating agents...');
+  const agents = await Promise.all([
+    prisma.agent.create({
+      data: {
+        agentId: 'AGENT001',
+        firstName: 'Sarah',
+        lastName: 'Johnson',
+        email: 'sarah.johnson@kennex.com',
+        extension: '1001',
+        status: 'Offline',
+      }
+    }),
+    prisma.agent.create({
+      data: {
+        agentId: 'AGENT002',
+        firstName: 'Michael',
+        lastName: 'Chen',
+        email: 'michael.chen@kennex.com',
+        extension: '1002',
+        status: 'Offline',
+      }
+    }),
+    prisma.agent.create({
+      data: {
+        agentId: 'AGENT003',
+        firstName: 'Emily',
+        lastName: 'Rodriguez',
+        email: 'emily.rodriguez@kennex.com',
+        extension: '1003',
+        status: 'Offline',
+      }
+    }),
+  ]);
+
+  // Get existing campaign (from previous seed)
+  const campaign = await prisma.campaign.findFirst();
+  
+  if (campaign) {
+    console.log('Assigning dispositions to campaign...');
+    // Assign dispositions to the campaign
+    await Promise.all(
+      dispositions.map((disposition, index) =>
+        prisma.campaignDisposition.create({
+          data: {
+            campaignId: campaign.campaignId,
+            dispositionId: disposition.id,
+            sortOrder: index,
+            isRequired: ['Sale', 'Not Interested', 'Do Not Call'].includes(disposition.name),
+          }
+        })
+      )
+    );
+
+    console.log('Assigning agents to campaign...');
+    // Assign agents to campaign
+    await Promise.all(
+      agents.map(agent =>
+        prisma.agentCampaignAssignment.create({
+          data: {
+            agentId: agent.agentId,
+            campaignId: campaign.campaignId,
+            isActive: true,
+          }
+        })
+      )
+    );
+
+    // Update campaign with enhanced settings
+    await prisma.campaign.update({
+      where: { campaignId: campaign.campaignId },
+      data: {
+        dialMethod: 'Progressive',
+        fieldMapping: JSON.stringify({
+          firstName: 'firstName',
+          lastName: 'lastName',
+          phone: 'phone',
+          email: 'email',
+          company: 'company'
+        }),
+        retrySettings: JSON.stringify({
+          maxAttempts: 3,
+          retryDelay: 60, // minutes
+          businessHoursOnly: true
+        }),
+        hoursOfOperation: JSON.stringify({
+          monday: { start: '09:00', end: '17:00' },
+          tuesday: { start: '09:00', end: '17:00' },
+          wednesday: { start: '09:00', end: '17:00' },
+          thursday: { start: '09:00', end: '17:00' },
+          friday: { start: '09:00', end: '17:00' },
+          saturday: null,
+          sunday: null
+        })
+      }
+    });
+  }
+
+  console.log('✅ Kennex call center system seeded successfully!');
+  console.log(`Created:`);
+  console.log(`- ${dispositions.length} dispositions`);
+  console.log(`- ${agents.length} agents`);
+  if (campaign) {
+    console.log(`- Agent-campaign assignments`);
+    console.log(`- Campaign disposition mappings`);
+    console.log(`- Enhanced campaign settings`);
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

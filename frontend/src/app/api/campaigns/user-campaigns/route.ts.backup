@@ -1,0 +1,50 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    // For now, we'll use a mock user ID until proper session management is implemented
+    // In production, you would extract the user ID from the session/JWT token
+    const mockUserId = '1'; // Replace with actual user ID from session
+
+    // Get campaigns where the user is assigned as an agent
+    const campaignAssignments = await prisma.agentCampaignAssignment.findMany({
+      where: {
+        agentId: mockUserId,
+        isActive: true
+      },
+      include: {
+        campaign: {
+          select: {
+            campaignId: true,
+            name: true,
+            status: true,
+            dialMethod: true
+          }
+        }
+      }
+    });
+
+    // Transform to expected format
+    const campaigns = campaignAssignments.map((assignment: any) => ({
+      campaignId: assignment.campaign.campaignId,
+      name: assignment.campaign.name,
+      status: assignment.campaign.status,
+      dialMethod: assignment.campaign.dialMethod
+    }));
+
+    return NextResponse.json({
+      success: true,
+      campaigns
+    });
+
+  } catch (error) {
+    console.error('Error fetching user campaigns:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch campaigns' },
+      { status: 500 }
+    );
+  }
+}

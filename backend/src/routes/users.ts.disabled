@@ -1,0 +1,25 @@
+import { Router } from 'express';
+import {
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  changeUserPassword,
+  getUserStats,
+  bulkUserActions
+} from '../controllers/users';
+
+const router = Router();
+
+// User management routes
+router.get('/', getUsers);
+router.get('/stats', getUserStats);
+router.post('/', createUser);
+router.post('/bulk-actions', bulkUserActions);
+router.get('/:userId', getUser);
+router.put('/:userId', updateUser);
+router.delete('/:userId', deleteUser);
+router.post('/:userId/change-password', changeUserPassword);
+
+export default router;

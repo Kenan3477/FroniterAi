@@ -1,0 +1,116 @@
+import express from 'express';
+import { kpiService } from '../services/kpiService';
+
+const router = express.Router();
+
+// Get today's KPI stats
+router.get('/today', async (req, res) => {
+  try {
+    const { agentId, campaignId } = req.query;
+    const kpis = await kpiService.getTodayKpis(
+      agentId as string,
+      campaignId as string
+    );
+    res.json(kpis);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get agent KPI stats
+router.get('/agent/:agentId', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { dateFrom, dateTo } = req.query;
+    
+    const kpis = await kpiService.getAgentKpis(
+      agentId,
+      dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo ? new Date(dateTo as string) : undefined
+    );
+    res.json(kpis);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get campaign KPI stats
+router.get('/campaign/:campaignId', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const { dateFrom, dateTo } = req.query;
+    
+    const kpis = await kpiService.getCampaignKpis(
+      campaignId,
+      dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo ? new Date(dateTo as string) : undefined
+    );
+    res.json(kpis);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get KPI trends
+router.get('/trends', async (req, res) => {
+  try {
+    const { days, agentId, campaignId } = req.query;
+    const trends = await kpiService.getKpiTrends(
+      days ? parseInt(days as string) : 7,
+      campaignId as string,
+      agentId as string
+    );
+    res.json(trends);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create KPI snapshot (for scheduled jobs)
+router.post('/snapshot', async (req, res) => {
+  try {
+    const { agentId, campaignId } = req.body;
+    await kpiService.createKpiSnapshot(campaignId, agentId);
+    res.json({ success: true, message: 'KPI snapshot created' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get dashboard stats (optimized for main dashboard)
+router.get('/dashboard', async (req, res) => {
+  try {
+    const { agentId } = req.query;
+    
+    // Get base KPIs for today
+    const todayKpis = await kpiService.getTodayKpis(agentId as string);
+    
+    // Get trending data for context
+    const trends = await kpiService.getKpiTrends(7, undefined, agentId as string);
+    
+    // Calculate trend percentages
+    const yesterdayKpis = trends.length >= 2 ? trends[trends.length - 2].kpis : null;
+    
+    const calculateTrend = (current: number, previous: number | null) => {
+      if (!previous || previous === 0) return null;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+    
+    const response = {
+      today: todayKpis,
+      trends: {
+        callsTrend: calculateTrend(todayKpis.todayCalls, yesterdayKpis?.todayCalls || null),
+        successTrend: calculateTrend(todayKpis.successfulCalls, yesterdayKpis?.successfulCalls || null),
+        conversionTrend: calculateTrend(todayKpis.conversionRate, yesterdayKpis?.conversionRate || null),
+        contactsTrend: calculateTrend(todayKpis.activeContacts, yesterdayKpis?.activeContacts || null),
+      },
+      historical: trends,
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

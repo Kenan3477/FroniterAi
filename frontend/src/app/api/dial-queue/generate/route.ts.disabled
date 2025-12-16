@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function POST(request: NextRequest) {
+  try {
+    const { campaignId, maxRecords = 20 } = await request.json();
+
+    if (!campaignId) {
+      return NextResponse.json({ error: 'Campaign ID required' }, { status: 400 });
+    }
+
+    // Get data lists assigned to this campaign
+    const dataLists = await prisma.dataList.findMany({
+      where: {
+        campaignId: campaignId,
+        active: true
+      }
+    });
+
+    if (dataLists.length === 0) {
+      return NextResponse.json({ 
+        message: 'No active data lists assigned to this campaign',
+        generated: 0 
+      });
+    }
+
+    // Calculate total weight
+    const totalWeight = dataLists.reduce((sum, list) => sum + (list.blendWeight || 0), 0);
+    
+    if (totalWeight === 0) {
+      return NextResponse.json({ 
+        message: 'No blend weights configured for campaign lists',
+        generated: 0 
+      });
+    }
+
+    // Clear existing queue entries for this campaign
+    await prisma.dialQueueEntry.deleteMany({
+      where: { campaignId }
+    });
+
+    let generated = 0;
+
+    // Generate queue entries for each list based on blend weight
+    for (const list of dataLists) {
+      const listWeight = list.blendWeight || 0;
+      const listQuota = Math.ceil((listWeight / totalWeight) * maxRecords);
+
+      // Get eligible contacts from this list
+      const contacts = await prisma.contact.findMany({
+        where: {
+          listId: list.listId,
+          status: 'NotAttempted',
+          locked: false,
+          attemptCount: {
+            lt: prisma.contact.fields.maxAttempts
+          }
+        },
+        take: listQuota,
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+
+      // Create queue entries
+      for (let i = 0; i < contacts.length; i++) {
+        const contact = contacts[i];
+        const priority = 100 + (listWeight / totalWeight * 50) + Math.random() * 10;
+
+        await prisma.dialQueueEntry.create({
+          data: {
+            queueId: `queue_${campaignId}_${contact.contactId}_${Date.now()}`,
+            campaignId,
+            listId: contact.listId,
+            contactId: contact.contactId,
+            status: 'queued',
+            priority: Math.round(priority),
+            queuedAt: new Date()
+          }
+        });
+
+        generated++;
+      }
+    }
+
+    return NextResponse.json({ 
+      message: `Generated ${generated} queue entries`,
+      generated,
+      campaignId 
+    });
+
+  } catch (error) {
+    console.error('Error generating dial queue:', error);
+    return NextResponse.json({ error: 'Failed to generate dial queue' }, { status: 500 });
+  }
+}

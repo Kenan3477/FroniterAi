@@ -1,0 +1,52 @@
+import { Router } from 'express';
+import { prisma } from '../database';
+
+const router = Router();
+
+// Get latest contacts for current agent
+router.get('/latest', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 5;
+    const agentId = 'agent1'; // Mock current agent ID (string format)
+
+    const contacts = await prisma.contact.findMany({
+      where: {
+        interactions: {
+          some: {
+            agentId: agentId
+          }
+        }
+      },
+      include: {
+        interactions: {
+          where: { agentId },
+          orderBy: { startedAt: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      take: limit
+    });
+
+    const formattedContacts = contacts.map(contact => ({
+      id: contact.id,
+      name: contact.fullName || `${contact.firstName} ${contact.lastName}`,
+      phone: contact.phone,
+      lastContactedAt: contact.interactions[0]?.startedAt || contact.createdAt
+    }));
+
+    res.json({
+      success: true,
+      data: formattedContacts
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch contacts' }
+    });
+  }
+});
+
+export default router;

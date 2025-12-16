@@ -1,0 +1,345 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export interface KpiStats {
+  todayCalls: number;
+  successfulCalls: number;
+  totalTalkTime: number;
+  conversionRate: number;
+  activeContacts: number;
+  callsAttempted: number;
+  callsConnected: number;
+  callsAnswered: number;
+  averageCallDuration: number;
+  answeredCallRate: number;
+  connectionRate: number;
+}
+
+export interface AgentKpiStats extends KpiStats {
+  agentId: string;
+  agentName: string;
+  status: string;
+  totalAcwTime: number;
+  totalAvailableTime: number;
+}
+
+export interface CampaignKpiStats extends KpiStats {
+  campaignId: string;
+  campaignName: string;
+  contactsAttempted: number;
+  contactsReached: number;
+  appointmentsSet: number;
+  salesMade: number;
+}
+
+export class KpiService {
+  /**
+   * Get today's KPI statistics
+   */
+  async getTodayKpis(agentId?: string, campaignId?: string): Promise<KpiStats> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const whereClause: any = {
+      startTime: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    };
+
+    if (agentId) {
+      whereClause.legs = {
+        some: { agentId },
+      };
+    }
+
+    if (campaignId) {
+      whereClause.campaignId = campaignId;
+    }
+
+    // Get call statistics
+    const [
+      totalCalls,
+      answeredCalls,
+      connectedCalls,
+      callDurations,
+      activeContacts,
+    ] = await Promise.all([
+      // Total calls attempted today
+      prisma.call.count({
+        where: whereClause,
+      }),
+
+      // Successfully answered calls
+      prisma.call.count({
+        where: {
+          ...whereClause,
+          status: 'ENDED',
+          answerTime: { not: null },
+        },
+      }),
+
+      // Connected calls (including no answer but connected)
+      prisma.call.count({
+        where: {
+          ...whereClause,
+          status: { in: ['ENDED', 'ANSWERED'] },
+        },
+      }),
+
+      // Get call durations for average calculation
+      prisma.call.aggregate({
+        where: {
+          ...whereClause,
+          status: 'ENDED',
+          answerTime: { not: null },
+          duration: { not: null },
+        },
+        _avg: { duration: true },
+        _sum: { talkTime: true },
+      }),
+
+      // Active contacts (unique contacts attempted today)
+      prisma.call.findMany({
+        where: whereClause,
+        select: { recordId: true },
+        distinct: ['recordId'],
+      }),
+    ]);
+
+    // Calculate conversion rate based on dispositions
+    const conversions = await prisma.disposition.count({
+      where: {
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        categoryId: { in: ['sale', 'appointment', 'interested'] }, // Configure based on your categories
+        ...(campaignId && {
+          call: { campaignId },
+        }),
+        ...(agentId && { agentId }),
+      },
+    });
+
+    const conversionRate = totalCalls > 0 ? (conversions / totalCalls) * 100 : 0;
+    const connectionRate = totalCalls > 0 ? (connectedCalls / totalCalls) * 100 : 0;
+    const answeredCallRate = totalCalls > 0 ? (answeredCalls / totalCalls) * 100 : 0;
+
+    return {
+      todayCalls: totalCalls,
+      successfulCalls: answeredCalls,
+      totalTalkTime: callDurations._sum?.talkTime || 0,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+      activeContacts: activeContacts.length,
+      callsAttempted: totalCalls,
+      callsConnected: connectedCalls,
+      callsAnswered: answeredCalls,
+      averageCallDuration: Math.round((callDurations._avg?.duration || 0) * 100) / 100,
+      answeredCallRate: Math.round(answeredCallRate * 100) / 100,
+      connectionRate: Math.round(connectionRate * 100) / 100,
+    };
+  }
+
+  /**
+   * Get agent-specific KPI statistics
+   */
+  async getAgentKpis(agentId: string, dateFrom?: Date, dateTo?: Date): Promise<AgentKpiStats> {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { 
+        id: true, 
+        firstName: true, 
+        lastName: true, 
+        currentStatus: true 
+      },
+    });
+
+    if (!agent) {
+      throw new Error('Agent not found');
+    }
+
+    const baseKpis = await this.getTodayKpis(agentId);
+
+    // Get agent-specific metrics
+    const agentMetrics = await prisma.disposition.aggregate({
+      where: {
+        agentId,
+        createdAt: {
+          gte: dateFrom || new Date(new Date().setHours(0, 0, 0, 0)),
+          lte: dateTo || new Date(new Date().setHours(23, 59, 59, 999)),
+        },
+      },
+      _sum: { acwDuration: true },
+    });
+
+    return {
+      ...baseKpis,
+      agentId: agent.id,
+      agentName: `${agent.firstName} ${agent.lastName}`,
+      status: agent.currentStatus,
+      totalAcwTime: agentMetrics._sum?.acwDuration || 0,
+      totalAvailableTime: 0, // Would need additional tracking for accurate calculation
+    };
+  }
+
+  /**
+   * Get campaign-specific KPI statistics
+   */
+  async getCampaignKpis(campaignId: string, dateFrom?: Date, dateTo?: Date): Promise<CampaignKpiStats> {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { id: true, name: true },
+    });
+
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    const baseKpis = await this.getTodayKpis(undefined, campaignId);
+
+    // Get campaign-specific metrics
+    const [contactsAttempted, dispositionStats] = await Promise.all([
+      // Unique contacts attempted for this campaign
+      prisma.campaignRecord.count({
+        where: {
+          campaignList: {
+            campaignId: campaignId
+          },
+          attemptCount: { gt: 0 },
+        },
+      }),
+
+      // Disposition breakdown
+      prisma.disposition.groupBy({
+        by: ['categoryId'],
+        where: {
+          call: { campaignId },
+          createdAt: {
+            gte: dateFrom || new Date(new Date().setHours(0, 0, 0, 0)),
+            lte: dateTo || new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        },
+        _count: { categoryId: true },
+      }),
+    ]);
+
+    // Calculate specific outcomes
+    const salesMade = dispositionStats
+      .filter(d => ['sale', 'sold'].includes(d.categoryId.toLowerCase()))
+      .reduce((sum, d) => sum + d._count.categoryId, 0);
+
+    const appointmentsSet = dispositionStats
+      .filter(d => ['appointment', 'callback'].includes(d.categoryId.toLowerCase()))
+      .reduce((sum, d) => sum + d._count.categoryId, 0);
+
+    return {
+      ...baseKpis,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      contactsAttempted,
+      contactsReached: baseKpis.callsAnswered,
+      appointmentsSet,
+      salesMade,
+    };
+  }
+
+  /**
+   * Create KPI snapshot for historical tracking
+   */
+  async createKpiSnapshot(campaignId?: string, agentId?: string): Promise<void> {
+    const now = new Date();
+    const snapshotDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const snapshotHour = now.getHours();
+
+    const kpis = await this.getTodayKpis(agentId, campaignId);
+
+    await prisma.kpiSnapshot.create({
+      data: {
+        campaignId,
+        agentId,
+        snapshotDate,
+        snapshotHour,
+        callsAttempted: kpis.callsAttempted,
+        callsConnected: kpis.callsConnected,
+        callsAnswered: kpis.callsAnswered,
+        totalDialTime: 0, // Would need additional tracking
+        totalTalkTime: kpis.totalTalkTime,
+        totalRingTime: 0, // Would need additional tracking
+        totalAcwTime: 0, // Would need additional tracking
+        conversions: Math.floor(kpis.conversionRate * kpis.callsAttempted / 100),
+        appointments: 0, // Would need disposition analysis
+      },
+    });
+  }
+
+  /**
+   * Get historical KPI trends
+   */
+  async getKpiTrends(
+    days: number = 7,
+    campaignId?: string,
+    agentId?: string
+  ): Promise<Array<{ date: Date; kpis: KpiStats }>> {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000));
+
+    const snapshots = await prisma.kpiSnapshot.findMany({
+      where: {
+        snapshotDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+        ...(campaignId && { campaignId }),
+        ...(agentId && { agentId }),
+      },
+      orderBy: { snapshotDate: 'asc' },
+    });
+
+    // Group by date and aggregate hourly snapshots
+    const dailyTrends = snapshots.reduce((acc, snapshot) => {
+      const dateKey = snapshot.snapshotDate.toISOString().split('T')[0];
+      
+      if (!acc[dateKey]) {
+        acc[dateKey] = {
+          date: snapshot.snapshotDate,
+          callsAttempted: 0,
+          callsConnected: 0,
+          callsAnswered: 0,
+          totalTalkTime: 0,
+          conversions: 0,
+        };
+      }
+      
+      acc[dateKey].callsAttempted += snapshot.callsAttempted;
+      acc[dateKey].callsConnected += snapshot.callsConnected;
+      acc[dateKey].callsAnswered += snapshot.callsAnswered;
+      acc[dateKey].totalTalkTime += snapshot.totalTalkTime;
+      acc[dateKey].conversions += snapshot.conversions;
+      
+      return acc;
+    }, {} as any);
+
+    return Object.values(dailyTrends).map((daily: any) => ({
+      date: daily.date,
+      kpis: {
+        todayCalls: daily.callsAttempted,
+        successfulCalls: daily.callsAnswered,
+        totalTalkTime: daily.totalTalkTime,
+        conversionRate: daily.callsAttempted > 0 ? (daily.conversions / daily.callsAttempted) * 100 : 0,
+        activeContacts: 0, // Not tracked in snapshots
+        callsAttempted: daily.callsAttempted,
+        callsConnected: daily.callsConnected,
+        callsAnswered: daily.callsAnswered,
+        averageCallDuration: daily.callsAnswered > 0 ? daily.totalTalkTime / daily.callsAnswered : 0,
+        answeredCallRate: daily.callsAttempted > 0 ? (daily.callsAnswered / daily.callsAttempted) * 100 : 0,
+        connectionRate: daily.callsAttempted > 0 ? (daily.callsConnected / daily.callsAttempted) * 100 : 0,
+      },
+    }));
+  }
+}
+
+export const kpiService = new KpiService();

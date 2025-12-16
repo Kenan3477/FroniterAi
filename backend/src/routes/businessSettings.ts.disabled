@@ -1,0 +1,104 @@
+import express from 'express';
+import {
+  // Organizations
+  getOrganizations,
+  getOrganizationById,
+  createOrganization,
+  updateOrganization,
+  deleteOrganization,
+  
+  // Business Settings
+  getBusinessSettings,
+  createBusinessSetting,
+  updateBusinessSetting,
+  deleteBusinessSetting,
+  
+  // Company Profiles
+  getCompanyProfiles,
+  createCompanyProfile,
+  updateCompanyProfile,
+  deleteCompanyProfile,
+  
+  // Operational Parameters
+  getOperationalParameters,
+  createOperationalParameters,
+  updateOperationalParameters,
+  deleteOperationalParameters,
+  
+  // Business Rules
+  getBusinessRules,
+  createBusinessRule,
+  updateBusinessRule,
+  deleteBusinessRule,
+  
+  // Stats
+  getBusinessSettingsStats,
+} from '../controllers/businessSettings';
+
+const router = express.Router();
+
+// ============================================================================
+// ORGANIZATIONS ROUTES
+// ============================================================================
+
+router.get('/organizations', getOrganizations);
+router.get('/organizations/:id', getOrganizationById);
+router.post('/organizations', createOrganization);
+router.put('/organizations/:id', updateOrganization);
+router.delete('/organizations/:id', deleteOrganization);
+
+// ============================================================================
+// BUSINESS SETTINGS ROUTES
+// ============================================================================
+
+// Get business settings for an organization
+router.get('/organizations/:organizationId/settings', getBusinessSettings);
+
+// Create, update, delete business settings
+router.post('/settings', createBusinessSetting);
+router.put('/settings/:id', updateBusinessSetting);
+router.delete('/settings/:id', deleteBusinessSetting);
+
+// ============================================================================
+// COMPANY PROFILES ROUTES
+// ============================================================================
+
+// Get company profiles for an organization
+router.get('/organizations/:organizationId/profiles', getCompanyProfiles);
+
+// Create, update, delete company profiles
+router.post('/profiles', createCompanyProfile);
+router.put('/profiles/:id', updateCompanyProfile);
+router.delete('/profiles/:id', deleteCompanyProfile);
+
+// ============================================================================
+// OPERATIONAL PARAMETERS ROUTES
+// ============================================================================
+
+// Get operational parameters for an organization
+router.get('/organizations/:organizationId/parameters', getOperationalParameters);
+
+// Create, update, delete operational parameters
+router.post('/parameters', createOperationalParameters);
+router.put('/parameters/:id', updateOperationalParameters);
+router.delete('/parameters/:id', deleteOperationalParameters);
+
+// ============================================================================
+// BUSINESS RULES ROUTES
+// ============================================================================
+
+// Get business rules for an organization
+router.get('/organizations/:organizationId/rules', getBusinessRules);
+
+// Create, update, delete business rules
+router.post('/rules', createBusinessRule);
+router.put('/rules/:id', updateBusinessRule);
+router.delete('/rules/:id', deleteBusinessRule);
+
+// ============================================================================
+// STATS ROUTES
+// ============================================================================
+
+router.get('/stats', getBusinessSettingsStats);
+
+export default router;

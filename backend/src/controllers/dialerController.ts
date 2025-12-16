@@ -1,0 +1,371 @@
+/**
+ * Dialer Controller - Handles all dialer-related API endpoints
+ */
+
+import { Request, Response } from 'express';
+import { z } from 'zod';
+import twilioService from '../services/twilioService';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Validation schemas
+const initiateCallSchema = z.object({
+  to: z.string().min(10, 'Valid phone number required'),
+  from: z.string().min(10, 'Valid caller ID required').optional(),
+  agentId: z.string().min(1, 'Agent ID required'),
+  customerInfo: z.any().optional(),
+});
+
+const endCallSchema = z.object({
+  callSid: z.string().min(1, 'Call SID required'),
+  duration: z.number().min(0),
+  status: z.string(),
+  disposition: z.string().optional(),
+  customerInfo: z.any().optional(),
+});
+
+const dtmfSchema = z.object({
+  callSid: z.string().min(1, 'Call SID required'),
+  digits: z.string().min(1, 'DTMF digits required'),
+});
+
+/**
+ * POST /api/calls/token
+ * Generate Twilio access token for WebRTC calling
+ */
+export const generateToken = async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.body;
+
+    if (!agentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Agent ID is required',
+      });
+    }
+
+    const token = twilioService.generateAccessToken(agentId);
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        identity: agentId,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error generating token:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate access token',
+    });
+  }
+};
+
+/**
+ * POST /api/calls/initiate
+ * Initiate an outbound call through Twilio
+ */
+export const initiateCall = async (req: Request, res: Response) => {
+  try {
+    const validatedData = initiateCallSchema.parse(req.body);
+
+    // Use provided 'from' number or default to TWILIO_PHONE_NUMBER from env
+    const fromNumber = validatedData.from || process.env.TWILIO_PHONE_NUMBER;
+    
+    if (!fromNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'No "from" phone number provided or configured',
+      });
+    }
+
+    // Initiate the call through Twilio
+    const call = await twilioService.initiateCall({
+      ...validatedData,
+      from: fromNumber,
+    });
+
+    // Optionally: Save call record to database
+    // await prisma.interaction.create({...});
+
+    res.json({
+      success: true,
+      message: 'Call initiated successfully',
+      data: call,
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
+    console.error('Error initiating call:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to initiate call',
+    });
+  }
+};
+
+/**
+ * POST /api/calls/end
+ * End an active call
+ */
+export const endCall = async (req: Request, res: Response) => {
+  try {
+    const validatedData = endCallSchema.parse(req.body);
+
+    // End the call through Twilio
+    const result = await twilioService.endCall(validatedData.callSid);
+
+    // Save call data and customer info to database
+    if (validatedData.customerInfo) {
+      try {
+        const { customerInfo } = validatedData;
+        
+        // Upsert contact
+        if (customerInfo.phone || customerInfo.phoneNumber) {
+          const phone = customerInfo.phone || customerInfo.phoneNumber;
+          
+          await (prisma as any).Contact.upsert({
+            where: { 
+              phone: phone 
+            },
+            update: {
+              firstName: customerInfo.firstName || '',
+              lastName: customerInfo.lastName || '',
+              email: customerInfo.email,
+              address: customerInfo.address,
+              notes: customerInfo.notes,
+              updatedAt: new Date(),
+            },
+            create: {
+              contactId: `contact_${Date.now()}`,
+              listId: customerInfo.listId || 'default-list',
+              firstName: customerInfo.firstName || '',
+              lastName: customerInfo.lastName || '',
+              phone: phone,
+              email: customerInfo.email,
+              address: customerInfo.address,
+              notes: customerInfo.notes,
+              status: 'contacted',
+              attemptCount: 1,
+            },
+          });
+        }
+
+        // Create interaction record
+        await (prisma as any).Interaction.create({
+          data: {
+            interactionId: validatedData.callSid,
+            agentId: validatedData.customerInfo.agentId || 'unknown',
+            contactId: validatedData.customerInfo.contactId || `contact_${Date.now()}`,
+            channel: 'voice',
+            direction: 'outbound',
+            status: validatedData.status,
+            duration: validatedData.duration,
+            notes: validatedData.customerInfo.notes,
+            outcome: validatedData.disposition,
+            startedAt: new Date(Date.now() - validatedData.duration * 1000),
+            endedAt: new Date(),
+          },
+        });
+      } catch (dbError) {
+        console.error('Error saving call data to database:', dbError);
+        // Continue even if database save fails
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Call ended successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
+    console.error('Error ending call:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to end call',
+    });
+  }
+};
+
+/**
+ * GET /api/calls/:callSid
+ * Get call details
+ */
+export const getCallDetails = async (req: Request, res: Response) => {
+  try {
+    const { callSid } = req.params;
+
+    const call = await twilioService.getCallDetails(callSid);
+
+    res.json({
+      success: true,
+      data: call,
+    });
+  } catch (error: any) {
+    console.error('Error fetching call details:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch call details',
+    });
+  }
+};
+
+/**
+ * POST /api/calls/dtmf
+ * Send DTMF tones during an active call
+ */
+export const sendDTMF = async (req: Request, res: Response) => {
+  try {
+    const validatedData = dtmfSchema.parse(req.body);
+
+    const result = await twilioService.sendDTMF(
+      validatedData.callSid,
+      validatedData.digits
+    );
+
+    res.json({
+      success: true,
+      message: 'DTMF sent successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
+    console.error('Error sending DTMF:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send DTMF',
+    });
+  }
+};
+
+/**
+ * GET/POST /api/calls/twiml
+ * Generate TwiML for outbound calls from Twilio Voice SDK
+ * This is called by Twilio when a call is initiated from the browser
+ */
+export const generateTwiML = async (req: Request, res: Response) => {
+  try {
+    // Parameters can come from query (GET) or body (POST)
+    const To = req.query.To || req.body.To;
+    const From = req.query.From || req.body.From;
+
+    console.log('📞 TwiML request received:', { 
+      method: req.method,
+      To, 
+      From,
+      query: req.query,
+      body: req.body,
+      headers: req.headers
+    });
+
+    if (!To) {
+      console.error('❌ Missing To parameter');
+      return res.type('text/xml').send('<Response><Say>Missing phone number</Say></Response>');
+    }
+
+    // Generate TwiML to dial the customer
+    const twiml = twilioService.generateCallTwiML(To as string, From as string || process.env.TWILIO_PHONE_NUMBER!);
+
+    console.log('✅ TwiML generated successfully:', twiml);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>An error occurred</Say></Response>');
+  }
+};
+
+/**
+ * POST /api/calls/status
+ * Handle Twilio status callbacks
+ */
+export const handleStatusCallback = async (req: Request, res: Response) => {
+  try {
+    const {
+      CallSid,
+      CallStatus,
+      CallDuration,
+      From,
+      To,
+    } = req.body;
+
+    console.log(`Call status update: ${CallSid} - ${CallStatus}`);
+
+    // Update call status in database if needed
+    // await prisma.interaction.update({...});
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error handling status callback:', error);
+    res.status(500).send('Error');
+  }
+};
+
+/**
+ * POST /api/calls/recording-status
+ * Handle Twilio recording status callbacks
+ */
+export const handleRecordingCallback = async (req: Request, res: Response) => {
+  try {
+    const {
+      CallSid,
+      RecordingSid,
+      RecordingUrl,
+      RecordingDuration,
+    } = req.body;
+
+    console.log(`Recording available: ${RecordingSid} for call ${CallSid}`);
+
+    // Save recording info to database if needed
+    // await prisma.interaction.update({...});
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error handling recording callback:', error);
+    res.status(500).send('Error');
+  }
+};
+
+/**
+ * GET /api/calls/:callSid/recordings
+ * Get recordings for a call
+ */
+export const getRecordings = async (req: Request, res: Response) => {
+  try {
+    const { callSid } = req.params;
+
+    const recordings = await twilioService.getCallRecordings(callSid);
+
+    res.json({
+      success: true,
+      data: recordings,
+    });
+  } catch (error: any) {
+    console.error('Error fetching recordings:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch recordings',
+    });
+  }
+};

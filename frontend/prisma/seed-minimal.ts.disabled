@@ -1,0 +1,87 @@
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+async function main() {
+  console.log('🌱 Seeding database with minimal test data...')
+  
+  // Clear existing data
+  await prisma.dialQueueEntry.deleteMany()
+  await prisma.contact.deleteMany()
+  await prisma.dataList.deleteMany()
+  await prisma.campaign.deleteMany()
+  await prisma.agent.deleteMany()
+  await prisma.callRecord.deleteMany()
+  console.log('🗑️ Cleared existing data')
+
+  // Create ONE test campaign
+  const campaign = {
+    campaignId: 'TEST_001',
+    name: 'Test Campaign',
+    dialMethod: 'Auto Dial',
+    speed: 3.0,
+    dropPercentage: 2.5,
+    status: 'Active',
+    recordCalls: true,
+    allowTransfers: true
+  }
+
+  await prisma.campaign.create({ data: campaign })
+  console.log('✅ Created 1 test campaign')
+
+  // Create ONE empty data list (no contacts yet)
+  const dataList = {
+    listId: 'LIST_001', 
+    name: 'Test Data List', 
+    totalContacts: 0,
+    active: true
+  }
+
+  await prisma.dataList.create({ data: dataList })
+  console.log('✅ Created 1 empty data list (ready for file upload)')
+
+  // Create ONE test agent
+  const agent = {
+    agentId: 'AGENT_001', 
+    firstName: 'Test', 
+    lastName: 'Agent', 
+    email: 'test.agent@company.com', 
+    status: 'Available', 
+    extension: '1001', 
+    skills: JSON.stringify(['sales', 'customer_service'])
+  }
+
+  await prisma.agent.create({ data: agent })
+  console.log('✅ Created 1 test agent')
+
+  console.log('🔗 Setting up test campaign assignment...')
+  
+  // Assign the list to the campaign
+  await prisma.dataList.update({
+    where: { listId: 'LIST_001' },
+    data: { campaignId: 'TEST_001', active: true, blendWeight: 100 }
+  })
+  
+  console.log('✅ Set up campaign assignment')
+
+  console.log('\n🎉 Database seeded successfully!')
+  console.log('\nMinimal empty system created:')
+  console.log('📊 1 campaign (TEST_001 - Test Campaign)')
+  console.log('📋 1 empty data list (LIST_001 - ready for file upload)') 
+  console.log('👤 0 contacts (upload CSV/Excel files to add contacts)')
+  console.log('🎧 1 agent')
+  console.log('📞 0 call records (fresh system)')
+  console.log('\n🔗 Campaign assignment:')
+  console.log('   TEST_001: LIST_001 (100% weight, 0 contacts - awaiting data upload)')
+  console.log('\n💡 Ready to test with a completely fresh system!')
+  console.log('📁 Upload contact files via Data Management to populate the list!')
+}
+
+main()
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

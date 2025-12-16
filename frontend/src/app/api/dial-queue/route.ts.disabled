@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const campaignId = searchParams.get('campaignId');
+
+    if (!campaignId) {
+      return NextResponse.json({ error: 'Campaign ID required' }, { status: 400 });
+    }
+
+    // Get queue entries for this campaign with contact details
+    const entries = await prisma.dialQueueEntry.findMany({
+      where: {
+        campaignId: campaignId
+      },
+      include: {
+        contact: true
+      },
+      orderBy: {
+        priority: 'desc'
+      }
+    });
+
+    return NextResponse.json({ entries });
+  } catch (error) {
+    console.error('Error fetching dial queue:', error);
+    return NextResponse.json({ error: 'Failed to fetch dial queue' }, { status: 500 });
+  }
+}

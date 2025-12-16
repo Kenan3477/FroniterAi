@@ -1,0 +1,96 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+const CURRENT_AGENT_ID = 'AGENT_001';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
+
+    // Default to today if no date range provided
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    const from = fromParam ? new Date(fromParam) : startOfToday;
+    const to = toParam ? new Date(toParam) : endOfToday;
+
+    // Calculate previous period for comparison
+    const periodLength = to.getTime() - from.getTime();
+    const prevFrom = new Date(from.getTime() - periodLength);
+    const prevTo = new Date(from.getTime());
+
+    // Get interactions for current period
+    const currentInteractions = await prisma.interaction.findMany({
+      where: {
+        agentId: CURRENT_AGENT_ID,
+        startedAt: {
+          gte: from,
+          lt: to,
+        },
+      },
+    });
+
+    // Get interactions for previous period
+    const previousInteractions = await prisma.interaction.findMany({
+      where: {
+        agentId: CURRENT_AGENT_ID,
+        startedAt: {
+          gte: prevFrom,
+          lt: prevTo,
+        },
+      },
+    });
+
+    // Calculate percentage change
+    const currentCount = currentInteractions.length;
+    const previousCount = previousInteractions.length;
+    const changePercent = previousCount > 0 
+      ? ((currentCount - previousCount) / previousCount) * 100 
+      : currentCount > 0 ? 100 : 0;
+
+    // Aggregate interaction outcomes
+    const outcomeGroups = currentInteractions.reduce((acc, interaction) => {
+      acc[interaction.outcome] = (acc[interaction.outcome] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate total interaction time
+    const totalTime = currentInteractions.reduce((sum, interaction) => {
+      return sum + (interaction.durationSeconds || 0);
+    }, 0);
+
+    // Count DMCs
+    const dmcCount = currentInteractions.filter(i => i.isDmc).length;
+
+    // Get sales linked to interactions in this period
+    const sales = await prisma.sale.findMany({
+      where: {
+        agentId: CURRENT_AGENT_ID,
+        createdAt: {
+          gte: from,
+          lt: to,
+        },
+        status: 'success',
+      },
+    });
+
+    const conversionRate = dmcCount > 0 ? (sales.length / dmcCount) * 100 : 0;
+
+    return NextResponse.json({
+      interactions_today: currentCount,
+      interactions_change_pct: Math.round(changePercent * 10) / 10,
+      interaction_outcomes: outcomeGroups,
+      interactions_time_seconds: totalTime,
+      dmcs: dmcCount,
+      conversions: sales.length,
+      conversion_rate: Math.round(conversionRate * 10) / 10,
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard summary:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

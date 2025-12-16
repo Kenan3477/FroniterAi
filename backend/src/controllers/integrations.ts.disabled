@@ -1,0 +1,764 @@
+import { Request, Response } from 'express';
+import { z } from 'zod';
+import { prisma } from '../database';
+
+// Validation schemas
+const createIntegrationSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100),
+  displayName: z.string().min(1, 'Display name is required').max(150),
+  description: z.string().optional(),
+  category: z.enum(['CRM', 'EMAIL', 'SMS', 'WEBHOOK', 'ANALYTICS', 'OTHER']),
+  type: z.enum(['OAUTH', 'API_KEY', 'WEBHOOK', 'DIRECT']),
+  configSchema: z.string(), // JSON schema as string
+  iconUrl: z.string().url().optional(),
+  documentationUrl: z.string().url().optional(),
+  isPublic: z.boolean().default(true),
+  version: z.string().default('1.0.0')
+});
+
+const updateIntegrationSchema = createIntegrationSchema.partial();
+
+const createConnectionSchema = z.object({
+  integrationId: z.string().cuid(),
+  name: z.string().min(1, 'Connection name is required').max(100),
+  config: z.record(z.any()), // Configuration object that will be JSON stringified
+});
+
+const updateConnectionSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  config: z.record(z.any()).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'ERROR', 'PENDING']).optional(),
+  isActive: z.boolean().optional()
+});
+
+const createWebhookSchema = z.object({
+  connectionId: z.string().cuid().optional(),
+  name: z.string().min(1, 'Webhook name is required').max(100),
+  url: z.string().url('Valid URL is required'),
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('POST'),
+  headers: z.record(z.string()).optional(),
+  secret: z.string().optional(),
+  events: z.array(z.string()).min(1, 'At least one event is required'),
+  filters: z.record(z.any()).optional(),
+  template: z.record(z.any()).optional(),
+  retryCount: z.number().int().min(0).max(10).default(3),
+  retryDelay: z.number().int().min(1).max(300).default(5),
+  timeoutMs: z.number().int().min(1000).max(300000).default(30000)
+});
+
+const updateWebhookSchema = createWebhookSchema.partial();
+
+// Integration management endpoints
+export const getIntegrations = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+    
+    const category = req.query.category as string;
+    const type = req.query.type as string;
+    const isPublic = req.query.isPublic === 'true' ? true : 
+                    req.query.isPublic === 'false' ? false : undefined;
+
+    const where = {
+      ...(category && { category }),
+      ...(type && { type }),
+      ...(isPublic !== undefined && { isPublic }),
+      isActive: true
+    };
+
+    const [integrations, total] = await Promise.all([
+      prisma.integration.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          description: true,
+          category: true,
+          type: true,
+          iconUrl: true,
+          documentationUrl: true,
+          isPublic: true,
+          version: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              connections: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.integration.count({ where })
+    ]);
+
+    res.json({
+      data: integrations,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching integrations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createIntegration = async (req: Request, res: Response) => {
+  try {
+    const validatedData = createIntegrationSchema.parse(req.body);
+    
+    // Validate that configSchema is valid JSON
+    try {
+      JSON.parse(validatedData.configSchema);
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON schema in configSchema' });
+    }
+
+    const integration = await prisma.integration.create({
+      data: {
+        ...validatedData,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        description: true,
+        category: true,
+        type: true,
+        configSchema: true,
+        iconUrl: true,
+        documentationUrl: true,
+        isActive: true,
+        isPublic: true,
+        version: true,
+        createdAt: true
+      }
+    });
+
+    res.status(201).json(integration);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error creating integration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateIntegration = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const validatedData = updateIntegrationSchema.parse(req.body);
+
+    // Validate configSchema if provided
+    if (validatedData.configSchema) {
+      try {
+        JSON.parse(validatedData.configSchema);
+      } catch {
+        return res.status(400).json({ error: 'Invalid JSON schema in configSchema' });
+      }
+    }
+
+    const existingIntegration = await prisma.integration.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      }
+    });
+
+    if (!existingIntegration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    const updatedIntegration = await prisma.integration.update({
+      where: { id },
+      data: validatedData,
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        description: true,
+        category: true,
+        type: true,
+        configSchema: true,
+        iconUrl: true,
+        documentationUrl: true,
+        isActive: true,
+        isPublic: true,
+        version: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json(updatedIntegration);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error updating integration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteIntegration = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existingIntegration = await prisma.integration.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      },
+      include: {
+        _count: {
+          select: {
+            connections: true
+          }
+        }
+      }
+    });
+
+    if (!existingIntegration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    if (existingIntegration._count.connections > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete integration with active connections',
+        activeConnections: existingIntegration._count.connections
+      });
+    }
+
+    await prisma.integration.delete({
+      where: { id }
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting integration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Connection management endpoints
+export const getConnections = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+    
+    const integrationId = req.query.integrationId as string;
+    const status = req.query.status as string;
+
+    const where = {
+      createdByUserId: 'admin-user', // TODO: Get from authenticated user
+      ...(integrationId && { integrationId }),
+      ...(status && { status })
+    };
+
+    const [connections, total] = await Promise.all([
+      prisma.integrationConnection.findMany({
+        where,
+        include: {
+          integration: {
+            select: {
+              name: true,
+              displayName: true,
+              category: true,
+              type: true,
+              iconUrl: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.integrationConnection.count({ where })
+    ]);
+
+    // Remove sensitive data from response
+    const sanitizedConnections = connections.map(conn => ({
+      ...conn,
+      config: '***', // Hide configuration data
+      accessToken: undefined,
+      refreshToken: undefined
+    }));
+
+    res.json({
+      data: sanitizedConnections,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching connections:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createConnection = async (req: Request, res: Response) => {
+  try {
+    const validatedData = createConnectionSchema.parse(req.body);
+
+    // Verify integration exists
+    const integration = await prisma.integration.findUnique({
+      where: { id: validatedData.integrationId }
+    });
+
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    const connection = await prisma.integrationConnection.create({
+      data: {
+        integrationId: validatedData.integrationId,
+        name: validatedData.name,
+        config: JSON.stringify(validatedData.config),
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      },
+      include: {
+        integration: {
+          select: {
+            name: true,
+            displayName: true,
+            category: true,
+            type: true
+          }
+        }
+      }
+    });
+
+    // Remove sensitive data from response
+    res.status(201).json({
+      ...connection,
+      config: '***',
+      accessToken: undefined,
+      refreshToken: undefined
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error creating connection:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateConnection = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const validatedData = updateConnectionSchema.parse(req.body);
+
+    const existingConnection = await prisma.integrationConnection.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      }
+    });
+
+    if (!existingConnection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    const updateData: any = {};
+    if (validatedData.name) updateData.name = validatedData.name;
+    if (validatedData.config) updateData.config = JSON.stringify(validatedData.config);
+    if (validatedData.status) updateData.status = validatedData.status;
+    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
+
+    const updatedConnection = await prisma.integrationConnection.update({
+      where: { id },
+      data: updateData,
+      include: {
+        integration: {
+          select: {
+            name: true,
+            displayName: true,
+            category: true,
+            type: true
+          }
+        }
+      }
+    });
+
+    // Remove sensitive data from response
+    res.json({
+      ...updatedConnection,
+      config: '***',
+      accessToken: undefined,
+      refreshToken: undefined
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error updating connection:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteConnection = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existingConnection = await prisma.integrationConnection.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      }
+    });
+
+    if (!existingConnection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    await prisma.integrationConnection.delete({
+      where: { id }
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting connection:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Webhook management endpoints
+export const getWebhooks = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+    
+    const connectionId = req.query.connectionId as string;
+    const isActive = req.query.isActive === 'true' ? true : 
+                    req.query.isActive === 'false' ? false : undefined;
+
+    const where = {
+      createdByUserId: 'admin-user', // TODO: Get from authenticated user
+      ...(connectionId && { connectionId }),
+      ...(isActive !== undefined && { isActive })
+    };
+
+    const [webhooks, total] = await Promise.all([
+      prisma.webhook.findMany({
+        where,
+        include: {
+          connection: {
+            include: {
+              integration: {
+                select: {
+                  name: true,
+                  displayName: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.webhook.count({ where })
+    ]);
+
+    // Parse JSON fields and hide sensitive data
+    const formattedWebhooks = webhooks.map(webhook => ({
+      ...webhook,
+      headers: webhook.headers ? JSON.parse(webhook.headers) : null,
+      events: JSON.parse(webhook.events || '[]'),
+      filters: webhook.filters ? JSON.parse(webhook.filters) : null,
+      template: webhook.template ? JSON.parse(webhook.template) : null,
+      secret: webhook.secret ? '***' : null
+    }));
+
+    res.json({
+      data: formattedWebhooks,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching webhooks:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createWebhook = async (req: Request, res: Response) => {
+  try {
+    const validatedData = createWebhookSchema.parse(req.body);
+
+    // Verify connection exists if provided
+    if (validatedData.connectionId) {
+      const connection = await prisma.integrationConnection.findFirst({
+        where: {
+          id: validatedData.connectionId,
+          createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+        }
+      });
+
+      if (!connection) {
+        return res.status(404).json({ error: 'Connection not found' });
+      }
+    }
+
+    const webhook = await prisma.webhook.create({
+      data: {
+        connectionId: validatedData.connectionId,
+        name: validatedData.name,
+        url: validatedData.url,
+        method: validatedData.method,
+        headers: validatedData.headers ? JSON.stringify(validatedData.headers) : null,
+        secret: validatedData.secret,
+        events: JSON.stringify(validatedData.events),
+        filters: validatedData.filters ? JSON.stringify(validatedData.filters) : null,
+        template: validatedData.template ? JSON.stringify(validatedData.template) : null,
+        retryCount: validatedData.retryCount,
+        retryDelay: validatedData.retryDelay,
+        timeoutMs: validatedData.timeoutMs,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      },
+      include: {
+        connection: {
+          include: {
+            integration: {
+              select: {
+                name: true,
+                displayName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Format response
+    res.status(201).json({
+      ...webhook,
+      headers: webhook.headers ? JSON.parse(webhook.headers) : null,
+      events: JSON.parse(webhook.events || '[]'),
+      filters: webhook.filters ? JSON.parse(webhook.filters) : null,
+      template: webhook.template ? JSON.parse(webhook.template) : null,
+      secret: webhook.secret ? '***' : null
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error creating webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateWebhook = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const validatedData = updateWebhookSchema.parse(req.body);
+
+    const existingWebhook = await prisma.webhook.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      }
+    });
+
+    if (!existingWebhook) {
+      return res.status(404).json({ error: 'Webhook not found' });
+    }
+
+    const updateData: any = {};
+    if (validatedData.name) updateData.name = validatedData.name;
+    if (validatedData.url) updateData.url = validatedData.url;
+    if (validatedData.method) updateData.method = validatedData.method;
+    if (validatedData.headers !== undefined) updateData.headers = validatedData.headers ? JSON.stringify(validatedData.headers) : null;
+    if (validatedData.secret !== undefined) updateData.secret = validatedData.secret;
+    if (validatedData.events) updateData.events = JSON.stringify(validatedData.events);
+    if (validatedData.filters !== undefined) updateData.filters = validatedData.filters ? JSON.stringify(validatedData.filters) : null;
+    if (validatedData.template !== undefined) updateData.template = validatedData.template ? JSON.stringify(validatedData.template) : null;
+    if (validatedData.retryCount !== undefined) updateData.retryCount = validatedData.retryCount;
+    if (validatedData.retryDelay !== undefined) updateData.retryDelay = validatedData.retryDelay;
+    if (validatedData.timeoutMs !== undefined) updateData.timeoutMs = validatedData.timeoutMs;
+
+    const updatedWebhook = await prisma.webhook.update({
+      where: { id },
+      data: updateData,
+      include: {
+        connection: {
+          include: {
+            integration: {
+              select: {
+                name: true,
+                displayName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Format response
+    res.json({
+      ...updatedWebhook,
+      headers: updatedWebhook.headers ? JSON.parse(updatedWebhook.headers) : null,
+      events: JSON.parse(updatedWebhook.events || '[]'),
+      filters: updatedWebhook.filters ? JSON.parse(updatedWebhook.filters) : null,
+      template: updatedWebhook.template ? JSON.parse(updatedWebhook.template) : null,
+      secret: updatedWebhook.secret ? '***' : null
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.errors
+      });
+    }
+    console.error('Error updating webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteWebhook = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existingWebhook = await prisma.webhook.findFirst({
+      where: {
+        id,
+        createdByUserId: 'temp-admin-user' // TODO: Get from authenticated user
+      }
+    });
+
+    if (!existingWebhook) {
+      return res.status(404).json({ error: 'Webhook not found' });
+    }
+
+    await prisma.webhook.delete({
+      where: { id }
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Statistics endpoints
+export const getIntegrationStats = async (req: Request, res: Response) => {
+  try {
+    console.log('getIntegrationStats called');
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+
+    const [
+      totalIntegrations,
+      totalConnections,
+      activeConnections,
+      totalWebhooks,
+      activeWebhooks,
+      integrationsByCategory,
+      connectionsByStatus
+    ] = await Promise.all([
+      prisma.integration.count({
+        where: { isActive: true }
+      }),
+      prisma.integrationConnection.count({
+        where: { createdByUserId: userId }
+      }),
+      prisma.integrationConnection.count({
+        where: { 
+          createdByUserId: userId,
+          isActive: true,
+          status: 'ACTIVE'
+        }
+      }),
+      prisma.webhook.count({
+        where: { createdByUserId: userId }
+      }),
+      prisma.webhook.count({
+        where: { 
+          createdByUserId: userId,
+          isActive: true
+        }
+      }),
+      prisma.integration.groupBy({
+        by: ['category'],
+        where: { isActive: true },
+        _count: true
+      }),
+      prisma.integrationConnection.groupBy({
+        by: ['status'],
+        where: { createdByUserId: userId },
+        _count: true
+      })
+    ]);
+
+    const categoryStats = integrationsByCategory.reduce((acc: Record<string, number>, cat: any) => {
+      acc[cat.category] = cat._count;
+      return acc;
+    }, {});
+
+    const statusStats = connectionsByStatus.reduce((acc: Record<string, number>, status: any) => {
+      acc[status.status] = status._count;
+      return acc;
+    }, {});
+
+    res.json({
+      integrations: {
+        total: totalIntegrations,
+        byCategory: categoryStats
+      },
+      connections: {
+        total: totalConnections,
+        active: activeConnections,
+        inactive: totalConnections - activeConnections,
+        byStatus: statusStats
+      },
+      webhooks: {
+        total: totalWebhooks,
+        active: activeWebhooks,
+        inactive: totalWebhooks - activeWebhooks
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching integration stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

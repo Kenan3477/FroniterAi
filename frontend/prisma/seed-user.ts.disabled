@@ -1,0 +1,29 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function seedUser() {
+  console.log('Creating test user...');
+  
+  // Create a test user
+  const user = await prisma.user.create({
+    data: {
+      id: 1,
+      name: 'Test Agent',
+      email: 'agent@kennex.com',
+      status: 'away',
+      statusSince: new Date()
+    }
+  });
+
+  console.log('✅ Test user created:', user);
+}
+
+seedUser()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

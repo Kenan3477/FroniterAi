@@ -1,0 +1,402 @@
+import { Contact, ContactStatus, DialQueueEntry } from '../types/dialQueue';
+
+/**
+ * 4️⃣ Record Status Updating Functions
+ * Handles post-call contact status updates exactly like Kennex
+ */
+
+// Import mock data stores from dialQueueEngine
+let mockContacts: Contact[] = [];
+let mockDialQueue: DialQueueEntry[] = [];
+
+// Set references to the same data stores used by dial queue engine
+export function setContactsStore(contacts: Contact[]): void {
+  // In production, this would be handled by a shared database connection
+  // For mock purposes, we'll use a simple reference system
+}
+
+export function setDialQueueStore(dialQueue: DialQueueEntry[]): void {
+  // In production, this would be handled by a shared database connection
+}
+
+/**
+ * Main function: updateRecordAfterCall(recordId, outcome)
+ * After every dial attempt, update the contact record
+ */
+export async function updateRecordAfterCall(
+  contactId: string, 
+  outcome: string,
+  options: {
+    agentId?: string;
+    callDuration?: number;
+    notes?: string;
+    scheduleCallback?: Date;
+    customOutcome?: boolean;
+  } = {}
+): Promise<{ success: boolean; message: string; contact?: Contact }> {
+
+  try {
+    console.log(`📝 Updating record after call:`, { contactId, outcome, options });
+
+    // Find the contact
+    const { mockContacts } = await import('./dialQueueEngine');
+    const contactIndex = mockContacts.findIndex(c => c.contactId === contactId);
+    
+    if (contactIndex === -1) {
+      console.error(`❌ Contact ${contactId} not found`);
+      return { success: false, message: `Contact ${contactId} not found` };
+    }
+
+    const contact = mockContacts[contactIndex];
+    const previousStatus = contact.status;
+    const previousAttemptCount = contact.attemptCount;
+
+    // 1. Increment attempt count
+    const newAttemptCount = contact.attemptCount + 1;
+
+    // 2. Update status based on outcome (Kennex-style mapping)
+    const newStatus = mapOutcomeToStatus(outcome, newAttemptCount, contact.maxAttempts);
+
+    // 3. Calculate next retry time if applicable
+    const nextRetryAt = calculateNextRetryTime(newStatus, newAttemptCount);
+
+    // 4. Update the contact record
+    const updatedContact: Contact = {
+      ...contact,
+      status: newStatus,
+      attemptCount: newAttemptCount,
+      lastAttemptAt: new Date(),
+      nextRetryAt,
+      locked: false,        // 5. Unlock record
+      lockedBy: undefined,
+      lockedAt: undefined,
+      updatedAt: new Date()
+    };
+
+    // Apply the update
+    mockContacts[contactIndex] = updatedContact;
+
+    // 6. Update any related dial queue entries
+    await updateDialQueueEntry(contactId, outcome, options);
+
+    // 7. Log the status change
+    console.log(`✅ Contact ${contactId} updated:`, {
+      previousStatus,
+      newStatus: newStatus,
+      previousAttempts: previousAttemptCount,
+      newAttempts: newAttemptCount,
+      nextRetryAt: nextRetryAt?.toISOString(),
+      outcome,
+      maxAttempts: contact.maxAttempts
+    });
+
+    return {
+      success: true,
+      message: `Contact status updated to ${newStatus}`,
+      contact: updatedContact
+    };
+
+  } catch (error) {
+    console.error(`❌ Error updating record after call:`, error);
+    return {
+      success: false,
+      message: `Failed to update contact: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Map call outcomes to contact status (Kennex-style)
+ */
+function mapOutcomeToStatus(
+  outcome: string, 
+  attemptCount: number, 
+  maxAttempts: number
+): ContactStatus {
+  
+  // Check if reached max attempts first
+  if (attemptCount >= maxAttempts) {
+    return 'MaxAttempts';
+  }
+
+  // Map outcomes to status
+  const outcomeMap: Record<string, ContactStatus> = {
+    // Successful outcomes
+    'Answered': 'Answered',
+    'Connected': 'Answered',
+    'Sale': 'Answered',
+    'Interested': 'Answered',
+    'Callback Scheduled': 'Answered',
+    'Transfer': 'Answered',
+    
+    // Retry eligible outcomes
+    'No Answer': 'RetryEligible',
+    'Busy': 'RetryEligible',
+    'Voicemail': 'RetryEligible',
+    'Ring No Answer': 'RetryEligible',
+    'Engaged': 'RetryEligible',
+    
+    // Final outcomes
+    'Do Not Call': 'DoNotCall',
+    'DNC': 'DoNotCall',
+    'Not Interested': 'DoNotCall',
+    'Remove': 'DoNotCall',
+    'Invalid Number': 'Invalid',
+    'Wrong Number': 'Invalid',
+    'Disconnected': 'Invalid',
+    'Number Invalid': 'Invalid'
+  };
+
+  return outcomeMap[outcome] || 'RetryEligible';
+}
+
+/**
+ * Calculate next retry time based on status and attempt count (Kennex-style)
+ */
+function calculateNextRetryTime(status: ContactStatus, attemptCount: number): Date | undefined {
+  
+  if (status !== 'RetryEligible') {
+    return undefined; // No retry needed
+  }
+
+  // Kennex-style retry delays (exponential backoff)
+  const baseDelayMinutes = 30; // 30 minutes base delay
+  const backoffMultiplier = 1.5;
+  
+  const delayMinutes = Math.min(
+    baseDelayMinutes * Math.pow(backoffMultiplier, attemptCount - 1),
+    480 // Max 8 hours
+  );
+
+  return new Date(Date.now() + (delayMinutes * 60 * 1000));
+}
+
+/**
+ * Update dial queue entry after call completion
+ */
+async function updateDialQueueEntry(
+  contactId: string, 
+  outcome: string, 
+  options: any
+): Promise<void> {
+  
+  try {
+    const { getDialQueue } = await import('./dialQueueEngine');
+    const dialQueue = getDialQueue();
+    
+    // Find the most recent queue entry for this contact
+    const entryIndex = dialQueue
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.contactId === contactId)
+      .sort((a, b) => b.entry.queuedAt.getTime() - a.entry.queuedAt.getTime())[0]?.index;
+
+    if (entryIndex !== undefined && entryIndex >= 0) {
+      const entry = dialQueue[entryIndex];
+      
+      // Update queue entry
+      dialQueue[entryIndex] = {
+        ...entry,
+        status: 'completed',
+        completedAt: new Date(),
+        outcome,
+        notes: options.notes
+      };
+
+      console.log(`📋 Updated dial queue entry ${entry.queueId} to completed`);
+    }
+
+  } catch (error) {
+    console.error(`⚠️ Failed to update dial queue entry:`, error);
+  }
+}
+
+/**
+ * Bulk status update functions for campaign management
+ */
+
+export async function bulkUpdateContactStatus(
+  contactIds: string[],
+  newStatus: ContactStatus,
+  reason?: string
+): Promise<{ success: boolean; updated: number; errors: string[] }> {
+  
+  const errors: string[] = [];
+  let updated = 0;
+
+  for (const contactId of contactIds) {
+    try {
+      const result = await updateRecordAfterCall(contactId, mapStatusToOutcome(newStatus), {
+        notes: reason
+      });
+      
+      if (result.success) {
+        updated++;
+      } else {
+        errors.push(`${contactId}: ${result.message}`);
+      }
+    } catch (error) {
+      errors.push(`${contactId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  return { success: errors.length === 0, updated, errors };
+}
+
+export function mapStatusToOutcome(status: ContactStatus): string {
+  const statusMap: Record<ContactStatus, string> = {
+    'NotAttempted': 'Not Attempted',
+    'Answered': 'Answered',
+    'NoAnswer': 'No Answer',
+    'Busy': 'Busy',
+    'Voicemail': 'Voicemail',
+    'RetryEligible': 'Retry Eligible',
+    'MaxAttempts': 'Max Attempts Reached',
+    'DoNotCall': 'Do Not Call',
+    'Invalid': 'Invalid Number'
+  };
+
+  return statusMap[status] || status;
+}
+
+/**
+ * Contact management utilities
+ */
+
+export async function resetContactAttempts(contactId: string): Promise<{ success: boolean; message: string }> {
+  
+  try {
+    const { mockContacts } = await import('./dialQueueEngine');
+    const contactIndex = mockContacts.findIndex(c => c.contactId === contactId);
+    
+    if (contactIndex === -1) {
+      return { success: false, message: `Contact ${contactId} not found` };
+    }
+
+    // Reset the contact
+    mockContacts[contactIndex] = {
+      ...mockContacts[contactIndex],
+      status: 'NotAttempted',
+      attemptCount: 0,
+      lastAttemptAt: undefined,
+      nextRetryAt: undefined,
+      locked: false,
+      lockedBy: undefined,
+      lockedAt: undefined,
+      updatedAt: new Date()
+    };
+
+    console.log(`🔄 Reset attempts for contact ${contactId}`);
+    return { success: true, message: 'Contact attempts reset successfully' };
+
+  } catch (error) {
+    console.error(`❌ Error resetting contact attempts:`, error);
+    return { success: false, message: 'Failed to reset contact attempts' };
+  }
+}
+
+export async function markContactAsDoNotCall(
+  contactId: string, 
+  reason?: string
+): Promise<{ success: boolean; message: string }> {
+  
+  return updateRecordAfterCall(contactId, 'Do Not Call', {
+    notes: reason || 'Marked as Do Not Call'
+  });
+}
+
+export async function scheduleCallback(
+  contactId: string, 
+  callbackTime: Date,
+  notes?: string
+): Promise<{ success: boolean; message: string }> {
+  
+  try {
+    const { mockContacts } = await import('./dialQueueEngine');
+    const contactIndex = mockContacts.findIndex(c => c.contactId === contactId);
+    
+    if (contactIndex === -1) {
+      return { success: false, message: `Contact ${contactId} not found` };
+    }
+
+    // Schedule callback
+    mockContacts[contactIndex] = {
+      ...mockContacts[contactIndex],
+      status: 'Answered', // Answered with callback scheduled
+      nextRetryAt: callbackTime,
+      locked: false,
+      lockedBy: undefined,
+      lockedAt: undefined,
+      updatedAt: new Date(),
+      customFields: {
+        ...mockContacts[contactIndex].customFields,
+        callbackScheduled: callbackTime.toISOString(),
+        callbackNotes: notes
+      }
+    };
+
+    console.log(`📅 Scheduled callback for ${contactId} at ${callbackTime.toISOString()}`);
+    return { success: true, message: 'Callback scheduled successfully' };
+
+  } catch (error) {
+    console.error(`❌ Error scheduling callback:`, error);
+    return { success: false, message: 'Failed to schedule callback' };
+  }
+}
+
+/**
+ * Reporting and analytics functions
+ */
+
+export async function getContactStatusReport(listId?: string, campaignId?: string) {
+  
+  try {
+    const { mockContacts } = await import('./dialQueueEngine');
+    const { getActiveListsByCampaign, getListsByCampaign } = await import('./listCampaignService');
+    
+    let contacts = mockContacts;
+    
+    // Filter by campaign
+    if (campaignId) {
+      const campaignLists = getListsByCampaign(campaignId);
+      const listIds = campaignLists.map(list => list.listId);
+      contacts = contacts.filter(c => listIds.includes(c.listId));
+    }
+    
+    // Filter by specific list
+    if (listId) {
+      contacts = contacts.filter(c => c.listId === listId);
+    }
+
+    // Calculate status counts
+    const statusCounts: Record<ContactStatus, number> = {
+      'NotAttempted': 0,
+      'Answered': 0,
+      'NoAnswer': 0,
+      'Busy': 0,
+      'Voicemail': 0,
+      'RetryEligible': 0,
+      'MaxAttempts': 0,
+      'DoNotCall': 0,
+      'Invalid': 0
+    };
+
+    let totalAttempts = 0;
+    contacts.forEach(contact => {
+      statusCounts[contact.status]++;
+      totalAttempts += contact.attemptCount;
+    });
+
+    return {
+      totalContacts: contacts.length,
+      statusBreakdown: statusCounts,
+      totalAttempts,
+      averageAttempts: contacts.length > 0 ? totalAttempts / contacts.length : 0,
+      contactRate: contacts.length > 0 ? statusCounts.Answered / contacts.length : 0,
+      pendingContacts: statusCounts.NotAttempted + statusCounts.RetryEligible
+    };
+
+  } catch (error) {
+    console.error(`❌ Error generating contact status report:`, error);
+    return null;
+  }
+}
