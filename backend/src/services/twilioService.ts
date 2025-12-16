@@ -266,11 +266,10 @@ export const sendDTMF = async (callSid: string, digits: string) => {
 export const generateCallTwiML = (to: string, from: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  // Dial the number
+  // Dial the number - simplified without recording for now
   const dial = twiml.dial({
     callerId: from,
-    record: 'record-from-answer',
-    recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-status`,
+    // Removed recording options to avoid callback issues during initial testing
   });
   
   dial.number(to);
