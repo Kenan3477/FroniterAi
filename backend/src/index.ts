@@ -59,6 +59,10 @@ class App {
 
   constructor() {
     this.app = express();
+    
+    // Trust proxy - required for Railway and rate limiting
+    this.app.set('trust proxy', 1);
+    
     this.server = createServer(this.app);
     this.io = new Server(this.server, {
       cors: {
