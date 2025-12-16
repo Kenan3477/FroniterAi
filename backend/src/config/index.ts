@@ -47,7 +47,7 @@ interface Config {
 
 const config: Config = {
   server: {
-    port: parseInt(process.env.API_PORT || '3001', 10),
+    port: parseInt(process.env.PORT || process.env.API_PORT || '3001', 10),
     env: process.env.NODE_ENV || 'development',
   },
   database: {
