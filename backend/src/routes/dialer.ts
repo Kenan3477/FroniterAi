@@ -16,15 +16,16 @@ router.post('/initiate', dialerController.initiateCall);
 // End active call
 router.post('/end', dialerController.endCall);
 
-// Get call details
+// TwiML generation endpoint (called by Twilio) - support both GET and POST
+// MUST be before /:callSid route to avoid being caught by wildcard
+router.get('/twiml', dialerController.generateTwiML);
+router.post('/twiml', dialerController.generateTwiML);
+
+// Get call details (with wildcard parameter - must come AFTER specific routes)
 router.get('/:callSid', dialerController.getCallDetails);
 
 // Send DTMF tones
 router.post('/dtmf', dialerController.sendDTMF);
-
-// TwiML generation endpoint (called by Twilio) - support both GET and POST
-router.get('/twiml', dialerController.generateTwiML);
-router.post('/twiml', dialerController.generateTwiML);
 
 // Status callback endpoint (called by Twilio)
 router.post('/status', dialerController.handleStatusCallback);
