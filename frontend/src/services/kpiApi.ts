@@ -1,5 +1,5 @@
 // KPI API service for frontend
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
 
 export interface DashboardStats {
   today: {
