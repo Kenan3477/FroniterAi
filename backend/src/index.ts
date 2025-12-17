@@ -28,7 +28,8 @@ import contactRoutes from './routes/contacts'; // Re-enabled for dial queue inte
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
-// import campaignManagementRoutes from './routes/campaignManagement'; // Temporarily disabled - fixing schema issues
+import campaignManagementRoutes from './routes/campaignManagement'; // Re-enabled for admin frontend
+import businessSettingsRoutes from './routes/businessSettings'; // Re-enabled for admin frontend
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import contactRoutes from './routes/contacts'; // DISABLED - schema conflicts
 // import campaignRoutes from './routes/campaigns';
@@ -133,8 +134,8 @@ class App {
     // this.app.use('/api/admin/users', userRoutes); // Admin user management - temporarily disabled
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
-    // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // Admin business settings management - temporarily disabled
-    // this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // Admin campaign management - temporarily disabled
+    this.app.use('/api/admin/business-settings', businessSettingsRoutes); // Admin business settings management - re-enabled
+    this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // Admin campaign management - re-enabled
     // this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - temporarily disabled due to file corruption
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts
