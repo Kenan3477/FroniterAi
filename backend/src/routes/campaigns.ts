@@ -13,23 +13,32 @@ router.get('/', async (req, res) => {
     // TODO: In production, filter by user permissions/assignments
     const campaigns = await prisma.campaign.findMany({
       where: {
-        status: 'active'
+        isActive: true
       },
       select: {
-        campaignId: true,
+        id: true,
         name: true,
-        status: true,
-        dialMethod: true,
+        isActive: true,
+        diallingMode: true,
         description: true
       }
     });
 
     console.log(`✅ Found ${campaigns.length} active campaigns`);
     
+    // Map database fields to frontend expected format
+    const mappedCampaigns = campaigns.map(campaign => ({
+      campaignId: campaign.id,
+      name: campaign.name,
+      status: campaign.isActive ? 'active' : 'inactive',
+      dialMethod: campaign.diallingMode,
+      description: campaign.description
+    }));
+    
     res.json({
       success: true,
-      campaigns: campaigns,
-      data: campaigns
+      campaigns: mappedCampaigns,
+      data: mappedCampaigns
     });
   } catch (error) {
     console.error('❌ Error fetching campaigns:', error);
