@@ -19,6 +19,7 @@ import authRoutes from './routes/auth';
 import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';
 import campaignRoutes from './routes/campaigns';
+import queueRoutes from './routes/queue'; // Campaign queue management
 import reportsRoutes from './routes/reports';
 import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
 // Import admin routes - RE-ENABLING CRITICAL ONES
@@ -30,8 +31,8 @@ import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after 
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
 import campaignManagementRoutes from './routes/campaignManagement'; // Re-enabled for admin frontend
 import businessSettingsRoutes from './routes/businessSettings'; // Re-enabled for admin frontend
+import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
-// import contactRoutes from './routes/contacts'; // DISABLED - schema conflicts
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
 // import analyticsRoutes from './routes/analytics'; // DISABLED - schema conflicts
@@ -128,6 +129,7 @@ class App {
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
     this.app.use('/api/campaigns', campaignRoutes); // Campaign management
+    this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
     // this.app.use('/api/admin/users', userRoutes); // Admin user management - temporarily disabled
@@ -141,7 +143,7 @@ class App {
     // this.app.use('/api/campaigns', campaignRoutes); // Disabled - model not in schema
     // this.app.use('/api/interactions', interactionRoutes); // Disabled - model not in schema
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
-    // this.app.use('/api/webhooks', webhookRoutes); // Temporarily disabled - fixing schema issues
+    this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
 
     // Kennex Flows API routes - re-enabled
     this.app.use('/api/flows', flowRoutes);

@@ -25,9 +25,13 @@ interface AuthContextType {
   user: User | null;
   currentCampaign: Campaign | null;
   availableCampaigns: Campaign[];
+  isInQueue: boolean;
+  queueStatus: any | null;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   setCurrentCampaign: (campaign: Campaign | null) => void;
+  joinCampaignQueue: (campaign: Campaign) => Promise<{ success: boolean; message: string }>;
+  leaveCampaignQueue: () => Promise<{ success: boolean; message: string }>;
   refreshCampaigns: () => Promise<void>;
   loading: boolean;
   isAuthenticated: boolean;
@@ -39,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [currentCampaign, setCurrentCampaign] = useState<Campaign | null>(null);
   const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);
+  const [isInQueue, setIsInQueue] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -96,6 +102,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
+    }
+  };
+
+  const joinCampaignQueue = async (campaign: Campaign) => {
+    try {
+      if (!user) {
+        return { success: false, message: 'User not authenticated' };
+      }
+
+      console.log(`🚀 Joining campaign queue: ${campaign.name}`);
+
+      const response = await fetch('/api/queue/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          campaignId: campaign.campaignId, 
+          userId: user.username || user.id 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setCurrentCampaign(campaign);
+        setIsInQueue(true);
+        setQueueStatus(data.assignment);
+        console.log(`✅ Successfully joined campaign: ${campaign.name}`);
+        return { success: true, message: data.message };
+      } else {
+        console.log(`❌ Failed to join campaign: ${data.error}`);
+        return { success: false, message: data.error };
+      }
+    } catch (error) {
+      console.error('Error joining campaign queue:', error);
+      return { success: false, message: 'Failed to join campaign queue' };
+    }
+  };
+
+  const leaveCampaignQueue = async () => {
+    try {
+      if (!user || !currentCampaign) {
+        return { success: false, message: 'No active campaign to leave' };
+      }
+
+      console.log(`🚪 Leaving campaign queue: ${currentCampaign.name}`);
+
+      const response = await fetch('/api/queue/leave', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          campaignId: currentCampaign.campaignId, 
+          userId: user.username || user.id 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsInQueue(false);
+        setQueueStatus(null);
+        console.log(`✅ Successfully left campaign queue`);
+        return { success: true, message: data.message };
+      } else {
+        console.log(`❌ Failed to leave campaign: ${data.error}`);
+        return { success: false, message: data.error };
+      }
+    } catch (error) {
+      console.error('Error leaving campaign queue:', error);
+      return { success: false, message: 'Failed to leave campaign queue' };
     }
   };
 
@@ -168,10 +249,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{ 
       user, 
       currentCampaign, 
-      availableCampaigns, 
+      availableCampaigns,
+      isInQueue,
+      queueStatus,
       login, 
       logout, 
       setCurrentCampaign,
+      joinCampaignQueue,
+      leaveCampaignQueue,
       refreshCampaigns,
       loading, 
       isAuthenticated 
