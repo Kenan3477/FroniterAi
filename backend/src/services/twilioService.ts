@@ -261,6 +261,39 @@ export const sendDTMF = async (callSid: string, digits: string) => {
 };
 
 /**
+ * Create a call using Twilio REST API
+ * Alternative to WebRTC approach - Twilio makes the call server-side
+ */
+export const createRestApiCall = async (params: {
+  to: string;
+  from: string;
+  url: string;
+}) => {
+  const { to, from, url } = params;
+  
+  if (!twilioClient) {
+    throw new Error('Twilio client not initialized - check credentials');
+  }
+  
+  console.log('📞 Creating call via REST API:', { to, from, url });
+
+  const call = await twilioClient.calls.create({
+    to,
+    from,
+    url, // TwiML webhook URL
+    method: 'POST'
+  });
+
+  console.log('✅ Call created via REST API:', { 
+    sid: call.sid, 
+    status: call.status,
+    direction: call.direction
+  });
+
+  return call;
+};
+
+/**
  * Generate TwiML for outbound call
  */
 export const generateCallTwiML = (to: string, from: string): string => {
@@ -320,6 +353,7 @@ export default {
   getCallDetails,
   sendDTMF,
   generateCallTwiML,
+  createRestApiCall,
   getCallRecordings,
   updateCallMetadata,
 };

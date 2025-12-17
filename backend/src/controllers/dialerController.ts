@@ -348,6 +348,57 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
 };
 
 /**
+ * POST /api/calls/rest-api
+ * Make a call using Twilio REST API (alternative to WebRTC)
+ * This creates a call that connects the agent and customer via Twilio
+ */
+export const makeRestApiCall = async (req: Request, res: Response) => {
+  try {
+    const { to, agentNumber } = req.body;
+    
+    console.log('📞 Making REST API call:', { to, agentNumber });
+
+    if (!to) {
+      return res.status(400).json({
+        success: false,
+        error: 'Target phone number (to) is required'
+      });
+    }
+
+    // Use the TwiML webhook URL for call instructions
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml`;
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!fromNumber) {
+      throw new Error('TWILIO_PHONE_NUMBER not configured');
+    }
+
+    // Make the call using Twilio REST API
+    const call = await twilioService.createRestApiCall({
+      to,
+      from: fromNumber,
+      url: twimlUrl
+    });
+
+    console.log('✅ Call initiated via REST API:', call.sid);
+
+    res.json({
+      success: true,
+      callSid: call.sid,
+      status: call.status,
+      message: 'Call initiated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error making REST API call:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to initiate call'
+    });
+  }
+};
+
+/**
  * GET /api/calls/:callSid/recordings
  * Get recordings for a call
  */

@@ -10,8 +10,11 @@ const router = express.Router();
 // Generate Twilio access token
 router.post('/token', dialerController.generateToken);
 
-// Initiate outbound call
+// Initiate outbound call (WebRTC via browser)
 router.post('/initiate', dialerController.initiateCall);
+
+// Alternative: Make call using REST API (server-side)
+router.post('/rest-api', dialerController.makeRestApiCall);
 
 // End active call
 router.post('/end', dialerController.endCall);
