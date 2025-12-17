@@ -6,6 +6,7 @@ interface RestApiDialerProps {
 
 export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [agentNumber, setAgentNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
 
@@ -17,6 +18,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
   const handleClear = () => {
     setPhoneNumber('');
+    setAgentNumber('');
     setLastCallResult(null);
   };
 
@@ -26,7 +28,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
   const handleCall = async () => {
     if (!phoneNumber) {
-      alert('Please enter a phone number');
+      alert('Please enter a customer phone number');
+      return;
+    }
+
+    if (!agentNumber) {
+      alert('Please enter your phone number to receive the call');
       return;
     }
 
@@ -40,7 +47,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
+          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+          agentNumber: agentNumber.startsWith('+') ? agentNumber : `+${agentNumber}`
         })
       });
 
@@ -84,12 +92,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       <div className="p-4">
         {/* Phone Number Display */}
         <div className="mb-4">
-          <label htmlFor="phone-input" className="block text-sm font-medium text-gray-700 mb-2">
-            Phone Number
+          <label htmlFor="customer-phone" className="block text-sm font-medium text-gray-700 mb-2">
+            Customer Phone Number
           </label>
           <div className="relative">
             <input
-              id="phone-input"
+              id="customer-phone"
               type="tel"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
@@ -106,7 +114,25 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             )}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Enter in E.164 format (e.g., +447700900123) or without + prefix
+            Customer number to call
+          </p>
+        </div>
+
+        {/* Agent Phone Number */}
+        <div className="mb-4">
+          <label htmlFor="agent-phone" className="block text-sm font-medium text-gray-700 mb-2">
+            Your Phone Number (Agent)
+          </label>
+          <input
+            id="agent-phone"
+            type="tel"
+            value={agentNumber}
+            onChange={(e) => setAgentNumber(e.target.value)}
+            placeholder="+447700123456"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-lg font-mono"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Your phone will ring first, then customer will be connected
           </p>
         </div>
 
@@ -128,7 +154,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         <div className="flex gap-2 mb-4">
           <button
             onClick={handleCall}
-            disabled={!phoneNumber || isLoading}
+            disabled={!phoneNumber || !agentNumber || isLoading}
             className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (
@@ -148,6 +174,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             onClick={handleClear}
             disabled={isLoading}
             className="px-4 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors font-medium"
+            title="Clear all fields"
           >
             Clear
           </button>
@@ -178,8 +205,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Info */}
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <span className="font-medium">How it works:</span> Server calls Twilio REST API to initiate call. 
-            Twilio calls the target number directly without requiring browser audio permissions.
+            <span className="font-medium">How it works:</span> Twilio calls your phone first, then connects the customer when you answer. 
+            Both calls will be connected in a conference for two-way conversation.
           </p>
         </div>
       </div>
