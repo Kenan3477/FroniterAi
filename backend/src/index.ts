@@ -22,7 +22,7 @@ import campaignRoutes from './routes/campaigns';
 import reportsRoutes from './routes/reports';
 import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
 // Import admin routes - RE-ENABLING CRITICAL ONES
-// import systemOverviewRoutes from './routes/systemOverview'; // Temporarily disabled due to file corruption
+import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after creating missing route file
 // Temporarily disabled due to schema conflicts
 // import userRoutes from './routes/users'; // Temporarily disabled - fixing schema issues
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
@@ -38,9 +38,8 @@ import businessSettingsRoutes from './routes/businessSettings'; // Re-enabled fo
 // import webhookRoutes from './routes/webhooks'; // Temporarily disabled - fixing schema issues
 
 // Import Kennex Flows routes
-// Temporarily disabled due to schema conflicts
-// import flowRoutes from './routes/flows';
-// import flowVersionRoutes from './routes/flowVersions';
+import flowRoutes from './routes/flows';
+import flowVersionRoutes from './routes/flowVersions';
 // import nodeTypeRoutes from './routes/nodeTypes';
 // import flowExecutionRoutes from './routes/flowExecution';
 
@@ -136,7 +135,7 @@ class App {
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     this.app.use('/api/admin/business-settings', businessSettingsRoutes); // Admin business settings management - re-enabled
     this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // Admin campaign management - re-enabled
-    // this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - temporarily disabled due to file corruption
+    this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/campaigns', campaignRoutes); // Disabled - model not in schema
@@ -144,9 +143,9 @@ class App {
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/webhooks', webhookRoutes); // Temporarily disabled - fixing schema issues
 
-    // Kennex Flows API routes - temporarily disabled
-    // this.app.use('/api/flows', flowRoutes);
-    // this.app.use('/api/flows/:flowId/versions', flowVersionRoutes);
+    // Kennex Flows API routes - re-enabled
+    this.app.use('/api/flows', flowRoutes);
+    this.app.use('/api/flows/:flowId/versions', flowVersionRoutes);
     // this.app.use('/api/flow-node-types', nodeTypeRoutes);
     // this.app.use('/api/flow-execution', flowExecutionRoutes);
 
