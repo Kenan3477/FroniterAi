@@ -6,7 +6,6 @@ import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
-import { TwilioClientDialer } from '@/components/dialer/TwilioClientDialer';
 import { RestApiDialer } from '@/components/dialer/RestApiDialer';
 import { RootState } from '@/store';
 import { 
@@ -227,32 +226,12 @@ export default function WorkPage() {
             // For My Interactions, show dialer and active call info
             <div className="flex-1 p-6 bg-gray-50">
               <div className="max-w-4xl mx-auto space-y-6">
-                {/* Dual Dialer Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* WebRTC Dialer */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                    <div className="p-4 border-b border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-semibold text-gray-900">WebRTC Dialer</h2>
-                        <span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">Browser</span>
-                      </div>
-                      <p className="text-sm text-gray-500">Browser-based calling with Twilio Voice SDK</p>
-                    </div>
-                    <div className="p-4">
-                      <TwilioClientDialer 
-                        agentId={agentId}
-                        callerIdNumber="+442046343130"
-                      />
-                    </div>
-                  </div>
-
-                  {/* REST API Dialer */}
-                  <RestApiDialer 
-                    onCallInitiated={(result) => {
-                      console.log('REST API call result:', result);
-                    }}
-                  />
-                </div>
+                {/* Dialer Section */}
+                <RestApiDialer 
+                  onCallInitiated={(result) => {
+                    console.log('REST API call result:', result);
+                  }}
+                />
 
                 {/* Customer Info Card - Only visible during active call */}
                 {activeCall.isActive && activeCall.customerInfo ? (

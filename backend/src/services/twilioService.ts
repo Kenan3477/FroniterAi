@@ -26,161 +26,12 @@ const twilioClient = hasValidCredentials
   ? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
   : null;
 
-interface CallInitiateParams {
-  to: string;
-  from: string;
-  agentId: string;
-  customerInfo?: any;
-  agentPhone?: string; // Optional: Agent's phone number if not using browser
-}
-
 interface CallEndParams {
   callSid: string;
   duration: number;
   status: string;
   disposition?: string;
 }
-
-interface ConferenceInfo {
-  conferenceSid: string;
-  conferenceName: string;
-  customerCallSid: string;
-  agentCallSid?: string;
-}
-
-/**
- * Generate Twilio Access Token for WebRTC calling
- */
-export const generateAccessToken = (agentId: string): string => {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_API_KEY || !TWILIO_API_SECRET) {
-    throw new Error('Missing Twilio credentials for token generation');
-  }
-
-  console.log('🔑 Token Generation Debug:');
-  console.log('  Account SID:', TWILIO_ACCOUNT_SID);
-  console.log('  API Key:', TWILIO_API_KEY);
-  console.log('  API Secret:', TWILIO_API_SECRET?.substring(0, 10) + '...');
-  console.log('  TwiML App SID:', process.env.TWILIO_TWIML_APP_SID);
-  console.log('  Agent ID:', agentId);
-
-  const AccessToken = twilio.jwt.AccessToken;
-  const VoiceGrant = AccessToken.VoiceGrant;
-
-  // Create an access token using the new Ireland API Key
-  const token = new AccessToken(
-    TWILIO_ACCOUNT_SID,
-    TWILIO_API_KEY,
-    TWILIO_API_SECRET,
-    { 
-      identity: agentId, 
-      ttl: 3600
-    }
-  );
-
-  // Create a Voice grant with TwiML App SID for outgoing calls
-  const voiceGrant = new VoiceGrant({
-    outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID, // Enable outgoing calls
-    incomingAllow: true, // Allow incoming calls
-  });
-
-  // Add the grant to the token
-  token.addGrant(voiceGrant);
-
-  const jwt = token.toJwt();
-  console.log('✅ Generated access token for agent:', agentId);
-  console.log('  Token length:', jwt.length);
-
-  // Serialize the token to a JWT string
-  return jwt;
-};
-
-/**
- * Initiate a call through Twilio using Conference for two-way audio
- */
-export const initiateCall = async (params: CallInitiateParams) => {
-  if (!twilioClient) {
-    throw new Error('Twilio client not initialized');
-  }
-
-  try {
-    // Create a unique conference name
-    const conferenceName = `call-${params.agentId}-${Date.now()}`;
-    
-    // Create TwiML that will add the customer to a conference room
-    // The customer will hear ringing music until agent joins
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial>
-    <Conference
-      beep="false"
-      waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical"
-      waitMethod="GET"
-      endConferenceOnExit="true"
-    >${conferenceName}</Conference>
-  </Dial>
-</Response>`;
-
-    // Initiate call to customer first
-    const call = await twilioClient.calls.create({
-      to: params.to, // Call the customer
-      from: params.from, // From your Twilio number
-      twiml: twiml, // Customer joins conference and waits
-      record: true, // Enable call recording
-      // statusCallback: `${process.env.BACKEND_URL}/api/calls/status`, // Disabled for localhost
-    });
-
-    console.log(`Customer call initiated: ${call.sid}`);
-    console.log(`Conference created: ${conferenceName}`);
-    
-    // Return conference info so agent can join
-    return {
-      callSid: call.sid,
-      conferenceName: conferenceName,
-      status: call.status,
-      direction: call.direction,
-      to: call.to,
-      from: call.from,
-    };
-  } catch (error) {
-    console.error('Error initiating call:', error);
-    throw error;
-  }
-};
-
-/**
- * Join agent to conference (for browser-based calling)
- * Agent will use their browser/WebRTC to join the conference
- */
-export const joinConference = async (conferenceName: string, agentId: string) => {
-  if (!twilioClient) {
-    throw new Error('Twilio client not initialized');
-  }
-
-  try {
-    // Generate TwiML to join the conference
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial>
-    <Conference
-      beep="false"
-      startConferenceOnEnter="true"
-      endConferenceOnExit="true"
-    >${conferenceName}</Conference>
-  </Dial>
-</Response>`;
-
-    console.log(`Agent ${agentId} joining conference: ${conferenceName}`);
-    
-    return {
-      conferenceName,
-      twiml,
-      message: 'Agent can join conference via WebRTC'
-    };
-  } catch (error) {
-    console.error('Error joining conference:', error);
-    throw error;
-  }
-};
 
 /**
  * End an active call
@@ -384,8 +235,6 @@ export const updateCallMetadata = async (callSid: string, metadata: any) => {
 };
 
 export default {
-  generateAccessToken,
-  initiateCall,
   endCall,
   getCallDetails,
   sendDTMF,

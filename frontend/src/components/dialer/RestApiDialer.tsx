@@ -77,10 +77,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold text-gray-900">REST API Dialer</h3>
-          <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Server-side</span>
+          <h3 className="text-lg font-semibold text-gray-900">Phone Dialer</h3>
+          <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Twilio REST API</span>
         </div>
-        <p className="text-sm text-gray-600">Alternative calling method using Twilio REST API</p>
+        <p className="text-sm text-gray-600">Make outbound calls to customers</p>
       </div>
 
       <div className="p-4">
@@ -181,8 +181,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Info */}
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <span className="font-medium">REST API Calling:</span> This method calls the customer directly using Twilio's REST API. 
-            You'll hear the call through your browser when they answer.
+            <span className="font-medium">How it works:</span> Enter a phone number and click Call. 
+            You'll hear the call through your browser when the customer answers.
           </p>
         </div>
       </div>

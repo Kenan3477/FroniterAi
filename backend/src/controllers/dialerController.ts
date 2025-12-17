@@ -9,14 +9,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Validation schemas
-const initiateCallSchema = z.object({
-  to: z.string().min(10, 'Valid phone number required'),
-  from: z.string().min(10, 'Valid caller ID required').optional(),
-  agentId: z.string().min(1, 'Agent ID required'),
-  customerInfo: z.any().optional(),
-});
-
+// Validation schemas  
 const endCallSchema = z.object({
   callSid: z.string().min(1, 'Call SID required'),
   duration: z.number().min(0),
@@ -29,87 +22,6 @@ const dtmfSchema = z.object({
   callSid: z.string().min(1, 'Call SID required'),
   digits: z.string().min(1, 'DTMF digits required'),
 });
-
-/**
- * POST /api/calls/token
- * Generate Twilio access token for WebRTC calling
- */
-export const generateToken = async (req: Request, res: Response) => {
-  try {
-    const { agentId } = req.body;
-
-    if (!agentId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Agent ID is required',
-      });
-    }
-
-    const token = twilioService.generateAccessToken(agentId);
-
-    res.json({
-      success: true,
-      data: {
-        token,
-        identity: agentId,
-      },
-    });
-  } catch (error: any) {
-    console.error('Error generating token:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to generate access token',
-    });
-  }
-};
-
-/**
- * POST /api/calls/initiate
- * Initiate an outbound call through Twilio
- */
-export const initiateCall = async (req: Request, res: Response) => {
-  try {
-    const validatedData = initiateCallSchema.parse(req.body);
-
-    // Use provided 'from' number or default to TWILIO_PHONE_NUMBER from env
-    const fromNumber = validatedData.from || process.env.TWILIO_PHONE_NUMBER;
-    
-    if (!fromNumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'No "from" phone number provided or configured',
-      });
-    }
-
-    // Initiate the call through Twilio
-    const call = await twilioService.initiateCall({
-      ...validatedData,
-      from: fromNumber,
-    });
-
-    // Optionally: Save call record to database
-    // await prisma.interaction.create({...});
-
-    res.json({
-      success: true,
-      message: 'Call initiated successfully',
-      data: call,
-    });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: error.errors,
-      });
-    }
-    console.error('Error initiating call:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to initiate call',
-    });
-  }
-};
 
 /**
  * POST /api/calls/end
@@ -291,70 +203,6 @@ export const generateTwiML = async (req: Request, res: Response) => {
     res.send(twiml);
   } catch (error) {
     console.error('❌ Error generating TwiML:', error);
-    res.type('text/xml');
-    res.send('<Response><Say>An error occurred</Say></Response>');
-  }
-};
-
-/**
- * GET/POST /api/calls/twiml-agent
- * Generate TwiML for agent to join conference
- */
-export const generateAgentTwiML = async (req: Request, res: Response) => {
-  try {
-    const conference = req.query.conference || req.body.conference;
-    
-    console.log('📞 Agent TwiML request for conference:', conference);
-
-    if (!conference) {
-      return res.type('text/xml').send('<Response><Say>Missing conference name</Say></Response>');
-    }
-
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">Connecting you to the customer. Please hold.</Say>
-  <Dial>
-    <Conference statusCallbackEvent="start end join leave" statusCallback="${process.env.BACKEND_URL}/api/calls/conference-status">${conference}</Conference>
-  </Dial>
-</Response>`;
-
-    console.log('✅ Agent TwiML generated');
-    res.type('text/xml');
-    res.send(twiml);
-  } catch (error) {
-    console.error('❌ Error generating agent TwiML:', error);
-    res.type('text/xml');
-    res.send('<Response><Say>An error occurred</Say></Response>');
-  }
-};
-
-/**
- * GET/POST /api/calls/twiml-customer  
- * Generate TwiML for customer to join conference
- */
-export const generateCustomerTwiML = async (req: Request, res: Response) => {
-  try {
-    const conference = req.query.conference || req.body.conference;
-    
-    console.log('📞 Customer TwiML request for conference:', conference);
-
-    if (!conference) {
-      return res.type('text/xml').send('<Response><Say>Missing conference name</Say></Response>');
-    }
-
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">Please hold while we connect you.</Say>
-  <Dial>
-    <Conference startConferenceOnEnter="false" endConferenceOnExit="true">${conference}</Conference>
-  </Dial>
-</Response>`;
-
-    console.log('✅ Customer TwiML generated');
-    res.type('text/xml');
-    res.send(twiml);
-  } catch (error) {
-    console.error('❌ Error generating customer TwiML:', error);
     res.type('text/xml');
     res.send('<Response><Say>An error occurred</Say></Response>');
   }

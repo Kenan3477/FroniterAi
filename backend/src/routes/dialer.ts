@@ -7,13 +7,7 @@ import * as dialerController from '../controllers/dialerController';
 
 const router = express.Router();
 
-// Generate Twilio access token
-router.post('/token', dialerController.generateToken);
-
-// Initiate outbound call (WebRTC via browser)
-router.post('/initiate', dialerController.initiateCall);
-
-// Alternative: Make call using REST API (server-side)
+// Make call using REST API
 router.post('/rest-api', dialerController.makeRestApiCall);
 
 // End active call
@@ -23,12 +17,6 @@ router.post('/end', dialerController.endCall);
 // MUST be before /:callSid route to avoid being caught by wildcard
 router.get('/twiml', dialerController.generateTwiML);
 router.post('/twiml', dialerController.generateTwiML);
-
-// Conference TwiML endpoints
-router.get('/twiml-agent', dialerController.generateAgentTwiML);
-router.post('/twiml-agent', dialerController.generateAgentTwiML);
-router.get('/twiml-customer', dialerController.generateCustomerTwiML);
-router.post('/twiml-customer', dialerController.generateCustomerTwiML);
 
 // Get call details (with wildcard parameter - must come AFTER specific routes)
 router.get('/:callSid', dialerController.getCallDetails);
