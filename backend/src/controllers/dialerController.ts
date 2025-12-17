@@ -418,21 +418,14 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to, agentNumber } = req.body;
+    const { to } = req.body;
     
-    console.log('📞 Making REST API call:', { to, agentNumber });
+    console.log('📞 Making REST API call:', { to });
 
     if (!to) {
       return res.status(400).json({
         success: false,
         error: 'Customer phone number (to) is required'
-      });
-    }
-
-    if (!agentNumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'Agent phone number (agentNumber) is required'
       });
     }
 
@@ -444,33 +437,21 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // Make the call using Twilio REST API with conference support
+    // Make a direct call to customer - agent will hear the call in browser
     const callResult = await twilioService.createRestApiCall({
       to,
       from: fromNumber,
-      url: twimlUrl,
-      agentNumber
+      url: twimlUrl
     });
 
     console.log('✅ Call initiated via REST API:', callResult.sid);
 
-    // Handle both direct calls and conference calls
-    const response = {
+    res.json({
       success: true,
       callSid: callResult.sid,
       status: callResult.status,
       message: 'Call initiated successfully'
-    };
-
-    // Add conference-specific fields if available
-    if ('agentCallSid' in callResult) {
-      (response as any).agentCallSid = callResult.agentCallSid;
-    }
-    if ('conferenceName' in callResult) {
-      (response as any).conferenceName = callResult.conferenceName;
-    }
-
-    res.json(response);
+    });
 
   } catch (error: any) {
     console.error('❌ Error making REST API call:', error);

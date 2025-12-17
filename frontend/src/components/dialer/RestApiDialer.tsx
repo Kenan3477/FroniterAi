@@ -6,9 +6,9 @@ interface RestApiDialerProps {
 
 export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [agentNumber, setAgentNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
+  const [currentCall, setCurrentCall] = useState<any>(null);
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 15) { // Reasonable limit for international numbers
@@ -18,8 +18,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
   const handleClear = () => {
     setPhoneNumber('');
-    setAgentNumber('');
     setLastCallResult(null);
+    setCurrentCall(null);
   };
 
   const handleBackspace = () => {
@@ -29,11 +29,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const handleCall = async () => {
     if (!phoneNumber) {
       alert('Please enter a customer phone number');
-      return;
-    }
-
-    if (!agentNumber) {
-      alert('Please enter your phone number to receive the call');
       return;
     }
 
@@ -48,7 +43,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         },
         body: JSON.stringify({
           to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
-          agentNumber: agentNumber.startsWith('+') ? agentNumber : `+${agentNumber}`
         })
       });
 
@@ -118,24 +112,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           </p>
         </div>
 
-        {/* Agent Phone Number */}
-        <div className="mb-4">
-          <label htmlFor="agent-phone" className="block text-sm font-medium text-gray-700 mb-2">
-            Your Phone Number (Agent)
-          </label>
-          <input
-            id="agent-phone"
-            type="tel"
-            value={agentNumber}
-            onChange={(e) => setAgentNumber(e.target.value)}
-            placeholder="+447700123456"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-lg font-mono"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Your phone will ring first, then customer will be connected
-          </p>
-        </div>
-
         {/* Dial Pad */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           {dialPadNumbers.flat().map((number) => (
@@ -154,7 +130,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         <div className="flex gap-2 mb-4">
           <button
             onClick={handleCall}
-            disabled={!phoneNumber || !agentNumber || isLoading}
+            disabled={!phoneNumber || isLoading}
             className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (
@@ -205,8 +181,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Info */}
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <span className="font-medium">How it works:</span> Twilio calls your phone first, then connects the customer when you answer. 
-            Both calls will be connected in a conference for two-way conversation.
+            <span className="font-medium">REST API Calling:</span> This method calls the customer directly using Twilio's REST API. 
+            You'll hear the call through your browser when they answer.
           </p>
         </div>
       </div>
