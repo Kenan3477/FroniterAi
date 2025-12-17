@@ -7,6 +7,7 @@ import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
 import { TwilioClientDialer } from '@/components/dialer/TwilioClientDialer';
+import { RestApiDialer } from '@/components/dialer/RestApiDialer';
 import { RootState } from '@/store';
 import { 
   MagnifyingGlassIcon,
@@ -188,34 +189,6 @@ export default function WorkPage() {
     console.log('Update field:', field, value);
   };
 
-  // Handler for REST API call test
-  const handleRestApiCall = async () => {
-    try {
-      const response = await fetch('/api/calls/rest-api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: '+447929717470' // Test number
-        })
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ REST API call initiated:', result);
-        alert(`Call initiated successfully! Call SID: ${result.callSid}`);
-      } else {
-        console.error('❌ REST API call failed:', result);
-        alert(`Call failed: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('❌ Error making REST API call:', error);
-      alert('Error making call. Check console for details.');
-    }
-  };
-
   const getCurrentData = () => {
     switch (selectedView) {
       case 'My Interactions':
@@ -254,35 +227,31 @@ export default function WorkPage() {
             // For My Interactions, show dialer and active call info
             <div className="flex-1 p-6 bg-gray-50">
               <div className="max-w-4xl mx-auto space-y-6">
-                {/* Integrated Dialer - Always visible for manual dialing */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">Manual Dialer</h2>
-                    <p className="text-sm text-gray-500 mt-1">Dial a number to start an interaction</p>
-                  </div>
-                  <div className="p-4">
-                    <TwilioClientDialer 
-                      agentId={agentId}
-                      callerIdNumber="+442046343130"
-                    />
-                    
-                    {/* REST API Call Test Button */}
-                    <div className="mt-4 pt-4 border-t border-gray-200">
+                {/* Dual Dialer Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* WebRTC Dialer */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div className="p-4 border-b border-gray-200">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-700">Alternative Call Method</h3>
-                        <span className="text-xs text-gray-500">REST API</span>
+                        <h2 className="text-lg font-semibold text-gray-900">WebRTC Dialer</h2>
+                        <span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">Browser</span>
                       </div>
-                      <button 
-                        onClick={handleRestApiCall}
-                        className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        🔄 Test REST API Call (+447929717470)
-                      </button>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Uses server-side Twilio REST API instead of browser WebRTC
-                      </p>
+                      <p className="text-sm text-gray-500">Browser-based calling with Twilio Voice SDK</p>
+                    </div>
+                    <div className="p-4">
+                      <TwilioClientDialer 
+                        agentId={agentId}
+                        callerIdNumber="+442046343130"
+                      />
                     </div>
                   </div>
+
+                  {/* REST API Dialer */}
+                  <RestApiDialer 
+                    onCallInitiated={(result) => {
+                      console.log('REST API call result:', result);
+                    }}
+                  />
                 </div>
 
                 {/* Customer Info Card - Only visible during active call */}

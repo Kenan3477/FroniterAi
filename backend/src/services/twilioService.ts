@@ -261,36 +261,73 @@ export const sendDTMF = async (callSid: string, digits: string) => {
 };
 
 /**
- * Create a call using Twilio REST API
- * Alternative to WebRTC approach - Twilio makes the call server-side
+ * Create a call using Twilio REST API with conference
+ * This creates a conference and connects both agent and customer
  */
 export const createRestApiCall = async (params: {
   to: string;
   from: string;
   url: string;
+  agentNumber?: string;
 }) => {
-  const { to, from, url } = params;
+  const { to, from, url, agentNumber } = params;
   
   if (!twilioClient) {
     throw new Error('Twilio client not initialized - check credentials');
   }
   
-  console.log('📞 Creating call via REST API:', { to, from, url });
+  console.log('📞 Creating REST API call with conference:', { to, from, url, agentNumber });
 
-  const call = await twilioClient.calls.create({
-    to,
+  // If no agent number provided, just dial customer directly (original behavior)
+  if (!agentNumber) {
+    const call = await twilioClient.calls.create({
+      to,
+      from,
+      url,
+      method: 'POST'
+    });
+
+    console.log('✅ Direct call created via REST API:', { 
+      sid: call.sid, 
+      status: call.status,
+      direction: call.direction
+    });
+
+    return call;
+  }
+
+  // Conference-based approach: Call both agent and customer
+  const conferenceName = `call-${Date.now()}`;
+  
+  // First, call the agent
+  const agentCall = await twilioClient.calls.create({
+    to: agentNumber,
     from,
-    url, // TwiML webhook URL
+    url: `${process.env.BACKEND_URL}/api/calls/twiml-agent?conference=${conferenceName}`,
     method: 'POST'
   });
 
-  console.log('✅ Call created via REST API:', { 
-    sid: call.sid, 
-    status: call.status,
-    direction: call.direction
+  // Then call the customer
+  const customerCall = await twilioClient.calls.create({
+    to,
+    from,
+    url: `${process.env.BACKEND_URL}/api/calls/twiml-customer?conference=${conferenceName}`,
+    method: 'POST'
   });
 
-  return call;
+  console.log('✅ Conference calls created:', { 
+    agentCall: agentCall.sid,
+    customerCall: customerCall.sid,
+    conference: conferenceName
+  });
+
+  return {
+    sid: customerCall.sid, // Return customer call as primary
+    status: customerCall.status,
+    direction: customerCall.direction,
+    agentCallSid: agentCall.sid,
+    conferenceName
+  };
 };
 
 /**

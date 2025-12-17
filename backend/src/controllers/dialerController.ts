@@ -297,6 +297,70 @@ export const generateTwiML = async (req: Request, res: Response) => {
 };
 
 /**
+ * GET/POST /api/calls/twiml-agent
+ * Generate TwiML for agent to join conference
+ */
+export const generateAgentTwiML = async (req: Request, res: Response) => {
+  try {
+    const conference = req.query.conference || req.body.conference;
+    
+    console.log('📞 Agent TwiML request for conference:', conference);
+
+    if (!conference) {
+      return res.type('text/xml').send('<Response><Say>Missing conference name</Say></Response>');
+    }
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Connecting you to the customer. Please hold.</Say>
+  <Dial>
+    <Conference statusCallbackEvent="start end join leave" statusCallback="${process.env.BACKEND_URL}/api/calls/conference-status">${conference}</Conference>
+  </Dial>
+</Response>`;
+
+    console.log('✅ Agent TwiML generated');
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating agent TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>An error occurred</Say></Response>');
+  }
+};
+
+/**
+ * GET/POST /api/calls/twiml-customer  
+ * Generate TwiML for customer to join conference
+ */
+export const generateCustomerTwiML = async (req: Request, res: Response) => {
+  try {
+    const conference = req.query.conference || req.body.conference;
+    
+    console.log('📞 Customer TwiML request for conference:', conference);
+
+    if (!conference) {
+      return res.type('text/xml').send('<Response><Say>Missing conference name</Say></Response>');
+    }
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Please hold while we connect you.</Say>
+  <Dial>
+    <Conference startConferenceOnEnter="false" endConferenceOnExit="true">${conference}</Conference>
+  </Dial>
+</Response>`;
+
+    console.log('✅ Customer TwiML generated');
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating customer TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>An error occurred</Say></Response>');
+  }
+};
+
+/**
  * POST /api/calls/status
  * Handle Twilio status callbacks
  */
