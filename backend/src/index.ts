@@ -48,7 +48,7 @@ import flowVersionRoutes from './routes/flowVersions';
 // import diallerAgentRoutes from './routes/diallerAgents'; // Disabled - missing services
 // import diallerCampaignRoutes from './routes/diallerCampaigns'; // Disabled - schema issues  
 // import diallerCallRoutes from './routes/diallerCalls'; // Disabled - missing services
-// import kpiRoutes from './routes/kpi'; // Temporarily disabled - fixing schema issues
+import kpiRoutes from './routes/kpi'; // Re-enabled with basic implementation
 import dialerRoutes from './routes/dialer'; // NEW: Twilio dialer routes
 import dialQueueRoutes from './routes/dialQueue'; // NEW: Dial queue system
 
@@ -155,7 +155,7 @@ class App {
     // this.app.use('/api/dialler/agents', diallerAgentRoutes); // Disabled - missing services
     // this.app.use('/api/dialler/campaigns', diallerCampaignRoutes); // Disabled - schema issues
     // this.app.use('/api/dialler/calls', diallerCallRoutes); // Disabled - missing services
-    // this.app.use('/api/kpi', kpiRoutes); // Temporarily disabled - fixing schema issues
+    this.app.use('/api/kpi', kpiRoutes); // Re-enabled with basic implementation
     
     // NEW: Twilio Dialer API routes
     this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system
