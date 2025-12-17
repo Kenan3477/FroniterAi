@@ -34,6 +34,36 @@ interface CallEndParams {
 }
 
 /**
+ * Generate Twilio Access Token for browser audio
+ */
+export const generateAccessToken = (agentId: string): string => {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_API_KEY || !TWILIO_API_SECRET) {
+    throw new Error('Missing Twilio credentials for token generation');
+  }
+
+  const AccessToken = twilio.jwt.AccessToken;
+  const VoiceGrant = AccessToken.VoiceGrant;
+
+  const token = new AccessToken(
+    TWILIO_ACCOUNT_SID,
+    TWILIO_API_KEY,
+    TWILIO_API_SECRET,
+    { 
+      identity: agentId, 
+      ttl: 3600
+    }
+  );
+
+  const voiceGrant = new VoiceGrant({
+    outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID,
+    incomingAllow: true,
+  });
+
+  token.addGrant(voiceGrant);
+  return token.toJwt();
+};
+
+/**
  * End an active call
  */
 export const endCall = async (callSid: string) => {
@@ -187,10 +217,9 @@ export const createRestApiCall = async (params: {
 export const generateCallTwiML = (to: string, from: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  // Dial the number - simplified without recording for now
+  // Just dial the customer directly
   const dial = twiml.dial({
     callerId: from,
-    // Removed recording options to avoid callback issues during initial testing
   });
   
   dial.number(to);
@@ -235,6 +264,7 @@ export const updateCallMetadata = async (callSid: string, metadata: any) => {
 };
 
 export default {
+  generateAccessToken,
   endCall,
   getCallDetails,
   sendDTMF,

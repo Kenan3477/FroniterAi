@@ -7,6 +7,9 @@ import * as dialerController from '../controllers/dialerController';
 
 const router = express.Router();
 
+// Generate Twilio access token for browser audio
+router.post('/token', dialerController.generateToken);
+
 // Make call using REST API
 router.post('/rest-api', dialerController.makeRestApiCall);
 

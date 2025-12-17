@@ -24,6 +24,39 @@ const dtmfSchema = z.object({
 });
 
 /**
+ * POST /api/calls/token
+ * Generate Twilio access token for browser audio
+ */
+export const generateToken = async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.body;
+
+    if (!agentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Agent ID is required',
+      });
+    }
+
+    const token = twilioService.generateAccessToken(agentId);
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        identity: agentId,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error generating token:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate access token',
+    });
+  }
+};
+
+/**
  * POST /api/calls/end
  * End an active call
  */
