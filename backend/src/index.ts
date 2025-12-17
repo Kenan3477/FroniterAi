@@ -20,6 +20,7 @@ import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';
 import campaignRoutes from './routes/campaigns';
 import reportsRoutes from './routes/reports';
+import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
 // Import admin routes - RE-ENABLING CRITICAL ONES
 // import systemOverviewRoutes from './routes/systemOverview'; // Temporarily disabled due to file corruption
 // Temporarily disabled due to schema conflicts
@@ -48,6 +49,7 @@ import reportsRoutes from './routes/reports';
 // import diallerCallRoutes from './routes/diallerCalls'; // Disabled - missing services
 // import kpiRoutes from './routes/kpi'; // Temporarily disabled - fixing schema issues
 import dialerRoutes from './routes/dialer'; // NEW: Twilio dialer routes
+import dialQueueRoutes from './routes/dialQueue'; // NEW: Dial queue system
 
 // Import socket handlers
 // import { initializeSocket } from './socket'; // Temporarily disabled due to campaignService dependency
@@ -127,6 +129,7 @@ class App {
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
     this.app.use('/api/campaigns', campaignRoutes); // Campaign management
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
+    this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
     // this.app.use('/api/admin/users', userRoutes); // Admin user management - temporarily disabled
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
@@ -154,6 +157,7 @@ class App {
     
     // NEW: Twilio Dialer API routes
     this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system
+    this.app.use('/api/dial-queue', dialQueueRoutes); // Dial queue system for auto-dialer
 
     // API documentation
     this.app.get('/api', (req, res) => {
