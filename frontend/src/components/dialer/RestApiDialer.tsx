@@ -13,6 +13,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [isDeviceReady, setIsDeviceReady] = useState(false);
   const deviceRef = useRef<Device | null>(null);
 
+  // Debug logging for device ready state
+  useEffect(() => {
+    console.log('🔍 Device ready state changed:', isDeviceReady);
+  }, [isDeviceReady]);
+
   // Initialize Twilio Device for browser audio (to receive calls from REST API)
   useEffect(() => {
     const initializeDevice = async () => {
@@ -40,6 +45,13 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         // Set up event listeners
         twilioDevice.on('ready', () => {
           console.log('✅ WebRTC Device ready for incoming calls');
+          console.log('🔄 Setting device ready state to true');
+          setIsDeviceReady(true);
+        });
+
+        twilioDevice.on('registered', () => {
+          console.log('✅ WebRTC Device registered and ready for calls');
+          console.log('🔄 Setting device ready state to true (via registered event)');
           setIsDeviceReady(true);
         });
 
@@ -53,6 +65,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           call.accept(); // Auto-accept incoming calls from REST API
         });
 
+        console.log('🔧 About to register Twilio device...');
         await twilioDevice.register();
         setDevice(twilioDevice);
         deviceRef.current = twilioDevice;
@@ -99,12 +112,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       console.log('📞 Making REST API call to:', phoneNumber);
       
       // Make REST API call through backend - SIMPLE DIRECT CALLING
-      const response = await fetch('/api/calls/rest-api', {
+      const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
-          agentId: 'agent-' + Date.now()
+          campaignId: 1,
+          contactNumber: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
         })
       });
       

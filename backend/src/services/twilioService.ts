@@ -37,6 +37,14 @@ interface CallEndParams {
  * Generate Twilio Access Token for browser audio
  */
 export const generateAccessToken = (agentId: string): string => {
+  console.log('🔑 Generating access token for agent:', agentId);
+  console.log('🔧 Twilio credentials check:', {
+    accountSid: !!TWILIO_ACCOUNT_SID,
+    apiKey: !!TWILIO_API_KEY,
+    apiSecret: !!TWILIO_API_SECRET,
+    twimlAppSid: !!process.env.TWILIO_TWIML_APP_SID,
+  });
+
   if (!TWILIO_ACCOUNT_SID || !TWILIO_API_KEY || !TWILIO_API_SECRET) {
     throw new Error('Missing Twilio credentials for token generation');
   }
@@ -44,6 +52,7 @@ export const generateAccessToken = (agentId: string): string => {
   const AccessToken = twilio.jwt.AccessToken;
   const VoiceGrant = AccessToken.VoiceGrant;
 
+  console.log('🎯 Creating access token with identity:', agentId);
   const token = new AccessToken(
     TWILIO_ACCOUNT_SID,
     TWILIO_API_KEY,
@@ -60,7 +69,9 @@ export const generateAccessToken = (agentId: string): string => {
   });
 
   token.addGrant(voiceGrant);
-  return token.toJwt();
+  const jwt = token.toJwt();
+  console.log('✅ Token generated successfully, length:', jwt.length);
+  return jwt;
 };
 
 /**

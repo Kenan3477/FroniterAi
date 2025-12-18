@@ -33,15 +33,18 @@ const dtmfSchema = z.object({
  */
 export const generateToken = async (req: Request, res: Response) => {
   try {
+    console.log('🔗 Token request received:', req.body);
     const { agentId } = req.body;
 
     if (!agentId) {
+      console.error('❌ Missing agentId in request:', req.body);
       return res.status(400).json({
         success: false,
         error: 'Agent ID is required',
       });
     }
 
+    console.log('📱 Generating token for agent:', agentId);
     const token = twilioService.generateAccessToken(agentId);
 
     res.json({

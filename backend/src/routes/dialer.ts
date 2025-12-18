@@ -13,6 +13,9 @@ router.post('/token', dialerController.generateToken);
 // Make call using REST API
 router.post('/rest-api', dialerController.makeRestApiCall);
 
+// Make call using REST API (alternative endpoint for campaign-based calling)
+router.post('/call-rest-api', dialerController.makeRestApiCall);
+
 // End active call
 router.post('/end', dialerController.endCall);
 
