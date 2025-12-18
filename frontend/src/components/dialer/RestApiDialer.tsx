@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Device } from '@twilio/voice-sdk';
+import React, { useState } from 'react';
 
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
@@ -9,70 +8,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
-  const [currentCall, setCurrentCall] = useState<any>(null);
-  const [device, setDevice] = useState<Device | null>(null);
-  const [isDeviceReady, setIsDeviceReady] = useState(false);
-  const deviceRef = useRef<Device | null>(null);
-
-  // Initialize Twilio Device for browser audio
-  useEffect(() => {
-    const initializeDevice = async () => {
-      try {
-        // Get access token from backend
-        const tokenResponse = await fetch('/api/calls/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentId: 'agent-' + Date.now() })
-        });
-        
-        if (!tokenResponse.ok) {
-          throw new Error('Failed to get access token');
-        }
-
-        const { data } = await tokenResponse.json();
-        
-        // Initialize Twilio Device
-        const twilioDevice = new Device(data.token, {
-          logLevel: 'debug',
-        });
-
-        // Set up event listeners
-        twilioDevice.on('ready', () => {
-          console.log('✅ Twilio Device ready for calls');
-          setIsDeviceReady(true);
-        });
-
-        twilioDevice.on('error', (error) => {
-          console.error('❌ Twilio Device error:', error);
-          setIsDeviceReady(false);
-        });
-
-        twilioDevice.on('incoming', (call) => {
-          console.log('📞 Incoming call received');
-          setCurrentCall(call);
-        });
-
-        await twilioDevice.register();
-        setDevice(twilioDevice);
-        deviceRef.current = twilioDevice;
-        
-      } catch (error) {
-        console.error('❌ Failed to initialize Twilio Device:', error);
-        setLastCallResult({ 
-          success: false, 
-          error: 'Failed to initialize voice connection' 
-        });
-      }
-    };
-
-    initializeDevice();
-
-    return () => {
-      if (deviceRef.current) {
-        deviceRef.current.destroy();
-      }
-    };
-  }, []);
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 15) { // Reasonable limit for international numbers
@@ -83,7 +18,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const handleClear = () => {
     setPhoneNumber('');
     setLastCallResult(null);
-    setCurrentCall(null);
   };
 
   const handleBackspace = () => {
@@ -96,8 +30,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       return;
     }
 
-    if (!device || !isDeviceReady) {
-      alert('Voice connection not ready. Please wait...');
+    // Get agent number for testing - in production this should come from user profile
+    const agentNumber = prompt('Enter your phone number to receive the call (for testing):', '+44'); // You can change this default
+    
+    if (!agentNumber) {
+      alert('Agent phone number is required for conference calling');
       return;
     }
 
@@ -105,55 +42,54 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     setLastCallResult(null);
 
     try {
-      // Make call using Twilio Device (WebRTC)
-      const call = await device.connect({
-        params: {
-          To: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
-        }
-      });
-
-      setCurrentCall(call);
+      console.log('📞 Making REST API call to:', phoneNumber, 'with agent:', agentNumber);
       
-      const result = {
-        success: true,
-        callSid: call.parameters.CallSid,
-        status: 'ringing',
-        method: 'WebRTC'
-      };
-
-      setLastCallResult(result);
-      onCallInitiated?.(result);
-      
-      console.log('✅ Call initiated via WebRTC:', result);
-      
-      // Set up call event listeners
-      call.on('accept', () => {
-        console.log('📞 Call accepted');
-        setLastCallResult((prev: any) => ({ ...prev, status: 'connected' }));
+      // Make REST API call through backend with agent number for conference
+      const response = await fetch('/api/calls/rest-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+          agentNumber: agentNumber,
+          agentId: 'agent-' + Date.now()
+        })
       });
       
-      call.on('disconnect', () => {
-        console.log('📞 Call ended');
-        setCurrentCall(null);
-        setIsLoading(false);
-      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setLastCallResult({
+          success: true,
+          callSid: result.callSid,
+          status: result.status,
+          method: 'REST API',
+          message: result.message
+        });
+        onCallInitiated?.(result);
+        console.log('✅ REST API call initiated:', result);
+      } else {
+        throw new Error(result.error || 'Failed to make call');
+      }
       
     } catch (error: any) {
-      console.error('❌ Error making WebRTC call:', error);
+      console.error('❌ Error making REST API call:', error);
       setLastCallResult({ 
         success: false, 
         error: error.message || 'Failed to make call'
       });
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleHangup = () => {
-    if (currentCall) {
-      currentCall.disconnect();
-      setCurrentCall(null);
-      setIsLoading(false);
-    }
+    // For REST API calls, we can't directly hang up from frontend
+    // This would need to be implemented through the backend
+    console.log('📞 Hangup requested - REST API calls managed by backend');
+    setLastCallResult({
+      success: true,
+      message: 'Call hangup requested. Contact your administrator to end active calls.'
+    });
   };
 
   const dialPadNumbers = [
@@ -216,54 +152,34 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           ))}
         </div>
 
-        {/* Device Status */}
-        {!isDeviceReady && (
-          <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-xs text-yellow-800">
-              🔄 Connecting to voice server...
-            </p>
-          </div>
-        )}
-
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
-          {!currentCall ? (
-            <>
-              <button
-                onClick={handleCall}
-                disabled={!phoneNumber || isLoading || !isDeviceReady}
-                className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Calling...
-                  </span>
-                ) : (
-                  '📞 Call'
-                )}
-              </button>
-              
-              <button
-                onClick={handleClear}
-                disabled={isLoading}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors font-medium"
-                title="Clear all fields"
-              >
-                Clear
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleHangup}
-              className="flex-1 bg-red-600 text-white px-4 py-3 rounded-md hover:bg-red-700 transition-colors font-medium"
-            >
-              🔴 Hang Up
-            </button>
-          )}
+          <button
+            onClick={handleCall}
+            disabled={!phoneNumber || isLoading}
+            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Making Call...
+              </span>
+            ) : (
+              '📞 Call Customer'
+            )}
+          </button>
+          
+          <button
+            onClick={handleClear}
+            disabled={isLoading}
+            className="px-4 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors font-medium"
+            title="Clear all fields"
+          >
+            Clear
+          </button>
         </div>
 
         {/* Call Result */}
@@ -291,8 +207,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Info */}
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <span className="font-medium">How it works:</span> Your browser connects to our voice server, then calls the customer. 
-            You'll hear the call through your browser when they answer.
+            <span className="font-medium">How it works:</span> The system calls the customer through our servers and connects them to an available agent. 
+            Calls are handled server-side without requiring browser audio permissions.
           </p>
         </div>
       </div>
