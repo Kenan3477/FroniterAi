@@ -292,6 +292,12 @@ export const generateCustomerTwiML = async (req: Request, res: Response) => {
     res.send('<Response><Say>Customer connection error</Say></Response>');
   }
 };
+
+/**
+ * POST /api/calls/status
+ * Handle Twilio status callbacks
+ */
+export const handleStatusCallback = async (req: Request, res: Response) => {
   try {
     const {
       CallSid,
