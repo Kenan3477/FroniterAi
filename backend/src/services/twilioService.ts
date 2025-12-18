@@ -228,11 +228,11 @@ export const createRestApiCall = async (params: {
 export const generateAgentDialTwiML = (customerNumber: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  twiml.say('Calling customer now. Please wait.');
-  
-  // Dial the customer number
+  // Immediately dial the customer number without any delays
   const dial = twiml.dial({
     callerId: process.env.TWILIO_PHONE_NUMBER,
+    timeout: 30, // 30 seconds timeout
+    record: 'record-from-answer', // Start recording when call is answered
   });
   
   dial.number(customerNumber);
