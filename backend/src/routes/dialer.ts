@@ -21,6 +21,10 @@ router.post('/end', dialerController.endCall);
 router.get('/twiml', dialerController.generateTwiML);
 router.post('/twiml', dialerController.generateTwiML);
 
+// Agent dial TwiML - for WebRTC agent to dial customer
+router.get('/twiml-agent-dial', dialerController.generateAgentDialTwiML);
+router.post('/twiml-agent-dial', dialerController.generateAgentDialTwiML);
+
 // Conference TwiML endpoints for agent-customer calls
 router.get('/twiml-agent', dialerController.generateAgentTwiML);
 router.post('/twiml-agent', dialerController.generateAgentTwiML);

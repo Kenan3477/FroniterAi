@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Device } from '@twilio/voice-sdk';
 
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
@@ -8,6 +9,67 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
+  const [device, setDevice] = useState<Device | null>(null);
+  const [isDeviceReady, setIsDeviceReady] = useState(false);
+  const deviceRef = useRef<Device | null>(null);
+
+  // Initialize Twilio Device for browser audio (to receive calls from REST API)
+  useEffect(() => {
+    const initializeDevice = async () => {
+      try {
+        console.log('🔄 Initializing WebRTC device for incoming calls...');
+        
+        // Get access token from backend
+        const tokenResponse = await fetch('/api/calls/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId: 'agent-browser' })
+        });
+        
+        if (!tokenResponse.ok) {
+          throw new Error('Failed to get access token');
+        }
+
+        const { data } = await tokenResponse.json();
+        
+        // Initialize Twilio Device for incoming calls
+        const twilioDevice = new Device(data.token, {
+          logLevel: 'debug',
+        });
+
+        // Set up event listeners
+        twilioDevice.on('ready', () => {
+          console.log('✅ WebRTC Device ready for incoming calls');
+          setIsDeviceReady(true);
+        });
+
+        twilioDevice.on('error', (error) => {
+          console.error('❌ WebRTC Device error:', error);
+          setIsDeviceReady(false);
+        });
+
+        twilioDevice.on('incoming', (call) => {
+          console.log('📞 Incoming call from REST API - auto accepting');
+          call.accept(); // Auto-accept incoming calls from REST API
+        });
+
+        await twilioDevice.register();
+        setDevice(twilioDevice);
+        deviceRef.current = twilioDevice;
+        
+      } catch (error) {
+        console.error('❌ Failed to initialize WebRTC Device:', error);
+      }
+    };
+
+    initializeDevice();
+
+    return () => {
+      if (deviceRef.current) {
+        deviceRef.current.destroy();
+      }
+    };
+  }, []);
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 15) { // Reasonable limit for international numbers
@@ -143,11 +205,28 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           ))}
         </div>
 
+        {/* WebRTC Status */}
+        {!isDeviceReady && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-xs text-blue-800">
+              🔄 Initializing browser audio for calls...
+            </p>
+          </div>
+        )}
+        
+        {isDeviceReady && (
+          <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-xs text-green-800">
+              ✅ Browser audio ready - you can speak to customers
+            </p>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={handleCall}
-            disabled={!phoneNumber || isLoading}
+            disabled={!phoneNumber || isLoading || !isDeviceReady}
             className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (
@@ -198,8 +277,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Info */}
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <span className="font-medium">How it works:</span> The system calls the customer through our servers and connects them to an available agent. 
-            Calls are handled server-side without requiring browser audio permissions.
+            <span className="font-medium">How it works:</span> REST API calls the customer, then connects them to your browser. 
+            You'll hear the customer through your browser speakers and speak through your microphone.
           </p>
         </div>
       </div>

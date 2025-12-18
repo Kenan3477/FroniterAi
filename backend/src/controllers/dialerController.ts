@@ -6,6 +6,10 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import twilioService from '../services/twilioService';
 import { PrismaClient } from '@prisma/client';
+import twilio from 'twilio';
+
+// Initialize Twilio client
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const prisma = new PrismaClient();
 
@@ -242,6 +246,32 @@ export const generateTwiML = async (req: Request, res: Response) => {
 };
 
 /**
+ * GET/POST /api/calls/twiml-agent-dial
+ * Generate TwiML for agent to dial customer via WebRTC
+ */
+export const generateAgentDialTwiML = async (req: Request, res: Response) => {
+  try {
+    const customer = req.query.customer || req.body.customer;
+    
+    console.log('📞 Agent dial TwiML request for customer:', customer);
+
+    if (!customer) {
+      return res.type('text/xml').send('<Response><Say>Customer number not specified</Say></Response>');
+    }
+
+    const twiml = twilioService.generateAgentDialTwiML(customer as string);
+    
+    console.log('✅ Agent dial TwiML generated for customer:', customer);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating agent dial TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>Dial error</Say></Response>');
+  }
+};
+
+/**
  * GET/POST /api/calls/twiml-agent
  * Generate TwiML for agent connection to conference
  */
@@ -353,7 +383,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
     const { to } = req.body;
     
-    console.log('📞 Making REST API call:', { to });
+    console.log('📞 Making REST API call to WebRTC agent for customer:', { to });
 
     if (!to) {
       return res.status(400).json({
@@ -362,28 +392,30 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       });
     }
 
-    // Use the TwiML webhook URL for call instructions
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml`;
+    // Call the WebRTC agent in the browser first, then dial customer
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
     if (!fromNumber) {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // Make a direct call to customer - simple direct calling like yesterday
-    const callResult = await twilioService.createRestApiCall({
-      to,
+    // Create a call to the WebRTC client with customer number in parameters
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-agent-dial?customer=${encodeURIComponent(to)}`;
+    
+    // Use the client format that Twilio expects for WebRTC
+    const callResult = await twilioClient.calls.create({
+      to: 'client:agent-browser', // WebRTC client name
       from: fromNumber,
-      url: twimlUrl
+      url: twimlUrl,
+      method: 'POST'
     });
 
-    console.log('✅ Call initiated via REST API:', callResult.sid);
+    console.log('✅ WebRTC agent call initiated:', callResult.sid);
 
     res.json({
       success: true,
       callSid: callResult.sid,
       status: callResult.status,
-      message: 'Call initiated successfully'
+      message: 'Agent call initiated - will dial customer via browser'
     });
 
   } catch (error: any) {

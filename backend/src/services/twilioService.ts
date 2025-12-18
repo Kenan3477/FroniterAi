@@ -212,6 +212,24 @@ export const createRestApiCall = async (params: {
 };
 
 /**
+ * Generate TwiML for agent to dial customer via WebRTC
+ */
+export const generateAgentDialTwiML = (customerNumber: string): string => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  
+  twiml.say('Calling customer now. Please wait.');
+  
+  // Dial the customer number
+  const dial = twiml.dial({
+    callerId: process.env.TWILIO_PHONE_NUMBER,
+  });
+  
+  dial.number(customerNumber);
+
+  return twiml.toString();
+};
+
+/**
  * Generate TwiML for agent connection to conference
  */
 export const generateAgentTwiML = (conference: string): string => {
@@ -248,12 +266,12 @@ export const generateCustomerTwiML = (conference: string): string => {
 };
 
 /**
- * Generate TwiML for outbound call
+ * Generate TwiML for outbound call - dials customer number directly  
  */
 export const generateCallTwiML = (to: string, from: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  // Just dial the customer directly
+  // Dial the customer number directly
   const dial = twiml.dial({
     callerId: from,
   });
@@ -305,6 +323,7 @@ export default {
   getCallDetails,
   sendDTMF,
   generateCallTwiML,
+  generateAgentDialTwiML,
   generateAgentTwiML,
   generateCustomerTwiML,
   createRestApiCall,
