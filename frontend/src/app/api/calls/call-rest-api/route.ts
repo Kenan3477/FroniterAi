@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3002';
+// Try local backend first, fallback to Railway
+const BACKEND_URL = 'http://localhost:3002';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📞 Call request body:', body);
     
-    const response = await fetch(`${BACKEND_URL}/api/calls/call-rest-api`, {
+    const response = await fetch(`${BACKEND_URL}/api/dialer/call-rest-api`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
