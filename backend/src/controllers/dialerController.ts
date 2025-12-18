@@ -351,9 +351,9 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to, agentNumber } = req.body;
+    const { to } = req.body;
     
-    console.log('📞 Making REST API call:', { to, agentNumber });
+    console.log('📞 Making REST API call:', { to });
 
     if (!to) {
       return res.status(400).json({
@@ -361,11 +361,6 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         error: 'Customer phone number (to) is required'
       });
     }
-
-    // For now, use a default agent number for testing
-    // In production, this should come from the authenticated agent's profile
-    const defaultAgentNumber = process.env.DEFAULT_AGENT_NUMBER || '+442046343130'; // Your Twilio number for testing
-    const actualAgentNumber = agentNumber || defaultAgentNumber;
 
     // Use the TwiML webhook URL for call instructions
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml`;
@@ -375,14 +370,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    console.log('📞 Creating conference call:', { to, agent: actualAgentNumber, from: fromNumber });
-
-    // Make a conference call connecting both customer and agent
+    // Make a direct call to customer - simple direct calling like yesterday
     const callResult = await twilioService.createRestApiCall({
       to,
       from: fromNumber,
-      url: twimlUrl,
-      agentNumber: actualAgentNumber // This enables conference mode
+      url: twimlUrl
     });
 
     console.log('✅ Call initiated via REST API:', callResult.sid);
@@ -391,7 +383,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       success: true,
       callSid: callResult.sid,
       status: callResult.status,
-      message: 'Call initiated successfully - both agent and customer will be called'
+      message: 'Call initiated successfully'
     });
 
   } catch (error: any) {

@@ -30,27 +30,18 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       return;
     }
 
-    // Get agent number for testing - in production this should come from user profile
-    const agentNumber = prompt('Enter your phone number to receive the call (for testing):', '+44'); // You can change this default
-    
-    if (!agentNumber) {
-      alert('Agent phone number is required for conference calling');
-      return;
-    }
-
     setIsLoading(true);
     setLastCallResult(null);
 
     try {
-      console.log('📞 Making REST API call to:', phoneNumber, 'with agent:', agentNumber);
+      console.log('📞 Making REST API call to:', phoneNumber);
       
-      // Make REST API call through backend with agent number for conference
+      // Make REST API call through backend - SIMPLE DIRECT CALLING
       const response = await fetch('/api/calls/rest-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
-          agentNumber: agentNumber,
           agentId: 'agent-' + Date.now()
         })
       });
