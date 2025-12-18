@@ -242,10 +242,56 @@ export const generateTwiML = async (req: Request, res: Response) => {
 };
 
 /**
- * POST /api/calls/status
- * Handle Twilio status callbacks
+ * GET/POST /api/calls/twiml-agent
+ * Generate TwiML for agent connection to conference
  */
-export const handleStatusCallback = async (req: Request, res: Response) => {
+export const generateAgentTwiML = async (req: Request, res: Response) => {
+  try {
+    const conference = req.query.conference || req.body.conference;
+    
+    console.log('👤 Agent TwiML request for conference:', conference);
+
+    if (!conference) {
+      return res.type('text/xml').send('<Response><Say>Conference not specified</Say></Response>');
+    }
+
+    const twiml = twilioService.generateAgentTwiML(conference as string);
+    
+    console.log('✅ Agent TwiML generated for conference:', conference);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating agent TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>Agent connection error</Say></Response>');
+  }
+};
+
+/**
+ * GET/POST /api/calls/twiml-customer  
+ * Generate TwiML for customer connection to conference
+ */
+export const generateCustomerTwiML = async (req: Request, res: Response) => {
+  try {
+    const conference = req.query.conference || req.body.conference;
+    
+    console.log('📞 Customer TwiML request for conference:', conference);
+
+    if (!conference) {
+      return res.type('text/xml').send('<Response><Say>Conference not specified</Say></Response>');
+    }
+
+    const twiml = twilioService.generateCustomerTwiML(conference as string);
+    
+    console.log('✅ Customer TwiML generated for conference:', conference);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error generating customer TwiML:', error);
+    res.type('text/xml');
+    res.send('<Response><Say>Customer connection error</Say></Response>');
+  }
+};
   try {
     const {
       CallSid,
@@ -299,9 +345,9 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to } = req.body;
+    const { to, agentNumber } = req.body;
     
-    console.log('📞 Making REST API call:', { to });
+    console.log('📞 Making REST API call:', { to, agentNumber });
 
     if (!to) {
       return res.status(400).json({
@@ -309,6 +355,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         error: 'Customer phone number (to) is required'
       });
     }
+
+    // For now, use a default agent number for testing
+    // In production, this should come from the authenticated agent's profile
+    const defaultAgentNumber = process.env.DEFAULT_AGENT_NUMBER || '+442046343130'; // Your Twilio number for testing
+    const actualAgentNumber = agentNumber || defaultAgentNumber;
 
     // Use the TwiML webhook URL for call instructions
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml`;
@@ -318,11 +369,14 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // Make a direct call to customer - agent will hear the call in browser
+    console.log('📞 Creating conference call:', { to, agent: actualAgentNumber, from: fromNumber });
+
+    // Make a conference call connecting both customer and agent
     const callResult = await twilioService.createRestApiCall({
       to,
       from: fromNumber,
-      url: twimlUrl
+      url: twimlUrl,
+      agentNumber: actualAgentNumber // This enables conference mode
     });
 
     console.log('✅ Call initiated via REST API:', callResult.sid);
@@ -331,7 +385,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       success: true,
       callSid: callResult.sid,
       status: callResult.status,
-      message: 'Call initiated successfully'
+      message: 'Call initiated successfully - both agent and customer will be called'
     });
 
   } catch (error: any) {

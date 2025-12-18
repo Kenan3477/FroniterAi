@@ -21,6 +21,12 @@ router.post('/end', dialerController.endCall);
 router.get('/twiml', dialerController.generateTwiML);
 router.post('/twiml', dialerController.generateTwiML);
 
+// Conference TwiML endpoints for agent-customer calls
+router.get('/twiml-agent', dialerController.generateAgentTwiML);
+router.post('/twiml-agent', dialerController.generateAgentTwiML);
+router.get('/twiml-customer', dialerController.generateCustomerTwiML);
+router.post('/twiml-customer', dialerController.generateCustomerTwiML);
+
 // Get call details (with wildcard parameter - must come AFTER specific routes)
 router.get('/:callSid', dialerController.getCallDetails);
 
