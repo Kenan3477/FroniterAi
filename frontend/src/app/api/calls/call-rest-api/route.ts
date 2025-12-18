@@ -1,12 +1,29 @@
 /**
- * REST API Calling Proxy
+ * RESexport async function POST(request: NextRequest) {
+  try {
+    console.log('📞 Proxying REST API call request to backend...');
+    console.log('🔧 Backend URL:', BACKEND_URL);
+    
+    const body = await request.json();
+    console.log('📞 Call request body:', body);
+    
+    const targetUrl = `${BACKEND_URL}/api/calls/call-rest-api`;
+    console.log('🎯 Target URL:', targetUrl);
+    
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });Proxy
  * Proxies call requests to the backend
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// Try local backend first, fallback to Railway
-const BACKEND_URL = 'http://localhost:3002';
+// Always use Railway backend for production testing
+const BACKEND_URL = 'https://froniterai-production.up.railway.app';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +32,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📞 Call request body:', body);
     
-    const response = await fetch(`${BACKEND_URL}/api/dialer/call-rest-api`, {
+    const response = await fetch(`${BACKEND_URL}/api/calls/call-rest-api`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

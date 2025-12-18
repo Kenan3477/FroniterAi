@@ -116,8 +116,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          campaignId: 1,
-          contactNumber: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
+          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
         })
       });
       
