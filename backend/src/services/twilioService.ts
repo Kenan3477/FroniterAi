@@ -241,6 +241,24 @@ export const generateAgentDialTwiML = (customerNumber: string): string => {
 };
 
 /**
+ * Generate TwiML for customer to connect directly to WebRTC agent
+ */
+export const generateCustomerToAgentTwiML = (): string => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  
+  // Connect customer directly to the WebRTC agent
+  const dial = twiml.dial({
+    timeout: 30, // 30 seconds timeout
+    record: 'record-from-answer', // Start recording when call is answered
+  });
+  
+  // Use client dial to connect to the WebRTC agent
+  dial.client('agent-browser');
+
+  return twiml.toString();
+};
+
+/**
  * Generate TwiML for agent connection to conference
  */
 export const generateAgentTwiML = (conference: string): string => {
@@ -335,6 +353,7 @@ export default {
   sendDTMF,
   generateCallTwiML,
   generateAgentDialTwiML,
+  generateCustomerToAgentTwiML,
   generateAgentTwiML,
   generateCustomerTwiML,
   createRestApiCall,
