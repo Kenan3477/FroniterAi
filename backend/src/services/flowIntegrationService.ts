@@ -212,7 +212,7 @@ export class FlowIntegrationService {
         agentId,
         status: FlowExecutionStatus.RUNNING,
         currentStep: flowDefinition.steps?.[0]?.id || null,
-        executionData: {
+        executionData: JSON.stringify({
           stepData: {},
           variables: context || {},
           metadata: {
@@ -223,7 +223,7 @@ export class FlowIntegrationService {
               version: flowDefinition.version,
             },
           },
-        },
+        }),
         startedAt: new Date(),
       },
     });
@@ -256,7 +256,7 @@ export class FlowIntegrationService {
         orderBy: { startedAt: 'desc' },
       });
 
-      return executions.map(execution => {
+      return executions.map((execution: any) => {
         const executionData = execution.executionData as any;
         return {
           executionId: execution.id,
@@ -355,7 +355,7 @@ export class FlowIntegrationService {
         orderBy: { priority: 'asc' },
       });
 
-      const applicableFlows = campaignFlows.filter(flow => {
+      const applicableFlows = campaignFlows.filter((flow: any) => {
         try {
           const conditions = flow.conditions && typeof flow.conditions === 'string' ? JSON.parse(flow.conditions) : {};
           return this.evaluateFlowConditions(conditions, context);

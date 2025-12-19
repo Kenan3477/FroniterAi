@@ -248,7 +248,7 @@ export class CallService extends EventEmitter {
       orderBy: { startTime: 'desc' },
     });
 
-    return calls.filter(call => call.campaign.isActive);
+    return calls.filter((call: any) => call.campaign.isActive);
   }
 
   /**
@@ -271,16 +271,16 @@ export class CallService extends EventEmitter {
       },
     });
 
-    const totalCalls = stats.reduce((sum, stat) => sum + stat._count.status, 0);
-    const answeredCalls = stats.find(s => s.status === 'ANSWERED')?._count.status || 0;
-    const failedCalls = stats.find(s => s.status === 'FAILED')?._count.status || 0;
+    const totalCalls = stats.reduce((sum: any, stat: any) => sum + stat._count.status, 0);
+    const answeredCalls = stats.find((s: any) => s.status === 'ANSWERED')?._count.status || 0;
+    const failedCalls = stats.find((s: any) => s.status === 'FAILED')?._count.status || 0;
 
     return {
       totalCalls,
       answeredCalls,
       failedCalls,
       successRate: totalCalls > 0 ? (answeredCalls / totalCalls) * 100 : 0,
-      breakdown: stats.reduce((acc, stat) => {
+      breakdown: stats.reduce((acc: any, stat: any) => {
         acc[stat.status.toLowerCase()] = stat._count.status;
         return acc;
       }, {} as Record<string, number>),

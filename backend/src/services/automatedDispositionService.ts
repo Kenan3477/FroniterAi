@@ -257,7 +257,7 @@ class AutomatedDispositionService {
         };
       }
 
-      const agentLeg = call.legs.find(leg => leg.legType === 'AGENT');
+      const agentLeg = call.legs.find((leg: any) => leg.legType === 'AGENT');
       if (!agentLeg?.agent) {
         return {
           confidence: 0,
@@ -414,8 +414,8 @@ class AutomatedDispositionService {
         throw new Error('Call not found');
       }
 
-      const agentLeg = call.legs.find(leg => leg.legType === 'AGENT');
-      const customerLeg = call.legs.find(leg => leg.legType === 'CUSTOMER');
+      const agentLeg = call.legs.find((leg: any) => leg.legType === 'AGENT');
+      const customerLeg = call.legs.find((leg: any) => leg.legType === 'CUSTOMER');
 
       // Create disposition record
       await dispositionService.createDisposition({

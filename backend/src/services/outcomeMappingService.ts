@@ -389,7 +389,7 @@ class OutcomeMappingService {
       const projectedRevenue = await this.calculateProjectedRevenue(calls);
       const avgDealSize = this.calculateAverageDealSize(calls);
       const revenuePerCall = calls.length > 0 ? totalRevenue / calls.length : 0;
-      const totalCallTime = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
+      const totalCallTime = calls.reduce((sum: any, call: any) => sum + (call.duration || 0), 0);
       const revenuePerHour = totalCallTime > 0 ? totalRevenue / (totalCallTime / 3600) : 0;
 
       // Calculate conversion metrics

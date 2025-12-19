@@ -320,7 +320,7 @@ class CallOutcomeTrackingService {
       const successRate = this.calculateSuccessRate(outcomes);
       const conversionRate = this.calculateConversionRate(outcomes);
       const avgSaleValue = this.calculateAverageSaleValue(outcomes);
-      const avgCallDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0) / (calls.length || 1);
+      const avgCallDuration = calls.reduce((sum: any, call: any) => sum + (call.duration || 0), 0) / (calls.length || 1);
       const avgLeadScore = this.calculateAverageLeadScore(outcomes);
       
       // Quality metrics

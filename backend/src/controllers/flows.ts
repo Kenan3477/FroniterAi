@@ -76,7 +76,7 @@ export const getFlows = async (req: Request, res: Response) => {
     });
 
     // Transform to API format
-    const flowsData = flows.map(flow => ({
+    const flowsData = flows.map((flow: any) => ({
       id: flow.id,
       name: flow.name,
       description: flow.description,
@@ -226,15 +226,15 @@ export const deployFlow = async (req: Request, res: Response) => {
 
     // Find version to deploy (default to current draft)
     const versionToDeploy = validatedData.versionId 
-      ? flow.versions.find(v => v.id === validatedData.versionId)
-      : flow.versions.find(v => v.isDraft);
+      ? flow.versions.find((v: any) => v.id === validatedData.versionId)
+      : flow.versions.find((v: any) => v.isDraft);
 
     if (!versionToDeploy) {
       return res.status(404).json({ error: 'Version not found' });
     }
 
     // Validation: Check for entry node
-    const hasEntryNode = versionToDeploy.nodes.some(node => {
+    const hasEntryNode = versionToDeploy.nodes.some((node: any) => {
       const config = typeof node.config === 'string' ? JSON.parse(node.config) : node.config;
       return node.isEntry;
     });
@@ -246,8 +246,8 @@ export const deployFlow = async (req: Request, res: Response) => {
     }
 
     // Validation: Check edges reference existing nodes
-    const nodeIds = versionToDeploy.nodes.map(n => n.id);
-    const invalidEdges = versionToDeploy.edges.filter(edge => 
+    const nodeIds = versionToDeploy.nodes.map((n: any) => n.id);
+    const invalidEdges = versionToDeploy.edges.filter((edge: any) => 
       !nodeIds.includes(edge.sourceNodeId) || !nodeIds.includes(edge.targetNodeId)
     );
 
@@ -257,7 +257,7 @@ export const deployFlow = async (req: Request, res: Response) => {
       });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Deactivate current active version
       await tx.flowVersion.updateMany({
         where: { flowId, isActive: true },
@@ -289,7 +289,7 @@ export const deployFlow = async (req: Request, res: Response) => {
           isDraft: true,
           // Clone nodes from deployed version
           nodes: {
-            create: versionToDeploy.nodes.map(node => ({
+            create: versionToDeploy.nodes.map((node: any) => ({
               type: node.type,
               label: node.label,
               category: node.category,
@@ -301,7 +301,7 @@ export const deployFlow = async (req: Request, res: Response) => {
           },
           // Clone edges from deployed version
           edges: {
-            create: versionToDeploy.edges.map(edge => ({
+            create: versionToDeploy.edges.map((edge: any) => ({
               sourceNodeId: edge.sourceNodeId,
               targetNodeId: edge.targetNodeId,
               sourcePort: edge.sourcePort,

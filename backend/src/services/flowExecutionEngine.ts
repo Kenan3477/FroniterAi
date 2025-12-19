@@ -760,18 +760,18 @@ export class FlowExecutionEngine extends EventEmitter {
     });
 
     return flows
-      .filter(flow => 
+      .filter((flow: any) => 
         flow.versions.length > 0 && 
-        flow.versions[0].nodes.some(node => 
+        flow.versions[0].nodes.some((node: any) => 
           typeof node.type === 'string' && node.type.toLowerCase().includes('inbound')
         )
       )
-      .map(flow => ({
+      .map((flow: any) => ({
         id: flow.id,
         name: flow.name,
         priority: 1 // Default priority
       }))
-      .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      .sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
   }
 }
 

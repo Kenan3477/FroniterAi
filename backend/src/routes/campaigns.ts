@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
       });
       
       // Map database fields to frontend expected format
-      mappedCampaigns = campaigns.map(campaign => ({
+      mappedCampaigns = campaigns.map((campaign: any) => ({
         campaignId: campaign.id,
         name: campaign.name,
         status: campaign.isActive ? 'active' : 'inactive',

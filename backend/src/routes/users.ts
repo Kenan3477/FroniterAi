@@ -193,7 +193,7 @@ router.get('/', async (req: Request, res: Response) => {
     ]);
 
     const usersWithDetails = await Promise.all(
-      users.map(async (user) => {
+      users.map(async (user: any) => {
         const campaignIds = user.campaignAssignments.map((access: any) => access.campaignId);
         return formatUserResponse({
           ...user,
@@ -654,7 +654,7 @@ router.get('/stats/overview', async (req: Request, res: Response) => {
       })
     ]);
 
-    const roleStats = usersByRole.reduce((acc, item) => {
+    const roleStats = usersByRole.reduce((acc: any, item: any) => {
       acc[item.role] = item._count.role;
       return acc;
     }, {} as Record<string, number>);

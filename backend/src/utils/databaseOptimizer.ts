@@ -46,7 +46,7 @@ class DatabaseOptimizer {
    */
   private setupQueryMonitoring(): void {
     // Use Prisma middleware for query monitoring
-    this.prisma.$use(async (params, next) => {
+    this.prisma.$use(async (params: any, next: any) => {
       const start = Date.now();
       
       try {
