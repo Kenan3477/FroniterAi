@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { Provider as ReduxProvider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { EventSystemProvider } from '@/contexts/EventSystemContext';
 import { store } from '@/store';
 
 const queryClient = new QueryClient({
@@ -24,7 +25,9 @@ export function Providers({ children }: ProvidersProps) {
     <ReduxProvider store={store}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {children}
+          <EventSystemProvider>
+            {children}
+          </EventSystemProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ReduxProvider>

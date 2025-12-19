@@ -173,26 +173,26 @@ export default function SystemOverview({ refreshInterval = 30000 }: SystemOvervi
             <div className="flex items-center justify-center mb-2">
               <UsersIcon className="h-6 w-6 text-blue-600 mr-2" />
               <div className="text-3xl font-bold text-blue-600">
-                {data?.users.total.toLocaleString() || '0'}
+                {data?.users?.total?.toLocaleString() || '0'}
               </div>
             </div>
             <div className="text-sm text-gray-600">Total Users</div>
             <div className="text-xs text-gray-500 mt-1">
-              {data?.users.active || 0} active ({data?.users.loginRate}% rate)
+              {data?.users?.active || 0} active ({data?.users?.loginRate || 0}% rate)
             </div>
           </div>
 
           {/* System Uptime */}
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              {data && getUptimeIcon(data.system.uptime.status)}
-              <div className={`text-3xl font-bold ml-2 ${data ? getUptimeColor(data.system.uptime.status) : 'text-gray-600'}`}>
-                {data?.system.uptime.percentage || '0'}%
+              {data && getUptimeIcon(data?.system?.uptime?.status)}
+              <div className={`text-3xl font-bold ml-2 ${data ? getUptimeColor(data?.system?.uptime?.status) : 'text-gray-600'}`}>
+                {data?.system?.uptime?.percentage || '0'}%
               </div>
             </div>
             <div className="text-sm text-gray-600">System Uptime</div>
             <div className="text-xs text-gray-500 mt-1">
-              {data?.system.uptime.days || 0} days running
+              {data?.system?.uptime?.days || 0} days running
             </div>
           </div>
 
@@ -201,12 +201,12 @@ export default function SystemOverview({ refreshInterval = 30000 }: SystemOvervi
             <div className="flex items-center justify-center mb-2">
               <MegaphoneIcon className="h-6 w-6 text-purple-600 mr-2" />
               <div className="text-3xl font-bold text-purple-600">
-                {data?.campaigns.active.toLocaleString() || '0'}
+                {data?.campaigns?.active?.toLocaleString() || '0'}
               </div>
             </div>
             <div className="text-sm text-gray-600">Active Campaigns</div>
             <div className="text-xs text-gray-500 mt-1">
-              {data?.campaigns.total || 0} total ({data?.campaigns.activeRate}% active)
+              {data?.campaigns?.total || 0} total ({data?.campaigns?.activeRate || 0}% active)
             </div>
           </div>
         </div>
@@ -217,19 +217,19 @@ export default function SystemOverview({ refreshInterval = 30000 }: SystemOvervi
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Agents Available:</span>
-                <span className="ml-1 font-medium">{data.agents.available}/{data.agents.total}</span>
+                <span className="ml-1 font-medium">{data?.agents?.available || 0}/{data?.agents?.total || 0}</span>
               </div>
               <div>
                 <span className="text-gray-500">Calls Today:</span>
-                <span className="ml-1 font-medium">{data.activity.callsToday.toLocaleString()}</span>
+                <span className="ml-1 font-medium">{data?.activity?.callsToday?.toLocaleString() || '0'}</span>
               </div>
               <div>
                 <span className="text-gray-500">Total Calls:</span>
-                <span className="ml-1 font-medium">{data.activity.totalCalls.toLocaleString()}</span>
+                <span className="ml-1 font-medium">{data?.activity?.totalCalls?.toLocaleString() || '0'}</span>
               </div>
               <div>
                 <span className="text-gray-500">Recent Activity:</span>
-                <span className="ml-1 font-medium">{data.activity.recentLogins} logins</span>
+                <span className="ml-1 font-medium">{data?.activity?.recentLogins || 0} logins</span>
               </div>
             </div>
           </div>

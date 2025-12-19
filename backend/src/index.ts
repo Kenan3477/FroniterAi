@@ -32,6 +32,9 @@ import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after 
 import campaignManagementRoutes from './routes/campaignManagement'; // Re-enabled for admin frontend
 import businessSettingsRoutes from './routes/businessSettings'; // Re-enabled for admin frontend
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
+import callsRoutes from './routes/callsRoutes'; // SIP call control system
+import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
+import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -51,9 +54,10 @@ import flowVersionRoutes from './routes/flowVersions';
 import kpiRoutes from './routes/kpi'; // Re-enabled with basic implementation
 import dialerRoutes from './routes/dialer'; // NEW: Twilio dialer routes
 import dialQueueRoutes from './routes/dialQueue'; // NEW: Dial queue system
+import eventTestRoutes from './routes/eventTest'; // NEW: Event system testing
 
 // Import socket handlers
-// import { initializeSocket } from './socket'; // Temporarily disabled due to campaignService dependency
+import { initializeSocket } from './socket';
 
 class App {
   public app: express.Application;
@@ -77,7 +81,7 @@ class App {
     this.initializeMiddlewares();
     this.initializeRoutes();
     this.initializeErrorHandling();
-    // this.initializeSocket(); // Temporarily disabled due to campaignService dependency
+    this.initializeSocket();
   }
 
   private initializeMiddlewares(): void {
@@ -144,6 +148,9 @@ class App {
     // this.app.use('/api/interactions', interactionRoutes); // Disabled - model not in schema
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
+    this.app.use('/api/calls', callsRoutes); // SIP call control system
+    this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
+    this.app.use('/api/routing', routingRoutes); // Inbound call routing system
 
     // Kennex Flows API routes - re-enabled
     this.app.use('/api/flows', flowRoutes);
@@ -160,6 +167,7 @@ class App {
     // NEW: Twilio Dialer API routes
     this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system
     this.app.use('/api/dial-queue', dialQueueRoutes); // Dial queue system for auto-dialer
+    this.app.use('/api/events', eventTestRoutes); // Real-time event system testing
 
     // API documentation
     this.app.get('/api', (req, res) => {
@@ -195,7 +203,7 @@ class App {
   }
 
   private initializeSocket(): void {
-    // initializeSocket(this.io); // Temporarily disabled due to campaignService dependency
+    initializeSocket(this.io);
   }
 
   public async start(): Promise<void> {

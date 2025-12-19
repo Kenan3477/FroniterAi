@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -313,6 +313,11 @@ model Flow {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   versions        FlowVersion[]
+  
+  // Campaign Integration Relations
+  defaultForCampaigns Campaign[]    @relation("CampaignDefaultFlow")
+  campaignFlows      CampaignFlow[]
+  flowExecutions     FlowExecution[]
 
   @@map("flows")
 }
@@ -419,6 +424,73 @@ model FlowRunStep {
   @@map("flow_run_steps")
 }
 
+// ============================================================================
+// FLOW-CAMPAIGN INTEGRATION MODELS
+// ============================================================================
+
+model CampaignFlow {
+  id            String    @id @default(cuid())
+  campaignId    String
+  flowId        String
+  triggerType   String    // "outbound_start" | "inbound_start" | "agent_available" | "custom"
+  priority      Int       @default(1)
+  conditions    Json      @default("{}")
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  flow          Flow      @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, flowId, triggerType])
+  @@map("campaign_flows")
+}
+
+model FlowExecution {
+  id            String              @id @default(cuid())
+  flowId        String
+  campaignId    String
+  callId        String?
+  agentId       String?
+  status        String              @default("INITIATED") // "INITIATED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED"
+  currentStep   String?
+  executionData Json                @default("{}")
+  errorMessage  String?
+  startedAt     DateTime            @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  flow          Flow                @relation(fields: [flowId], references: [id])
+  campaign      Campaign            @relation(fields: [campaignId], references: [id])
+  call          Call?               @relation(fields: [callId], references: [id])
+  agent         Agent?              @relation(fields: [agentId], references: [id])
+  steps         FlowExecutionStep[]
+
+  @@index([campaignId, status])
+  @@index([callId])
+  @@map("flow_executions")
+}
+
+model FlowExecutionStep {
+  id            String        @id @default(cuid())
+  executionId   String
+  stepId        String
+  stepName      String
+  status        String        @default("PENDING") // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED"
+  stepData      Json          @default("{}")
+  resultData    Json          @default("{}")
+  errorMessage  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  execution     FlowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, status])
+  @@map("flow_execution_steps")
+}
+
 // ===========================
 // DIALLER SYSTEM MODELS
 // ===========================
@@ -443,6 +515,7 @@ model Agent {
   campaignAgents  CampaignAgent[]
   callLegs        CallLeg[]
   dispositions    Disposition[]
+  flowExecutions  FlowExecution[]
   currentCampaign Campaign?         @relation("AgentCurrentCampaign", fields: [currentCampaignId], references: [id])
 
   @@map("dialler_agents")
@@ -482,6 +555,12 @@ model Campaign {
   diallingEnd           String?           // "17:00"
   timezone              String            @default("Europe/London")
   
+  // Flow Integration
+  defaultFlowId         String?
+  flowConfig            String            @default("{}")
+  recordingEnabled      Boolean           @default(false)
+  recordingConfig       String            @default("{}")
+  
   // Status and lifecycle
   isActive              Boolean           @default(true)
   createdAt             DateTime          @default(now())
@@ -490,6 +569,9 @@ model Campaign {
 
   // Relations
   createdBy             User              @relation("CampaignCreator", fields: [createdByUserId], references: [id])
+  defaultFlow           Flow?             @relation("CampaignDefaultFlow", fields: [defaultFlowId], references: [id])
+  campaignFlows         CampaignFlow[]
+  flowExecutions        FlowExecution[]
   campaignAgents        CampaignAgent[]
   campaignLists         CampaignList[]
   calls                 Call[]
@@ -582,6 +664,10 @@ model Call {
   callDirection   String            @default("OUTBOUND") // INBOUND, OUTBOUND
   status          String            @default("INITIATED") // INITIATED, RINGING, ANSWERED, ENDED, FAILED, ABANDONED, NO_ANSWER, BUSY, INVALID_NUMBER
   
+  // Flow Integration
+  flowExecutionId String?
+  flowStatus      String            @default("NONE") // "NONE" | "ASSIGNED" | "RUNNING" | "COMPLETED" | "FAILED"
+  
   // Timing
   startTime       DateTime          @default(now())
   ringStartTime   DateTime?
@@ -608,6 +694,7 @@ model Call {
   // Relations
   campaign        Campaign          @relation(fields: [campaignId], references: [id])
   record          CampaignRecord?   @relation(fields: [recordId], references: [id])
+  flowExecutions  FlowExecution[]
   legs            CallLeg[]
   dispositions    Disposition[]
 

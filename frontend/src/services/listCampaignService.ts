@@ -29,7 +29,7 @@ let mockLists: DataList[] = [
   }
 ];
 
-let mockCampaigns = ['1125', '6002', '6666', '5001']; // Available campaign IDs
+let mockCampaigns: string[] = []; // No mock campaign IDs - empty until user creates campaigns
 
 /**
  * 1️⃣ Link Lists to Campaigns (Kennex-style)

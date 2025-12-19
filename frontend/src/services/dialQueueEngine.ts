@@ -247,8 +247,8 @@ export async function runDialQueueLoop(): Promise<void> {
     // Clean up stale locks first
     cleanupStaleLocks();
     
-    // Get campaigns that have available agents (mock: assume all campaigns have agents)
-    const activeCampaigns = ['1125', '6002', '6666', '5001']; // Mock campaign IDs
+    // Get campaigns that have available agents - empty until user creates campaigns
+    const activeCampaigns: string[] = []; // No mock campaign IDs
     
     for (const campaignId of activeCampaigns) {
       
@@ -448,7 +448,7 @@ function pushToDialer(queueEntry: DialQueueEntry): void {
  * Queue monitoring and stats functions
  */
 export function getQueueStats(campaignId?: string): CampaignDialStats[] {
-  const campaigns = campaignId ? [campaignId] : ['1125', '6002', '6666', '5001'];
+  const campaigns = campaignId ? [campaignId] : []; // No default mock campaigns
   
   return campaigns.map(id => {
     const queueEntries = mockDialQueue.filter(e => e.campaignId === id);

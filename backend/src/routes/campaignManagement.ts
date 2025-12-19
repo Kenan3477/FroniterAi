@@ -1,5 +1,6 @@
 import express from 'express';
 import { Request, Response } from 'express';
+import { campaignEvents, agentEvents, queueEvents } from '../utils/eventHelpers';
 
 const router = express.Router();
 
@@ -25,11 +26,30 @@ interface Campaign {
   targetLeads: number;
   targetCompletions: number;
   expectedDuration: number;
+  // Frontend display properties
+  totalTargets: number;
+  totalCalls: number;
+  totalConnections: number;
+  totalConversions: number;
+  totalRevenue: number;
+  budget?: number;
+  budgetCurrency: string;
+  priority: number;
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_REQUIRED';
+  scheduledStart?: string;
+  scheduledEnd?: string;
   openingScript?: string;
   closingScript?: string;
   emailTemplate?: string;
   smsTemplate?: string;
   isActive: boolean;
+  // Dial Queue Properties
+  dialMethod: 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP';
+  dialSpeed: number; // Calls per minute for autodial
+  agentCount: number; // Number of agents assigned to this campaign
+  queuePosition?: number; // Position in dial queue
+  predictiveDialingEnabled: boolean;
+  maxConcurrentCalls: number;
   createdAt: string;
   updatedAt: string;
   createdBy?: {
@@ -87,13 +107,13 @@ interface CampaignTemplate {
   };
 }
 
-// Mock data for campaigns
+// Mock data for campaigns - REMOVED ALL MOCK CAMPAIGNS
 let mockCampaigns: Campaign[] = [
   {
     id: 'campaign_001',
     name: 'Q4_Sales_Outreach',
-    displayName: 'Q4 Sales Outreach Campaign',
-    description: 'End-of-year sales push targeting enterprise clients',
+    displayName: 'Q4 Sales Outreach Campaign', 
+    description: 'Q4 sales outreach campaign for lead generation',
     status: 'ACTIVE',
     category: 'SALES',
     type: 'OUTBOUND',
@@ -101,109 +121,93 @@ let mockCampaigns: Campaign[] = [
     maxCallsPerAgent: 50,
     maxAttemptsPerRecord: 3,
     abandonRateThreshold: 5,
-    pacingMultiplier: 1.2,
+    pacingMultiplier: 1.0,
     defaultTimezone: 'Europe/London',
-    dialingStart: '09:00',
-    dialingEnd: '17:00',
-    startDate: '2024-10-01T00:00:00Z',
-    endDate: '2024-12-31T23:59:59Z',
+    startDate: new Date().toISOString(),
     targetLeads: 1000,
-    targetCompletions: 200,
-    expectedDuration: 90,
-    openingScript: 'Hi, this is calling from [Company] regarding your interest in our enterprise solutions.',
-    closingScript: 'Thank you for your time. We\'ll follow up with the information discussed.',
+    targetCompletions: 100,
+    expectedDuration: 30,
+    // Frontend display properties
+    totalTargets: 1000,
+    totalCalls: 0,
+    totalConnections: 0,
+    totalConversions: 0,
+    totalRevenue: 0,
+    budget: 10000,
+    budgetCurrency: 'USD',
+    priority: 1,
+    approvalStatus: 'APPROVED',
+    scheduledStart: new Date().toISOString(),
+    scheduledEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    openingScript: 'Hello, this is a call from our sales team...',
+    closingScript: 'Thank you for your time!',
+    emailTemplate: 'Follow-up email template',
+    smsTemplate: 'SMS follow-up template',
     isActive: true,
-    createdAt: '2024-09-15T10:00:00Z',
-    updatedAt: '2024-11-20T14:30:00Z',
-    createdBy: {
-      id: 'user_001',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@company.com'
-    },
-    assignedAgents: [
-      { id: 'agent_001', name: 'John Smith', email: 'john.smith@company.com' },
-      { id: 'agent_002', name: 'Emily Davis', email: 'emily.davis@company.com' }
-    ],
-    dataLists: [
-      { id: 'list_001', name: 'Enterprise Prospects Q4', recordCount: 350 },
-      { id: 'list_002', name: 'Warm Leads October', recordCount: 150 }
-    ],
+    // Dial Queue Properties
+    dialMethod: 'MANUAL_DIAL',
+    dialSpeed: 60,
+    agentCount: 0,
+    predictiveDialingEnabled: false,
+    maxConcurrentCalls: 10,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    assignedAgents: [],
+    dataLists: [],
     _count: {
-      interactions: 847,
-      contacts: 500,
-      completedCalls: 342
+      interactions: 0,
+      contacts: 0,
+      completedCalls: 0
     }
   },
   {
     id: 'campaign_002',
     name: 'Customer_Satisfaction_Survey',
     displayName: 'Customer Satisfaction Survey',
-    description: 'Quarterly satisfaction survey for existing customers',
+    description: 'Customer satisfaction survey campaign',
     status: 'ACTIVE',
     category: 'SURVEYS',
-    type: 'OUTBOUND',
+    type: 'OUTBOUND', 
     dialingMode: 'PREVIEW',
     maxCallsPerAgent: 30,
     maxAttemptsPerRecord: 2,
     abandonRateThreshold: 3,
     pacingMultiplier: 1.0,
     defaultTimezone: 'Europe/London',
-    dialingStart: '10:00',
-    dialingEnd: '16:00',
-    startDate: '2024-11-01T00:00:00Z',
-    endDate: '2024-11-30T23:59:59Z',
+    startDate: new Date().toISOString(),
     targetLeads: 500,
-    targetCompletions: 400,
-    expectedDuration: 30,
-    openingScript: 'Hello, we\'re conducting a brief customer satisfaction survey.',
+    targetCompletions: 200,
+    expectedDuration: 20,
+    // Frontend display properties
+    totalTargets: 500,
+    totalCalls: 0,
+    totalConnections: 0,
+    totalConversions: 0,
+    totalRevenue: 0,
+    budget: 5000,
+    budgetCurrency: 'USD',
+    priority: 2,
+    approvalStatus: 'APPROVED',
+    scheduledStart: new Date().toISOString(),
+    scheduledEnd: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+    openingScript: 'Hello, we would like to get your feedback...',
+    closingScript: 'Thank you for participating in our survey!',
+    emailTemplate: 'Survey follow-up email template',
+    smsTemplate: 'Survey reminder SMS template',
     isActive: true,
-    createdAt: '2024-10-20T09:00:00Z',
-    updatedAt: '2024-11-15T11:00:00Z',
-    createdBy: {
-      id: 'user_002',
-      name: 'Mike Wilson',
-      email: 'mike.wilson@company.com'
-    },
-    assignedAgents: [
-      { id: 'agent_003', name: 'Lisa Chen', email: 'lisa.chen@company.com' }
-    ],
-    dataLists: [
-      { id: 'list_003', name: 'Existing Customers 2024', recordCount: 500 }
-    ],
-    _count: {
-      interactions: 234,
-      contacts: 200,
-      completedCalls: 156
-    }
-  },
-  {
-    id: 'campaign_test',
-    name: 'Test_Campaign',
-    displayName: 'Test Campaign for Development',
-    description: 'Development testing campaign',
-    status: 'DRAFT',
-    category: 'SALES',
-    type: 'OUTBOUND',
-    dialingMode: 'MANUAL',
-    maxCallsPerAgent: 10,
-    maxAttemptsPerRecord: 3,
-    abandonRateThreshold: 5,
-    pacingMultiplier: 1.0,
-    defaultTimezone: 'Europe/London',
-    startDate: '2024-12-01T00:00:00Z',
-    targetLeads: 50,
-    targetCompletions: 10,
-    expectedDuration: 7,
-    isActive: true,
-    createdAt: '2024-12-17T00:00:00Z',
-    updatedAt: '2024-12-17T00:00:00Z',
+    // Dial Queue Properties  
+    dialMethod: 'MANUAL_DIAL',
+    dialSpeed: 60,
+    agentCount: 0,
+    predictiveDialingEnabled: false,
+    maxConcurrentCalls: 10,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     assignedAgents: [],
-    dataLists: [
-      { id: 'list_001', name: 'Test Contacts', recordCount: 5 }
-    ],
+    dataLists: [],
     _count: {
       interactions: 0,
-      contacts: 5,
+      contacts: 0,
       completedCalls: 0
     }
   }
@@ -272,9 +276,11 @@ let mockTemplates: CampaignTemplate[] = [
 ];
 
 // GET /api/admin/campaign-management/campaigns
-router.get('/campaigns', (req: Request, res: Response) => {
+router.get('/campaigns', async (req: Request, res: Response) => {
   try {
     const { status, category, type, search, page, limit } = req.query;
+    
+    // Return the empty mockCampaigns array (no campaigns until user creates them)
     let filteredCampaigns = [...mockCampaigns];
 
     // Apply filters
@@ -424,11 +430,29 @@ router.post('/campaigns', (req: Request, res: Response) => {
       targetLeads: campaignData.targetLeads || 0,
       targetCompletions: campaignData.targetCompletions || 0,
       expectedDuration: campaignData.expectedDuration || 30,
+      // Frontend display properties
+      totalTargets: campaignData.totalTargets || campaignData.targetLeads || 0,
+      totalCalls: 0,
+      totalConnections: 0,
+      totalConversions: 0,
+      totalRevenue: 0,
+      budget: campaignData.budget,
+      budgetCurrency: campaignData.budgetCurrency || 'USD',
+      priority: campaignData.priority || 1,
+      approvalStatus: campaignData.approvalStatus || 'PENDING',
+      scheduledStart: campaignData.scheduledStart,
+      scheduledEnd: campaignData.scheduledEnd,
       openingScript: campaignData.openingScript,
       closingScript: campaignData.closingScript,
       emailTemplate: campaignData.emailTemplate,
       smsTemplate: campaignData.smsTemplate,
       isActive: true,
+      // Dial Queue Properties
+      dialMethod: campaignData.dialMethod || 'MANUAL_DIAL',
+      dialSpeed: campaignData.dialSpeed || 60,
+      agentCount: 0,
+      predictiveDialingEnabled: campaignData.predictiveDialingEnabled || false,
+      maxConcurrentCalls: campaignData.maxConcurrentCalls || 10,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       assignedAgents: [],
@@ -525,6 +549,288 @@ router.delete('/campaigns/:id', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: { message: 'Internal server error deleting campaign' }
+    });
+  }
+});
+
+// DIAL QUEUE API ENDPOINTS
+
+// PATCH /api/admin/campaign-management/campaigns/:id/dial-method
+router.patch('/campaigns/:id/dial-method', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { dialMethod } = req.body;
+
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    const previousDialMethod = campaign.dialMethod;
+    campaign.dialMethod = dialMethod;
+    campaign.updatedAt = new Date().toISOString();
+
+    // Emit campaign dial method change event
+    await campaignEvents.dialMethodChanged({
+      campaignId: campaign.id,
+      campaignName: campaign.displayName,
+      dialMethod,
+      previousState: { dialMethod: previousDialMethod },
+    });
+
+    res.json({
+      success: true,
+      data: { campaign, message: 'Dial method updated successfully' }
+    });
+
+  } catch (error) {
+    console.error('Error updating dial method:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error updating dial method' }
+    });
+  }
+});
+
+// PATCH /api/admin/campaign-management/campaigns/:id/activate
+router.patch('/campaigns/:id/activate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    const previousStatus = campaign.status;
+    const previousActive = campaign.isActive;
+    
+    campaign.isActive = isActive;
+    campaign.updatedAt = new Date().toISOString();
+
+    // Update campaign status based on activation
+    if (isActive && campaign.status === 'PAUSED') {
+      campaign.status = 'ACTIVE';
+    } else if (!isActive && campaign.status === 'ACTIVE') {
+      campaign.status = 'PAUSED';
+    }
+
+    // Emit appropriate campaign event
+    if (isActive && previousStatus === 'PAUSED') {
+      await campaignEvents.started({
+        campaignId: campaign.id,
+        campaignName: campaign.displayName,
+        status: campaign.status,
+        agentCount: campaign.agentCount,
+        dialMethod: campaign.dialMethod,
+      });
+    } else if (!isActive && previousStatus === 'ACTIVE') {
+      await campaignEvents.paused({
+        campaignId: campaign.id,
+        campaignName: campaign.displayName,
+        status: campaign.status,
+        agentCount: campaign.agentCount,
+      });
+    } else {
+      await campaignEvents.updated({
+        campaignId: campaign.id,
+        campaignName: campaign.displayName,
+        status: campaign.status,
+        previousState: { 
+          isActive: previousActive, 
+          status: previousStatus 
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { campaign, message: `Campaign ${isActive ? 'activated' : 'deactivated'} successfully` }
+    });
+
+  } catch (error) {
+    console.error('Error toggling campaign activation:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error toggling campaign activation' }
+    });
+  }
+});
+
+// PATCH /api/admin/campaign-management/campaigns/:id/dial-speed
+router.patch('/campaigns/:id/dial-speed', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { dialSpeed } = req.body;
+
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    // Validate dial speed (1-300 calls per minute)
+    if (dialSpeed < 1 || dialSpeed > 300) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Dial speed must be between 1 and 300 calls per minute' }
+      });
+    }
+
+    const previousDialSpeed = campaign.dialSpeed;
+    campaign.dialSpeed = dialSpeed;
+    campaign.updatedAt = new Date().toISOString();
+
+    // Emit campaign dial speed change event
+    await campaignEvents.dialSpeedChanged({
+      campaignId: campaign.id,
+      campaignName: campaign.displayName,
+      dialSpeed,
+      previousState: { dialSpeed: previousDialSpeed },
+    });
+
+    res.json({
+      success: true,
+      data: { campaign, message: 'Dial speed updated successfully' }
+    });
+
+  } catch (error) {
+    console.error('Error updating dial speed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error updating dial speed' }
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/campaigns/:id/join-agent
+router.post('/campaigns/:id/join-agent', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { agentId, agentName, agentEmail } = req.body;
+
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    // Check if agent is already assigned
+    const existingAgent = campaign.assignedAgents.find(agent => 
+      agent.id === agentId || agent.email === agentEmail
+    );
+
+    if (existingAgent) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Agent is already assigned to this campaign' }
+      });
+    }
+
+    // Add agent to campaign
+    const newAgent = {
+      id: agentId || `agent_${Date.now()}`,
+      name: agentName || 'Unknown Agent',
+      email: agentEmail || ''
+    };
+
+    campaign.assignedAgents.push(newAgent);
+    campaign.agentCount = campaign.assignedAgents.length;
+    campaign.updatedAt = new Date().toISOString();
+
+    // Emit agent joined campaign event
+    await agentEvents.joinedCampaign({
+      agentId: newAgent.id,
+      agentName: newAgent.name,
+      campaignId: campaign.id,
+      campaignName: campaign.displayName,
+    });
+
+    res.json({
+      success: true,
+      data: { 
+        campaign, 
+        agent: newAgent,
+        message: 'Agent joined campaign successfully' 
+      }
+    });
+
+  } catch (error) {
+    console.error('Error adding agent to campaign:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error adding agent to campaign' }
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/campaigns/:id/leave-agent
+router.post('/campaigns/:id/leave-agent', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { agentId } = req.body;
+
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    // If no specific agent ID provided, remove the most recently added agent
+    let agentIndex = -1;
+    if (agentId) {
+      agentIndex = campaign.assignedAgents.findIndex(agent => agent.id === agentId);
+    } else {
+      agentIndex = campaign.assignedAgents.length - 1;
+    }
+
+    if (agentIndex === -1 || campaign.assignedAgents.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'No agents to remove from this campaign' }
+      });
+    }
+
+    // Remove agent from campaign
+    const removedAgent = campaign.assignedAgents.splice(agentIndex, 1)[0];
+    campaign.agentCount = campaign.assignedAgents.length;
+    campaign.updatedAt = new Date().toISOString();
+
+    // Emit agent left campaign event
+    await agentEvents.leftCampaign({
+      agentId: removedAgent.id,
+      agentName: removedAgent.name,
+      campaignId: campaign.id,
+      campaignName: campaign.displayName,
+    });
+
+    res.json({
+      success: true,
+      data: { 
+        campaign, 
+        removedAgent,
+        message: 'Agent removed from campaign successfully' 
+      }
+    });
+
+  } catch (error) {
+    console.error('Error removing agent from campaign:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error removing agent from campaign' }
     });
   }
 });

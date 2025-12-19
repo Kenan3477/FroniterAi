@@ -246,14 +246,27 @@ export const generateAgentDialTwiML = (customerNumber: string): string => {
 export const generateCustomerToAgentTwiML = (): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
+  // Add a greeting to prevent immediate cancellation
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Please hold while we connect you to an agent.');
+  
   // Connect customer directly to the WebRTC agent
   const dial = twiml.dial({
-    timeout: 30, // 30 seconds timeout
-    record: 'record-from-answer', // Start recording when call is answered
+    timeout: 45, // Increase timeout to 45 seconds
+    record: 'record-from-answer-dual', // Record both sides
+    answerOnBridge: true, // Only answer when agent picks up
   });
   
   // Use client dial to connect to the WebRTC agent
   dial.client('agent-browser');
+  
+  // If agent doesn't answer, play a message
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Sorry, no agents are available. Please try again later.');
 
   return twiml.toString();
 };

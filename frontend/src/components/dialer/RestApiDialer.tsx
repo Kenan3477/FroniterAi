@@ -12,6 +12,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [device, setDevice] = useState<Device | null>(null);
   const [isDeviceReady, setIsDeviceReady] = useState(false);
   const [currentCall, setCurrentCall] = useState<any>(null);
+  const [microphoneStream, setMicrophoneStream] = useState<MediaStream | null>(null);
+  const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
+  const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, startTime: Date} | null>(null);
   const deviceRef = useRef<Device | null>(null);
 
   // Debug logging for device ready state
@@ -22,6 +25,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   // Initialize Twilio Device for browser audio (to receive calls from REST API)
   useEffect(() => {
     const initializeDevice = async () => {
+      // Prevent duplicate device initialization
+      if (deviceRef.current) {
+        console.log('🔄 Device already initialized, skipping...');
+        return;
+      }
+
       try {
         console.log('🔄 Initializing WebRTC device for incoming calls...');
         
@@ -40,8 +49,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         
         // Initialize Twilio Device for incoming calls with better configuration  
         const twilioDevice = new Device(data.token, {
-          logLevel: 'debug',
-          allowIncomingWhileBusy: false, // Prevent conflicts
+          logLevel: 'info', // Reduce debug spam
+          allowIncomingWhileBusy: false, // Prevent multiple simultaneous calls
           enableImprovedSignalingErrorPrecision: true
         });
 
@@ -64,38 +73,70 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         });
 
         twilioDevice.on('incoming', async (call) => {
-          console.log('📞 Incoming call from REST API - auto accepting');
+          console.log('📞 Incoming call from REST API - checking microphone...');
+          
+          // If we already have an active call, reject this new one
+          if (currentCall) {
+            console.log('⚠️ Already have an active call, rejecting new incoming call');
+            call.reject();
+            return;
+          }
           
           try {
-            // Ensure microphone access before accepting the call
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            console.log('🎤 Microphone access granted');
+            let stream = microphoneStream;
             
-            // Accept the call with microphone enabled
+            // If we don't have a stream yet, or permission wasn't granted, try to get one
+            if (!stream || !microphonePermissionGranted) {
+              console.log('🎤 Requesting microphone access for incoming call...');
+              // Request microphone with high-quality audio settings
+              stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
+                  sampleRate: 48000
+                }
+              });
+              setMicrophoneStream(stream);
+              setMicrophonePermissionGranted(true);
+            }
+            
+            console.log('🎤 Microphone access confirmed - accepting call');
+            
+            // Set the current call immediately to prevent duplicates
+            setCurrentCall(call);
+            
+            // Accept the call
+            await call.accept();
             await call.accept();
             
             // Set up call event handlers
             call.on('accept', () => {
               console.log('✅ Call accepted - two way audio should be working');
-              setCurrentCall(call);
+              // Call is already set above
             });
             
             call.on('disconnect', () => {
               console.log('📱 Call disconnected');
               setCurrentCall(null);
-              // Stop the microphone stream to free up resources
-              stream.getTracks().forEach(track => track.stop());
+              // Don't stop the microphone stream here - keep it for next call
+            });
+            
+            call.on('cancel', () => {
+              console.log('📱 Call cancelled');
+              setCurrentCall(null);
             });
             
             call.on('error', (error: any) => {
               console.error('❌ Call error:', error);
               setCurrentCall(null);
-              // Stop the microphone stream on error
-              stream.getTracks().forEach(track => track.stop());
+              // Don't stop the microphone stream on error - keep it for next call
             });
             
           } catch (error) {
-            console.error('❌ Microphone access denied:', error);
+            console.error('❌ Microphone access denied during call:', error);
+            setMicrophonePermissionGranted(false);
+            alert('❌ Microphone access required for two-way audio. Please click "Test Microphone" first.');
             call.reject();
           }
         });
@@ -116,8 +157,23 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       if (deviceRef.current) {
         deviceRef.current.destroy();
       }
+      // Clean up microphone stream
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
+
+  // Cleanup active REST API calls on unmount
+  useEffect(() => {
+    return () => {
+      if (activeRestApiCall) {
+        console.log('🧹 Component unmounting, cleaning up active REST API call');
+        // Note: In a real app, you might want to end the call here
+        // For now, just log it as the call might continue on the backend
+      }
+    };
+  }, [activeRestApiCall]);
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 15) { // Reasonable limit for international numbers
@@ -136,14 +192,31 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
   const testMicrophone = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('🎤 Microphone test successful');
-      alert('✅ Microphone access granted! Audio should work on calls.');
+      // Clean up any existing stream first
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach(track => track.stop());
+      }
+
+      // Request microphone with high-quality audio settings
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        }
+      });
+      console.log('🎤 Microphone test successful - high-quality stream acquired');
       
-      // Stop the test stream
-      stream.getTracks().forEach(track => track.stop());
+      // Store the stream for future use
+      setMicrophoneStream(stream);
+      setMicrophonePermissionGranted(true);
+      
+      alert('✅ Microphone access granted! High-quality audio ready for calls.');
+      
     } catch (error) {
       console.error('❌ Microphone test failed:', error);
+      setMicrophonePermissionGranted(false);
       alert('❌ Microphone access denied. Please allow microphone permissions in your browser.');
     }
   };
@@ -179,6 +252,13 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           method: 'REST API',
           message: result.message
         });
+        
+        // Track the active REST API call
+        setActiveRestApiCall({
+          callSid: result.callSid,
+          startTime: new Date()
+        });
+        
         onCallInitiated?.(result);
         console.log('✅ REST API call initiated:', result);
       } else {
@@ -196,14 +276,53 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     }
   };
 
-  const handleHangup = () => {
-    // For REST API calls, we can't directly hang up from frontend
-    // This would need to be implemented through the backend
-    console.log('📞 Hangup requested - REST API calls managed by backend');
-    setLastCallResult({
-      success: true,
-      message: 'Call hangup requested. Contact your administrator to end active calls.'
-    });
+  const handleHangup = async () => {
+    if (activeRestApiCall) {
+      try {
+        setIsLoading(true);
+        const callDuration = Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000);
+        
+        // End the REST API call through backend
+        const response = await fetch('/api/dialer/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            callSid: activeRestApiCall.callSid,
+            duration: callDuration,
+            status: 'completed',
+            disposition: 'agent-hangup'
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setLastCallResult({
+            success: true,
+            message: 'Call ended successfully'
+          });
+          setActiveRestApiCall(null);
+          console.log('✅ REST API call ended:', result);
+        } else {
+          throw new Error(result.error || 'Failed to end call');
+        }
+      } catch (error: any) {
+        console.error('❌ Error ending REST API call:', error);
+        setLastCallResult({
+          success: false,
+          message: 'Failed to end call: ' + error.message
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // For Twilio SDK calls or when no active call
+      console.log('📞 No active REST API call to end');
+      setLastCallResult({
+        success: true,
+        message: 'No active call to end'
+      });
+    }
   };
 
   const dialPadNumbers = [
@@ -282,21 +401,49 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             </p>
           </div>
         )}
+        
+        {/* Microphone Status */}
+        <div className={`mb-4 p-2 rounded-md ${
+          microphonePermissionGranted 
+            ? 'bg-green-50 border border-green-200' 
+            : 'bg-yellow-50 border border-yellow-200'
+        }`}>
+          <p className={`text-xs ${
+            microphonePermissionGranted ? 'text-green-800' : 'text-yellow-800'
+          }`}>
+            {microphonePermissionGranted 
+              ? '🎤✅ Microphone ready for two-way audio' 
+              : '🎤⚠️ Click "Test Mic" to enable two-way audio'
+            }
+          </p>
+        </div>
 
-        {currentCall && (
+        {(currentCall || activeRestApiCall) && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800 font-medium">
               📞 Call in progress - Two-way audio should be working
+              {activeRestApiCall && (
+                <span className="block text-xs mt-1">
+                  Call SID: {activeRestApiCall.callSid}
+                </span>
+              )}
             </p>
             <button
               onClick={() => {
                 if (currentCall) {
                   currentCall.disconnect();
+                } else if (activeRestApiCall) {
+                  handleHangup();
                 }
               }}
-              className="mt-2 text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              disabled={isLoading}
+              className={`mt-2 text-xs px-3 py-1 rounded text-white ${
+                isLoading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-red-600 hover:bg-red-700'
+              }`}
             >
-              End Call
+              {isLoading ? 'Ending...' : 'End Call'}
             </button>
           </div>
         )}
@@ -323,10 +470,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           
           <button
             onClick={testMicrophone}
-            className="bg-blue-600 text-white px-3 py-3 rounded-md hover:bg-blue-700 transition-colors text-sm"
-            title="Test microphone permissions"
+            className={`px-3 py-3 rounded-md transition-colors text-sm ${
+              microphonePermissionGranted 
+                ? 'bg-green-600 text-white hover:bg-green-700' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+            title={microphonePermissionGranted ? "Microphone ready" : "Test microphone permissions"}
           >
-            🎤 Test Mic
+            {microphonePermissionGranted ? '🎤✅ Mic Ready' : '🎤 Test Mic'}
           </button>
           
           <button

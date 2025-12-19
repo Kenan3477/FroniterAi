@@ -372,4 +372,209 @@ router.post('/:agentId/end-call', async (req: Request, res: Response) => {
   }
 });
 
+// ENHANCED AGENT MANAGEMENT FOR DIAL QUEUE
+
+// GET /api/agents/session/:agentId - Get agent session details
+router.get('/session/:agentId', (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+    const agent = mockAgents.find(a => a.id === agentId);
+    
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+
+    // Calculate session duration
+    const sessionDuration = agent.sessionStartTime 
+      ? Date.now() - agent.sessionStartTime.getTime()
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        agent,
+        sessionDuration,
+        isOnline: agent.status !== 'OFFLINE',
+        sessionMetrics: {
+          callsToday: agent.callsToday,
+          averageCallTime: 0, // Can be calculated with call history
+          totalSessionTime: sessionDuration
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get agent session error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get agent session'
+    });
+  }
+});
+
+// POST /api/agents/:agentId/join-campaign - Join agent to specific campaign
+router.post('/:agentId/join-campaign', (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+    const { campaignId } = req.body;
+
+    const agent = mockAgents.find(a => a.id === agentId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+
+    // Check if already assigned
+    if (agent.assignedCampaigns.includes(campaignId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Agent already assigned to this campaign'
+      });
+    }
+
+    agent.assignedCampaigns.push(campaignId);
+
+    res.json({
+      success: true,
+      data: {
+        agent,
+        message: 'Agent successfully joined campaign'
+      }
+    });
+
+  } catch (error) {
+    console.error('Join campaign error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to join campaign'
+    });
+  }
+});
+
+// POST /api/agents/:agentId/leave-campaign - Remove agent from specific campaign
+router.post('/:agentId/leave-campaign', (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+    const { campaignId } = req.body;
+
+    const agent = mockAgents.find(a => a.id === agentId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+
+    const campaignIndex = agent.assignedCampaigns.indexOf(campaignId);
+    if (campaignIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Agent not assigned to this campaign'
+      });
+    }
+
+    agent.assignedCampaigns.splice(campaignIndex, 1);
+
+    res.json({
+      success: true,
+      data: {
+        agent,
+        message: 'Agent successfully left campaign'
+      }
+    });
+
+  } catch (error) {
+    console.error('Leave campaign error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to leave campaign'
+    });
+  }
+});
+
+// GET /api/agents/campaign/:campaignId - Get all agents for specific campaign
+router.get('/campaign/:campaignId', (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const campaignAgents = mockAgents.filter(agent => 
+      agent.assignedCampaigns.includes(campaignId)
+    );
+
+    const agentStats = {
+      total: campaignAgents.length,
+      available: campaignAgents.filter(a => a.status === 'AVAILABLE').length,
+      onCall: campaignAgents.filter(a => a.status === 'ON_CALL').length,
+      acw: campaignAgents.filter(a => a.status === 'ACW').length,
+      away: campaignAgents.filter(a => a.status === 'AWAY').length,
+      offline: campaignAgents.filter(a => a.status === 'OFFLINE').length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        agents: campaignAgents,
+        stats: agentStats,
+        campaignId
+      }
+    });
+
+  } catch (error) {
+    console.error('Get campaign agents error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get campaign agents'
+    });
+  }
+});
+
+// POST /api/agents/bulk/start-session - Start session for multiple agents
+router.post('/bulk/start-session', (req: Request, res: Response) => {
+  try {
+    const { agentIds } = req.body;
+
+    if (!Array.isArray(agentIds)) {
+      return res.status(400).json({
+        success: false,
+        error: 'agentIds must be an array'
+      });
+    }
+
+    const updatedAgents = [];
+    const errors = [];
+
+    for (const agentId of agentIds) {
+      const agent = mockAgents.find(a => a.id === agentId);
+      if (agent) {
+        agent.status = 'AVAILABLE';
+        agent.sessionStartTime = new Date();
+        agent.lastStatusChange = new Date();
+        updatedAgents.push(agent);
+      } else {
+        errors.push(`Agent ${agentId} not found`);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        updatedAgents,
+        errors,
+        message: `Started session for ${updatedAgents.length} agents`
+      }
+    });
+
+  } catch (error) {
+    console.error('Bulk start session error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start bulk session'
+    });
+  }
+});
+
 export default router;

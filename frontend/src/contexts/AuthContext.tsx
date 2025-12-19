@@ -87,17 +87,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!user) return;
       
-      const response = await fetch('/api/campaigns/user-campaigns', {
+      // Use the same endpoint as the campaign management page
+      const response = await fetch('/api/admin/campaign-management/campaigns', {
         credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
-        setAvailableCampaigns(data.campaigns || []);
+        // Transform the admin campaign format to the dropdown format
+        const campaigns = data.data?.campaigns || data.campaigns || [];
+        
+        // Filter out mock/demo campaigns that users shouldn't see
+        const mockCampaignIds = ['campaign_001', 'campaign_002', 'campaign_test'];
+        const mockCampaignNames = ['Q4_Sales_Outreach', 'Customer_Satisfaction_Survey', 'Test_Campaign'];
+        
+        const realCampaigns = campaigns.filter((campaign: any) => {
+          // Exclude mock campaigns by their IDs or names
+          return !mockCampaignIds.includes(campaign.id) && 
+                 !mockCampaignNames.includes(campaign.name);
+        });
+        
+        const transformedCampaigns = realCampaigns.map((campaign: any) => ({
+          campaignId: campaign.id,
+          name: campaign.displayName || campaign.name,
+          description: campaign.description,
+          status: campaign.status?.toLowerCase()
+        }));
+        
+        setAvailableCampaigns(transformedCampaigns);
+        
+        // Clear current campaign if it's a mock campaign
+        if (currentCampaign && mockCampaignIds.includes(currentCampaign.campaignId)) {
+          setCurrentCampaign(null);
+        }
         
         // Auto-select first campaign if none selected and campaigns available
-        if (!currentCampaign && data.campaigns && data.campaigns.length > 0) {
-          setCurrentCampaign(data.campaigns[0]);
+        if (!currentCampaign && transformedCampaigns.length > 0) {
+          setCurrentCampaign(transformedCampaigns[0]);
         }
       }
     } catch (error) {

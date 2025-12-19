@@ -76,31 +76,31 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <DashboardCard
             title="Today's Calls"
-            value={loading ? "..." : dashboardStats?.today.todayCalls.toString() || "0"}
+            value={loading ? "..." : (dashboardStats?.today?.todayCalls?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">📞</span>}
             color="bg-kennex-500"
-            trend={formatTrend(dashboardStats?.trends.callsTrend || null)}
+            trend={formatTrend(dashboardStats?.trends?.callsTrend || null)}
           />
           <DashboardCard
             title="Successful Calls"
-            value={loading ? "..." : dashboardStats?.today.successfulCalls.toString() || "0"}
+            value={loading ? "..." : (dashboardStats?.today?.successfulCalls?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">✓</span>}
             color="bg-green-500"
-            trend={formatTrend(dashboardStats?.trends.successTrend || null)}
+            trend={formatTrend(dashboardStats?.trends?.successTrend || null)}
           />
           <DashboardCard
             title="Active Contacts"
-            value={loading ? "..." : dashboardStats?.today.activeContacts.toString() || "0"}
+            value={loading ? "..." : (dashboardStats?.today?.activeContacts?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">👤</span>}
             color="bg-blue-500"
-            trend={formatTrend(dashboardStats?.trends.contactsTrend || null)}
+            trend={formatTrend(dashboardStats?.trends?.contactsTrend || null)}
           />
           <DashboardCard
             title="Conversion Rate"
-            value={loading ? "..." : `${dashboardStats?.today.conversionRate.toFixed(1)}%` || "0%"}
+            value={loading ? "..." : `${dashboardStats?.today?.conversionRate?.toFixed(1) || "0"}%`}
             icon={<span className="text-white font-bold text-lg">📊</span>}
             color="bg-purple-500"
-            trend={formatTrend(dashboardStats?.trends.conversionTrend || null)}
+            trend={formatTrend(dashboardStats?.trends?.conversionTrend || null)}
           />
         </div>
 

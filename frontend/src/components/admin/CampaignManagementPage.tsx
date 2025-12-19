@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useEventSystem, useCampaignEvents, useSystemNotifications } from '@/contexts/EventSystemContext';
 import {
   Select,
   SelectContent,
@@ -11,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -45,7 +47,12 @@ import {
   Calendar,
   TrendingUp,
   Eye,
-  Settings
+  Settings,
+  UserPlus,
+  UserMinus,
+  Power,
+  Clock,
+  Zap
 } from 'lucide-react';
 
 interface CampaignTemplate {
@@ -104,6 +111,14 @@ interface ManagementCampaign {
   targetConversions?: number;
   targetRevenue?: number;
   createdAt: string;
+  // Dial Queue Properties
+  dialMethod: 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP';
+  dialSpeed: number; // Calls per minute for autodial
+  isActive: boolean; // Whether the campaign is actively dialing
+  agentCount: number; // Number of agents assigned to this campaign
+  queuePosition?: number; // Position in dial queue
+  predictiveDialingEnabled: boolean;
+  maxConcurrentCalls: number;
   template?: {
     id: string;
     name: string;
@@ -149,8 +164,15 @@ const CampaignManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Real-time event system integration
+  const { connectionStatus, connect } = useEventSystem();
+  const campaignEvents = useCampaignEvents();
+  const systemNotifications = useSystemNotifications();
+
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
+  const [isCampaignViewDialogOpen, setIsCampaignViewDialogOpen] = useState(false);
+  const [isCampaignEditDialogOpen, setIsCampaignEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<CampaignTemplate | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<ManagementCampaign | null>(null);
 
@@ -171,11 +193,173 @@ const CampaignManagementPage: React.FC = () => {
     priority: 1,
     status: 'DRAFT',
     budgetCurrency: 'USD',
+    dialMethod: 'MANUAL_DIAL',
+    dialSpeed: 60,
+    isActive: false,
+    agentCount: 0,
+    predictiveDialingEnabled: false,
+    maxConcurrentCalls: 10,
   });
+
+  // Dial Queue Handlers
+  const handleDialMethodChange = async (campaignId: string, dialMethod: ManagementCampaign['dialMethod']) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dialMethod }),
+      });
+
+      if (response.ok) {
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, dialMethod } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to update dial method:', error);
+    }
+  };
+
+  const handleActivateToggle = async (campaignId: string, isActive: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/activate`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+
+      if (response.ok) {
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, isActive } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to toggle campaign activation:', error);
+    }
+  };
+
+  const handleDialSpeedChange = async (campaignId: string, dialSpeed: number) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-speed`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dialSpeed }),
+      });
+
+      if (response.ok) {
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, dialSpeed } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to update dial speed:', error);
+    }
+  };
+
+  const handleAgentJoin = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/join-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, agentCount: c.agentCount + 1 } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to join agent to campaign:', error);
+    }
+  };
+
+  const handleAgentLeave = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/leave-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, agentCount: Math.max(0, c.agentCount - 1) } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to remove agent from campaign:', error);
+    }
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Real-time event handling
+  useEffect(() => {
+    // Auto-connect to event system (you'd get the token from your auth context)
+    const token = localStorage.getItem('authToken'); // Adjust based on your auth implementation
+    if (token && connectionStatus === 'disconnected') {
+      connect(token);
+    }
+  }, [connectionStatus, connect]);
+
+  // Handle real-time campaign events
+  useEffect(() => {
+    campaignEvents.forEach(event => {
+      console.log('📡 Received campaign event:', event);
+      
+      switch (event.type) {
+        case 'campaign.dial.speed.changed':
+          if (event.campaignId && event.dialSpeed) {
+            setCampaigns(prev => prev.map(c => 
+              c.id === event.campaignId ? { ...c, dialSpeed: event.dialSpeed! } : c
+            ));
+          }
+          break;
+
+        case 'campaign.dial.method.changed':
+          if (event.campaignId && event.dialMethod) {
+            setCampaigns(prev => prev.map(c => 
+              c.id === event.campaignId ? { ...c, dialMethod: event.dialMethod as any } : c
+            ));
+          }
+          break;
+
+        case 'campaign.started':
+        case 'campaign.paused':
+          if (event.campaignId && event.status) {
+            setCampaigns(prev => prev.map(c => 
+              c.id === event.campaignId ? { 
+                ...c, 
+                status: event.status as any,
+                isActive: event.type === 'campaign.started' 
+              } : c
+            ));
+          }
+          break;
+
+        case 'agent.campaign.joined':
+          if (event.campaignId) {
+            setCampaigns(prev => prev.map(c => 
+              c.id === event.campaignId ? { ...c, agentCount: c.agentCount + 1 } : c
+            ));
+          }
+          break;
+
+        case 'agent.campaign.left':
+          if (event.campaignId) {
+            setCampaigns(prev => prev.map(c => 
+              c.id === event.campaignId ? { ...c, agentCount: Math.max(0, c.agentCount - 1) } : c
+            ));
+          }
+          break;
+
+        default:
+          // Handle other campaign events as needed
+          break;
+      }
+    });
+  }, [campaignEvents]);
 
   const fetchData = async () => {
     try {
@@ -190,9 +374,20 @@ const CampaignManagementPage: React.FC = () => {
       const templatesData = await templatesResponse.json();
       const statsData = await statsResponse.json();
 
-      setCampaigns(campaignsData.data || []);
-      setTemplates(templatesData.data || []);
-      setStats(statsData);
+      // Add default dial queue properties to campaigns
+      const campaignsWithDialQueue = (campaignsData.data?.campaigns || []).map((campaign: ManagementCampaign) => ({
+        ...campaign,
+        dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
+        dialSpeed: campaign.dialSpeed || 60,
+        isActive: campaign.isActive || false,
+        agentCount: campaign.agentCount || 0,
+        predictiveDialingEnabled: campaign.predictiveDialingEnabled || false,
+        maxConcurrentCalls: campaign.maxConcurrentCalls || 10,
+      }));
+
+      setCampaigns(campaignsWithDialQueue);
+      setTemplates(templatesData.data?.templates || []);
+      setStats(statsData.data || statsData);
     } catch (err) {
       setError('Failed to fetch campaign management data');
       console.error('Error fetching data:', err);
@@ -318,6 +513,24 @@ const CampaignManagementPage: React.FC = () => {
           <p className="text-muted-foreground">
             Create, manage, and analyze marketing and sales campaigns
           </p>
+          {/* Real-time Event Status */}
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
+              {connectionStatus === 'authenticated' ? '🟢 Live Events' : '🔴 Events Offline'}
+            </Badge>
+            {campaignEvents.length > 0 && (
+              <Badge variant="outline">
+                {campaignEvents.length} recent events
+              </Badge>
+            )}
+            {systemNotifications.length > 0 && (
+              <Badge variant="destructive">
+                {systemNotifications.filter(n => 
+                  'level' in n && (n.level === 'error' || n.level === 'critical')
+                ).length} alerts
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
@@ -582,6 +795,141 @@ const CampaignManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Campaign View Dialog */}
+      <Dialog open={isCampaignViewDialogOpen} onOpenChange={setIsCampaignViewDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Campaign Details</DialogTitle>
+            <DialogDescription>
+              View campaign information and settings
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCampaign && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Campaign Name</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.displayName}</p>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.status}</p>
+              </div>
+              <div>
+                <Label>Type</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.type}</p>
+              </div>
+              <div>
+                <Label>Category</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.category}</p>
+              </div>
+              <div>
+                <Label>Dial Method</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.dialMethod}</p>
+              </div>
+              <div>
+                <Label>Dial Speed</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.dialSpeed} CPM</p>
+              </div>
+              <div>
+                <Label>Agent Count</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.agentCount}</p>
+              </div>
+              <div>
+                <Label>Is Active</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.isActive ? 'Yes' : 'No'}</p>
+              </div>
+              <div className="col-span-2">
+                <Label>Description</Label>
+                <p className="text-sm text-gray-600">{selectedCampaign.description || 'No description'}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsCampaignViewDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign Edit Dialog */}
+      <Dialog open={isCampaignEditDialogOpen} onOpenChange={setIsCampaignEditDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+            <DialogDescription>
+              Update campaign settings and configuration
+            </DialogDescription>
+          </DialogHeader>
+          {editingCampaign && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-name">Campaign Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editingCampaign.displayName}
+                  onChange={(e) => setEditingCampaign({ ...editingCampaign, displayName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={editingCampaign.status} onValueChange={(value) => setEditingCampaign({ ...editingCampaign, status: value as any })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="PAUSED">Paused</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-dial-method">Dial Method</Label>
+                <Select value={editingCampaign.dialMethod} onValueChange={(value) => setEditingCampaign({ ...editingCampaign, dialMethod: value as any })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AUTODIAL">Auto Dial</SelectItem>
+                    <SelectItem value="MANUAL_DIAL">Manual Dial</SelectItem>
+                    <SelectItem value="MANUAL_PREVIEW">Manual Preview</SelectItem>
+                    <SelectItem value="SKIP">Skip</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-dial-speed">Dial Speed (CPM)</Label>
+                <Input
+                  id="edit-dial-speed"
+                  type="number"
+                  value={editingCampaign.dialSpeed}
+                  onChange={(e) => setEditingCampaign({ ...editingCampaign, dialSpeed: parseInt(e.target.value) || 60 })}
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingCampaign.description || ''}
+                  onChange={(e) => setEditingCampaign({ ...editingCampaign, description: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCampaignEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              // Save logic would go here
+              setIsCampaignEditDialogOpen(false);
+            }}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -591,7 +939,7 @@ const CampaignManagementPage: React.FC = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.overview.totalCampaigns}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalCampaigns || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -600,7 +948,7 @@ const CampaignManagementPage: React.FC = () => {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.overview.totalTemplates}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalTemplates || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -609,7 +957,7 @@ const CampaignManagementPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.overview.totalTargets}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalTargets || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -618,7 +966,7 @@ const CampaignManagementPage: React.FC = () => {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.overview.totalResults}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalResults || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -629,6 +977,7 @@ const CampaignManagementPage: React.FC = () => {
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="events">Live Events</TabsTrigger>
         </TabsList>
 
         <TabsContent value="campaigns" className="space-y-4">
@@ -645,8 +994,9 @@ const CampaignManagementPage: React.FC = () => {
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Performance</TableHead>
+                      <TableHead>Dial Method</TableHead>
+                      <TableHead>Queue Controls</TableHead>
+                      <TableHead>Agents</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -676,33 +1026,125 @@ const CampaignManagementPage: React.FC = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">
-                            <div>{campaign.totalTargets} targets</div>
-                            <div className="text-gray-500">
-                              {campaign.totalCalls} calls
+                          <Select 
+                            value={campaign.dialMethod || 'MANUAL_DIAL'} 
+                            onValueChange={(value) => handleDialMethodChange(campaign.id, value as ManagementCampaign['dialMethod'])}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AUTODIAL">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="w-4 h-4" />
+                                  Auto Dial
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="MANUAL_DIAL">
+                                <div className="flex items-center gap-2">
+                                  <Phone className="w-4 h-4" />
+                                  Manual Dial
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="MANUAL_PREVIEW">
+                                <div className="flex items-center gap-2">
+                                  <Eye className="w-4 h-4" />
+                                  Manual Preview
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="SKIP">
+                                <div className="flex items-center gap-2">
+                                  <Pause className="w-4 h-4" />
+                                  Skip
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                variant={campaign.isActive ? "default" : "outline"}
+                                onClick={() => handleActivateToggle(campaign.id, !campaign.isActive)}
+                                className="h-6"
+                              >
+                                <Power className="w-3 h-3 mr-1" />
+                                {campaign.isActive ? 'Active' : 'Inactive'}
+                              </Button>
                             </div>
+                            {campaign.dialMethod === 'AUTODIAL' && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <Input
+                                  type="number"
+                                  value={campaign.dialSpeed || 60}
+                                  onChange={(e) => handleDialSpeedChange(campaign.id, parseInt(e.target.value) || 60)}
+                                  className="w-12 h-6 text-xs"
+                                  min="1"
+                                  max="300"
+                                />
+                                <span className="text-xs text-gray-500">cpm</span>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">
-                            <div className="text-green-600">
-                              {campaign.totalConversions} conversions
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-3 h-3" />
+                              <span className="text-sm font-medium">{campaign.agentCount || 0}</span>
                             </div>
-                            <div className="text-gray-500">
-                              ${campaign.totalRevenue.toFixed(2)}
+                            <div className="flex gap-1">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleAgentJoin(campaign.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <UserPlus className="w-3 h-3" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleAgentLeave(campaign.id)}
+                                disabled={!campaign.agentCount || campaign.agentCount === 0}
+                                className="h-6 w-6 p-0"
+                              >
+                                <UserMinus className="w-3 h-3" />
+                              </Button>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setSelectedCampaign(campaign);
+                                setIsCampaignViewDialogOpen(true);
+                              }}
+                            >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingCampaign(campaign);
+                                setIsCampaignEditDialogOpen(true);
+                              }}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="outline">
-                              {campaign.status === 'ACTIVE' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleActivateToggle(campaign.id, !campaign.isActive)}
+                            >
+                              {campaign.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </Button>
                           </div>
                         </TableCell>
@@ -811,7 +1253,7 @@ const CampaignManagementPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {Object.entries(stats.breakdown.byStatus).map(([status, count]) => (
+                      {Object.entries(stats?.breakdown?.byStatus || {}).map(([status, count]) => (
                         <div key={status} className="flex justify-between items-center">
                           <Badge className={getStatusColor(status)}>
                             {status}
@@ -829,7 +1271,7 @@ const CampaignManagementPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {Object.entries(stats.breakdown.byCategory).map(([category, count]) => (
+                      {Object.entries(stats?.breakdown?.byCategory || {}).map(([category, count]) => (
                         <div key={category} className="flex justify-between items-center">
                           <Badge className={getCategoryColor(category)}>
                             {category}
@@ -843,7 +1285,7 @@ const CampaignManagementPage: React.FC = () => {
               </>
             )}
 
-            {stats && stats.topPerformingCampaigns.length > 0 && (
+            {stats && stats?.topPerformingCampaigns?.length > 0 && (
               <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>Top Performing Campaigns</CardTitle>
@@ -860,7 +1302,7 @@ const CampaignManagementPage: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {stats.topPerformingCampaigns.map((campaign) => (
+                      {stats?.topPerformingCampaigns?.map((campaign) => (
                         <TableRow key={campaign.id}>
                           <TableCell className="font-medium">
                             {campaign.displayName}
@@ -871,7 +1313,7 @@ const CampaignManagementPage: React.FC = () => {
                             {campaign.totalConversions}
                           </TableCell>
                           <TableCell className="text-green-600 font-medium">
-                            ${campaign.totalRevenue.toFixed(2)}
+                            ${campaign.totalRevenue?.toFixed(2) || '0.00'}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -880,6 +1322,128 @@ const CampaignManagementPage: React.FC = () => {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="events" className="space-y-4">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Connection Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Real-time Event System
+                  <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
+                    {connectionStatus}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Live updates for campaign changes, agent activities, and system events
+                </p>
+                {connectionStatus !== 'authenticated' && (
+                  <Alert>
+                    <AlertDescription>
+                      Event system is not connected. Some features may not update in real-time.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Campaign Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Campaign Events</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {campaignEvents.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {campaignEvents.slice(0, 10).map((event, index) => (
+                      <div key={`${event.id}-${index}`} className="flex items-center justify-between p-2 border rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{event.type}</Badge>
+                          {'campaignId' in event && event.campaignId && (
+                            <span className="text-sm">{event.campaignId}</span>
+                          )}
+                          {'campaignName' in event && event.campaignName && (
+                            <span className="text-sm text-muted-foreground">
+                              - {event.campaignName}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(event.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No recent campaign events
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* System Notifications */}
+            {systemNotifications.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Notifications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {systemNotifications.slice(0, 5).map((notification, index) => (
+                      <Alert 
+                        key={`${notification.id}-${index}`}
+                        variant={'level' in notification && notification.level === 'error' ? 'destructive' : 'default'}
+                      >
+                        <AlertDescription className="flex items-center justify-between">
+                          <span>{'message' in notification ? notification.message : 'System notification'}</span>
+                          <span className="text-xs">
+                            {new Date(notification.timestamp).toLocaleTimeString()}
+                          </span>
+                        </AlertDescription>
+                      </Alert>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Event Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{campaignEvents.length}</div>
+                    <p className="text-sm text-muted-foreground">Campaign Events</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{systemNotifications.length}</div>
+                    <p className="text-sm text-muted-foreground">System Events</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">
+                      {campaignEvents.filter(e => e.type.includes('agent')).length}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Agent Events</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">
+                      {campaignEvents.filter(e => 
+                        e.timestamp && new Date(e.timestamp).getTime() > Date.now() - 60000
+                      ).length}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Last Minute</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
