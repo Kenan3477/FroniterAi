@@ -118,7 +118,6 @@ export default function WorkSidebar({
                 {selectedView === 'Outcomed Interactions' && '1789 completed interactions'}
                 {selectedView === 'Sent Interactions' && 'No sent interactions'}
                 {selectedView === 'Tasks' && '1 pending task'}
-                {selectedView === 'My Contacts' && 'Contact management'}
               </div>
             </div>
           </div>

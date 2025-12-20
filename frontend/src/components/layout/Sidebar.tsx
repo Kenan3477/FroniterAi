@@ -31,7 +31,6 @@ const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Work', href: '/work', icon: BriefcaseIcon },
   { name: 'Contacts', href: '/contacts', icon: UsersIcon },
-  { name: 'Advanced Contacts', href: '/contacts-advanced', icon: UsersIcon },
   { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon },
   { name: 'Advanced Reports', href: '/advanced-reports', icon: DocumentChartBarIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
