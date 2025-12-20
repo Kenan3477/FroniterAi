@@ -59,7 +59,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Interactive 3D Cube */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 items-center justify-center p-8 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 items-center justify-center p-8 relative overflow-hidden">
         {/* Dynamic background grid */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)]"></div>
@@ -86,9 +86,9 @@ export default function LoginPage() {
           <div className="space-y-6 text-center">
             <h1 className="text-6xl font-bold text-white tracking-tight relative">
               <span className="relative z-10">Omnivox-AI</span>
-              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-50 animate-pulse"></div>
+              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-blue-400 to-slate-400 opacity-50 animate-pulse"></div>
             </h1>
-            <p className="text-xl text-emerald-100 leading-relaxed max-w-md mx-auto">
+            <p className="text-xl text-slate-100 leading-relaxed max-w-md mx-auto">
               Advanced conversational AI platform with intelligent workflow automation
             </p>
           </div>
@@ -115,10 +115,10 @@ export default function LoginPage() {
         </div>
 
         {/* Floating Elements - Positioned Relative to Container */}
-        <div className="absolute top-16 left-12 w-4 h-4 bg-emerald-400/40 rounded-full animate-bounce" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-24 right-16 w-6 h-6 bg-cyan-400/30 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-16 left-12 w-4 h-4 bg-blue-400/40 rounded-full animate-bounce" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-24 right-16 w-6 h-6 bg-slate-400/30 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
         <div className="absolute top-1/3 right-8 w-3 h-3 bg-white/40 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
-        <div className="absolute bottom-1/3 left-8 w-5 h-5 bg-teal-400/30 rounded-full animate-bounce" style={{ animationDelay: '1.5s' }}></div>
+        <div className="absolute bottom-1/3 left-8 w-5 h-5 bg-indigo-400/30 rounded-full animate-bounce" style={{ animationDelay: '1.5s' }}></div>
 
         <style jsx>{`
           @keyframes slideUp {
@@ -140,8 +140,8 @@ export default function LoginPage() {
           {/* Header */}
           <div className="text-center">
             <div className="flex items-center justify-center space-x-3 mb-8">
-              <div className="w-12 h-12 bg-gradient-to-br from-kennex-500 to-kennex-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-xl">K</span>
+              <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-xl">O</span>
               </div>
               <span className="text-3xl font-bold text-gray-900">Omnivox-AI</span>
             </div>

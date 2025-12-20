@@ -46,8 +46,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-kennex-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">K</span>
+          <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
             <span className="text-xl font-bold text-gray-900">Omnivox-AI</span>
