@@ -202,8 +202,6 @@ export default function WorkPage() {
         return [];
       case 'Tasks':
         return mockTasks;
-      case 'My Contacts':
-        return [];
       default:
         return [];
     }

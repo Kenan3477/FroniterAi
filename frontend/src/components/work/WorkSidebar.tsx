@@ -16,7 +16,6 @@ const views = [
   { name: 'Outcomed Interactions', count: 1789 },
   { name: 'Sent Interactions', count: 0 },
   { name: 'Tasks', count: 1 },
-  { name: 'My Contacts', count: null },
 ];
 
 const myInteractions = [

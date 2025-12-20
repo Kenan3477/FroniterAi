@@ -17,54 +17,8 @@ import { getActiveListsByCampaign } from './listCampaignService';
  */
 
 // Mock data stores - in production these would be your actual database
-let mockContacts: Contact[] = [
-  {
-    contactId: 'contact_001',
-    listId: 'list_001',
-    firstName: 'John',
-    lastName: 'Smith',
-    phone: '+447700123456',
-    email: 'john.smith@example.com',
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: {},
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_002',
-    listId: 'list_001',
-    firstName: 'Jane',
-    lastName: 'Doe',
-    phone: '+447700654321',
-    email: 'jane.doe@example.com',
-    status: 'NoAnswer',
-    attemptCount: 1,
-    maxAttempts: 5,
-    locked: false,
-    lastAttemptAt: new Date(Date.now() - 60000), // 1 minute ago
-    nextRetryAt: new Date(Date.now() + 300000),  // 5 minutes from now
-    customFields: {},
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date(Date.now() - 60000)
-  },
-  {
-    contactId: 'contact_003',
-    listId: 'list_002',
-    firstName: 'Bob',
-    lastName: 'Johnson',
-    phone: '+447700987654',
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: {},
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15')
-  }
-];
+// Contacts will be fetched from the backend API
+let mockContacts: Contact[] = [];
 
 let mockDialQueue: DialQueueEntry[] = [];
 

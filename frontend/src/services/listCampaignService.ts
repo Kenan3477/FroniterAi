@@ -6,28 +6,8 @@ import { DataList, Contact, ListCampaignLinkResult, ListLinkError } from '../typ
  */
 
 // Mock database - in production this would be your actual database
-let mockLists: DataList[] = [
-  {
-    listId: 'list_001',
-    name: 'Cold Leads Q4',
-    campaignId: undefined,
-    active: false,
-    blendWeight: undefined,
-    totalContacts: 5000,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    listId: 'list_002', 
-    name: 'Warm Prospects',
-    campaignId: undefined,
-    active: false,
-    blendWeight: undefined,
-    totalContacts: 1200,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15')
-  }
-];
+// Data lists will be fetched from the backend API
+let mockLists: DataList[] = [];
 
 let mockCampaigns: string[] = []; // No mock campaign IDs - empty until user creates campaigns
 
