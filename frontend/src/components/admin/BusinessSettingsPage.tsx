@@ -182,18 +182,37 @@ const BusinessSettingsPage: React.FC = () => {
     try {
       setLoading(true);
       const [orgsResponse, statsResponse] = await Promise.all([
-        fetch('/api/admin/business-settings/organizations'),
-        fetch('/api/admin/business-settings/stats')
+        fetch('/api/admin/business-settings/organizations').catch(() => ({ json: () => ({ data: [] }) })),
+        fetch('/api/admin/business-settings/stats').catch(() => ({ json: () => ({}) }))
       ]);
 
       const orgsData = await orgsResponse.json();
       const statsData = await statsResponse.json();
 
       setOrganizations(orgsData.data || []);
-      setStats(statsData);
+      
+      // Provide default structure if API doesn't return expected format
+      const defaultStats: BusinessSettingsStats = {
+        organizations: { total: 0 },
+        settings: { total: 0, byCategory: {} },
+        profiles: { total: 0 },
+        parameters: { total: 0, byCategory: {} },
+        rules: { total: 0, byCategory: {} }
+      };
+      
+      setStats((statsData as any) || defaultStats);
     } catch (err) {
       setError('Failed to fetch business settings data');
       console.error('Error fetching data:', err);
+      
+      // Set default stats on error
+      setStats({
+        organizations: { total: 0 },
+        settings: { total: 0, byCategory: {} },
+        profiles: { total: 0 },
+        parameters: { total: 0, byCategory: {} },
+        rules: { total: 0, byCategory: {} }
+      });
     } finally {
       setLoading(false);
     }
@@ -485,7 +504,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.organizations.total}</div>
+              <div className="text-2xl font-bold">{stats?.organizations?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -494,7 +513,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.settings.total}</div>
+              <div className="text-2xl font-bold">{stats?.settings?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -503,7 +522,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.profiles.total}</div>
+              <div className="text-2xl font-bold">{stats?.profiles?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -512,7 +531,7 @@ const BusinessSettingsPage: React.FC = () => {
               <BarChart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.parameters.total}</div>
+              <div className="text-2xl font-bold">{stats?.parameters?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -521,7 +540,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.rules.total}</div>
+              <div className="text-2xl font-bold">{stats?.rules?.total || 0}</div>
             </CardContent>
           </Card>
         </div>
