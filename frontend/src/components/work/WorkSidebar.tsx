@@ -8,27 +8,33 @@ interface WorkSidebarProps {
   onViewChange: (view: string) => void;
   collapsed: boolean;
   onToggle: () => void;
+  outcomedInteractionsCount?: number;
+  activeInteractionsCount?: number;
+  tasksCount?: number;
 }
-
-const views = [
-  { name: 'Queued Interactions', count: 0 },
-  { name: 'Unallocated Interactions', count: 0 },
-  { name: 'Outcomed Interactions', count: 1789 },
-  { name: 'Sent Interactions', count: 0 },
-  { name: 'Tasks', count: 1 },
-];
-
-const myInteractions = [
-  { name: 'My Interactions', count: 0 },
-];
 
 export default function WorkSidebar({ 
   selectedView, 
   onViewChange, 
   collapsed,
-  onToggle
+  onToggle,
+  outcomedInteractionsCount = 0,
+  activeInteractionsCount = 0,
+  tasksCount = 0
 }: WorkSidebarProps) {
   const [showViewDropdown, setShowViewDropdown] = useState(false);
+
+  const views = [
+    { name: 'Queued Interactions', count: 0 },
+    { name: 'Unallocated Interactions', count: 0 },
+    { name: 'Outcomed Interactions', count: outcomedInteractionsCount },
+    { name: 'Sent Interactions', count: 0 },
+    { name: 'Tasks', count: tasksCount },
+  ];
+
+  const myInteractions = [
+    { name: 'My Interactions', count: activeInteractionsCount },
+  ];
 
   return (
     <div className={`${collapsed ? 'w-16' : 'w-72'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
@@ -112,12 +118,27 @@ export default function WorkSidebar({
             <div className="px-4 py-3">
               <h3 className="text-sm font-medium text-gray-900 mb-3">{selectedView}</h3>
               <div className="text-sm text-gray-500">
-                {selectedView === 'My Interactions' && 'No active interactions - start a call to see interactions here'}
+                {selectedView === 'My Interactions' && 
+                  (activeInteractionsCount > 0 
+                    ? `${activeInteractionsCount} active interaction${activeInteractionsCount !== 1 ? 's' : ''}` 
+                    : 'No active interactions - start a call to see interactions here'
+                  )
+                }
                 {selectedView === 'Queued Interactions' && 'No queued interactions'}
                 {selectedView === 'Unallocated Interactions' && 'No unallocated interactions'}
-                {selectedView === 'Outcomed Interactions' && '1789 completed interactions'}
+                {selectedView === 'Outcomed Interactions' && 
+                  (outcomedInteractionsCount > 0 
+                    ? `${outcomedInteractionsCount} completed interaction${outcomedInteractionsCount !== 1 ? 's' : ''}` 
+                    : 'No completed interactions yet'
+                  )
+                }
                 {selectedView === 'Sent Interactions' && 'No sent interactions'}
-                {selectedView === 'Tasks' && '1 pending task'}
+                {selectedView === 'Tasks' && 
+                  (tasksCount > 0 
+                    ? `${tasksCount} pending task${tasksCount !== 1 ? 's' : ''}` 
+                    : 'No pending tasks'
+                  )
+                }
               </div>
             </div>
           </div>

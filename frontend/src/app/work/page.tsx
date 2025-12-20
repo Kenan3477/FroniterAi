@@ -113,6 +113,9 @@ export default function WorkPage() {
           onViewChange={setSelectedView}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          outcomedInteractionsCount={outcomedInteractions.length}
+          activeInteractionsCount={activeInteractions.length}
+          tasksCount={mockTasks.length}
         />
 
         {/* Main Content */}
