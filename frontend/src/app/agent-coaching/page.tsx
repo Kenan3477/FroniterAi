@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import MainLayout from '../../../components/layout/MainLayout';
+import { MainLayout } from '@/components/layout';
 import { 
   MicrophoneIcon,
   PhoneIcon,
