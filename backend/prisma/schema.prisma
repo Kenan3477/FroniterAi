@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -434,7 +434,7 @@ model CampaignFlow {
   flowId        String
   triggerType   String    // "outbound_start" | "inbound_start" | "agent_available" | "custom"
   priority      Int       @default(1)
-  conditions    String    @default("{}")
+  conditions    Json      @default("{}")
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -454,7 +454,7 @@ model FlowExecution {
   agentId       String?
   status        String              @default("INITIATED") // "INITIATED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED"
   currentStep   String?
-  executionData String              @default("{}")
+  executionData Json                @default("{}")
   errorMessage  String?
   startedAt     DateTime            @default(now())
   completedAt   DateTime?
@@ -478,8 +478,8 @@ model FlowExecutionStep {
   stepId        String
   stepName      String
   status        String        @default("PENDING") // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED"
-  stepData      String        @default("{}")
-  resultData    String        @default("{}")
+  stepData      Json          @default("{}")
+  resultData    Json          @default("{}")
   errorMessage  String?
   startedAt     DateTime?
   completedAt   DateTime?
