@@ -37,13 +37,13 @@ const DashboardLayout = () => {
         {/* Left Sidebar */}
         <div className="fixed left-0 top-0 h-full w-16 bg-gray-900 flex flex-col items-center py-4 z-50">
           {/* Logo */}
-          <div className="w-8 h-8 bg-kennex-600 rounded flex items-center justify-center mb-8">
+          <div className="w-8 h-8 bg-slate-600 rounded flex items-center justify-center mb-8">
             <span className="text-white font-bold text-sm">K</span>
           </div>
           
           {/* Navigation Icons */}
           <nav className="flex flex-col space-y-4">
-            <button className="p-3 rounded-lg bg-kennex-600 text-white">
+            <button className="p-3 rounded-lg bg-slate-600 text-white">
               <HomeIcon className="w-5 h-5" />
             </button>
             <button className="p-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700">

@@ -146,7 +146,7 @@ const DispositionHistory: React.FC<DispositionHistoryProps> = ({
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'positive': return 'bg-green-100 text-green-800';
+      case 'positive': return 'bg-green-100 text-slate-800';
       case 'negative': return 'bg-red-100 text-red-800';
       case 'callback_required': return 'bg-yellow-100 text-yellow-800';
       case 'technical_issue': return 'bg-gray-100 text-gray-800';
@@ -269,10 +269,10 @@ const DispositionHistory: React.FC<DispositionHistoryProps> = ({
 
                   <div className="bg-green-50 rounded-lg p-4">
                     <div className="flex items-center">
-                      <Target className="h-5 w-5 text-green-600" />
+                      <Target className="h-5 w-5 text-slate-600" />
                       <div className="ml-3">
-                        <p className="text-sm font-medium text-green-600">Conversion Rate</p>
-                        <p className="text-lg font-semibold text-green-900">{stats.conversionRate}%</p>
+                        <p className="text-sm font-medium text-slate-600">Conversion Rate</p>
+                        <p className="text-lg font-semibold text-slate-900">{stats.conversionRate}%</p>
                       </div>
                     </div>
                   </div>
@@ -382,7 +382,7 @@ const DispositionHistory: React.FC<DispositionHistoryProps> = ({
                           {formatDuration(disposition.callDuration)}
                         </div>
                         {disposition.saleAmount && (
-                          <div className="text-sm text-green-600 font-medium">
+                          <div className="text-sm text-slate-600 font-medium">
                             {formatCurrency(disposition.saleAmount)}
                           </div>
                         )}

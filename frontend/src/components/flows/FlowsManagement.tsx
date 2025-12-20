@@ -82,9 +82,9 @@ export default function FlowsManagement({ onBackToAdmin, initialSubSection = 'Ma
   return (
     <div className="flex h-full">
       {/* Left Sidebar */}
-      <div className="w-64 bg-emerald-600 text-white">
+      <div className="w-64 bg-slate-600 text-white">
         {/* Header */}
-        <div className="p-4 border-b border-emerald-500">
+        <div className="p-4 border-b border-slate-500">
           <div className="flex items-center space-x-2">
             <GitBranch size={20} />
             <span className="font-medium">Flows</span>
@@ -104,8 +104,8 @@ export default function FlowsManagement({ onBackToAdmin, initialSubSection = 'Ma
                   onClick={section.isCollapsible ? () => toggleSection(section.id) : (section.action || (() => setSelectedSubSection(section.name)))}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors ${
                     isSelected
-                      ? 'bg-emerald-700 text-white'
-                      : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-100 hover:bg-slate-700 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -126,7 +126,7 @@ export default function FlowsManagement({ onBackToAdmin, initialSubSection = 'Ma
                       <button
                         key={subItem.id}
                         onClick={subItem.action}
-                        className="w-full text-left px-3 py-1 text-sm text-emerald-200 hover:text-white hover:bg-emerald-700 rounded-md transition-colors"
+                        className="w-full text-left px-3 py-1 text-sm text-slate-200 hover:text-white hover:bg-slate-700 rounded-md transition-colors"
                       >
                         {subItem.name}
                       </button>
@@ -199,11 +199,11 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
   return (
     <div className="flex h-full">
       {/* Left Sidebar */}
-      <div className="w-64 bg-emerald-600 text-white">
-        <div className="p-4 border-b border-emerald-500">
+      <div className="w-64 bg-slate-600 text-white">
+        <div className="p-4 border-b border-slate-500">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-emerald-100 hover:text-white transition-colors"
+            className="flex items-center space-x-2 text-slate-100 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
             <span>Create Flow</span>
@@ -213,17 +213,17 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
         {/* Step indicator */}
         <div className="p-4">
           <div className="space-y-3">
-            <div className={`flex items-center space-x-3 ${currentStep >= 1 ? 'text-white' : 'text-emerald-300'}`}>
+            <div className={`flex items-center space-x-3 ${currentStep >= 1 ? 'text-white' : 'text-slate-300'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                currentStep >= 1 ? 'bg-white text-emerald-600' : 'bg-emerald-500'
+                currentStep >= 1 ? 'bg-white text-slate-600' : 'bg-slate-500'
               }`}>
                 1
               </div>
               <span className="text-sm">General</span>
             </div>
-            <div className={`flex items-center space-x-3 ${currentStep >= 2 ? 'text-white' : 'text-emerald-300'}`}>
+            <div className={`flex items-center space-x-3 ${currentStep >= 2 ? 'text-white' : 'text-slate-300'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                currentStep >= 2 ? 'bg-white text-emerald-600' : 'bg-emerald-500'
+                currentStep >= 2 ? 'bg-white text-slate-600' : 'bg-slate-500'
               }`}>
                 2
               </div>
@@ -258,7 +258,7 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
                     type="text"
                     value={formData.flowName}
                     onChange={(e) => setFormData({ ...formData, flowName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-slate-500 focus:ring-slate-500 focus:outline-none"
                     placeholder="Enter flow name"
                   />
                 </div>
@@ -271,7 +271,7 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-slate-500 focus:ring-slate-500 focus:outline-none resize-none"
                     placeholder="Enter flow description"
                   />
                 </div>
@@ -280,7 +280,7 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
                   <button
                     onClick={handleNext}
                     disabled={!formData.flowName || !formData.description}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Next →
                   </button>
@@ -313,7 +313,7 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
                 </button>
                 <button
                   onClick={handleCreate}
-                  className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors"
                 >
                   Create Flow
                 </button>
@@ -425,7 +425,7 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
           <p className="text-gray-600 mt-1">Create and manage your automation flows</p>
         </div>
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
         </div>
       </div>
     );
@@ -446,7 +446,7 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
           <p className="text-gray-500 mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors"
           >
             Retry
           </button>
@@ -464,7 +464,7 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
         </div>
         <button 
           onClick={onCreateFlow}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors flex items-center space-x-2"
         >
           <Plus size={16} />
           <span>Create Flow</span>
@@ -473,14 +473,14 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
 
       {flows.length === 0 ? (
         <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-            <GitBranch size={24} className="text-emerald-600" />
+          <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <GitBranch size={24} className="text-slate-600" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No flows created yet</h3>
           <p className="text-gray-500 mb-6">Get started by creating your first automation flow</p>
           <button 
             onClick={onCreateFlow}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors"
           >
             Create Your First Flow
           </button>
@@ -495,7 +495,7 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
                   <p className="text-gray-600 text-sm mb-3">{flow.description}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs rounded-full ${
-                  flow.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                  flow.status === 'ACTIVE' ? 'bg-green-100 text-slate-800' :
                   flow.status === 'INACTIVE' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
@@ -517,7 +517,7 @@ function FlowsList({ onCreateFlow, onEditFlow, onSettings }: {
               <div className="flex space-x-2">
                 <button 
                   onClick={() => onEditFlow?.(flow)}
-                  className="flex-1 px-3 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 transition-colors"
+                  className="flex-1 px-3 py-2 bg-slate-600 text-white text-sm rounded-md hover:bg-slate-700 transition-colors"
                 >
                   Edit Flow
                 </button>
@@ -642,7 +642,7 @@ function FlowSettingsModal({ flow, onClose, onSave }: {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
               placeholder="Enter flow name"
             />
           </div>
@@ -654,7 +654,7 @@ function FlowSettingsModal({ flow, onClose, onSave }: {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
               rows={3}
               placeholder="Enter flow description"
             />
@@ -667,7 +667,7 @@ function FlowSettingsModal({ flow, onClose, onSave }: {
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as Flow['status'] })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
             >
               <option value="DRAFT">Draft</option>
               <option value="ACTIVE">Active</option>
@@ -686,7 +686,7 @@ function FlowSettingsModal({ flow, onClose, onSave }: {
           <button
             onClick={handleSave}
             disabled={saving || !formData.name.trim()}
-            className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

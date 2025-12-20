@@ -102,11 +102,11 @@ export default function EnhancedContactList({
   const getStatusColor = (status: string): string => {
     const colors: { [key: string]: string } = {
       'new': 'bg-blue-100 text-blue-800',
-      'contacted': 'bg-green-100 text-green-800',
+      'contacted': 'bg-green-100 text-slate-800',
       'attempted': 'bg-yellow-100 text-yellow-800',
       'callback': 'bg-purple-100 text-purple-800',
       'final': 'bg-gray-100 text-gray-800',
-      'completed': 'bg-emerald-100 text-emerald-800'
+      'completed': 'bg-slate-100 text-slate-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -115,10 +115,10 @@ export default function EnhancedContactList({
     if (!outcome) return 'text-gray-500';
     
     const colors: { [key: string]: string } = {
-      'answered': 'text-green-600',
-      'connected': 'text-green-600',
+      'answered': 'text-slate-600',
+      'connected': 'text-slate-600',
       'interested': 'text-blue-600',
-      'sale': 'text-emerald-600',
+      'sale': 'text-slate-600',
       'callback': 'text-purple-600',
       'no_answer': 'text-gray-600',
       'busy': 'text-orange-600',
@@ -154,7 +154,7 @@ export default function EnhancedContactList({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-kennex-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
         <span className="ml-3 text-gray-600">Loading contacts for {currentCampaign.name}...</span>
       </div>
     );
@@ -193,8 +193,8 @@ export default function EnhancedContactList({
               <div className="flex items-center justify-between">
                 {/* Contact Basic Info */}
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-kennex-100 rounded-full flex items-center justify-center">
-                    <span className="text-kennex-600 font-semibold text-lg">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+                    <span className="text-slate-600 font-semibold text-lg">
                       {contact.firstName[0]}{contact.lastName[0]}
                     </span>
                   </div>
@@ -254,7 +254,7 @@ export default function EnhancedContactList({
                   {/* Info Button */}
                   <button
                     onClick={() => handleInfoClick(contact.contactId)}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-300 rounded-md hover:bg-slate-100 transition-colors"
                     title="View detailed contact information"
                   >
                     <Info className="h-4 w-4 mr-1" />

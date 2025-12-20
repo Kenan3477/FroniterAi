@@ -25,7 +25,7 @@ export interface DispositionData {
 }
 
 const dispositionOptions = [
-  { value: 'answered', label: 'Answered - Successful', color: 'bg-green-100 text-green-800 border-green-300' },
+  { value: 'answered', label: 'Answered - Successful', color: 'bg-green-100 text-slate-800 border-slate-300' },
   { value: 'voicemail', label: 'Voicemail Left', color: 'bg-blue-100 text-blue-800 border-blue-300' },
   { value: 'no-answer', label: 'No Answer', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
   { value: 'busy', label: 'Busy', color: 'bg-orange-100 text-orange-800 border-orange-300' },

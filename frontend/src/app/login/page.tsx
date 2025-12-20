@@ -177,7 +177,7 @@ export default function LoginPage() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border-2 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500 transition-colors ${
+                  className={`w-full px-4 py-3 border-2 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors ${
                     errors.username ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
                   }`}
                   placeholder="Enter your username"
@@ -203,7 +203,7 @@ export default function LoginPage() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 pr-12 border-2 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500 transition-colors ${
+                    className={`w-full px-4 py-3 pr-12 border-2 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors ${
                       errors.password ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
                     }`}
                     placeholder="Enter your password"
@@ -238,13 +238,13 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={formData.rememberMe}
                     onChange={handleChange}
-                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
                   />
                   <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700 font-medium">
                     Remember me
                   </label>
                 </div>
-                <a href="/forgot-password" className="text-sm text-kennex-600 hover:text-kennex-500 font-medium">
+                <a href="/forgot-password" className="text-sm text-slate-600 hover:text-slate-500 font-medium">
                   Forgot password?
                 </a>
               </div>
@@ -252,7 +252,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-kennex-600 to-kennex-700 hover:from-kennex-700 hover:to-kennex-800 text-white font-semibold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 shadow-lg transform hover:scale-[1.02]"
+                className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-semibold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 shadow-lg transform hover:scale-[1.02]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -270,7 +270,7 @@ export default function LoginPage() {
 
             <div className="text-center pt-4">
               <p className="text-sm text-gray-500">
-                Powered by <span className="font-semibold text-kennex-600">Omnivox-AI</span> • 2025 • All rights reserved
+                Powered by <span className="font-semibold text-slate-600">Omnivox-AI</span> • 2025 • All rights reserved
               </p>
             </div>
           </div>

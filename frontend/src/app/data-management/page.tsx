@@ -59,7 +59,7 @@ export default function DataManagementPage() {
                     </label>
                     <input 
                       type="text" 
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                       placeholder="Enter list name"
                     />
                   </div>
@@ -67,7 +67,7 @@ export default function DataManagementPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Campaign
                     </label>
-                    <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500">
+                    <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
                       <option>Select Campaign</option>
                       <option>DAC Cold First Use</option>
                       <option>Default Campaign</option>
@@ -81,7 +81,7 @@ export default function DataManagementPage() {
                   </label>
                   <textarea 
                     rows={3}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                     placeholder="Enter description"
                   />
                 </div>
@@ -92,15 +92,15 @@ export default function DataManagementPage() {
                   </label>
                   <div className="space-y-2">
                     <label className="flex items-center">
-                      <input type="radio" name="dataSource" value="csv" className="text-kennex-600" />
+                      <input type="radio" name="dataSource" value="csv" className="text-slate-600" />
                       <span className="ml-2 text-sm text-gray-700">Upload CSV File</span>
                     </label>
                     <label className="flex items-center">
-                      <input type="radio" name="dataSource" value="database" className="text-kennex-600" />
+                      <input type="radio" name="dataSource" value="database" className="text-slate-600" />
                       <span className="ml-2 text-sm text-gray-700">Import from Database</span>
                     </label>
                     <label className="flex items-center">
-                      <input type="radio" name="dataSource" value="api" className="text-kennex-600" />
+                      <input type="radio" name="dataSource" value="api" className="text-slate-600" />
                       <span className="ml-2 text-sm text-gray-700">API Integration</span>
                     </label>
                   </div>
@@ -115,7 +115,7 @@ export default function DataManagementPage() {
                   </button>
                   <button 
                     type="submit"
-                    className="px-4 py-2 bg-kennex-600 text-white rounded-md text-sm font-medium hover:bg-kennex-700"
+                    className="px-4 py-2 bg-slate-600 text-white rounded-md text-sm font-medium hover:bg-slate-700"
                   >
                     Create Data List
                   </button>
@@ -190,22 +190,22 @@ export default function DataManagementPage() {
                       placeholder="Search data lists..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                      className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
                     />
                   </div>
                 )}
                 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2">
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                     <TableCellsIcon className="h-4 w-4 mr-2" />
                     View
                   </button>
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                     <EyeIcon className="h-4 w-4 mr-2" />
                     Actions
                   </button>
-                  <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-kennex-600 hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                  <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                     <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
                     Export
                   </button>

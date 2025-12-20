@@ -229,7 +229,7 @@ export default function FlowExecutionTestPage() {
               <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
                 <strong>2. 9-5 (Business Hours Check):</strong> Checks if within 9 AM - 5 PM
               </div>
-              <div className="p-3 bg-green-50 border-l-4 border-green-400 rounded">
+              <div className="p-3 bg-green-50 border-l-4 border-slate-400 rounded">
                 <strong>3a. Within Hours → IVR:</strong> Presents menu with options 1-4
               </div>
               <div className="p-3 bg-red-50 border-l-4 border-red-400 rounded">

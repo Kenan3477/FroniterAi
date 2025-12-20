@@ -114,7 +114,7 @@ export default function ApiManagement() {
       case 'staging':
         return 'bg-yellow-100 text-yellow-800';
       case 'development':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-slate-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -125,7 +125,7 @@ export default function ApiManagement() {
       return <ExclamationTriangleIcon className="w-5 h-5 text-orange-500" />;
     }
     return isActive ? 
-      <CheckCircleIcon className="w-5 h-5 text-green-500" /> : 
+      <CheckCircleIcon className="w-5 h-5 text-slate-500" /> : 
       <XCircleIcon className="w-5 h-5 text-red-500" />;
   };
 
@@ -264,7 +264,7 @@ export default function ApiManagement() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                  <CheckCircleIcon className="h-6 w-6 text-slate-400" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>

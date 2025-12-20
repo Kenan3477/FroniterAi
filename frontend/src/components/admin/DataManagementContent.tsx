@@ -409,7 +409,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   dataListCreator.step === step
-                    ? 'bg-kennex-600 text-white'
+                    ? 'bg-slate-600 text-white'
                     : index < ['details', 'settings', 'review'].indexOf(dataListCreator.step)
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-200 text-gray-600'
@@ -439,7 +439,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   type="text"
                   value={dataListCreator.name}
                   onChange={(e) => setDataListCreator(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   placeholder="Enter list name"
                 />
               </div>
@@ -450,7 +450,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   value={dataListCreator.description}
                   onChange={(e) => setDataListCreator(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   placeholder="Enter description"
                 />
               </div>
@@ -462,7 +462,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                 <select
                   value={dataListCreator.campaign}
                   onChange={(e) => setDataListCreator(prev => ({ ...prev, campaign: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                 >
                   <option value="">Select a campaign</option>
                   {campaigns.map(campaign => (
@@ -482,7 +482,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     type="number"
                     value={dataListCreator.priority}
                     onChange={(e) => setDataListCreator(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
                 <div>
@@ -491,7 +491,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     type="number"
                     value={dataListCreator.weight}
                     onChange={(e) => setDataListCreator(prev => ({ ...prev, weight: parseInt(e.target.value) || 100 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
               </div>
@@ -503,7 +503,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     type="number"
                     value={dataListCreator.maxDialAttempts}
                     onChange={(e) => setDataListCreator(prev => ({ ...prev, maxDialAttempts: parseInt(e.target.value) || 3 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
                 <div>
@@ -512,7 +512,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     type="number"
                     value={dataListCreator.recycleTime}
                     onChange={(e) => setDataListCreator(prev => ({ ...prev, recycleTime: parseInt(e.target.value) || 24 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   id="setAsActive"
                   checked={dataListCreator.setAsActive}
                   onChange={(e) => setDataListCreator(prev => ({ ...prev, setAsActive: e.target.checked }))}
-                  className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
                 />
                 <label htmlFor="setAsActive" className="ml-2 text-sm text-gray-900">
                   Set as active list
@@ -582,7 +582,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <button
                 onClick={handleSaveDataList}
                 disabled={!dataListCreator.name || !dataListCreator.campaign}
-                className="px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {dataListCreator.id ? 'Update List' : 'Create List'}
               </button>
@@ -596,7 +596,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   }
                 }}
                 disabled={dataListCreator.step === 'details' && (!dataListCreator.name || !dataListCreator.campaign)}
-                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
                 <ArrowRightIcon className="h-4 w-4 ml-2" />
@@ -629,7 +629,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   uploadWizard.step === step
-                    ? 'bg-kennex-600 text-white'
+                    ? 'bg-slate-600 text-white'
                     : index < ['upload', 'columns', 'validation', 'review'].indexOf(uploadWizard.step)
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-200 text-gray-600'
@@ -656,7 +656,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                 <select
                   value={uploadWizard.targetList}
                   onChange={(e) => setUploadWizard(prev => ({ ...prev, targetList: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                 >
                   <option value="">Select a data list</option>
                   {dataLists.map(list => (
@@ -687,7 +687,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                 </div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-4 px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+                  className="mt-4 px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
                 >
                   Choose File
                 </button>
@@ -695,7 +695,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
               {uploadWizard.file && (
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-green-700">
+                  <p className="text-sm text-slate-700">
                     <CheckIcon className="inline h-4 w-4 mr-1" />
                     File selected: {uploadWizard.fileName}
                   </p>
@@ -745,7 +745,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                             [column]: e.target.value
                           }
                         }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                       >
                         <option value="">-- Select field --</option>
                         {/* Group options by category */}
@@ -851,7 +851,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                               [option.key]: e.target.checked
                             }
                           }))}
-                          className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
                         />
                       </div>
                       <div className="ml-3">
@@ -900,7 +900,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Processing Upload</h3>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
-                    className="bg-kennex-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-slate-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadWizard.progress}%` }}
                   ></div>
                 </div>
@@ -942,7 +942,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               {uploadWizard.step === 'review' ? (
                 <button
                   onClick={processUpload}
-                  className="px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700"
                 >
                   Start Upload
                 </button>
@@ -959,7 +959,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     (uploadWizard.step === 'upload' && (!uploadWizard.file || !uploadWizard.targetList)) ||
                     (uploadWizard.step === 'columns' && Object.keys(uploadWizard.columnMappings).length === 0)
                   }
-                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                   <ArrowRightIcon className="h-4 w-4 ml-2" />
@@ -989,7 +989,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               onClick={() => setSelectedSubTab(tab)}
               className={`py-4 px-1 text-sm font-medium border-b-2 transition-colors ${
                 selectedSubTab === tab
-                  ? 'border-kennex-500 text-kennex-600'
+                  ? 'border-slate-500 text-slate-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -1011,7 +1011,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </div>
               <button 
                 onClick={() => setShowDataListCreator(true)}
-                className="bg-kennex-600 text-white px-4 py-2 rounded-md hover:bg-kennex-700 transition-colors flex items-center"
+                className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors flex items-center"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Create New List
@@ -1026,7 +1026,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   placeholder="Search data lists..."
                   value={searchTerm2}
                   onChange={(e) => setSearchTerm2(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                 />
               </div>
 
@@ -1060,7 +1060,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                 l.id === list.id ? { ...l, campaign: e.target.value } : l
                               ));
                             }}
-                            className="text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                            className="text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                           >
                             {campaigns.map(campaign => (
                               <option key={campaign} value={campaign}>{campaign}</option>
@@ -1072,7 +1072,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             list.status === 'Active' 
-                              ? 'bg-green-100 text-green-800' 
+                              ? 'bg-green-100 text-slate-800' 
                               : 'bg-gray-100 text-gray-800'
                           }`}>
                             {list.status}
@@ -1174,7 +1174,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </p>
               <button 
                 onClick={() => setShowDataListCreator(true)}
-                className="mt-4 bg-kennex-600 text-white px-6 py-3 rounded-md hover:bg-kennex-700 transition-colors"
+                className="mt-4 bg-slate-600 text-white px-6 py-3 rounded-md hover:bg-slate-700 transition-colors"
               >
                 Start Creation Wizard
               </button>
@@ -1192,7 +1192,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </p>
               <button 
                 onClick={() => setShowUploadWizard(true)}
-                className="mt-4 bg-kennex-600 text-white px-6 py-3 rounded-md hover:bg-kennex-700 transition-colors"
+                className="mt-4 bg-slate-600 text-white px-6 py-3 rounded-md hover:bg-slate-700 transition-colors"
               >
                 Start Upload Wizard
               </button>

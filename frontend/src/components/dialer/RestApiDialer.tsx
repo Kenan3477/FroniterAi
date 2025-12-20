@@ -395,8 +395,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         )}
         
         {isDeviceReady && (
-          <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-xs text-green-800">
+          <div className="mb-4 p-2 bg-green-50 border border-slate-200 rounded-md">
+            <p className="text-xs text-slate-800">
               ✅ Browser audio ready - you can speak to customers
             </p>
           </div>
@@ -405,11 +405,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {/* Microphone Status */}
         <div className={`mb-4 p-2 rounded-md ${
           microphonePermissionGranted 
-            ? 'bg-green-50 border border-green-200' 
+            ? 'bg-green-50 border border-slate-200' 
             : 'bg-yellow-50 border border-yellow-200'
         }`}>
           <p className={`text-xs ${
-            microphonePermissionGranted ? 'text-green-800' : 'text-yellow-800'
+            microphonePermissionGranted ? 'text-slate-800' : 'text-yellow-800'
           }`}>
             {microphonePermissionGranted 
               ? '🎤✅ Microphone ready for two-way audio' 
@@ -453,7 +453,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           <button
             onClick={handleCall}
             disabled={!phoneNumber || isLoading || !isDeviceReady}
-            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-slate-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -472,7 +472,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             onClick={testMicrophone}
             className={`px-3 py-3 rounded-md transition-colors text-sm ${
               microphonePermissionGranted 
-                ? 'bg-green-600 text-white hover:bg-green-700' 
+                ? 'bg-green-600 text-white hover:bg-slate-700' 
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             title={microphonePermissionGranted ? "Microphone ready" : "Test microphone permissions"}
@@ -494,7 +494,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         {lastCallResult && (
           <div className={`p-3 rounded-md text-sm ${
             lastCallResult.success 
-              ? 'bg-green-50 border border-green-200 text-green-800' 
+              ? 'bg-green-50 border border-slate-200 text-slate-800' 
               : 'bg-red-50 border border-red-200 text-red-800'
           }`}>
             {lastCallResult.success ? (

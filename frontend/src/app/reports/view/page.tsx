@@ -164,7 +164,7 @@ export default function ReportViewPage() {
           <h3 className="text-lg font-medium text-gray-900">No report specified</h3>
           <button
             onClick={() => router.back()}
-            className="mt-4 text-kennex-600 hover:text-kennex-800"
+            className="mt-4 text-slate-600 hover:text-slate-800"
           >
             ← Back to Reports
           </button>
@@ -240,7 +240,7 @@ export default function ReportViewPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-kennex-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
             <p className="mt-2 text-gray-600">Loading report data...</p>
           </div>
         ) : reportData ? (
@@ -258,7 +258,7 @@ export default function ReportViewPage() {
                     </div>
                     {metric.change && (
                       <div className={`text-sm font-medium ${
-                        metric.change > 0 ? 'text-green-600' : 'text-red-600'
+                        metric.change > 0 ? 'text-slate-600' : 'text-red-600'
                       }`}>
                         {metric.change > 0 ? '+' : ''}{metric.change}%
                       </div>

@@ -77,130 +77,15 @@ const AgentCoaching = () => {
     confidence: number;
   }>>([]);
   
-  const [agents] = useState<Agent[]>([
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      status: 'on-call',
-      avatar: '/avatars/sarah.jpg',
-      currentCall: {
-        contactName: 'John Smith',
-        contactPhone: '+1 (555) 123-4567',
-        startTime: new Date(Date.now() - 8 * 60 * 1000), // 8 minutes ago
-        callType: 'outbound',
-        script: 'Insurance Sales Script v2.1',
-        sentiment: 'positive',
-        quality: 8.5
-      },
-      stats: {
-        callsToday: 12,
-        avgCallTime: 6.2,
-        conversionRate: 18.5,
-        satisfaction: 4.3
-      }
-    },
-    {
-      id: '2',
-      name: 'Mike Chen',
-      status: 'available',
-      avatar: '/avatars/mike.jpg',
-      stats: {
-        callsToday: 15,
-        avgCallTime: 5.8,
-        conversionRate: 22.1,
-        satisfaction: 4.6
-      }
-    },
-    {
-      id: '3',
-      name: 'Lisa Rodriguez',
-      status: 'on-call',
-      avatar: '/avatars/lisa.jpg',
-      currentCall: {
-        contactName: 'Emily Davis',
-        contactPhone: '+1 (555) 987-6543',
-        startTime: new Date(Date.now() - 3 * 60 * 1000), // 3 minutes ago
-        callType: 'inbound',
-        script: 'Customer Service Script v1.3',
-        sentiment: 'negative',
-        quality: 6.2
-      },
-      stats: {
-        callsToday: 9,
-        avgCallTime: 7.1,
-        conversionRate: 15.8,
-        satisfaction: 3.9
-      }
-    },
-    {
-      id: '4',
-      name: 'David Park',
-      status: 'busy',
-      avatar: '/avatars/david.jpg',
-      stats: {
-        callsToday: 8,
-        avgCallTime: 4.9,
-        conversionRate: 25.3,
-        satisfaction: 4.7
-      }
-    }
-  ]);
+  // Real agents will be loaded from the backend when agent management is implemented
+  const [agents] = useState<Agent[]>([]);
 
-  const [coachingAlerts, setCoachingAlerts] = useState<CoachingAlert[]>([
-    {
-      id: '1',
-      agentId: '1',
-      type: 'closing_opportunity',
-      message: 'Contact has expressed strong interest. Good time to close.',
-      severity: 'medium',
-      timestamp: new Date(Date.now() - 30 * 1000),
-      acknowledged: false
-    },
-    {
-      id: '2',
-      agentId: '3',
-      type: 'sentiment_negative',
-      message: 'Contact sentiment turning negative. Consider de-escalation techniques.',
-      severity: 'high',
-      timestamp: new Date(Date.now() - 45 * 1000),
-      acknowledged: false
-    },
-    {
-      id: '3',
-      agentId: '1',
-      type: 'script_deviation',
-      message: 'Agent has deviated from approved script by 60%.',
-      severity: 'low',
-      timestamp: new Date(Date.now() - 2 * 60 * 1000),
-      acknowledged: true
-    }
-  ]);
+  // Real coaching alerts will be generated from live call analysis when implemented
+  const [coachingAlerts, setCoachingAlerts] = useState<CoachingAlert[]>([]);
 
   const [whisperMessages, setWhisperMessages] = useState<WhisperMessage[]>([]);
 
-  // Simulate live transcript updates
-  useEffect(() => {
-    if (selectedAgent?.currentCall) {
-      const interval = setInterval(() => {
-        const sampleTexts = [
-          { speaker: 'contact', text: 'I see, that does sound like a good deal.' },
-          { speaker: 'agent', text: 'Yes, and we can get you started today if you\'re ready.' },
-          { speaker: 'contact', text: 'What would be the monthly payment?' },
-          { speaker: 'agent', text: 'For the coverage we discussed, it would be $89 per month.' },
-          { speaker: 'contact', text: 'That\'s actually less than what I\'m paying now.' }
-        ];
-        
-        const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-        setLiveTranscript(prev => [...prev.slice(-10), {
-          ...randomText,
-          timestamp: new Date(),
-          confidence: 0.85 + Math.random() * 0.15
-        }]);
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-  }, [selectedAgent]);
+  // Live transcript will be populated when real agents are connected and calling
 
   const getCallDuration = (startTime: Date) => {
     const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
@@ -211,7 +96,7 @@ const AgentCoaching = () => {
 
   const getSentimentColor = (sentiment: string) => {
     switch (sentiment) {
-      case 'positive': return 'text-green-600 bg-green-100';
+      case 'positive': return 'text-slate-600 bg-green-100';
       case 'negative': return 'text-red-600 bg-red-100';
       default: return 'text-yellow-600 bg-yellow-100';
     }
@@ -263,7 +148,7 @@ const AgentCoaching = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'text-green-600 bg-green-100';
+      case 'available': return 'text-slate-600 bg-green-100';
       case 'on-call': return 'text-blue-600 bg-blue-100';
       case 'busy': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
@@ -285,7 +170,19 @@ const AgentCoaching = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {agents.map((agent) => (
+            {agents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <UserIcon className="w-16 h-16 text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Agents Connected</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Add agents to your system to start monitoring live calls and providing real-time coaching.
+                </p>
+                <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-md">
+                  Agent management system: NOT IMPLEMENTED
+                </div>
+              </div>
+            ) : (
+              agents.map((agent) => (
               <div
                 key={agent.id}
                 onClick={() => setSelectedAgent(agent)}
@@ -354,7 +251,8 @@ const AgentCoaching = () => {
                   </div>
                 )}
               </div>
-            ))}
+            ))
+            )}
           </div>
         </div>
 
@@ -474,7 +372,7 @@ const AgentCoaching = () => {
                         <ChatBubbleLeftRightIcon className="w-5 h-5 mr-2" />
                         Live Transcript
                         {isListening && (
-                          <span className="ml-2 flex items-center text-sm text-green-600">
+                          <span className="ml-2 flex items-center text-sm text-slate-600">
                             <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse mr-1"></div>
                             Monitoring
                           </span>
@@ -686,7 +584,7 @@ const AgentCoaching = () => {
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Current Script</span>
-                            <span className="text-green-600 font-medium">85%</span>
+                            <span className="text-slate-600 font-medium">85%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div className="bg-green-600 h-2 rounded-full" style={{ width: '85%' }}></div>
@@ -707,7 +605,7 @@ const AgentCoaching = () => {
                           <div className="p-2 bg-blue-50 rounded text-blue-800">
                             Contact seems interested. Consider closing soon.
                           </div>
-                          <div className="p-2 bg-green-50 rounded text-green-800">
+                          <div className="p-2 bg-green-50 rounded text-slate-800">
                             Good rapport building. Keep the conversation flowing.
                           </div>
                           <div className="p-2 bg-yellow-50 rounded text-yellow-800">
@@ -738,7 +636,7 @@ const AgentCoaching = () => {
                           <div className="text-gray-500">Calls</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">{selectedAgent.stats.conversionRate}%</div>
+                          <div className="text-2xl font-bold text-slate-600">{selectedAgent.stats.conversionRate}%</div>
                           <div className="text-gray-500">Conversion</div>
                         </div>
                         <div className="text-center">
@@ -759,8 +657,11 @@ const AgentCoaching = () => {
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <EyeIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-2">No Agent Selected</h3>
-                <p className="text-gray-500">Choose an agent from the list to monitor their calls and provide coaching</p>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">Agent Coaching Ready</h3>
+                <p className="text-gray-500 mb-4">Connect agents to your system to begin live call monitoring and coaching</p>
+                <div className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-md">
+                  Real-time call analysis, sentiment detection, and coaching alerts will appear here when agents are active
+                </div>
               </div>
             </div>
           )}

@@ -234,7 +234,7 @@ export default function ContactPreview({ record, isDialling = false, onDial, cla
               className={`w-full px-4 py-2 rounded-md text-white font-medium transition-colors ${
                 isDialling
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
+                  : 'bg-green-600 hover:bg-slate-700'
               }`}
             >
               {isDialling ? (

@@ -88,7 +88,7 @@ export default function SystemOverview({ refreshInterval = 30000 }: SystemOvervi
 
   const getUptimeColor = (status: string) => {
     switch (status) {
-      case 'excellent': return 'text-green-600';
+      case 'excellent': return 'text-slate-600';
       case 'good': return 'text-blue-600';
       case 'warning': return 'text-yellow-600';
       case 'error': return 'text-red-600';
@@ -100,7 +100,7 @@ export default function SystemOverview({ refreshInterval = 30000 }: SystemOvervi
     switch (status) {
       case 'excellent':
       case 'good':
-        return <CheckCircleIcon className="h-6 w-6 text-green-600" />;
+        return <CheckCircleIcon className="h-6 w-6 text-slate-600" />;
       case 'warning':
       case 'error':
         return <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />;

@@ -190,7 +190,7 @@ export default function AppsIntegrations() {
       case 'CRM':
         return <CloudIcon className="w-5 h-5 text-blue-500" />;
       case 'EMAIL':
-        return <BeakerIcon className="w-5 h-5 text-green-500" />;
+        return <BeakerIcon className="w-5 h-5 text-slate-500" />;
       case 'SMS':
         return <LinkIcon className="w-5 h-5 text-purple-500" />;
       case 'WEBHOOK':
@@ -205,7 +205,7 @@ export default function AppsIntegrations() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
+        return <CheckCircleIcon className="w-5 h-5 text-slate-500" />;
       case 'INACTIVE':
         return <XCircleIcon className="w-5 h-5 text-gray-500" />;
       case 'ERROR':
@@ -314,7 +314,7 @@ export default function AppsIntegrations() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                  <CheckCircleIcon className="h-6 w-6 text-slate-400" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -658,7 +658,7 @@ export default function AppsIntegrations() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             {webhook.isActive ? 
-                              <CheckCircleIcon className="w-5 h-5 text-green-500" /> :
+                              <CheckCircleIcon className="w-5 h-5 text-slate-500" /> :
                               <XCircleIcon className="w-5 h-5 text-gray-500" />
                             }
                             <span className="ml-2 text-sm text-gray-900">

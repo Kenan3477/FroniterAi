@@ -250,6 +250,30 @@ router.post('/status', async (req: Request, res: Response) => {
   try {
     const { agentId, status } = req.body;
     
+    // Input validation
+    if (!agentId || typeof agentId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid or missing agentId' }
+      });
+    }
+    
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid or missing status' }
+      });
+    }
+    
+    // Validate status values
+    const validStatuses = ['AVAILABLE', 'OFFLINE', 'ON_CALL', 'PAUSED', 'LOGGED_OUT'];
+    if (!validStatuses.includes(status.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: { message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }
+      });
+    }
+    
     console.log(`📊 Agent status update via POST: ${agentId} -> ${status}`);
     
     const agent = mockAgents.find(a => a.id === agentId);
@@ -261,7 +285,7 @@ router.post('/status', async (req: Request, res: Response) => {
     }
 
     const oldStatus = agent.status;
-    agent.status = status.toUpperCase();
+    agent.status = status.toUpperCase() as Agent['status'];
     agent.lastStatusChange = new Date();
 
     // Trigger auto-dialer if becoming available
@@ -575,6 +599,39 @@ router.post('/bulk/start-session', (req: Request, res: Response) => {
       error: 'Failed to start bulk session'
     });
   }
+});
+
+// Memory cleanup utilities to prevent leaks in mock data stores
+const MAX_AGENTS = 100; // Limit agent storage
+const CLEANUP_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+function cleanupStaleAgents() {
+  const now = new Date();
+  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+  
+  mockAgents = mockAgents.filter(agent => {
+    const agentAge = now.getTime() - agent.lastStatusChange.getTime();
+    const isActive = agent.status !== 'OFFLINE';
+    
+    // Keep active agents or recent agents
+    return isActive || agentAge < maxAge;
+  });
+  
+  // Limit total agents to prevent memory bloat
+  if (mockAgents.length > MAX_AGENTS) {
+    mockAgents = mockAgents.slice(-MAX_AGENTS);
+  }
+  
+  console.log(`🧹 Cleaned up mock agents, now tracking ${mockAgents.length} agents`);
+}
+
+// Run cleanup periodically
+const cleanupInterval = setInterval(cleanupStaleAgents, CLEANUP_INTERVAL);
+
+// Ensure cleanup on process exit
+process.on('beforeExit', () => {
+  clearInterval(cleanupInterval);
+  console.log('🧹 Mock agent cleanup stopped');
 });
 
 export default router;

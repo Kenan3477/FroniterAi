@@ -78,7 +78,7 @@ export default function Dashboard() {
             title="Today's Calls"
             value={loading ? "..." : (dashboardStats?.today?.todayCalls?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">📞</span>}
-            color="bg-kennex-500"
+            color="bg-slate-500"
             trend={formatTrend(dashboardStats?.trends?.callsTrend || null)}
           />
           <DashboardCard
@@ -117,10 +117,10 @@ export default function Dashboard() {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full bg-kennex-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-kennex-700 transition-colors">
+                <button className="w-full bg-slate-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-slate-700 transition-colors">
                   Start New Campaign
                 </button>
-                <button className="w-full bg-white text-kennex-600 border border-kennex-600 px-4 py-3 rounded-lg font-medium hover:bg-kennex-50 transition-colors">
+                <button className="w-full bg-white text-slate-600 border border-slate-600 px-4 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors">
                   Import Contacts
                 </button>
                 <button className="w-full bg-white text-gray-600 border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors">

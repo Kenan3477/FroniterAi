@@ -50,7 +50,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
       case 'ringing':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'connected':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 text-slate-800 border-slate-300';
       case 'ended':
         return 'bg-gray-100 text-gray-800 border-gray-300';
       default:

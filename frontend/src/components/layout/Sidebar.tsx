@@ -32,7 +32,6 @@ const navigationItems = [
   { name: 'Work', href: '/work', icon: BriefcaseIcon },
   { name: 'Contacts', href: '/contacts', icon: UsersIcon },
   { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon },
-  { name: 'Advanced Reports', href: '/advanced-reports', icon: DocumentChartBarIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
   { name: 'Admin', href: '/admin', icon: CogIcon },
 ];
@@ -46,7 +45,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
@@ -65,7 +64,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               href={item.href}
               className={`${
                 isActive
-                  ? 'bg-kennex-100 text-kennex-900 border-r-2 border-kennex-600'
+                  ? 'bg-slate-100 text-slate-900 border-r-2 border-slate-600'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
             >

@@ -134,7 +134,7 @@ const AgentStatusBar = () => {
         <button
           onClick={handleGoAvailable}
           disabled={updateStatusMutation.isPending}
-          className="bg-green-600 hover:bg-green-700 disabled:bg-green-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+          className="bg-green-600 hover:bg-slate-700 disabled:bg-green-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
         >
           {updateStatusMutation.isPending ? 'Updating...' : 'Go Available'}
         </button>

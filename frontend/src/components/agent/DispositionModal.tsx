@@ -148,7 +148,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
                   onClick={() => setSelectedDisposition(disposition.id)}
                   className={`p-3 text-left rounded-lg border-2 transition-colors ${
                     selectedDisposition === disposition.id
-                      ? 'border-kennex-500 bg-kennex-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -181,7 +181,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
                     type="date"
                     value={callbackDate}
                     onChange={(e) => setCallbackDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
                 <div>
@@ -190,7 +190,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
                     type="time"
                     value={callbackTime}
                     onChange={(e) => setCallbackTime(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
               </div>
@@ -201,7 +201,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
                   value={callbackNotes}
                   onChange={(e) => setCallbackNotes(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                   placeholder="Reason for callback, preferred time, etc."
                 />
               </div>
@@ -217,7 +217,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
               placeholder="Add any notes about the call..."
             />
           </div>
@@ -233,7 +233,7 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
             <button
               onClick={handleSubmit}
               disabled={!selectedDisposition || isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Applying...' : 'Complete Call'}
             </button>

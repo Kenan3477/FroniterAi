@@ -455,7 +455,7 @@ const CampaignManagementPage: React.FC = () => {
     const colors: Record<string, string> = {
       DRAFT: 'bg-gray-100 text-gray-800',
       SCHEDULED: 'bg-blue-100 text-blue-800',
-      ACTIVE: 'bg-green-100 text-green-800',
+      ACTIVE: 'bg-green-100 text-slate-800',
       PAUSED: 'bg-yellow-100 text-yellow-800',
       COMPLETED: 'bg-purple-100 text-purple-800',
       CANCELLED: 'bg-red-100 text-red-800',
@@ -466,7 +466,7 @@ const CampaignManagementPage: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      SALES: 'bg-green-100 text-green-800',
+      SALES: 'bg-green-100 text-slate-800',
       MARKETING: 'bg-blue-100 text-blue-800',
       SUPPORT: 'bg-orange-100 text-orange-800',
       SURVEYS: 'bg-purple-100 text-purple-800',
@@ -1309,10 +1309,10 @@ const CampaignManagementPage: React.FC = () => {
                           </TableCell>
                           <TableCell>{campaign.totalCalls}</TableCell>
                           <TableCell>{campaign.totalConnections}</TableCell>
-                          <TableCell className="text-green-600">
+                          <TableCell className="text-slate-600">
                             {campaign.totalConversions}
                           </TableCell>
-                          <TableCell className="text-green-600 font-medium">
+                          <TableCell className="text-slate-600 font-medium">
                             ${campaign.totalRevenue?.toFixed(2) || '0.00'}
                           </TableCell>
                         </TableRow>

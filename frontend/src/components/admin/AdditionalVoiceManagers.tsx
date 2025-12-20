@@ -138,7 +138,7 @@ export const RingGroupsManager: React.FC<{
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create Ring Group
@@ -160,7 +160,7 @@ export const RingGroupsManager: React.FC<{
                   <div className="flex items-center space-x-2">
                     <h4 className="text-lg font-medium text-gray-900">{group.name}</h4>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      group.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      group.enabled ? 'bg-green-100 text-slate-800' : 'bg-red-100 text-red-800'
                     }`}>
                       {group.enabled ? 'Enabled' : 'Disabled'}
                     </span>
@@ -173,7 +173,7 @@ export const RingGroupsManager: React.FC<{
                       setEditingGroup(group);
                       setShowAddForm(true);
                     }}
-                    className="text-kennex-600 hover:text-kennex-900"
+                    className="text-slate-600 hover:text-slate-900"
                   >
                     <PencilIcon className="h-4 w-4" />
                   </button>
@@ -198,7 +198,7 @@ export const RingGroupsManager: React.FC<{
                   <div className="text-sm font-medium text-gray-700">Extensions ({group.extensions.length})</div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {group.extensions.slice(0, 6).map(ext => (
-                      <span key={ext} className="inline-flex px-2 py-1 text-xs bg-kennex-100 text-kennex-700 rounded">
+                      <span key={ext} className="inline-flex px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">
                         {ext}
                       </span>
                     ))}
@@ -219,7 +219,7 @@ export const RingGroupsManager: React.FC<{
                     <span className="text-gray-600">Voicemail:</span>
                     <span className="ml-1">
                       {group.voicemail ? (
-                        <CheckCircleIcon className="h-4 w-4 inline text-green-600" />
+                        <CheckCircleIcon className="h-4 w-4 inline text-slate-600" />
                       ) : (
                         <XCircleIcon className="h-4 w-4 inline text-red-600" />
                       )}
@@ -284,7 +284,7 @@ export const InternalNumbersManager: React.FC<{
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Add Internal Number
@@ -368,13 +368,13 @@ export const InternalNumbersManager: React.FC<{
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        number.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        number.enabled ? 'bg-green-100 text-slate-800' : 'bg-red-100 text-red-800'
                       }`}>
                         {number.enabled ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-kennex-600 hover:text-kennex-900 mr-3">
+                      <button className="text-slate-600 hover:text-slate-900 mr-3">
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button className="text-red-600 hover:text-red-900">
@@ -458,7 +458,7 @@ const RingGroupForm: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 required
               />
             </div>
@@ -467,7 +467,7 @@ const RingGroupForm: React.FC<{
               <select
                 value={formData.strategy}
                 onChange={(e) => setFormData({...formData, strategy: e.target.value as any})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="ring_all">Ring All</option>
                 <option value="round_robin">Round Robin</option>
@@ -484,7 +484,7 @@ const RingGroupForm: React.FC<{
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               rows={2}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             />
           </div>
 
@@ -497,7 +497,7 @@ const RingGroupForm: React.FC<{
                     type="checkbox"
                     checked={(formData.extensions || []).includes(ext.number)}
                     onChange={() => handleExtensionToggle(ext.number)}
-                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
                   />
                   <span className="text-sm text-gray-900">{ext.number} - {ext.name}</span>
                 </label>
@@ -514,7 +514,7 @@ const RingGroupForm: React.FC<{
                 max="120"
                 value={formData.timeout}
                 onChange={(e) => setFormData({...formData, timeout: parseInt(e.target.value)})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               />
             </div>
             <div>
@@ -522,7 +522,7 @@ const RingGroupForm: React.FC<{
               <select
                 value={formData.fallbackAction}
                 onChange={(e) => setFormData({...formData, fallbackAction: e.target.value as any})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="voicemail">Voicemail</option>
                 <option value="transfer">Transfer</option>
@@ -537,7 +537,7 @@ const RingGroupForm: React.FC<{
                 type="checkbox"
                 checked={formData.voicemail}
                 onChange={(e) => setFormData({...formData, voicemail: e.target.checked})}
-                className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
               />
               <span className="ml-2 text-sm text-gray-900">Enable Voicemail</span>
             </label>
@@ -546,7 +546,7 @@ const RingGroupForm: React.FC<{
                 type="checkbox"
                 checked={formData.enabled}
                 onChange={(e) => setFormData({...formData, enabled: e.target.checked})}
-                className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
               />
               <span className="ml-2 text-sm text-gray-900">Enabled</span>
             </label>
@@ -562,7 +562,7 @@ const RingGroupForm: React.FC<{
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
             >
               {group ? 'Update' : 'Create'} Ring Group
             </button>
@@ -606,7 +606,7 @@ const InternalNumberForm: React.FC<{
               value={formData.number}
               onChange={(e) => setFormData({...formData, number: e.target.value})}
               placeholder="e.g., *100, 911, 0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               required
             />
           </div>
@@ -618,7 +618,7 @@ const InternalNumberForm: React.FC<{
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               placeholder="e.g., IT Support, Emergency"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               required
             />
           </div>
@@ -628,7 +628,7 @@ const InternalNumberForm: React.FC<{
             <select
               value={formData.type}
               onChange={(e) => setFormData({...formData, type: e.target.value as any})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="service">Service</option>
               <option value="department">Department</option>
@@ -644,7 +644,7 @@ const InternalNumberForm: React.FC<{
               value={formData.destination}
               onChange={(e) => setFormData({...formData, destination: e.target.value})}
               placeholder="Extension number or external number"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               required
             />
           </div>
@@ -654,7 +654,7 @@ const InternalNumberForm: React.FC<{
             <select
               value={formData.accessLevel}
               onChange={(e) => setFormData({...formData, accessLevel: e.target.value as any})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="all">All Users</option>
               <option value="internal">Internal Only</option>
@@ -668,7 +668,7 @@ const InternalNumberForm: React.FC<{
               type="checkbox"
               checked={formData.enabled}
               onChange={(e) => setFormData({...formData, enabled: e.target.checked})}
-              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+              className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
             />
             <label className="ml-2 text-sm text-gray-900">Enabled</label>
           </div>
@@ -683,7 +683,7 @@ const InternalNumberForm: React.FC<{
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
             >
               Add Number
             </button>

@@ -20,6 +20,25 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
       return;
     }
 
+    // Validate demo credentials with security warning
+    const validDemoAgents = ['AGENT001', 'AGENT002', 'AGENT003'];
+    if (!validDemoAgents.includes(agentId)) {
+      alert('Invalid Agent ID. For demo purposes, use: AGENT001, AGENT002, or AGENT003');
+      return;
+    }
+
+    // Require password even for demo (security best practice)
+    if (!password) {
+      alert('Password is required');
+      return;
+    }
+
+    // Demo password validation (in production this would be proper authentication)
+    if (password !== 'demo123') {
+      alert('Invalid password. For demo purposes, use: demo123');
+      return;
+    }
+
     setIsLoggingIn(true);
 
     try {
@@ -109,7 +128,7 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
                 <LockClosedIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Password validation is disabled for demo
+                Demo password: demo123
               </p>
             </div>
           </div>
@@ -130,9 +149,12 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
           <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Instructions</h3>
           <div className="text-xs text-blue-700 space-y-1">
             <p>• Use Agent ID: <strong>AGENT001</strong>, <strong>AGENT002</strong>, or <strong>AGENT003</strong></p>
-            <p>• Password can be anything (validation disabled)</p>
+            <p>• Password: <strong>demo123</strong></p>
             <p>• Once logged in, click "Go Available" to receive calls</p>
             <p>• The system will simulate incoming calls based on dial queue</p>
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+              <strong>⚠️ Security Note:</strong> Demo authentication bypasses real security. Production system requires proper user management.
+            </div>
           </div>
         </div>
       </div>

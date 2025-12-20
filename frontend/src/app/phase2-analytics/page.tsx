@@ -75,7 +75,7 @@ export default function Phase2AnalyticsDashboard() {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Calls Today</h3>
-            <p className="text-2xl font-bold text-green-600">{data.overview.callsToday}</p>
+            <p className="text-2xl font-bold text-slate-600">{data.overview.callsToday}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Contacts</h3>
@@ -91,7 +91,7 @@ export default function Phase2AnalyticsDashboard() {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Answer Rate</h3>
-            <p className="text-2xl font-bold text-emerald-600">{data.overview.answerRate}%</p>
+            <p className="text-2xl font-bold text-slate-600">{data.overview.answerRate}%</p>
           </div>
         </div>
 
@@ -157,7 +157,7 @@ export default function Phase2AnalyticsDashboard() {
                       <td className="px-4 py-3">{call.agent}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          call.outcome === 'completed' ? 'bg-green-100 text-green-800' :
+                          call.outcome === 'completed' ? 'bg-green-100 text-slate-800' :
                           call.outcome === 'answered' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
@@ -175,7 +175,7 @@ export default function Phase2AnalyticsDashboard() {
         </div>
 
         {/* Phase 2 Completion Badge */}
-        <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+        <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-blue-50 border border-slate-200 rounded-lg">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -185,10 +185,10 @@ export default function Phase2AnalyticsDashboard() {
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-green-900">
+              <h3 className="text-lg font-semibold text-slate-900">
                 Phase 2: Real Analytics & Reporting Complete! 🎉
               </h3>
-              <p className="text-green-700 text-sm">
+              <p className="text-slate-700 text-sm">
                 Successfully implemented database-driven analytics with {data.overview.totalCalls} real call records, 
                 agent performance tracking, disposition analytics, and real-time dashboard reporting.
               </p>

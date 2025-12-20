@@ -59,12 +59,12 @@ const TwilioConfiguration = () => {
           {/* Status Banner */}
           <div className="mb-6">
             {config.sipDomain && config.username && config.password ? (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="bg-green-50 border border-slate-200 rounded-lg p-4">
                 <div className="flex">
-                  <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5" />
+                  <CheckCircleIcon className="h-5 w-5 text-slate-400 mt-0.5" />
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-green-800">Twilio Configuration Complete</h3>
-                    <p className="text-sm text-green-700 mt-1">
+                    <h3 className="text-sm font-medium text-slate-800">Twilio Configuration Complete</h3>
+                    <p className="text-sm text-slate-700 mt-1">
                       Your Twilio SIP Domain is configured and ready to use.
                     </p>
                   </div>
@@ -167,7 +167,7 @@ const TwilioConfiguration = () => {
                 console.log('Saving configuration:', config);
                 alert('Configuration saved! (In production, this would save to your database)');
               }}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors"
             >
               Save Configuration
             </button>
@@ -202,7 +202,7 @@ const TwilioConfiguration = () => {
                 <div>
                   <span className="font-medium text-gray-700">Status:</span>
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                    config.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    config.isActive ? 'bg-green-100 text-slate-800' : 'bg-red-100 text-red-800'
                   }`}>
                     {config.isActive ? 'Active' : 'Inactive'}
                   </span>

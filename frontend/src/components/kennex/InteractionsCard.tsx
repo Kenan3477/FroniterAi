@@ -20,7 +20,7 @@ const InteractionsCard = ({ count, changePercent, sparklineData = [] }: Interact
             <span className="text-3xl font-bold text-gray-900">{count.toLocaleString()}</span>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               isPositive 
-                ? 'bg-green-100 text-green-800' 
+                ? 'bg-green-100 text-slate-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
               {isPositive ? '+' : ''}{changePercent}%

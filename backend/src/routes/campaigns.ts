@@ -37,15 +37,19 @@ router.get('/', async (req, res) => {
       }));
       
     } catch (dbError) {
-      // If database table doesn't exist (Railway), use dummy data
-      console.log('⚠️ Database table not found, using dummy data for Railway deployment');
+      // Enhanced error handling with proper logging and user feedback
+      console.error('⚠️ Database connection failed:', dbError);
+      console.log('🔄 Falling back to demo data due to database unavailability');
+      
+      // In production, this should trigger alerts and proper error monitoring
+      // For now, provide demo data with clear indication of system state
       mappedCampaigns = [
         {
-          campaignId: 'camp-1',
-          name: 'Lead Generation',
+          campaignId: 'demo-camp-1',
+          name: 'Lead Generation (Demo Data)',
           status: 'active',
           dialMethod: 'POWER',
-          description: 'Generate new leads for sales team'
+          description: 'Generate new leads for sales team - DATABASE NOT AVAILABLE'
         },
         {
           campaignId: 'camp-2', 
@@ -76,12 +80,17 @@ router.get('/', async (req, res) => {
           description: 'Customer satisfaction survey'
         }
       ];
+      
+      // Add warning header to indicate demo mode
+      res.set('X-System-Status', 'DEMO_MODE_DATABASE_UNAVAILABLE');
     }
     
     res.json({
       success: true,
       campaigns: mappedCampaigns,
-      data: mappedCampaigns
+      data: mappedCampaigns,
+      // Include system status in response for frontend awareness
+      systemStatus: mappedCampaigns[0]?.campaignId?.startsWith('demo-') ? 'DEMO_MODE' : 'OPERATIONAL'
     });
   } catch (error) {
     console.error('❌ Error fetching campaigns:', error);

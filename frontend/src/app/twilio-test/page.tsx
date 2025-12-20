@@ -121,7 +121,7 @@ export default function TwilioTestPage() {
                   </div>
                   <div className="text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      call.status === 'answered' ? 'bg-green-100 text-green-800' : 
+                      call.status === 'answered' ? 'bg-green-100 text-slate-800' : 
                       call.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                     }`}>
                       {call.status}
@@ -138,11 +138,11 @@ export default function TwilioTestPage() {
           <h3 className="text-lg font-semibold mb-4">📟 CLI Testing</h3>
           <p className="text-gray-300 mb-4">You can also trigger calls from browser console:</p>
           <div className="bg-gray-800 p-3 rounded font-mono text-sm space-y-2">
-            <p className="text-green-400">// Connect to Twilio</p>
+            <p className="text-slate-400">// Connect to Twilio</p>
             <p>twilioSipClient.connect(config)</p>
-            <p className="text-green-400 mt-3">// Make a call</p>
+            <p className="text-slate-400 mt-3">// Make a call</p>
             <p>{`twilioSipClient.makeCall({phoneNumber: '+447700900123'})`}</p>
-            <p className="text-green-400 mt-3">// End active calls</p>
+            <p className="text-slate-400 mt-3">// End active calls</p>
             <p>{`twilioSipClient.getActiveCalls().forEach(call => twilioSipClient.endCall(call.id))`}</p>
           </div>
         </div>

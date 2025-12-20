@@ -411,7 +411,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               onClick={() => setSelectedSubTab(tab)}
               className={`py-4 px-1 text-sm font-medium border-b-2 transition-colors ${
                 selectedSubTab === tab
-                  ? 'border-kennex-500 text-kennex-600'
+                  ? 'border-slate-500 text-slate-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -430,7 +430,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             </div>
             <button 
               onClick={() => setShowDataListCreator(true)}
-              className="bg-kennex-600 text-white px-4 py-2 rounded-md hover:bg-kennex-700 transition-colors"
+              className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors"
             >
               Create New List
             </button>
@@ -441,7 +441,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <input
                 type="text"
                 placeholder="Search data lists..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
               />
             </div>
 
@@ -472,14 +472,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           list.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
+                            ? 'bg-green-100 text-slate-800' 
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {list.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-kennex-600 hover:text-kennex-900">Edit</button>
+                        <button className="text-slate-600 hover:text-slate-900">Edit</button>
                       </td>
                     </tr>
                   ))}

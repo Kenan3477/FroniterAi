@@ -125,7 +125,7 @@ const TasksTable = () => {
                 placeholder="Search tasks..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
               />
             </div>
           </div>
@@ -223,7 +223,7 @@ const TasksTable = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                       task.type === 'callback' ? 'bg-blue-100 text-blue-800' :
-                      task.type === 'follow_up' ? 'bg-green-100 text-green-800' :
+                      task.type === 'follow_up' ? 'bg-green-100 text-slate-800' :
                       task.type === 'email' ? 'bg-purple-100 text-purple-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
@@ -237,7 +237,7 @@ const TasksTable = () => {
                     {formatDate(task.dueAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button className="text-kennex-600 hover:text-kennex-900">
+                    <button className="text-slate-600 hover:text-slate-900">
                       View
                     </button>
                   </td>
@@ -258,7 +258,7 @@ const TasksTable = () => {
               setPageSize(Number(e.target.value));
               setPage(1);
             }}
-            className="border border-gray-300 rounded text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-kennex-500"
+            className="border border-gray-300 rounded text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
           >
             <option value={25}>25</option>
             <option value={50}>50</option>

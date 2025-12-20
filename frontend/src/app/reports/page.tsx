@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { 
@@ -10,9 +10,49 @@ import {
   DocumentChartBarIcon,
   ClockIcon,
   ChartPieIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  DocumentTextIcon,
+  CalendarIcon,
+  FunnelIcon,
+  ArrowDownTrayIcon,
+  CurrencyDollarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  EyeIcon,
+  ShareIcon,
+  Cog6ToothIcon,
+  PlusIcon,
+  XMarkIcon,
+  CheckIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
+import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  ArcElement,
+} from 'chart.js';
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+// Legacy report interfaces for backward compatibility
 interface ReportCategory {
   id: string;
   name: string;
@@ -26,6 +66,39 @@ interface ReportSubcategory {
   name: string;
   description: string;
   icon: React.ComponentType<any>;
+}
+
+// Advanced reporting interfaces
+interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'performance' | 'sales' | 'operational' | 'quality';
+  charts: Array<{
+    type: 'line' | 'bar' | 'pie' | 'doughnut';
+    title: string;
+    metrics: string[];
+  }>;
+  filters: string[];
+  schedule?: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    recipients: string[];
+  };
+}
+
+interface CustomReport {
+  id: string;
+  name: string;
+  dateRange: { start: Date; end: Date };
+  metrics: string[];
+  filters: { [key: string]: any };
+  charts: Array<{
+    id: string;
+    type: 'line' | 'bar' | 'pie' | 'doughnut';
+    title: string;
+    data: any;
+  }>;
+  lastGenerated: Date;
 }
 
 const reportCategories: ReportCategory[] = [
@@ -257,9 +330,26 @@ const voiceDataReports = [
 
 export default function ReportsPage() {
   const router = useRouter();
+  
+  // Main tab state - choose between categories view or advanced features
+  const [activeMainTab, setActiveMainTab] = useState<'categories' | 'dashboard' | 'builder' | 'templates' | 'scheduled'>('categories');
+  
+  // Legacy category navigation state
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<string[]>(['Reports']);
+  
+  // Advanced reporting state
+  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
+  const [customReports, setCustomReports] = useState<CustomReport[]>([]);
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
+  const [reportBuilder, setReportBuilder] = useState({
+    name: '',
+    dateRange: { start: '', end: '' },
+    metrics: [] as string[],
+    filters: {} as { [key: string]: any },
+    chartType: 'bar' as 'line' | 'bar' | 'pie' | 'doughnut'
+  });
 
   const handleCategorySelect = (categoryId: string, categoryName: string) => {
     setSelectedCategory(categoryId);
@@ -292,14 +382,14 @@ export default function ReportsPage() {
           return (
             <div
               key={report.id}
-              className="bg-white p-4 rounded-lg border border-gray-200 hover:border-kennex-300 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white p-4 rounded-lg border border-gray-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
               onClick={() => {
                 router.push(`/reports/view?type=${report.id}&category=${selectedCategory}&subcategory=${selectedSubcategory}`);
               }}
             >
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">
-                  <IconComponent className="h-5 w-5 text-kennex-600" />
+                  <IconComponent className="h-5 w-5 text-slate-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -325,6 +415,42 @@ export default function ReportsPage() {
           Comprehensive reporting suite with real-time analytics and performance metrics.
         </p>
       </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { id: 'categories', label: 'Report Categories', icon: ChartBarIcon },
+              { id: 'dashboard', label: 'Dashboard (Not Available)', icon: ChartPieIcon },
+              { id: 'builder', label: 'Report Builder (Not Available)', icon: Cog6ToothIcon },
+              { id: 'templates', label: 'Templates (Not Available)', icon: DocumentTextIcon },
+              { id: 'scheduled', label: 'Scheduled (Not Available)', icon: ClockIcon }
+            ].map((tab) => {
+              const TabIcon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveMainTab(tab.id as any)}
+                  className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeMainTab === tab.id
+                      ? 'border-slate-500 text-slate-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <TabIcon className={`mr-2 h-5 w-5 ${
+                    activeMainTab === tab.id ? 'text-slate-500' : 'text-gray-400 group-hover:text-gray-500'
+                  }`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeMainTab === 'categories' && (
       <div className="flex h-full bg-gray-50 rounded-lg overflow-hidden">
         {/* Left Sidebar */}
         <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
@@ -425,6 +551,52 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Dashboard Tab */}
+      {activeMainTab === 'dashboard' && (
+        <div className="bg-white rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-6">Analytics Dashboard</h2>
+          <div className="text-gray-500">
+            <p>Dashboard functionality: NOT IMPLEMENTED</p>
+            <p className="text-sm mt-2">Advanced analytics dashboard will be implemented when real reporting backend is integrated.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Report Builder Tab */}
+      {activeMainTab === 'builder' && (
+        <div className="bg-white rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-6">Custom Report Builder</h2>
+          <div className="text-gray-500">
+            <p>Report builder functionality: NOT IMPLEMENTED</p>
+            <p className="text-sm mt-2">Custom report creation tools will be implemented when advanced reporting requirements are defined.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Templates Tab */}
+      {activeMainTab === 'templates' && (
+        <div className="bg-white rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-6">Report Templates</h2>
+          <div className="text-gray-500">
+            <p>Template system: NOT IMPLEMENTED</p>
+            <p className="text-sm mt-2">Pre-built report templates will be available when report engine is implemented.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Scheduled Reports Tab */}
+      {activeMainTab === 'scheduled' && (
+        <div className="bg-white rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-6">Scheduled Reports</h2>
+          <div className="text-gray-500">
+            <p>Scheduled reporting: NOT IMPLEMENTED</p>
+            <p className="text-sm mt-2">Automated report scheduling will be implemented when email/notification system is integrated.</p>
+          </div>
+        </div>
+      )}
+
     </MainLayout>
   );
 }

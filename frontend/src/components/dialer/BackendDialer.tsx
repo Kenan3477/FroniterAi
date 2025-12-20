@@ -237,7 +237,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
       case 'ringing':
         return 'text-yellow-600';
       case 'answered':
-        return 'text-green-600';
+        return 'text-slate-600';
       case 'completed':
         return 'text-gray-600';
       default:

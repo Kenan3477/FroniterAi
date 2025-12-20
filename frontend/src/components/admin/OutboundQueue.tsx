@@ -158,9 +158,9 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
       case 'dialing':
         return <PhoneIcon className="h-4 w-4 text-blue-600" />;
       case 'connected':
-        return <PhoneIcon className="h-4 w-4 text-green-600" />;
+        return <PhoneIcon className="h-4 w-4 text-slate-600" />;
       case 'completed':
-        return <CheckCircleIcon className="h-4 w-4 text-green-600" />;
+        return <CheckCircleIcon className="h-4 w-4 text-slate-600" />;
       case 'failed':
         return <XCircleIcon className="h-4 w-4 text-red-600" />;
       case 'abandoned':
@@ -173,7 +173,7 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
   const getContactStatusColor = (status: string) => {
     switch (status) {
       case 'NotAttempted':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-slate-800';
       case 'Answered':
         return 'bg-blue-100 text-blue-800';
       case 'NoAnswer':
@@ -222,7 +222,7 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
           <div className="flex items-center space-x-4">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
               campaign.status === 'Active' 
-                ? 'bg-green-100 text-green-800' 
+                ? 'bg-green-100 text-slate-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
               {campaign.status}

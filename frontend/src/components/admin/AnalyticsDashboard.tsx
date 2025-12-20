@@ -99,8 +99,8 @@ const AnalyticsDashboard = () => {
             <p className="text-sm text-gray-500 mt-1">{trend}</p>
           )}
         </div>
-        <div className="p-3 bg-kennex-100 rounded-lg">
-          <Icon className="h-6 w-6 text-kennex-600" />
+        <div className="p-3 bg-slate-100 rounded-lg">
+          <Icon className="h-6 w-6 text-slate-600" />
         </div>
       </div>
     </div>
@@ -195,7 +195,7 @@ const AnalyticsDashboard = () => {
                 <div className="flex items-center space-x-3">
                   <div className="w-32 bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-kennex-600 h-2 rounded-full"
+                      className="bg-slate-600 h-2 rounded-full"
                       style={{
                         width: `${(outcome.count / analytics.summary.totalCalls) * 100}%`
                       }}

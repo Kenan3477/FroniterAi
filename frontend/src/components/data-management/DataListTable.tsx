@@ -48,7 +48,7 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
                 <p className="text-gray-500 mb-4">
                   {searchTerm ? 'No data lists match your search criteria.' : 'Create your first data list to get started.'}
                 </p>
-                <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-kennex-600 hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                   Create Data List
                 </button>
               </div>

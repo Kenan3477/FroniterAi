@@ -122,16 +122,16 @@ export default function OmniCube() {
       >
         {/* Front Face */}
         <CubeFace className="bg-gradient-to-br from-white/25 to-white/15 backdrop-blur-sm border border-white/40 rounded-2xl shadow-2xl translate-z-16">
-          <div className="text-3xl font-bold text-white">K</div>
+          <div className="text-3xl font-bold text-white">O</div>
         </CubeFace>
 
         {/* Back Face */}
-        <CubeFace className="bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 backdrop-blur-sm border border-white/30 rounded-2xl shadow-2xl rotate-y-180">
+        <CubeFace className="bg-gradient-to-br from-slate-400/30 to-slate-600/20 backdrop-blur-sm border border-white/30 rounded-2xl shadow-2xl rotate-y-180">
           <PhoneIcon className="w-10 h-10 text-white" />
         </CubeFace>
 
         {/* Right Face */}
-        <CubeFace className="bg-gradient-to-br from-cyan-400/30 to-cyan-600/20 backdrop-blur-sm border border-white/30 rounded-2xl shadow-2xl rotate-y-90">
+        <CubeFace className="bg-gradient-to-br from-blue-400/30 to-blue-600/20 backdrop-blur-sm border border-white/30 rounded-2xl shadow-2xl rotate-y-90">
           <ChatBubbleLeftIcon className="w-10 h-10 text-white" />
         </CubeFace>
 

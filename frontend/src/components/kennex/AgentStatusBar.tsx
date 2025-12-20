@@ -77,7 +77,7 @@ const AgentStatusBar = () => {
       {agentStatus.status !== 'available' && (
         <button
           onClick={() => updateStatus('available')}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+          className="bg-green-600 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
         >
           Go Available
         </button>

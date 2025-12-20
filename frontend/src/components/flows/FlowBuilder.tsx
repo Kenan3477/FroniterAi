@@ -27,11 +27,11 @@ import { flowsAPI, Flow } from '../../services/api';
 
 // Custom Node Components with Handles
 const EventTriggerNode = ({ data }: { data: any }) => (
-  <div className="px-4 py-3 bg-emerald-500 text-white rounded-lg shadow-lg border-2 border-emerald-600 min-w-[140px] relative">
+  <div className="px-4 py-3 bg-slate-500 text-white rounded-lg shadow-lg border-2 border-slate-600 min-w-[140px] relative">
     <Handle
       type="source"
       position={Position.Bottom}
-      className="w-3 h-3 !bg-white !border-2 !border-emerald-600"
+      className="w-3 h-3 !bg-white !border-2 !border-slate-600"
     />
     <div className="flex items-center space-x-2">
       <span className="text-lg">{data.icon}</span>
@@ -135,7 +135,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
               value={nodeData.label || ''}
               onChange={(e) => updateNodeData({ label: e.target.value })}
               placeholder="Flash Inbound"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
             />
           </div>
           
@@ -148,7 +148,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 type="text"
                 value={nodeData.cli || '448008021320'}
                 onChange={(e) => updateNodeData({ cli: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
                 <button className="text-gray-400 hover:text-gray-600">✕</button>
@@ -166,8 +166,8 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 onChange={(e) => updateNodeData({ captureCustomerNumber: e.target.checked })}
                 className="sr-only"
               />
-              <div className={`w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 ${
-                nodeData.captureCustomerNumber ? 'peer-checked:bg-emerald-600' : ''
+              <div className={`w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-slate-300 ${
+                nodeData.captureCustomerNumber ? 'peer-checked:bg-slate-600' : ''
               }`}>
                 <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
                   nodeData.captureCustomerNumber ? 'translate-x-5' : 'translate-x-0'
@@ -193,7 +193,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 value={nodeData.label || ''}
                 onChange={(e) => updateNodeData({ label: e.target.value })}
                 placeholder="9-5"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             
@@ -204,7 +204,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
               <select
                 value={nodeData.businessHours || '9-5'}
                 onChange={(e) => updateNodeData({ businessHours: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               >
                 <option value="9-5">9-5</option>
                 <option value="24-7">24-7</option>
@@ -227,7 +227,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 value={nodeData.label || ''}
                 onChange={(e) => updateNodeData({ label: e.target.value })}
                 placeholder="IVR"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             
@@ -248,7 +248,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                     }}
                     className={`p-2 text-center border rounded ${
                       (nodeData.enabledDigits || [1,2,3,4]).includes(digit)
-                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        ? 'bg-slate-600 text-white border-slate-600'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -266,7 +266,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 type="number"
                 value={nodeData.timeout || 5}
                 onChange={(e) => updateNodeData({ timeout: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
 
@@ -277,7 +277,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
               <select
                 value={nodeData.audioFile || 'Flash Welcome IVR'}
                 onChange={(e) => updateNodeData({ audioFile: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               >
                 <option value="Flash Welcome IVR">Flash Welcome IVR</option>
                 <option value="Main Menu">Main Menu</option>
@@ -303,7 +303,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 value={nodeData.label || ''}
                 onChange={(e) => updateNodeData({ label: e.target.value })}
                 placeholder="Flash OOH"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             
@@ -314,7 +314,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
               <select
                 value={nodeData.audioType || 'Audio File'}
                 onChange={(e) => updateNodeData({ audioType: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               >
                 <option value="Audio File">Audio File</option>
                 <option value="Text to Speech">Text to Speech</option>
@@ -331,7 +331,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                   type="text"
                   value={nodeData.audioFileName || 'No Name OOH New New'}
                   onChange={(e) => updateNodeData({ audioFileName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
                 <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   ✕
@@ -352,7 +352,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 value={nodeData.label || ''}
                 onChange={(e) => updateNodeData({ label: e.target.value })}
                 placeholder="YourGoTo"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             
@@ -365,7 +365,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                   type="text"
                   value={nodeData.ddi || '7+442080501954'}
                   onChange={(e) => updateNodeData({ ddi: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
                 <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   🔄
@@ -386,7 +386,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 value={nodeData.label || ''}
                 onChange={(e) => updateNodeData({ label: e.target.value })}
                 placeholder="Customer Services"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             
@@ -398,7 +398,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
                 <select
                   value={nodeData.inboundQueue || 'CustomerServices'}
                   onChange={(e) => updateNodeData({ inboundQueue: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 >
                   <option value="CustomerServices">CustomerServices</option>
                   <option value="Sales">Sales</option>
@@ -426,7 +426,7 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
             type="text"
             value={nodeData.label || ''}
             onChange={(e) => updateNodeData({ label: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
         </div>
       </div>
@@ -803,11 +803,11 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
       {/* Left Sidebar */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
-        <div className="p-4 bg-emerald-600 text-white">
+        <div className="p-4 bg-slate-600 text-white">
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={onBack}
-              className="flex items-center space-x-2 text-emerald-100 hover:text-white transition-colors"
+              className="flex items-center space-x-2 text-slate-100 hover:text-white transition-colors"
             >
               <ArrowLeft size={16} />
               <span className="font-medium">Flow</span>
@@ -818,7 +818,7 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
               <button
                 onClick={handleManualSave}
                 disabled={saveStatus === 'saving'}
-                className="flex items-center space-x-1 px-2 py-1 text-xs bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-800 rounded transition-colors"
+                className="flex items-center space-x-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-800 disabled:bg-slate-800 rounded transition-colors"
                 title="Save now"
               >
                 <Save size={12} />
@@ -828,14 +828,14 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
               <div className="flex items-center space-x-1 text-xs">
                 {saveStatus === 'saved' && (
                   <>
-                    <Cloud size={12} className="text-emerald-200" />
-                    <span className="text-emerald-200">Saved</span>
+                    <Cloud size={12} className="text-slate-200" />
+                    <span className="text-slate-200">Saved</span>
                   </>
                 )}
                 {saveStatus === 'saving' && (
                   <>
                     <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                    <span className="text-emerald-200">Saving...</span>
+                    <span className="text-slate-200">Saving...</span>
                   </>
                 )}
                 {saveStatus === 'unsaved' && (
@@ -857,7 +857,7 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
             <input
               type="text"
               placeholder="Components..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
             />
           </div>
         </div>
@@ -896,7 +896,7 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
                   {category.nodes.map((node) => (
                     <div
                       key={node.id}
-                      className="flex flex-col items-center p-2 bg-white border border-gray-200 rounded-lg cursor-grab hover:border-emerald-300 hover:shadow-sm transition-all"
+                      className="flex flex-col items-center p-2 bg-white border border-gray-200 rounded-lg cursor-grab hover:border-slate-300 hover:shadow-sm transition-all"
                       draggable
                       onDragStart={(event) => onDragStart(event, node)}
                       title={`Drag to add ${node.name}`}
@@ -943,7 +943,7 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
             </div>
 
             {/* Deploy Button */}
-            <button className="px-4 py-2 bg-emerald-600 text-white rounded-full text-sm font-medium hover:bg-emerald-700 transition-colors">
+            <button className="px-4 py-2 bg-slate-600 text-white rounded-full text-sm font-medium hover:bg-slate-700 transition-colors">
               Deploy
             </button>
           </div>

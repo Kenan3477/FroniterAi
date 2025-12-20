@@ -382,7 +382,7 @@ export default function DispositionForm({ callData, agentId, onSubmit, onCancel,
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" className="bg-green-600 hover:bg-slate-700">
                 <Save className="h-4 w-4 mr-2" />
                 Save Disposition
               </Button>

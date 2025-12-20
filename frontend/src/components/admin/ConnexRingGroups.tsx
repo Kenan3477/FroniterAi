@@ -73,7 +73,7 @@ export const ConnexRingGroupsManager: React.FC<{
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create Ring Groups
@@ -247,7 +247,7 @@ const ConnexRingGroupWizard: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 required
               />
             </div>
@@ -258,7 +258,7 @@ const ConnexRingGroupWizard: React.FC<{
                 type="text"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               />
             </div>
             
@@ -268,7 +268,7 @@ const ConnexRingGroupWizard: React.FC<{
                 type="text"
                 value={formData.displayName}
                 onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 required
               />
             </div>
@@ -284,7 +284,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <select
                   value={formData.businessHours}
                   onChange={(e) => setFormData({...formData, businessHours: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="9-5">9-5</option>
                   <option value="24 Hours">24 Hours</option>
@@ -297,7 +297,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <select
                   value={formData.outOfHoursAction}
                   onChange={(e) => setFormData({...formData, outOfHoursAction: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="Hangup">Hangup</option>
                   <option value="Voicemail">Voicemail</option>
@@ -312,7 +312,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <select
                   value={formData.dayClosedAction}
                   onChange={(e) => setFormData({...formData, dayClosedAction: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="Hangup">Hangup</option>
                   <option value="Voicemail">Voicemail</option>
@@ -325,7 +325,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <select
                   value={formData.ringGroupType}
                   onChange={(e) => setFormData({...formData, ringGroupType: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="Ring In Order">Ring In Order</option>
                   <option value="Ring All">Ring All</option>
@@ -340,7 +340,7 @@ const ConnexRingGroupWizard: React.FC<{
               <label className="block text-sm font-medium text-gray-700">Extensions</label>
               <select
                 multiple
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 {availableExtensions.map(ext => (
                   <option key={ext.id} value={ext.displayName}>
@@ -357,7 +357,7 @@ const ConnexRingGroupWizard: React.FC<{
                   type="number"
                   value={formData.ringTime}
                   onChange={(e) => setFormData({...formData, ringTime: parseInt(e.target.value)})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 />
               </div>
               
@@ -366,7 +366,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <select
                   value={formData.dropAction}
                   onChange={(e) => setFormData({...formData, dropAction: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="Hangup">Hangup</option>
                   <option value="Send To Queue">Send To Queue</option>
@@ -427,7 +427,7 @@ const ConnexRingGroupWizard: React.FC<{
                 <div key={step.number} className="flex items-center">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
                     currentStep === step.number 
-                      ? 'bg-kennex-600 text-white' 
+                      ? 'bg-slate-600 text-white' 
                       : currentStep > step.number 
                         ? 'bg-green-600 text-white' 
                         : 'bg-gray-200 text-gray-700'
@@ -435,7 +435,7 @@ const ConnexRingGroupWizard: React.FC<{
                     {currentStep > step.number ? '✓' : step.number}
                   </div>
                   <span className={`ml-2 text-sm font-medium ${
-                    currentStep === step.number ? 'text-kennex-600' : 'text-gray-500'
+                    currentStep === step.number ? 'text-slate-600' : 'text-gray-500'
                   }`}>
                     {step.name}
                   </span>
@@ -477,14 +477,14 @@ const ConnexRingGroupWizard: React.FC<{
             {currentStep < 3 ? (
               <button
                 onClick={handleNext}
-                className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+                className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
               >
                 Next →
               </button>
             ) : (
               <button
                 onClick={handleFinish}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-slate-700"
               >
                 Create Ring Group
               </button>
@@ -544,7 +544,7 @@ const ConnexRingGroupForm: React.FC<{
             <button
               type="submit"
               form="ring-group-form"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-slate-700 flex items-center"
             >
               ✓ Save
             </button>
@@ -567,7 +567,7 @@ const ConnexRingGroupForm: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 required
               />
             </div>
@@ -577,7 +577,7 @@ const ConnexRingGroupForm: React.FC<{
                 type="text"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               />
             </div>
           </div>
@@ -588,7 +588,7 @@ const ConnexRingGroupForm: React.FC<{
               type="text"
               value={formData.displayName}
               onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               required
             />
           </div>
@@ -600,7 +600,7 @@ const ConnexRingGroupForm: React.FC<{
               <select
                 value={formData.businessHours}
                 onChange={(e) => setFormData({...formData, businessHours: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="9-5">9-5</option>
                 <option value="24 Hours">24 Hours</option>
@@ -612,7 +612,7 @@ const ConnexRingGroupForm: React.FC<{
               <select
                 value={formData.outOfHoursAction}
                 onChange={(e) => setFormData({...formData, outOfHoursAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
@@ -627,7 +627,7 @@ const ConnexRingGroupForm: React.FC<{
               <select
                 value={formData.dayClosedAction}
                 onChange={(e) => setFormData({...formData, dayClosedAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
@@ -639,7 +639,7 @@ const ConnexRingGroupForm: React.FC<{
               <select
                 value={formData.dropAction}
                 onChange={(e) => setFormData({...formData, dropAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Send To Queue">Send To Queue</option>
                 <option value="Hangup">Hangup</option>
@@ -653,7 +653,7 @@ const ConnexRingGroupForm: React.FC<{
             <select
               value={formData.queues}
               onChange={(e) => setFormData({...formData, queues: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="AccountManagers">AccountManagers</option>
               <option value="Support">Support</option>
@@ -666,7 +666,7 @@ const ConnexRingGroupForm: React.FC<{
             <select
               value={formData.ringGroupType}
               onChange={(e) => setFormData({...formData, ringGroupType: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="Ring All">Ring All</option>
               <option value="Ring In Order">Ring In Order</option>
@@ -702,7 +702,7 @@ const ConnexRingGroupForm: React.FC<{
               type="number"
               value={formData.ringTime}
               onChange={(e) => setFormData({...formData, ringTime: parseInt(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             />
           </div>
         </form>

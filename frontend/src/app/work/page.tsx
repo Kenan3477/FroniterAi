@@ -175,19 +175,19 @@ export default function WorkPage() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
                       >
                         <FunnelIcon className="h-4 w-4 mr-2" />
                         Filter
                       </button>
-                      <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                      <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                         <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
                         Sort
                       </button>
                       <button 
                         onClick={loadInteractionData}
                         disabled={isLoadingInteractions}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500 disabled:opacity-50"
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50"
                       >
                         <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoadingInteractions ? 'animate-spin' : ''}`} />
                         Refresh
@@ -206,16 +206,16 @@ export default function WorkPage() {
                         placeholder="Search interactions..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                        className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
                       />
                     </div>
                     
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2">
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-kennex-600 hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                         Export
                       </button>
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-kennex-600 hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
+                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                         Actions
                       </button>
                     </div>
@@ -230,7 +230,7 @@ export default function WorkPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Date Range
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 sm:text-sm">
+                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
                           <option>Today</option>
                           <option>Yesterday</option>
                           <option>This Week</option>
@@ -242,7 +242,7 @@ export default function WorkPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Campaign
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 sm:text-sm">
+                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
                           <option>All Campaigns</option>
                           <option>Wiseguys failed payments</option>
                           <option>Ken Campaign NEW</option>
@@ -252,7 +252,7 @@ export default function WorkPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Outcome
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 sm:text-sm">
+                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
                           <option>All Outcomes</option>
                           <option>Answering Machine</option>
                           <option>Not Interested - NI</option>
@@ -263,7 +263,7 @@ export default function WorkPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Agent
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 sm:text-sm">
+                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
                           <option>All Agents</option>
                           <option>Harley</option>
                           <option>Nic</option>

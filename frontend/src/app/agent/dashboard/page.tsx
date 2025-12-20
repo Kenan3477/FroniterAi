@@ -379,7 +379,7 @@ export default function AgentDashboard() {
                 
                 <div>
                   <div className="text-sm text-gray-600">Calls Completed</div>
-                  <p className="text-2xl font-bold text-green-600">{callsCompleted}</p>
+                  <p className="text-2xl font-bold text-slate-600">{callsCompleted}</p>
                 </div>
                 
                 <div>
@@ -523,8 +523,8 @@ export default function AgentDashboard() {
                 {status === 'AVAILABLE' ? (
                   <div className="space-y-4">
                     <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-green-800 font-medium">Ready to receive calls</p>
-                      <p className="text-sm text-green-600 mt-1">
+                      <p className="text-slate-800 font-medium">Ready to receive calls</p>
+                      <p className="text-sm text-slate-600 mt-1">
                         You will automatically receive the next available call
                       </p>
                     </div>
@@ -600,7 +600,7 @@ export default function AgentDashboard() {
                 </div>
                 
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-slate-600">
                     {agentData.currentCampaign.completedRecords || 0}
                   </p>
                   <p className="text-sm text-gray-600">Completed</p>

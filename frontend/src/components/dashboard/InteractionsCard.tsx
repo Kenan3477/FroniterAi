@@ -46,7 +46,7 @@ const InteractionsCard = () => {
     );
   }
 
-  const changeColor = (summary?.interactions_change_pct || 0) >= 0 ? 'text-green-600' : 'text-red-600';
+  const changeColor = (summary?.interactions_change_pct || 0) >= 0 ? 'text-slate-600' : 'text-red-600';
   const changeSymbol = (summary?.interactions_change_pct || 0) >= 0 ? '+' : '';
 
   return (
@@ -63,7 +63,7 @@ const InteractionsCard = () => {
           </div>
           <div className="text-sm text-gray-500 mt-1">
             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              (summary?.interactions_change_pct || 0) >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              (summary?.interactions_change_pct || 0) >= 0 ? 'bg-green-100 text-slate-800' : 'bg-red-100 text-red-800'
             }`}>
               {changeSymbol}{summary?.interactions_change_pct || 0}%
             </span>

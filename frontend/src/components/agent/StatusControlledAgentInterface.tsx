@@ -237,7 +237,7 @@ export default function EnhancedAgentInterface({
   // Render status controls
   const renderStatusControls = () => {
     const statuses: { status: AgentStatus; label: string; color: string }[] = [
-      { status: 'Available', label: 'Available', color: 'bg-green-600 hover:bg-green-700' },
+      { status: 'Available', label: 'Available', color: 'bg-green-600 hover:bg-slate-700' },
       { status: 'Away', label: 'Away', color: 'bg-yellow-600 hover:bg-yellow-700' },
       { status: 'Break', label: 'On Break', color: 'bg-orange-600 hover:bg-orange-700' },
       { status: 'Offline', label: 'Offline', color: 'bg-gray-600 hover:bg-gray-700' },
@@ -266,15 +266,15 @@ export default function EnhancedAgentInterface({
         </div>
 
         {status === 'Available' && queueStatus && (
-          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="mt-3 p-3 bg-green-50 border border-slate-200 rounded-lg">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-800 font-medium text-sm">
+              <span className="text-slate-800 font-medium text-sm">
                 In dial queue • {queueStatus.availableAgents} agents available
               </span>
             </div>
             {queueStatus.isDiallingActive ? (
-              <p className="text-green-700 text-sm mt-1">
+              <p className="text-slate-700 text-sm mt-1">
                 🎯 Dialling is active - calls will be distributed automatically
               </p>
             ) : (

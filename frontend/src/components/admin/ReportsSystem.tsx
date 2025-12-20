@@ -267,7 +267,7 @@ const ReportsSystem: React.FC = () => {
                           {metric.value}
                         </div>
                         <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                          metric.trend === 'up' ? 'text-green-600' : 
+                          metric.trend === 'up' ? 'text-slate-600' : 
                           metric.trend === 'down' ? 'text-red-600' : 'text-gray-500'
                         }`}>
                           {metric.trend === 'up' ? (
@@ -292,7 +292,7 @@ const ReportsSystem: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">Call Volume Trends</h3>
           <div className="flex space-x-2">
-            <button className="px-3 py-1 bg-kennex-100 text-kennex-700 rounded text-sm">
+            <button className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-sm">
               Hourly
             </button>
             <button className="px-3 py-1 text-gray-600 rounded text-sm hover:bg-gray-100">
@@ -428,7 +428,7 @@ const ReportsSystem: React.FC = () => {
               <div className="text-sm text-gray-500">Total Calls</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{callMetrics?.answeredCalls}</div>
+              <div className="text-3xl font-bold text-slate-600">{callMetrics?.answeredCalls}</div>
               <div className="text-sm text-gray-500">Answered Calls</div>
             </div>
             <div className="text-center">
@@ -505,7 +505,7 @@ const ReportsSystem: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       agent.conversionRate >= 20 
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-green-100 text-slate-800'
                         : agent.conversionRate >= 15
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
@@ -578,7 +578,7 @@ const ReportsSystem: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       campaign.conversionRate >= 25 
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-green-100 text-slate-800'
                         : campaign.conversionRate >= 15
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
@@ -629,7 +629,7 @@ const ReportsSystem: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-kennex-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
       </div>
     );
   }
@@ -659,7 +659,7 @@ const ReportsSystem: React.FC = () => {
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               {timePeriods.map(period => (
                 <option key={period.id} value={period.id}>
@@ -669,7 +669,7 @@ const ReportsSystem: React.FC = () => {
             </select>
             <button
               onClick={exportReport}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
               Export
@@ -691,15 +691,15 @@ const ReportsSystem: React.FC = () => {
                 onClick={() => setSelectedReport(report.id)}
                 className={`p-4 border-2 rounded-lg text-center transition-all ${
                   isSelected
-                    ? 'border-kennex-500 bg-kennex-50'
+                    ? 'border-slate-500 bg-slate-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <Icon className={`h-6 w-6 mx-auto mb-2 ${
-                  isSelected ? 'text-kennex-600' : 'text-gray-400'
+                  isSelected ? 'text-slate-600' : 'text-gray-400'
                 }`} />
                 <div className={`text-sm font-medium ${
-                  isSelected ? 'text-kennex-900' : 'text-gray-900'
+                  isSelected ? 'text-slate-900' : 'text-gray-900'
                 }`}>
                   {report.name}
                 </div>

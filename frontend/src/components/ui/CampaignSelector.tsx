@@ -56,8 +56,8 @@ export default function CampaignSelector() {
 
   if (availableCampaigns.length === 1) {
     return (
-      <div className="flex items-center text-sm text-gray-700 bg-kennex-50 px-3 py-2 rounded-md border border-kennex-200">
-        <Target className="h-4 w-4 mr-2 text-kennex-600" />
+      <div className="flex items-center text-sm text-gray-700 bg-slate-50 px-3 py-2 rounded-md border border-slate-200">
+        <Target className="h-4 w-4 mr-2 text-slate-600" />
         <span className="font-medium">{currentCampaign?.name || availableCampaigns[0]?.name}</span>
       </div>
     );
@@ -68,10 +68,10 @@ export default function CampaignSelector() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isJoining}
-        className="flex items-center justify-between w-full min-w-[200px] text-sm text-gray-700 bg-white border border-gray-300 rounded-md px-3 py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500 disabled:opacity-50"
+        className="flex items-center justify-between w-full min-w-[200px] text-sm text-gray-700 bg-white border border-gray-300 rounded-md px-3 py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 disabled:opacity-50"
       >
         <div className="flex items-center">
-          <Target className="h-4 w-4 mr-2 text-kennex-600" />
+          <Target className="h-4 w-4 mr-2 text-slate-600" />
           <span className="font-medium truncate">
             {isJoining ? 'Joining Queue...' : 
              currentCampaign ? `${currentCampaign.name}${isInQueue ? ' (In Queue)' : ''}` : 
@@ -99,7 +99,7 @@ export default function CampaignSelector() {
                   disabled={isJoining}
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 ${
                     currentCampaign?.campaignId === campaign.campaignId 
-                      ? 'bg-kennex-50 text-kennex-700 font-medium' 
+                      ? 'bg-slate-50 text-slate-700 font-medium' 
                       : 'text-gray-700'
                   }`}
                 >
@@ -112,12 +112,12 @@ export default function CampaignSelector() {
                     </div>
                     {currentCampaign?.campaignId === campaign.campaignId && isInQueue && (
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">In Queue</span>
+                        <span className="text-xs bg-green-100 text-slate-700 px-2 py-1 rounded">In Queue</span>
                         <div className="w-2 h-2 bg-green-500 rounded-full" />
                       </div>
                     )}
                     {currentCampaign?.campaignId === campaign.campaignId && !isInQueue && (
-                      <div className="w-2 h-2 bg-kennex-500 rounded-full" />
+                      <div className="w-2 h-2 bg-slate-500 rounded-full" />
                     )}
                   </div>
                 </button>

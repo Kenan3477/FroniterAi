@@ -81,8 +81,8 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
 
   const getOutcomeColor = (outcome: string): string => {
     const colors: { [key: string]: string } = {
-      'answered': 'text-green-600 bg-green-50',
-      'connected': 'text-green-600 bg-green-50',
+      'answered': 'text-slate-600 bg-green-50',
+      'connected': 'text-slate-600 bg-green-50',
       'sale': 'text-blue-600 bg-blue-50',
       'interested': 'text-blue-600 bg-blue-50',
       'callback': 'text-yellow-600 bg-yellow-50',
@@ -103,7 +103,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-kennex-600 text-white px-6 py-4 flex items-center justify-between">
+        <div className="bg-slate-600 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Users className="h-6 w-6" />
             <div>
@@ -125,7 +125,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-kennex-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
             <span className="ml-3 text-gray-600">Loading contact information...</span>
           </div>
         ) : contactData ? (
@@ -134,8 +134,8 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
             <div className="bg-gray-50 px-6 py-4 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-kennex-100 rounded-full flex items-center justify-center">
-                    <span className="text-kennex-600 font-semibold text-lg">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+                    <span className="text-slate-600 font-semibold text-lg">
                       {contactData.contact.firstName[0]}{contactData.contact.lastName[0]}
                     </span>
                   </div>
@@ -165,7 +165,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
                 </div>
                 <div className="text-right">
                   <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                    contactData.contact.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    contactData.contact.status === 'completed' ? 'bg-green-100 text-slate-800' :
                     contactData.contact.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
@@ -188,7 +188,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
                     onClick={() => setActiveTab(tab.key as typeof activeTab)}
                     className={`flex items-center space-x-2 py-3 px-4 border-b-2 transition-colors ${
                       activeTab === tab.key
-                        ? 'border-kennex-600 text-kennex-600'
+                        ? 'border-slate-600 text-slate-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -206,7 +206,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
                   {/* Source Information */}
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <Calendar className="h-5 w-5 mr-2 text-kennex-600" />
+                      <Calendar className="h-5 w-5 mr-2 text-slate-600" />
                       Source Information
                     </h4>
                     <div className="space-y-3">
@@ -234,7 +234,7 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
                   {/* Contact Status */}
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <Target className="h-5 w-5 mr-2 text-kennex-600" />
+                      <Target className="h-5 w-5 mr-2 text-slate-600" />
                       Contact Status
                     </h4>
                     <div className="space-y-3">
@@ -330,35 +330,35 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h5 className="font-medium text-gray-900 mb-2">Total Contact Time</h5>
-                    <p className="text-2xl font-bold text-kennex-600">
+                    <p className="text-2xl font-bold text-slate-600">
                       {formatDuration(contactData.callHistory.totalDuration)}
                     </p>
                   </div>
                   
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h5 className="font-medium text-gray-900 mb-2">Average Call Length</h5>
-                    <p className="text-2xl font-bold text-kennex-600">
+                    <p className="text-2xl font-bold text-slate-600">
                       {formatDuration(Math.round(contactData.analytics.averageCallDuration))}
                     </p>
                   </div>
                   
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h5 className="font-medium text-gray-900 mb-2">Callbacks Scheduled</h5>
-                    <p className="text-2xl font-bold text-kennex-600">
+                    <p className="text-2xl font-bold text-slate-600">
                       {contactData.analytics.callbacksScheduled}
                     </p>
                   </div>
                   
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h5 className="font-medium text-gray-900 mb-2">Conversion Events</h5>
-                    <p className="text-2xl font-bold text-kennex-600">
+                    <p className="text-2xl font-bold text-slate-600">
                       {contactData.analytics.conversionEvents}
                     </p>
                   </div>
                   
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h5 className="font-medium text-gray-900 mb-2">Times Contacted</h5>
-                    <p className="text-2xl font-bold text-kennex-600">
+                    <p className="text-2xl font-bold text-slate-600">
                       {contactData.analytics.timesSeen}
                     </p>
                   </div>

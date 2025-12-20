@@ -302,7 +302,7 @@ const ChannelsManagement: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-kennex-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
       </div>
     );
   }
@@ -320,7 +320,7 @@ const ChannelsManagement: React.FC = () => {
         </div>
         <div className="flex items-center">
           <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-            <PhoneIcon className="h-5 w-5 text-green-600" />
+            <PhoneIcon className="h-5 w-5 text-slate-600" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Channels</h1>
@@ -379,7 +379,7 @@ const ChannelsManagement: React.FC = () => {
                     onClick={() => setSelectedVoiceTab(tab.id)}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       selectedVoiceTab === tab.id
-                        ? 'border-kennex-500 text-kennex-600'
+                        ? 'border-slate-500 text-slate-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -478,7 +478,7 @@ const ExtensionsManager: React.FC<{
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create Extensions
@@ -546,7 +546,7 @@ const ExtensionsManager: React.FC<{
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => toggleExtensionStatus(extension.id)}
-                    className="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+                    className="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
                     style={{
                       backgroundColor: extension.status ? '#10B981' : '#D1D5DB'
                     }}
@@ -640,7 +640,7 @@ const ConnexExtensionForm: React.FC<{
               type="text"
               value={formData.extension}
               onChange={(e) => setFormData({...formData, extension: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               placeholder="e.g., MWolozinsky"
               required
             />
@@ -652,7 +652,7 @@ const ConnexExtensionForm: React.FC<{
               type="text"
               value={formData.displayName}
               onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               placeholder="e.g., Morris Wolozinsky"
               required
             />
@@ -663,7 +663,7 @@ const ConnexExtensionForm: React.FC<{
             <select
               value={formData.type}
               onChange={(e) => setFormData({...formData, type: e.target.value as any})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="Web Phone">Web Phone</option>
               <option value="Hardware Phone">Hardware Phone</option>
@@ -677,7 +677,7 @@ const ConnexExtensionForm: React.FC<{
               type="email"
               value={formData.voicemailEmail}
               onChange={(e) => setFormData({...formData, voicemailEmail: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               placeholder="user@example.com"
               required
             />
@@ -691,7 +691,7 @@ const ConnexExtensionForm: React.FC<{
               max="60"
               value={formData.ringTimeSec}
               onChange={(e) => setFormData({...formData, ringTimeSec: parseInt(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             />
           </div>
 
@@ -700,7 +700,7 @@ const ConnexExtensionForm: React.FC<{
             <select
               value={formData.regServer}
               onChange={(e) => setFormData({...formData, regServer: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="web_1">web_1</option>
               <option value="Default">Default</option>
@@ -713,7 +713,7 @@ const ConnexExtensionForm: React.FC<{
             <select
               value={formData.dropAction}
               onChange={(e) => setFormData({...formData, dropAction: e.target.value as any})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="Hangup">Hangup</option>
               <option value="Voicemail">Voicemail</option>
@@ -727,7 +727,7 @@ const ConnexExtensionForm: React.FC<{
               type="checkbox"
               checked={formData.status}
               onChange={(e) => setFormData({...formData, status: e.target.checked})}
-              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+              className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
             />
             <label htmlFor="status" className="ml-2 block text-sm text-gray-900">
               Active
@@ -744,7 +744,7 @@ const ConnexExtensionForm: React.FC<{
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
             >
               {extension ? 'Update' : 'Create'} Extension
             </button>
@@ -774,7 +774,7 @@ const VoiceNodesManager = ({ config, onUpdate }: { config: VoiceConfiguration; o
         <h3 className="text-lg font-medium text-gray-900">Voice Nodes</h3>
         <p className="text-sm text-gray-500">Configure call flow nodes and routing logic</p>
       </div>
-      <button className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700">
+      <button className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700">
         <PlusIcon className="h-4 w-4 inline mr-2" />
         Create Voice Node
       </button>
@@ -805,7 +805,7 @@ const InboundConferencesManager = ({ config, onUpdate }: { config: VoiceConfigur
         <h3 className="text-lg font-medium text-gray-900">Inbound Conferences</h3>
         <p className="text-sm text-gray-500">Configure conference rooms and access codes</p>
       </div>
-      <button className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700">
+      <button className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700">
         <PlusIcon className="h-4 w-4 inline mr-2" />
         Create Conference Room
       </button>

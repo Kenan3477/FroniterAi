@@ -96,13 +96,13 @@ export default function LoginForm({ onSubmit, loading }: LoginFormProps) {
             {...register('rememberMe')}
             id="remember-me"
             type="checkbox"
-            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+            className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
           />
           <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
             Remember me
           </label>
         </div>
-        <a href="/forgot-password" className="text-sm text-kennex-600 hover:text-kennex-500">
+        <a href="/forgot-password" className="text-sm text-slate-600 hover:text-kennex-500">
           Forgot password?
         </a>
       </div>

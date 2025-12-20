@@ -421,7 +421,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              <UserIcon className="h-8 w-8 text-kennex-600" />
+              <UserIcon className="h-8 w-8 text-slate-600" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
                   {currentAgent ? `${currentAgent.firstName} ${currentAgent.lastName}` : 'Agent Dashboard'}
@@ -443,7 +443,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 agentStatus === 'Available'
                   ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-green-600 text-white hover:bg-slate-700'
               }`}
             >
               {agentStatus === 'Available' ? 'Go Unavailable' : 'Go Available'}
@@ -475,7 +475,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
                   onClick={() => handleStatusChange(status)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                     agentStatus === status
-                      ? 'bg-kennex-100 text-kennex-800 border border-kennex-300'
+                      ? 'bg-slate-100 text-slate-800 border border-slate-300'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -498,7 +498,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
                     <div className="text-xs text-gray-500">{campaign.dialMethod}</div>
                     <div className={`text-xs inline-block px-2 py-1 rounded-full mt-1 ${
                       campaign.status === 'Active' 
-                        ? 'bg-green-100 text-green-800' 
+                        ? 'bg-green-100 text-slate-800' 
                         : 'bg-gray-100 text-gray-600'
                     }`}>
                       {campaign.status}
@@ -572,7 +572,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
             // Active Call Interface
             <div className="flex-1 bg-white">
               {/* Call Header */}
-              <div className="bg-kennex-600 text-white px-6 py-4">
+              <div className="bg-slate-600 text-white px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold">Active Call</h2>
@@ -711,7 +711,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
                 {agentStatus !== 'Available' && (
                   <button
                     onClick={() => handleStatusChange('Available')}
-                    className="px-6 py-3 bg-kennex-600 text-white rounded-md hover:bg-kennex-700 transition-colors"
+                    className="px-6 py-3 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors"
                   >
                     Go Available
                   </button>

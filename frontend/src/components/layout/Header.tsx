@@ -96,7 +96,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500 sm:text-sm"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
             placeholder="Search contacts, campaigns..."
           />
         </div>
@@ -116,7 +116,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           <select 
             value={selectedQueue}
             onChange={(e) => setSelectedQueue(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500"
+            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
           >
             {inboundQueues.map((queue) => (
               <option key={queue} value={queue}>{queue}</option>
@@ -136,7 +136,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           <div className="text-sm">
             <span className="text-gray-600">Queue Status:</span>
             <span className={`ml-1 font-medium ${
-              userStatus === 'Available' ? 'text-green-600' : 'text-gray-500'
+              userStatus === 'Available' ? 'text-slate-600' : 'text-gray-500'
             }`}>
               {userStatus === 'Available' ? 'Active' : 'Inactive'}
             </span>
@@ -177,7 +177,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     </div>
                   </div>
                 </div>
-                <button className="w-full mt-3 text-center text-sm text-kennex-600 hover:text-kennex-500">
+                <button className="w-full mt-3 text-center text-sm text-slate-600 hover:text-kennex-500">
                   View all notifications
                 </button>
               </div>
@@ -221,7 +221,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <select 
                       value={userStatus}
                       onChange={(e) => setUserStatus(e.target.value)}
-                      className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500 flex-1"
+                      className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 flex-1"
                     >
                       {userStatuses.map((status) => (
                         <option key={status} value={status}>{status}</option>
@@ -238,7 +238,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       <select 
                         value={selectedCampaign}
                         onChange={(e) => setSelectedCampaign(e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500"
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       >
                         {campaigns.map((campaign) => (
                           <option key={campaign} value={campaign}>{campaign}</option>
@@ -250,7 +250,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       <select 
                         value={selectedQueue}
                         onChange={(e) => setSelectedQueue(e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-kennex-500"
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       >
                         {inboundQueues.map((queue) => (
                           <option key={queue} value={queue}>{queue}</option>

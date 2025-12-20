@@ -30,7 +30,7 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
   const getInteractionIcon = (type: string) => {
     switch (type) {
       case 'call':
-        return <PhoneIcon className="h-4 w-4 text-green-600" />;
+        return <PhoneIcon className="h-4 w-4 text-slate-600" />;
       case 'email':
         return <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center text-white text-xs">@</div>;
       case 'sms':
@@ -43,14 +43,14 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
   const getDirectionIcon = (direction: string) => {
     return direction === 'outbound' 
       ? <ArrowUpRightIcon className="h-4 w-4 text-red-600" />
-      : <ArrowDownLeftIcon className="h-4 w-4 text-green-600" />;
+      : <ArrowDownLeftIcon className="h-4 w-4 text-slate-600" />;
   };
 
   const getOutcomeBadge = (outcome: string) => {
     const badges = {
       'Answering Machine': 'bg-yellow-100 text-yellow-800',
       'Not Interested - NI': 'bg-red-100 text-red-800',
-      'Interested': 'bg-green-100 text-green-800',
+      'Interested': 'bg-green-100 text-slate-800',
       'Cancelled': 'bg-gray-100 text-gray-800',
       'Connected': 'bg-blue-100 text-blue-800',
       'Callback': 'bg-purple-100 text-purple-800'

@@ -180,7 +180,7 @@ export const InboundIVRManager: React.FC<{
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create IVR Menu
@@ -204,7 +204,7 @@ export const InboundIVRManager: React.FC<{
                 </div>
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                   ivr.status === 'active'
-                    ? 'bg-green-100 text-green-800'
+                    ? 'bg-green-100 text-slate-800'
                     : 'bg-red-100 text-red-800'
                 }`}>
                   {ivr.status}
@@ -229,7 +229,7 @@ export const InboundIVRManager: React.FC<{
                     setEditingIVR(ivr);
                     setShowAddForm(true);
                   }}
-                  className="text-kennex-600 hover:text-kennex-900"
+                  className="text-slate-600 hover:text-slate-900"
                 >
                   <PencilIcon className="h-4 w-4" />
                 </button>
@@ -325,7 +325,7 @@ export const InboundNumbersManager: React.FC<{
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create Inbound Numbers
@@ -375,7 +375,7 @@ export const InboundNumbersManager: React.FC<{
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => toggleNumberStatus(number.id)}
-                    className="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+                    className="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
                     style={{
                       backgroundColor: number.status ? '#10B981' : '#D1D5DB'
                     }}
@@ -503,7 +503,7 @@ const ConnexInboundNumberForm: React.FC<{
             <button
               type="submit"
               form="inbound-number-form"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-slate-700 flex items-center"
               disabled={!isDualtoneValid}
             >
               ✓ Save
@@ -529,7 +529,7 @@ const ConnexInboundNumberForm: React.FC<{
                 type="text"
                 value={formData.number}
                 onChange={(e) => setFormData({...formData, number: e.target.value})}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 ${
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 ${
                   !isDualtoneValid && formData.number ? 'border-red-300 bg-red-50' : ''
                 }`}
                 placeholder="+443301222251"
@@ -549,7 +549,7 @@ const ConnexInboundNumberForm: React.FC<{
                 type="text"
                 value={formData.carrierInboundNumber}
                 onChange={(e) => setFormData({...formData, carrierInboundNumber: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 placeholder="443301222251"
                 required
               />
@@ -565,7 +565,7 @@ const ConnexInboundNumberForm: React.FC<{
                 type="text"
                 value={formData.displayName}
                 onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 placeholder="443301222251"
                 required
               />
@@ -578,7 +578,7 @@ const ConnexInboundNumberForm: React.FC<{
                 type="text"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 placeholder="443301222251"
                 required
               />
@@ -631,7 +631,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.integration}
                 onChange={(e) => setFormData({...formData, integration: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="None">None</option>
                 <option value="Zapier">Zapier</option>
@@ -643,7 +643,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.countryCode}
                 onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="United Kingdom Of Great Britain And Northern Ireland (The) (GB)">
                   United Kingdom Of Great Britain And Northern Ireland (The) (GB)
@@ -660,7 +660,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.businessHours}
                 onChange={(e) => setFormData({...formData, businessHours: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="24 Hours">24 Hours</option>
                 <option value="9-5 Weekdays">9-5 Weekdays</option>
@@ -672,7 +672,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.outOfHoursAction}
                 onChange={(e) => setFormData({...formData, outOfHoursAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
@@ -687,7 +687,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.dayClosedAction}
                 onChange={(e) => setFormData({...formData, dayClosedAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
@@ -699,7 +699,7 @@ const ConnexInboundNumberForm: React.FC<{
               <select
                 value={formData.routeTo}
                 onChange={(e) => setFormData({...formData, routeTo: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="Hangup">Hangup</option>
                 <option value="Queue">Queue</option>
@@ -736,7 +736,7 @@ const ConnexInboundNumberForm: React.FC<{
             <select
               value={formData.lookupSearchFilter}
               onChange={(e) => setFormData({...formData, lookupSearchFilter: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="All Lists">All Lists</option>
               <option value="Customer Lists">Customer Lists</option>
@@ -749,7 +749,7 @@ const ConnexInboundNumberForm: React.FC<{
           <div className="bg-gray-50 p-4 rounded-lg">
             <label className="block text-sm font-medium text-gray-700 mb-2">Assigned to the default list</label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
               <option value="">Select default list...</option>
               <option value="general">General Contacts</option>
@@ -829,7 +829,7 @@ export const AudioFilesManager: React.FC<{
             <CloudArrowUpIcon className="h-4 w-4 inline mr-2" />
             Upload Files
           </button>
-          <button className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700">
+          <button className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700">
             Record New
           </button>
         </div>
@@ -845,7 +845,7 @@ export const AudioFilesManager: React.FC<{
                 onClick={() => setSelectedType(type.id)}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   selectedType === type.id
-                    ? 'border-kennex-500 text-kennex-600'
+                    ? 'border-slate-500 text-slate-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -875,7 +875,7 @@ export const AudioFilesManager: React.FC<{
               </div>
               <button
                 onClick={() => setPlayingFile(playingFile === file.id ? null : file.id)}
-                className="p-2 text-gray-400 hover:text-kennex-600"
+                className="p-2 text-gray-400 hover:text-slate-600"
               >
                 {playingFile === file.id ? (
                   <PauseIcon className="h-4 w-4" />
@@ -909,7 +909,7 @@ export const AudioFilesManager: React.FC<{
             {file.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-4">
                 {file.tags.map(tag => (
-                  <span key={tag} className="inline-flex px-2 py-1 text-xs bg-kennex-100 text-kennex-700 rounded">
+                  <span key={tag} className="inline-flex px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">
                     {tag}
                   </span>
                 ))}
@@ -922,7 +922,7 @@ export const AudioFilesManager: React.FC<{
             </div>
 
             <div className="flex justify-end space-x-2 mt-4">
-              <button className="text-kennex-600 hover:text-kennex-900">
+              <button className="text-slate-600 hover:text-slate-900">
                 <PencilIcon className="h-4 w-4" />
               </button>
               <button className="text-red-600 hover:text-red-900">
@@ -1016,7 +1016,7 @@ const IVRForm: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 required
               />
             </div>
@@ -1025,7 +1025,7 @@ const IVRForm: React.FC<{
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -1039,7 +1039,7 @@ const IVRForm: React.FC<{
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               rows={2}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             />
           </div>
 
@@ -1050,7 +1050,7 @@ const IVRForm: React.FC<{
               onChange={(e) => setFormData({...formData, greeting: e.target.value})}
               rows={3}
               placeholder="Welcome to our customer service. Please select from the following options..."
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               required
             />
           </div>
@@ -1064,7 +1064,7 @@ const IVRForm: React.FC<{
                 max="30"
                 value={formData.timeout}
                 onChange={(e) => setFormData({...formData, timeout: parseInt(e.target.value)})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               />
             </div>
             <div>
@@ -1075,7 +1075,7 @@ const IVRForm: React.FC<{
                 max="5"
                 value={formData.retries}
                 onChange={(e) => setFormData({...formData, retries: parseInt(e.target.value)})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               />
             </div>
             <div>
@@ -1083,7 +1083,7 @@ const IVRForm: React.FC<{
               <select
                 value={formData.defaultAction}
                 onChange={(e) => setFormData({...formData, defaultAction: e.target.value as any})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="hangup">Hang Up</option>
                 <option value="voicemail">Voicemail</option>
@@ -1106,7 +1106,7 @@ const IVRForm: React.FC<{
                     placeholder="Digit (1-9, *, #)"
                     value={newOption.digit}
                     onChange={(e) => setNewOption({...newOption, digit: e.target.value})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 text-sm"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
                     maxLength={1}
                   />
                 </div>
@@ -1114,7 +1114,7 @@ const IVRForm: React.FC<{
                   <select
                     value={newOption.action}
                     onChange={(e) => setNewOption({...newOption, action: e.target.value as any})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 text-sm"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
                   >
                     <option value="transfer">Transfer</option>
                     <option value="queue">Queue</option>
@@ -1129,14 +1129,14 @@ const IVRForm: React.FC<{
                     placeholder="Destination"
                     value={newOption.destination}
                     onChange={(e) => setNewOption({...newOption, destination: e.target.value})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 text-sm"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
                   />
                 </div>
                 <div>
                   <button
                     type="button"
                     onClick={addOption}
-                    className="w-full px-3 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700 text-sm"
+                    className="w-full px-3 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm"
                   >
                     Add
                   </button>
@@ -1148,7 +1148,7 @@ const IVRForm: React.FC<{
                   placeholder="Description (e.g., 'Press 1 for Sales')"
                   value={newOption.description}
                   onChange={(e) => setNewOption({...newOption, description: e.target.value})}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500 text-sm"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
                 />
               </div>
             </div>
@@ -1189,7 +1189,7 @@ const IVRForm: React.FC<{
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-kennex-600 text-white rounded-md hover:bg-kennex-700"
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
             >
               {ivr ? 'Update' : 'Create'} IVR Menu
             </button>

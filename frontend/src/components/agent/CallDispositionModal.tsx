@@ -58,9 +58,9 @@ const dispositionCategories = {
   },
   positive: {
     title: 'Positive',
-    color: 'bg-green-100 border-green-300',
+    color: 'bg-green-100 border-slate-300',
     icon: CheckIcon,
-    iconColor: 'text-green-500',
+    iconColor: 'text-slate-500',
     outcomes: [
       'Aged Product',
       'Field Payment Save',
@@ -267,7 +267,7 @@ export default function CallDispositionModal({
                 </span>
               )}
               {selectedCategory === 'positive' && (
-                <span className="text-green-700 bg-green-100 px-2 py-1 rounded">
+                <span className="text-slate-700 bg-green-100 px-2 py-1 rounded">
                   Success! Contact marked as reached
                 </span>
               )}

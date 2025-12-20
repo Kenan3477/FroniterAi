@@ -28,7 +28,7 @@ export default function DashboardCard({ title, value, icon, color, trend }: Dash
                 <div className="text-2xl font-bold text-gray-900">{value}</div>
                 {trend && (
                   <div className={`ml-2 flex items-center text-sm font-medium ${
-                    trend.direction === 'up' ? 'text-green-600' : 'text-red-600'
+                    trend.direction === 'up' ? 'text-slate-600' : 'text-red-600'
                   }`}>
                     {trend.direction === 'up' ? (
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">

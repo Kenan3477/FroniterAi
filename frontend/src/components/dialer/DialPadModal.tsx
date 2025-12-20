@@ -173,7 +173,7 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
             <button
               onClick={handleDial}
               disabled={!phoneNumber.trim() || isLookingUp}
-              className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 py-3 bg-green-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               <PhoneIcon className="w-5 h-5" />
               <span>{isLookingUp ? 'Looking up...' : 'Dial'}</span>

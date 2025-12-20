@@ -120,7 +120,7 @@ export default function AgentQueueDashboard({ onStatusChange }: AgentQueueDashbo
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'text-green-600 bg-green-100';
+      case 'available': return 'text-slate-600 bg-green-100';
       case 'busy': return 'text-red-600 bg-red-100';
       case 'offline': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
@@ -160,7 +160,7 @@ export default function AgentQueueDashboard({ onStatusChange }: AgentQueueDashbo
               <PhoneIcon className="w-5 h-5 text-gray-500" />
               <div>
                 <div className="font-medium text-gray-900">SIP Dialer</div>
-                <div className={`text-sm ${sipConnected ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-sm ${sipConnected ? 'text-slate-600' : 'text-red-600'}`}>
                   {sipConnected ? 'Connected' : 'Disconnected'}
                 </div>
               </div>
@@ -182,7 +182,7 @@ export default function AgentQueueDashboard({ onStatusChange }: AgentQueueDashbo
               ) : (
                 <button
                   onClick={() => updateSipStatus(true)}
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
+                  className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-slate-700"
                 >
                   Connect
                 </button>
@@ -210,13 +210,13 @@ export default function AgentQueueDashboard({ onStatusChange }: AgentQueueDashbo
                   onClick={() => updateAgentStatus(status)}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     isActive 
-                      ? 'border-kennex-500 bg-kennex-50' 
+                      ? 'border-slate-500 bg-slate-50' 
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-2">
-                    <StatusIcon className={`w-6 h-6 ${isActive ? 'text-kennex-600' : 'text-gray-500'}`} />
-                    <div className={`font-medium ${isActive ? 'text-kennex-900' : 'text-gray-900'}`}>
+                    <StatusIcon className={`w-6 h-6 ${isActive ? 'text-slate-600' : 'text-gray-500'}`} />
+                    <div className={`font-medium ${isActive ? 'text-slate-900' : 'text-gray-900'}`}>
                       {label}
                     </div>
                     <div className="text-xs text-gray-500 text-center">
@@ -255,7 +255,7 @@ export default function AgentQueueDashboard({ onStatusChange }: AgentQueueDashbo
               <div className="text-sm text-gray-500">Total Agents</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{queueData.summary.available}</div>
+              <div className="text-2xl font-bold text-slate-600">{queueData.summary.available}</div>
               <div className="text-sm text-gray-500">Available</div>
             </div>
             <div className="text-center">
