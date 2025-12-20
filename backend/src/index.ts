@@ -18,19 +18,19 @@ import authRoutes from './routes/auth';
 // Agent routes for frontend integration
 import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';
-import campaignRoutes from './routes/campaigns';
-import queueRoutes from './routes/queue'; // Campaign queue management
+// import campaignRoutes from './routes/campaigns'; // TEMPORARILY DISABLED - schema conflicts
+// import queueRoutes from './routes/queue'; // TEMPORARILY DISABLED - schema conflicts
 import reportsRoutes from './routes/reports';
 import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
 // Import admin routes - RE-ENABLING CRITICAL ONES
 import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after creating missing route file
-// Temporarily disabled due to schema conflicts
-// import userRoutes from './routes/users'; // Temporarily disabled - fixing schema issues
+// Enhanced user routes with enterprise features
+// import userRoutes from './routes/users'; // DISABLED - schema conflicts with User model
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
-import campaignManagementRoutes from './routes/campaignManagement'; // Re-enabled for admin frontend
-import businessSettingsRoutes from './routes/businessSettings'; // Re-enabled for admin frontend
+// import campaignManagementRoutes from './routes/campaignManagement'; // DISABLED - schema conflicts
+// import businessSettingsRoutes from './routes/businessSettings'; // DISABLED - schema conflicts
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
 import callsRoutes from './routes/callsRoutes'; // SIP call control system
 import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
@@ -41,9 +41,9 @@ import routingRoutes from './routes/routingRoutes'; // Inbound call routing syst
 // import analyticsRoutes from './routes/analytics'; // DISABLED - schema conflicts
 // import webhookRoutes from './routes/webhooks'; // Temporarily disabled - fixing schema issues
 
-// Import Omnivox-AI Flows routes
-import flowRoutes from './routes/flows';
-import flowVersionRoutes from './routes/flowVersions';
+// Import Omnivox-AI Flows routes - TEMPORARILY DISABLED DUE TO SCHEMA CONFLICTS
+// import flowRoutes from './routes/flows'; // DISABLED - User model conflicts
+// import flowVersionRoutes from './routes/flowVersions'; // DISABLED - dependent on flows
 // import nodeTypeRoutes from './routes/nodeTypes';
 // import flowExecutionRoutes from './routes/flowExecution';
 
@@ -132,15 +132,15 @@ class App {
     this.app.use('/api/auth', authRoutes); // Auth routes - enabled and working
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
-    this.app.use('/api/campaigns', campaignRoutes); // Campaign management
-    this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents
+    // this.app.use('/api/campaigns', campaignRoutes); // Campaign management - TEMPORARILY DISABLED
+    // this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents - TEMPORARILY DISABLED
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
-    // this.app.use('/api/admin/users', userRoutes); // Admin user management - temporarily disabled
+    // this.app.use('/api/admin/users', userRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
-    this.app.use('/api/admin/business-settings', businessSettingsRoutes); // Admin business settings management - re-enabled
-    this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // Admin campaign management - re-enabled
+    // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
+    // this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // DISABLED - schema conflicts
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts
@@ -148,13 +148,13 @@ class App {
     // this.app.use('/api/interactions', interactionRoutes); // Disabled - model not in schema
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
-    this.app.use('/api/calls', callsRoutes); // SIP call control system
+    // this.app.use('/api/calls', callsRoutes); // SIP call control system - DISABLED to avoid conflict
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
 
-    // Omnivox-AI Flows API routes - re-enabled
-    this.app.use('/api/flows', flowRoutes);
-    this.app.use('/api/flows/:flowId/versions', flowVersionRoutes);
+    // Omnivox-AI Flows API routes - TEMPORARILY DISABLED DUE TO SCHEMA CONFLICTS
+    // this.app.use('/api/flows', flowRoutes); // DISABLED - User model conflicts
+    // this.app.use('/api/flows/:flowId/versions', flowVersionRoutes); // DISABLED - dependent on flows
     // this.app.use('/api/flow-node-types', nodeTypeRoutes);
     // this.app.use('/api/flow-execution', flowExecutionRoutes);
 
@@ -164,8 +164,8 @@ class App {
     // this.app.use('/api/dialler/calls', diallerCallRoutes); // Disabled - missing services
     this.app.use('/api/kpi', kpiRoutes); // Re-enabled with basic implementation
     
-    // NEW: Twilio Dialer API routes
-    this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system
+    // NEW: Twilio Dialer API routes - THIS IS THE ONE WE NEED FOR TOKENS
+    this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system (includes /token endpoint)
     this.app.use('/api/dial-queue', dialQueueRoutes); // Dial queue system for auto-dialer
     this.app.use('/api/events', eventTestRoutes); // Real-time event system testing
 

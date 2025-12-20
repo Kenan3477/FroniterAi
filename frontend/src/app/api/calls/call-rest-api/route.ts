@@ -1,22 +1,5 @@
 /**
- * RESexport async function POST(request: NextRequest) {
-  try {
-    console.log('📞 Proxying REST API call request to backend...');
-    console.log('🔧 Backend URL:', BACKEND_URL);
-    
-    const body = await request.json();
-    console.log('📞 Call request body:', body);
-    
-    const targetUrl = `${BACKEND_URL}/api/calls/call-rest-api`;
-    console.log('🎯 Target URL:', targetUrl);
-    
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });Proxy
+ * REST API Call Proxy
  * Proxies call requests to the backend
  */
 
@@ -31,11 +14,15 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     console.log('📞 Call request body:', body);
-    
+
     const response = await fetch(`${BACKEND_URL}/api/calls/call-rest-api`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Forward authorization header if present
+        ...(request.headers.get('authorization') && {
+          authorization: request.headers.get('authorization')!
+        })
       },
       body: JSON.stringify(body),
     });

@@ -294,7 +294,7 @@ async function checkCampaignAccess(userId: string, campaignId: string): Promise<
   try {
     // Get user role
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: parseInt(userId, 10) }, // Convert string to number for User.id field
       select: { role: true }
     });
 

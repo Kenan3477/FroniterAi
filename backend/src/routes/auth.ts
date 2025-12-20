@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../database';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
@@ -9,12 +9,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 // Real authentication with database lookup
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
+    const loginIdentifier = email || username;
 
-    console.log('🔐 Backend login attempt for:', username);
+    console.log('🔐 Backend login attempt for:', loginIdentifier);
 
     // For now, handle demo credentials while transitioning
-    if (username === 'demo' && password === 'demo') {
+    if (loginIdentifier === 'demo' && password === 'demo') {
       const token = jwt.sign({ userId: 'demo', username: 'demo' }, JWT_SECRET, { expiresIn: '24h' });
       
       return res.json({
@@ -32,7 +33,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (username === 'admin' && password === 'admin') {
+    if (loginIdentifier === 'admin' && password === 'admin') {
       const token = jwt.sign({ userId: 'admin', username: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
       
       return res.json({
@@ -51,7 +52,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Add Albert as a temporary user
-    if (username === 'Albert' && password === '3477') {
+    if (loginIdentifier === 'Albert' && password === '3477') {
       const token = jwt.sign({ userId: 'albert', username: 'Albert' }, JWT_SECRET, { expiresIn: '24h' });
       
       return res.json({
@@ -69,22 +70,70 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // TODO: Add real database user lookup
-    // const user = await prisma.user.findFirst({
-    //   where: { username }
-    // });
+    // Real database user lookup for created users
+    const user = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { email: loginIdentifier },
+          { name: loginIdentifier }
+        ]
+      }
+    });
     
-    // if (!user || !await bcrypt.compare(password, user.password)) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: 'Invalid credentials'
-    //   });
-    // }
+    if (!user) {
+      console.log('❌ User not found:', loginIdentifier);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
 
-    console.log('❌ Invalid credentials for:', username);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid credentials'
+    // Check if user is active
+    if (user.status !== 'ACTIVE') {
+      return res.status(401).json({
+        success: false,
+        message: `Account is ${user.status.toLowerCase()}`
+      });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password || '');
+    if (!isPasswordValid) {
+      console.log('❌ Invalid password for:', loginIdentifier);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ 
+      userId: user.id, 
+      username: user.name,
+      email: user.email,
+      role: user.role 
+    }, JWT_SECRET, { expiresIn: '24h' });
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
+
+    console.log('✅ User authenticated successfully:', user.name, `(${user.role})`);
+
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          role: user.role.toLowerCase()
+        },
+        token: token
+      }
     });
 
   } catch (error) {

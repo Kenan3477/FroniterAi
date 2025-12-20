@@ -53,6 +53,16 @@ export default function UserManagement() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'AGENT',
+    status: 'ACTIVE',
+    department: '',
+    phoneNumber: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch users and stats
   const fetchUsers = async () => {
@@ -200,6 +210,62 @@ export default function UserManagement() {
     } catch (error) {
       console.error('Failed to delete user:', error);
     }
+  };
+
+  const createUser = async () => {
+    if (!formData.name || !formData.email || !formData.password) {
+      alert('Please fill in all required fields: name, email, and password');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        const loginUrl = formData.role === 'AGENT' ? '/agent/login' : '/login';
+        alert(`✅ User ${formData.name} created successfully!\n\n🔐 Login Instructions:\n• Go to: ${loginUrl}\n• Email: ${formData.email}\n• Password: [as set]\n• Role: ${formData.role}\n\nThey can now access their Omnivox-AI portal with ${formData.role.toLowerCase()} permissions.`);
+        setShowCreateModal(false);
+        setFormData({
+          name: '',
+          email: '',
+          password: '',
+          role: 'AGENT',
+          status: 'ACTIVE',
+          department: '',
+          phoneNumber: ''
+        });
+        await fetchUsers();
+        await fetchStats();
+      } else {
+        alert(result.message || 'Failed to create user');
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      alert('An error occurred while creating the user');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'AGENT',
+      status: 'ACTIVE',
+      department: '',
+      phoneNumber: ''
+    });
   };
 
   if (loading) {
@@ -500,11 +566,101 @@ export default function UserManagement() {
                     </h3>
                     <div className="mt-4 space-y-4">
                       <p className="text-sm text-gray-500">
-                        {editingUser ? 'Update user information' : 'Add a new user to the system'}
+                        {editingUser ? 'Update user information' : 'Add a new user to the Omnivox-AI platform'}
                       </p>
-                      {/* Form would go here - simplified for now */}
-                      <div className="text-sm text-gray-500">
-                        User form component would be implemented here with proper form handling, validation, and API integration.
+                      
+                      {/* Form */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Full Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="Enter full name"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Email Address <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="user@company.com"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Password <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="Enter secure password"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Role</label>
+                          <select
+                            value={formData.role}
+                            onChange={(e) => setFormData({...formData, role: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="AGENT">Agent - Basic call handling</option>
+                            <option value="MANAGER">Manager - Team supervision</option>
+                            <option value="ADMIN">Admin - Full system access</option>
+                            <option value="VIEWER">Viewer - Read-only access</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Status</label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({...formData, status: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                            <option value="SUSPENDED">Suspended</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Department</label>
+                          <input
+                            type="text"
+                            value={formData.department}
+                            onChange={(e) => setFormData({...formData, department: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="Sales, Support, Management..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                          <input
+                            type="tel"
+                            value={formData.phoneNumber}
+                            onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="+1 (555) 123-4567"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -513,15 +669,18 @@ export default function UserManagement() {
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={createUser}
+                  disabled={isSubmitting}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingUser ? 'Update' : 'Create'}
+                  {isSubmitting ? 'Creating...' : (editingUser ? 'Update' : 'Create User')}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false);
                     setEditingUser(null);
+                    resetForm();
                   }}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >

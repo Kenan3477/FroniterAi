@@ -37,7 +37,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         // Get access token from backend
         const tokenResponse = await fetch('/api/calls/token', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
           body: JSON.stringify({ agentId: 'agent-browser' })
         });
         
@@ -236,7 +239,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       // Make REST API call through backend - SIMPLE DIRECT CALLING
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
         body: JSON.stringify({ 
           to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
         })
@@ -285,7 +291,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         // End the REST API call through backend
         const response = await fetch('/api/dialer/end', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
           body: JSON.stringify({ 
             callSid: activeRestApiCall.callSid,
             duration: callDuration,

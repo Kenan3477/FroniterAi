@@ -15,14 +15,10 @@ router.get('/', async (req, res) => {
     try {
       // Try to get campaigns from database
       campaigns = await prisma.campaign.findMany({
-        where: {
-          isActive: true
-        },
         select: {
           id: true,
           name: true,
-          isActive: true,
-          diallingMode: true,
+          dialMethod: true,
           description: true
         }
       });

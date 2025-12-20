@@ -93,7 +93,7 @@ export default function AdminPage() {
                 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2">
-                  {selectedSection !== 'Admin' && selectedSection !== 'API' && selectedSection !== 'Business Settings' && selectedSection !== 'Data Management' && selectedSection !== 'SLAs' && selectedSection !== 'Views' && (
+                  {selectedSection !== 'Admin' && selectedSection !== 'API' && selectedSection !== 'Business Settings' && selectedSection !== 'Data Management' && selectedSection !== 'SLAs' && selectedSection !== 'Views' && selectedSection !== 'User Management' && (
                     <button 
                       onClick={() => {
                         if (selectedSection === 'Campaigns') {
@@ -113,7 +113,7 @@ export default function AdminPage() {
                            selectedSection.slice(0, -1)}
                     </button>
                   )}
-                  {selectedSection !== 'Admin' && selectedSection !== 'Business Settings' && (
+                  {selectedSection !== 'Admin' && selectedSection !== 'Business Settings' && selectedSection !== 'User Management' && (
                     <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                       Export
                     </button>
