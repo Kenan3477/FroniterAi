@@ -66,7 +66,7 @@ export default function Dashboard() {
     <MainLayout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome to Kennex AI</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome to Omnivox-AI</h1>
           <p className="mt-2 text-lg text-gray-600">
             Hello, {user?.firstName} {user?.lastName}! Let's get started with your AI-powered dialer.
           </p>

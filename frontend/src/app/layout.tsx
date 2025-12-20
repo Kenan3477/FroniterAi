@@ -6,7 +6,7 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Kennex AI - Conversational AI Platform',
+  title: 'Omnivox-AI - Conversational AI Platform',
   description: 'Advanced AI-powered conversation and workflow automation platform',
   keywords: 'AI, conversation, automation, dialer, CRM, workflow',
 };

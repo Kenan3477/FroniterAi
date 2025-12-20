@@ -1,5 +1,5 @@
 /**
- * KENNEX BACKEND PREDICTIVE DIALING SERVICE
+ * OMNIVOX-AI BACKEND PREDICTIVE DIALING SERVICE
  * Enterprise-grade predictive dialing with real-time decision engine
  * Ported and enhanced from frontend algorithms
  */

@@ -1,7 +1,7 @@
 {
-  "name": "kennex-backend",
+  "name": "omnivox-ai-backend",
   "version": "1.0.0",
-  "description": "Kennex AI Backend API Server",
+  "description": "Omnivox-AI Backend API Server",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

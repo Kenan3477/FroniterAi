@@ -1,4 +1,4 @@
-// Kennex Flows Database Schema
+// Omnivox-AI Flows Database Schema
 // Complete flow automation system with versioning, execution, and management
 
 generator client {

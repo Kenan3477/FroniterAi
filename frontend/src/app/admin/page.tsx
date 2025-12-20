@@ -396,7 +396,7 @@ export default function AdminPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Organization Name
                         </label>
-                        <input type="text" defaultValue="Kennex AI" className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500" />
+                        <input type="text" defaultValue="Omnivox-AI" className="w-full rounded-md border-gray-300 shadow-sm focus:border-kennex-500 focus:ring-kennex-500" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">

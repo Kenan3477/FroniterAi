@@ -23,7 +23,7 @@ router.post('/login', async (req, res) => {
           user: {
             id: 'demo',
             name: 'Demo User',
-            email: 'demo@kennex.ai',
+            email: 'demo@omnivox-ai.com',
             username: 'demo',
             role: 'agent'
           },
@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
           user: {
             id: 'admin',
             name: 'Admin User', 
-            email: 'admin@kennex.ai',
+            email: 'admin@omnivox-ai.com',
             username: 'admin',
             role: 'admin'
           },
@@ -60,7 +60,7 @@ router.post('/login', async (req, res) => {
           user: {
             id: 'albert',
             name: 'Albert', 
-            email: 'albert@kennex.ai',
+            email: 'albert@omnivox-ai.com',
             username: 'Albert',
             role: 'agent'
           },
@@ -114,7 +114,7 @@ router.get('/profile', async (req, res) => {
     const userProfile = {
       id: decoded.userId,
       name: decoded.userId === 'admin' ? 'Admin User' : 'Demo User',
-      email: `${decoded.username}@kennex.ai`,
+      email: `${decoded.username}@omnivox-ai.com`,
       username: decoded.username,
       role: decoded.userId === 'admin' ? 'admin' : 'agent',
       status: 'active'

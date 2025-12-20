@@ -1,6 +1,6 @@
 /**
  * Authentication and Authorization Middleware
- * Role-based access control for Kennex API
+ * Role-based access control for Omnivox-AI API
  */
 
 import { Request, Response, NextFunction } from 'express';

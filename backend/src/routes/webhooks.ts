@@ -10,7 +10,7 @@ router.post('/voice', (req: Request, res: Response) => {
   // Generate TwiML to handle incoming calls
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Welcome to Kennex AI. Please hold while we connect you to an agent.</Say>
+  <Say voice="alice">Welcome to Omnivox-AI. Please hold while we connect you to an agent.</Say>
   <Dial>
     <Conference 
       beep="false"
@@ -42,7 +42,7 @@ router.post('/welcome', (req: Request, res: Response) => {
   
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Hello! You have reached Kennex AI. This is a demonstration of our outbound calling system. Thank you for calling. Goodbye!</Say>
+  <Say voice="alice">Hello! You have reached Omnivox-AI. This is a demonstration of our outbound calling system. Thank you for calling. Goodbye!</Say>
   <Hangup/>
 </Response>`;
 

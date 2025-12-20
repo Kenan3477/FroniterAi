@@ -41,7 +41,7 @@ import routingRoutes from './routes/routingRoutes'; // Inbound call routing syst
 // import analyticsRoutes from './routes/analytics'; // DISABLED - schema conflicts
 // import webhookRoutes from './routes/webhooks'; // Temporarily disabled - fixing schema issues
 
-// Import Kennex Flows routes
+// Import Omnivox-AI Flows routes
 import flowRoutes from './routes/flows';
 import flowVersionRoutes from './routes/flowVersions';
 // import nodeTypeRoutes from './routes/nodeTypes';
@@ -152,7 +152,7 @@ class App {
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
 
-    // Kennex Flows API routes - re-enabled
+    // Omnivox-AI Flows API routes - re-enabled
     this.app.use('/api/flows', flowRoutes);
     this.app.use('/api/flows/:flowId/versions', flowVersionRoutes);
     // this.app.use('/api/flow-node-types', nodeTypeRoutes);
@@ -172,9 +172,9 @@ class App {
     // API documentation
     this.app.get('/api', (req, res) => {
       res.json({
-        name: 'Kennex API',
+        name: 'Omnivox-AI API',
         version: '1.0.0',
-        description: 'Kennex AI Platform API Server',
+        description: 'Omnivox-AI Platform API Server',
         endpoints: {
           auth: '/api/auth',
           users: '/api/users',

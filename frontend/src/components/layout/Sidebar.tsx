@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <span className="text-white font-bold text-sm">K</span>
           </div>
           {!collapsed && (
-            <span className="text-xl font-bold text-gray-900">Kennex AI</span>
+            <span className="text-xl font-bold text-gray-900">Omnivox-AI</span>
           )}
         </div>
       </div>

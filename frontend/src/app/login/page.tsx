@@ -85,7 +85,7 @@ export default function LoginPage() {
           {/* Brand Text with Perfect Alignment */}
           <div className="space-y-6 text-center">
             <h1 className="text-6xl font-bold text-white tracking-tight relative">
-              <span className="relative z-10">Kennex AI</span>
+              <span className="relative z-10">Omnivox-AI</span>
               <div className="absolute inset-0 blur-lg bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-50 animate-pulse"></div>
             </h1>
             <p className="text-xl text-emerald-100 leading-relaxed max-w-md mx-auto">
@@ -143,7 +143,7 @@ export default function LoginPage() {
               <div className="w-12 h-12 bg-gradient-to-br from-kennex-500 to-kennex-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">K</span>
               </div>
-              <span className="text-3xl font-bold text-gray-900">Kennex AI</span>
+              <span className="text-3xl font-bold text-gray-900">Omnivox-AI</span>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
             <p className="text-gray-600">Sign in to your account to continue your work</p>
@@ -270,7 +270,7 @@ export default function LoginPage() {
 
             <div className="text-center pt-4">
               <p className="text-sm text-gray-500">
-                Powered by <span className="font-semibold text-kennex-600">Kennex AI</span> • 2025 • All rights reserved
+                Powered by <span className="font-semibold text-kennex-600">Omnivox-AI</span> • 2025 • All rights reserved
               </p>
             </div>
           </div>
