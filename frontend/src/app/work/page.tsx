@@ -15,140 +15,7 @@ import {
   ArrowPathIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
-
-// Mock data for different interaction types
-const mockOutcomedInteractions = [
-  {
-    id: '1',
-    agentName: 'Harley',
-    customerName: 'Mr. Chris Bamber 01/09/2025 09/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44192327139',
-    direction: 'outbound' as const,
-    subject: '+44192327139',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:56',
-    duration: '00:00:12',
-  },
-  {
-    id: '2',
-    agentName: 'Harley',
-    customerName: 'Laura Byrne 28/07/2025 11/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44473404395',
-    direction: 'outbound' as const,
-    subject: '+44473404395',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:56',
-    duration: '00:00:06',
-  },
-  {
-    id: '3',
-    agentName: 'Harley',
-    customerName: 'Laura Byrne 28/07/2025 11/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44473404395',
-    direction: 'outbound' as const,
-    subject: '+44473404395',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:54',
-    duration: '00:00:02',
-  },
-  {
-    id: '4',
-    agentName: 'Harley',
-    customerName: 'Mr. Trevor Brown 08/10/2025 17/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44741480448',
-    direction: 'outbound' as const,
-    subject: '+44741480448',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:52',
-    duration: '00:00:18',
-  },
-  {
-    id: '5',
-    agentName: 'Nic',
-    customerName: 'Maxine Brookes',
-    interactionType: 'call' as const,
-    telephone: '+44719647192',
-    direction: 'outbound' as const,
-    subject: '+44719647192',
-    campaignName: 'Ken Campaign NEW',
-    outcome: 'Not Interested - NI',
-    dateTime: '09/12/2025 16:49',
-    duration: '00:05:12',
-  },
-  {
-    id: '6',
-    agentName: 'Harley',
-    customerName: 'Mrs. Deborah Croft 15/10/2025 18/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44784573688',
-    direction: 'outbound' as const,
-    subject: '+44784573688',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:48',
-    duration: '00:00:08',
-  },
-  {
-    id: '7',
-    agentName: 'Nic',
-    customerName: 'Florence Packham',
-    interactionType: 'call' as const,
-    telephone: '+44795196152',
-    direction: 'outbound' as const,
-    subject: '+44795196152',
-    campaignName: 'Ken Campaign NEW',
-    outcome: 'Not Interested - NI',
-    dateTime: '09/12/2025 16:47',
-    duration: '00:01:22',
-  },
-  {
-    id: '8',
-    agentName: 'Mehidi',
-    customerName: '',
-    interactionType: 'call' as const,
-    telephone: '+44782502430',
-    direction: 'outbound' as const,
-    subject: '+44782502430',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Cancelled',
-    dateTime: '09/12/2025 16:46',
-    duration: '00:05:01',
-  },
-  {
-    id: '9',
-    agentName: 'Harley',
-    customerName: 'Mr. Peter Hancox 01/10/2025 19/09/2025',
-    interactionType: 'call' as const,
-    telephone: '+44752310266',
-    direction: 'outbound' as const,
-    subject: '+44752310266',
-    campaignName: 'Wiseguys failed payments',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:45',
-    duration: '00:00:06',
-  },
-  {
-    id: '10',
-    agentName: 'Nic',
-    customerName: 'Stewart Whitt',
-    interactionType: 'call' as const,
-    telephone: '+44794139809',
-    direction: 'outbound' as const,
-    subject: '+44794139809',
-    campaignName: 'Ken Campaign NEW',
-    outcome: 'Answering Machine',
-    dateTime: '09/12/2025 16:41',
-    duration: '00:05:00',
-  },
-];
+import { getOutcomedInteractions, getActiveInteractions, InteractionData } from '@/services/interactionService';
 
 const mockTasks = [
   {
@@ -172,6 +39,11 @@ export default function WorkPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [agentId, setAgentId] = useState('demo-agent');
+  
+  // Real interaction data state
+  const [outcomedInteractions, setOutcomedInteractions] = useState<InteractionData[]>([]);
+  const [activeInteractions, setActiveInteractions] = useState<InteractionData[]>([]);
+  const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
 
   // Get active call from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
@@ -181,6 +53,31 @@ export default function WorkPage() {
     // For now, use a default
     setAgentId('demo-agent');
   }, []);
+
+  // Load interaction data when view changes or component mounts
+  useEffect(() => {
+    if (selectedView === 'Outcomed Interactions' || selectedView === 'My Interactions') {
+      loadInteractionData();
+    }
+  }, [selectedView, agentId]);
+
+  // Load real interaction data from backend
+  const loadInteractionData = async () => {
+    setIsLoadingInteractions(true);
+    try {
+      if (selectedView === 'Outcomed Interactions') {
+        const interactions = await getOutcomedInteractions(agentId);
+        setOutcomedInteractions(interactions);
+      } else if (selectedView === 'My Interactions') {
+        const interactions = await getActiveInteractions(agentId);
+        setActiveInteractions(interactions);
+      }
+    } catch (error) {
+      console.error('Failed to load interaction data:', error);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  };
   
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
@@ -191,9 +88,9 @@ export default function WorkPage() {
   const getCurrentData = () => {
     switch (selectedView) {
       case 'My Interactions':
-        return []; // Empty for now, will show active call interactions when available
+        return activeInteractions; // Real active call data
       case 'Outcomed Interactions':
-        return mockOutcomedInteractions;
+        return outcomedInteractions; // Real completed call data only - no mock data
       case 'Queued Interactions':
         return [];
       case 'Unallocated Interactions':
@@ -284,8 +181,12 @@ export default function WorkPage() {
                         <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
                         Sort
                       </button>
-                      <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500">
-                        <ArrowPathIcon className="h-4 w-4 mr-2" />
+                      <button 
+                        onClick={loadInteractionData}
+                        disabled={isLoadingInteractions}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500 disabled:opacity-50"
+                      >
+                        <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoadingInteractions ? 'animate-spin' : ''}`} />
                         Refresh
                       </button>
                     </div>

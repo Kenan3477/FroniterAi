@@ -109,6 +109,15 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Interactions</h3>
                       <p className="text-gray-500">Start a call to see interactions here</p>
                     </div>
+                  ) : section === 'Outcomed Interactions' ? (
+                    <div>
+                      <div className="h-12 w-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                        <PhoneIcon className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Call History Yet</h3>
+                      <p className="text-gray-500">Complete calls will appear here with outcomes and statistics</p>
+                      <p className="text-sm text-gray-400 mt-2">Start making calls to build your interaction history</p>
+                    </div>
                   ) : (
                     <div>
                       <div className="h-12 w-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
