@@ -10,8 +10,12 @@ async function main() {
     where: { email: 'admin@kennex.ai' },
     update: {},
     create: {
+      username: 'admin@kennex.ai',
+      firstName: 'Kennex',
+      lastName: 'Admin', 
       name: 'Kennex Admin',
       email: 'admin@kennex.ai',
+      password: '$2a$12$placeholder', // Placeholder hashed password
     },
   });
 
