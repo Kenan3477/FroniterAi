@@ -25,7 +25,7 @@ import contactRoutes from './routes/contacts'; // Re-enabled for dial queue inte
 // Import admin routes - RE-ENABLING CRITICAL ONES
 import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after creating missing route file
 // Enhanced user routes with enterprise features
-// import userRoutes from './routes/users'; // DISABLED - schema conflicts with User model
+import userRoutes from './routes/users'; // RE-ENABLED - stats endpoint for admin dashboard
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
@@ -136,7 +136,7 @@ class App {
     // this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents - TEMPORARILY DISABLED
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
-    // this.app.use('/api/admin/users', userRoutes); // DISABLED - schema conflicts
+    this.app.use('/api/admin/users', userRoutes); // RE-ENABLED - stats endpoint for admin dashboard
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
