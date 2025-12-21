@@ -232,7 +232,7 @@ router.get('/call-suggestions/:callId',
       const { callId } = req.params;
 
       // Get call details for context
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: {
           campaign: true,

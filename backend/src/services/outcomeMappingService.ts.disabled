@@ -260,7 +260,7 @@ class OutcomeMappingService {
       }
 
       // Get call details for validation
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: {
           campaign: true,
@@ -364,7 +364,7 @@ class OutcomeMappingService {
   ): Promise<BusinessOutcome> {
     try {
       // Get all calls for the period
-      const calls = await prisma.call.findMany({
+      const calls = await prisma.callRecord.findMany({
         where: {
           campaignId,
           startTime: { gte: startDate, lte: endDate },

@@ -385,7 +385,7 @@ export class AgentService extends EventEmitter {
     });
 
     // Get call stats
-    const callStats = await prisma.callLeg.groupBy({
+    const callStats = await prisma.callRecordLeg.groupBy({
       by: ['status'],
       where: {
         agentId,

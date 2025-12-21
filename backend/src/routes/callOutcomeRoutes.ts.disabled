@@ -42,7 +42,7 @@ router.post('/record',
       }
 
       // Validate call exists and get details
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: {
           legs: { where: { legType: 'AGENT' } },

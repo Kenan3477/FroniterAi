@@ -181,7 +181,7 @@ export class CampaignService extends EventEmitter {
     }
 
     // Get basic call statistics
-    const callStats = await prisma.call.groupBy({
+    const callStats = await prisma.callRecord.groupBy({
       by: ['status'],
       where: { campaignId },
       _count: {

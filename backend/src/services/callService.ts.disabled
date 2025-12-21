@@ -34,7 +34,7 @@ export class CallService extends EventEmitter {
    * Create a new call
    */
   async createCall(callData: CallCreateData) {
-    const call = await prisma.call.create({
+    const call = await prisma.callRecord.create({
       data: {
         campaignId: callData.campaignId,
         recordId: callData.recordId || null,
@@ -70,7 +70,7 @@ export class CallService extends EventEmitter {
    * Get call by ID
    */
   async getCall(callId: string) {
-    const call = await prisma.call.findUnique({
+    const call = await prisma.callRecord.findUnique({
       where: { id: callId },
       include: {
         campaign: {
@@ -111,7 +111,7 @@ export class CallService extends EventEmitter {
       updateData.endTime = new Date();
     }
 
-    const call = await prisma.call.update({
+    const call = await prisma.callRecord.update({
       where: { id: callId },
       data: updateData,
       include: {
@@ -200,7 +200,7 @@ export class CallService extends EventEmitter {
    * Get calls for a campaign
    */
   async getCallsByCampaign(campaignId: string, limit = 100) {
-    const calls = await prisma.call.findMany({
+    const calls = await prisma.callRecord.findMany({
       where: { campaignId },
       include: {
         campaign: {
@@ -232,7 +232,7 @@ export class CallService extends EventEmitter {
       where.campaignId = campaignId;
     }
 
-    const calls = await prisma.call.findMany({
+    const calls = await prisma.callRecord.findMany({
       where,
       include: {
         campaign: {
@@ -263,7 +263,7 @@ export class CallService extends EventEmitter {
       if (dateTo) where.startTime.lte = dateTo;
     }
 
-    const stats = await prisma.call.groupBy({
+    const stats = await prisma.callRecord.groupBy({
       by: ['status'],
       where,
       _count: {
@@ -375,7 +375,7 @@ export class CallService extends EventEmitter {
   async startRecording(callId: string, recordingOptions?: any) {
     try {
       // Update call with recording metadata
-      const call = await prisma.call.update({
+      const call = await prisma.callRecord.update({
         where: { id: callId },
         data: {
           recordingId: recordingOptions?.recordingId || `rec_${Date.now()}`,
@@ -406,7 +406,7 @@ export class CallService extends EventEmitter {
         updateData.recordingDuration = recordingMetadata.duration;
       }
 
-      const call = await prisma.call.update({
+      const call = await prisma.callRecord.update({
         where: { id: callId },
         data: updateData,
       });
@@ -423,7 +423,7 @@ export class CallService extends EventEmitter {
    * Calculate call duration and update call record
    */
   private async calculateCallDuration(callId: string) {
-    const call = await prisma.call.findUnique({
+    const call = await prisma.callRecord.findUnique({
       where: { id: callId },
     });
 
@@ -433,7 +433,7 @@ export class CallService extends EventEmitter {
         ? Math.floor((call.endTime.getTime() - call.answerTime.getTime()) / 1000)
         : 0;
 
-      await prisma.call.update({
+      await prisma.callRecord.update({
         where: { id: callId },
         data: { 
           duration,

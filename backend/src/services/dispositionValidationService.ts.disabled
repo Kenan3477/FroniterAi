@@ -233,7 +233,7 @@ class DispositionValidationService {
       const sortedRules = dispositionRules.sort((a, b) => a.priority - b.priority);
 
       // Get campaign-specific configuration
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: { campaign: true },
       });

@@ -289,7 +289,7 @@ export class BackendPredictiveDialingService {
     */
 
     // Calculate answer rate from recent calls (last hour)
-    const recentCalls = await prisma.call.findMany({
+    const recentCalls = await prisma.callRecord.findMany({
       where: {
         campaignId: campaignId,
         startTime: {
@@ -318,7 +318,7 @@ export class BackendPredictiveDialingService {
     const agentUtilization = totalAgents > 0 ? activeCalls / totalAgents : 0;
 
     // Get abandonment rate - using call status instead of CallKPI model
-    const recentAbandoned = await prisma.call.count({
+    const recentAbandoned = await prisma.callRecord.count({
       where: {
         campaignId: campaignId,
         status: 'ABANDONED',

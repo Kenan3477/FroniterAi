@@ -235,7 +235,7 @@ class AutomatedDispositionService {
   }> {
     try {
       // Get call details including agent from legs
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: {
           campaign: true,
@@ -398,7 +398,7 @@ class AutomatedDispositionService {
     reasoning: string[]
   ): Promise<void> {
     try {
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: {
           record: true,
@@ -469,7 +469,7 @@ class AutomatedDispositionService {
     errors: string[];
   }> {
     try {
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: callId },
         include: { campaign: true },
       });

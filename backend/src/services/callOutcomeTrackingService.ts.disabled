@@ -152,7 +152,7 @@ class CallOutcomeTrackingService {
   async recordCallOutcome(outcome: Omit<CallOutcome, 'id' | 'createdAt' | 'updatedAt'>): Promise<CallOutcome> {
     try {
       // Validate call exists
-      const call = await prisma.call.findUnique({
+      const call = await prisma.callRecord.findUnique({
         where: { id: outcome.callId },
         include: { campaign: true, record: true },
       });
@@ -180,7 +180,7 @@ class CallOutcomeTrackingService {
       await this.persistOutcome(outcomeRecord);
 
       // Update call record with outcome summary
-      await prisma.call.update({
+      await prisma.callRecord.update({
         where: { id: outcome.callId },
         data: {
           // We'll need to add these fields to the Call model
@@ -281,7 +281,7 @@ class CallOutcomeTrackingService {
   ): Promise<OutcomeAnalytics> {
     try {
       // Get calls and outcomes for the period
-      const calls = await prisma.call.findMany({
+      const calls = await prisma.callRecord.findMany({
         where: {
           campaignId,
           startTime: {
@@ -402,7 +402,7 @@ class CallOutcomeTrackingService {
       }
 
       // Get analytics for all campaigns this agent worked on
-      const agentCampaigns = await prisma.call.findMany({
+      const agentCampaigns = await prisma.callRecord.findMany({
         where: {
           startTime: { gte: startDate, lte: endDate },
           legs: {

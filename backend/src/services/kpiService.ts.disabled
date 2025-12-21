@@ -69,12 +69,12 @@ export class KpiService {
       activeContacts,
     ] = await Promise.all([
       // Total calls attempted today
-      prisma.call.count({
+      prisma.callRecord.count({
         where: whereClause,
       }),
 
       // Successfully answered calls
-      prisma.call.count({
+      prisma.callRecord.count({
         where: {
           ...whereClause,
           status: 'ENDED',
@@ -83,7 +83,7 @@ export class KpiService {
       }),
 
       // Connected calls (including no answer but connected)
-      prisma.call.count({
+      prisma.callRecord.count({
         where: {
           ...whereClause,
           status: { in: ['ENDED', 'ANSWERED'] },
@@ -91,7 +91,7 @@ export class KpiService {
       }),
 
       // Get call durations for average calculation
-      prisma.call.aggregate({
+      prisma.callRecord.aggregate({
         where: {
           ...whereClause,
           status: 'ENDED',
@@ -103,7 +103,7 @@ export class KpiService {
       }),
 
       // Active contacts (unique contacts attempted today)
-      prisma.call.findMany({
+      prisma.callRecord.findMany({
         where: whereClause,
         select: { recordId: true },
         distinct: ['recordId'],
