@@ -1,15 +1,186 @@
 /**
- * User Management API Routes - Stats Only
- * Minimal implementation for user statistics endpoint
- * Aligned with actual Prisma User schema
+ * User Management API Routes - Complete CRUD Operations
+ * Aligned with actual Prisma User schema and frontend requirements
  */
 
 import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+/**
+ * @route   GET /api/admin/users
+ * @desc    Get all users for admin dashboard
+ * @access  Private (requires authentication)
+ */
+router.get('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+  try {
+    console.log('👥 Fetching all users...');
+    
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        role: true,
+        isActive: true,
+        status: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    console.log(`✅ Found ${users.length} users`);
+    res.json(users);
+
+  } catch (error) {
+    console.error('❌ Error fetching users:', error);
+    res.status(500).json({
+      error: 'Failed to fetch users',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/admin/users
+ * @desc    Create a new user
+ * @access  Private (requires authentication)
+ */
+router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, role = 'AGENT', department, phoneNumber } = req.body;
+    
+    console.log('👤 Creating new user:', { name, email, role });
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and password are required'
+      });
+    }
+
+    // Split name into firstName and lastName
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Generate username from email
+    const username = email.split('@')[0];
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        name,
+        role: role.toUpperCase(),
+        isActive: true,
+        status: 'away'
+      }
+    });
+
+    console.log(`✅ User created successfully: ${user.name} (${user.role})`);
+
+    res.status(201).json({
+      success: true,
+      message: `User ${user.name} created successfully`,
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating user:', error);
+    
+    // Handle unique constraint violations
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email or username already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/admin/users/:id
+ * @desc    Delete a user
+ * @access  Private (requires authentication)
+ */
+router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    console.log(`🗑️ Deleting user ID: ${userId}`);
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete user
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    console.log(`✅ User deleted successfully: ${existingUser.name}`);
+
+    res.json({
+      success: true,
+      message: `User ${existingUser.name} deleted successfully`
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 /**
  * @route   GET /api/admin/users/stats
