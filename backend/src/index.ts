@@ -32,7 +32,7 @@ import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after 
 // import campaignManagementRoutes from './routes/campaignManagement'; // DISABLED - schema conflicts
 // import businessSettingsRoutes from './routes/businessSettings'; // DISABLED - schema conflicts
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
-import callsRoutes from './routes/callsRoutes'; // SIP call control system
+// import callsRoutes from './routes/callsRoutes'; // SIP call control system - DISABLED due to schema conflicts
 import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
