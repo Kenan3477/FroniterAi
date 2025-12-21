@@ -22,10 +22,11 @@ interface User {
   name: string;
   email: string;
   role: string;
-  status: string;
+  status?: string;  // Optional since it can be null
+  isActive: boolean;  // Add the actual field from schema
   department?: string;
   phoneNumber?: string;
-  lastLoginAt?: string;
+  lastLogin?: string;  // This is lastLogin in schema, not lastLoginAt
   createdAt: string;
   updatedAt: string;
 }
@@ -145,7 +146,7 @@ export default function UserManagement() {
   });
 
   // Helper functions
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status?: string) => {
     switch (status) {
       case 'ACTIVE':
         return <CheckCircleIcon className="w-5 h-5 text-slate-500" />;
@@ -508,13 +509,13 @@ export default function UserManagement() {
                   <div className="flex items-center">
                     {getStatusIcon(user.status)}
                     <span className="ml-2 text-sm text-gray-900 capitalize">
-                      {user.status.toLowerCase()}
+                      {user.status?.toLowerCase() || 'unknown'}
                     </span>
                   </div>
                 </div>
 
                 <div className="col-span-2 text-sm text-gray-500">
-                  {user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Never'}
+                  {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
                 </div>
 
                 <div className="col-span-2">
