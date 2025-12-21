@@ -10,12 +10,13 @@ export async function GET(request: NextRequest) {
     const users = await prisma.user.findMany({
       select: {
         id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
         name: true,
         email: true,
         role: true,
-        status: true,
-        department: true,
-        phoneNumber: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -73,63 +74,33 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.user.create({
       data: {
+        username: userData.email.toLowerCase().trim(), // Use email as username
+        firstName: userData.name.split(' ')[0] || userData.name,
+        lastName: userData.name.split(' ').slice(1).join(' ') || '',
         name: userData.name.trim(),
         email: userData.email.toLowerCase().trim(),
         password: hashedPassword,
         role: userData.role || 'AGENT',
-        status: userData.status || 'ACTIVE',
-        department: userData.department?.trim(),
-        phoneNumber: userData.phoneNumber?.trim(),
+        isActive: userData.status === 'ACTIVE' || userData.status === undefined,
       }
     });
 
-    // Create audit log entry
+    // Create audit log entry - DISABLED DUE TO SCHEMA CONFLICTS
+    // Note: auditLog model doesn't exist in current schema
     try {
-      await prisma.auditLog.create({
-        data: {
-          action: 'USER_CREATED',
-          entityType: 'User',
-          entityId: user.id,
-          performedByUserId: 'system',
-          performedByUserEmail: 'admin@omnivox.ai',
-          performedByUserName: 'System Administrator',
-          ipAddress,
-          userAgent,
-          newValues: JSON.stringify({
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          }),
-          severity: 'INFO',
-        },
-      });
-      console.log(`[AUDIT] User created: ${user.name} (${user.role})`);
+      // TODO: Re-enable when schema alignment is complete
+      console.log(`[AUDIT] User created: ${user.name} (${user.role}) - IP: ${ipAddress}`);
     } catch (auditError) {
       console.warn('Audit logging failed:', auditError);
     }
 
-    // Create email verification record
+    // Create email verification record - DISABLED DUE TO SCHEMA CONFLICTS
+    // Note: emailVerification model doesn't exist in current schema
     let verificationToken: string | undefined;
     try {
-      const token = generateVerificationToken();
-      const tokenHash = await bcrypt.hash(token, 10);
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24);
-
-      await prisma.emailVerification.create({
-        data: {
-          userId: user.id,
-          email: user.email,
-          token,
-          tokenHash,
-          expiresAt,
-          ipAddress,
-          userAgent,
-        },
-      });
-
-      verificationToken = token;
-      console.log(`[EMAIL] Verification token created for ${user.email}`);
+      // TODO: Re-enable when schema alignment is complete
+      console.log(`[EMAIL] Email verification would be created for ${user.email}`);
+      verificationToken = 'PLACEHOLDER_TOKEN'; // For future implementation
     } catch (verifyError) {
       console.warn('Email verification creation failed:', verifyError);
     }
@@ -137,13 +108,14 @@ export async function POST(request: NextRequest) {
     // Format response
     const userResponse = {
       id: user.id,
+      username: user.username,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       role: user.role,
-      status: user.status,
-      department: user.department,
-      phoneNumber: user.phoneNumber,
-      isActive: user.status === 'ACTIVE',
+      status: user.isActive ? 'ACTIVE' : 'INACTIVE',
+      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
