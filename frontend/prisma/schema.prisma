@@ -371,6 +371,7 @@ model User {
   notifications         Notification[]         @relation("UserNotifications")
   acknowledgedAlerts    SystemAlert[]          @relation("AlertAcknowledger")
   resolvedAlerts        SystemAlert[]          @relation("AlertResolver")
+  emailVerifications    EmailVerification[]    // Email verification tokens
 
   @@map("users")
 }
@@ -1015,4 +1016,54 @@ model SystemAlert {
   @@index([status])
   @@index([createdAt])
   @@map("system_alerts")
+}
+
+// AUDIT & COMPLIANCE MODELS
+model AuditLog {
+  id                   String   @id @default(cuid())
+  action               String   // Action performed (USER_CREATED, CALL_STARTED, etc.)
+  entityType           String   // Type of entity affected (User, Contact, Campaign, etc.)
+  entityId             String?  // ID of the affected entity
+  performedByUserId    String   // ID of user performing the action
+  performedByUserEmail String   // Email of user performing the action
+  performedByUserName  String   // Name of user performing the action
+  ipAddress            String?  // IP address of the request
+  userAgent            String?  // Browser/client user agent
+  sessionId            String?  // Session identifier
+  previousValues       String?  // JSON of previous state
+  newValues            String?  // JSON of new state
+  metadata             String?  // Additional JSON metadata
+  severity             String   @default("INFO") // INFO, WARNING, ERROR, CRITICAL
+  timestamp            DateTime @default(now())
+  
+  @@index([action])
+  @@index([entityType])
+  @@index([performedByUserId])
+  @@index([timestamp])
+  @@index([severity])
+  @@map("audit_logs")
+}
+
+// EMAIL VERIFICATION MODEL
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    Int      // Foreign key to User model
+  email     String   // Email being verified
+  token     String   // Verification token (plaintext for email)
+  tokenHash String   // Hashed version for database lookup
+  expiresAt DateTime // Token expiration time
+  verifiedAt DateTime? // When verification was completed
+  ipAddress String?  // IP address when token was created
+  userAgent String?  // User agent when token was created
+  attempts  Int      @default(0) // Number of verification attempts
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([token])
+  @@index([userId])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("email_verifications")
 }
