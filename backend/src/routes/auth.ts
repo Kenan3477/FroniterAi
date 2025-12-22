@@ -22,6 +22,61 @@ router.post('/login', authRateLimiter, async (req, res) => {
       });
     }
 
+    // Temporary demo credentials for development - TODO: Remove in production
+    if (loginIdentifier === 'Albert' && password === '3477') {
+      const token = jwt.sign({ userId: 'albert', username: 'Albert' }, JWT_SECRET, { expiresIn: '24h' });
+      
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: 'albert',
+            name: 'Albert',
+            email: 'albert@omnivox-ai.com',
+            username: 'Albert',
+            role: 'agent'
+          },
+          token: token
+        }
+      });
+    }
+
+    if (loginIdentifier === 'admin' && password === 'admin') {
+      const token = jwt.sign({ userId: 'admin', username: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+      
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: 'admin',
+            name: 'Admin User', 
+            email: 'admin@omnivox-ai.com',
+            username: 'admin',
+            role: 'admin'
+          },
+          token: token
+        }
+      });
+    }
+
+    if (loginIdentifier === 'demo' && password === 'demo') {
+      const token = jwt.sign({ userId: 'demo', username: 'demo' }, JWT_SECRET, { expiresIn: '24h' });
+      
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: 'demo',
+            name: 'Demo User',
+            email: 'demo@omnivox-ai.com',
+            username: 'demo',
+            role: 'agent'
+          },
+          token: token
+        }
+      });
+    }
+
     // Database user lookup for authenticated users
     const user = await prisma.user.findFirst({
       where: { 
