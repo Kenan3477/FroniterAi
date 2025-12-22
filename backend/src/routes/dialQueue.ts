@@ -42,62 +42,12 @@ interface DialQueueEntry {
 // Production contact storage - contacts loaded from database
 let contacts: Contact[] = [];
 
-// TODO: Replace mock contacts with database queries
-  {
-    contactId: 'contact_001',
-    listId: 'list_001', 
-    firstName: 'John',
-    lastName: 'Smith',
-    phone: '+447700123456',
-    email: 'john.smith@example.com',
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: {},
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_002',
-    listId: 'list_001',
-    firstName: 'Jane',
-    lastName: 'Doe',  
-    phone: '+447700654321',
-    email: 'jane.doe@example.com',
-    status: 'NoAnswer',
-    attemptCount: 1,
-    maxAttempts: 5,
-    locked: false,
-    lastAttemptAt: new Date(Date.now() - 60000),
-    nextRetryAt: new Date(Date.now() + 300000),
-    customFields: {},
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_003',
-    listId: 'list_002',
-    firstName: 'Bob',
-    lastName: 'Johnson',
-    phone: '+447700987654',
-    email: 'bob.johnson@example.com', 
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: {},
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  }
-];
-
 let mockQueueEntries: DialQueueEntry[] = [];
 
 // Helper function to get dialable contacts for a campaign
 function getDialableContacts(campaignId: string, maxRecords: number = 20): Contact[] {
   // Filter contacts that are available to dial
-  const dialableContacts = mockContacts.filter(contact => 
+  const dialableContacts = contacts.filter(contact => 
     !contact.locked && 
     contact.status !== 'MaxAttempts' && 
     contact.status !== 'DoNotCall' &&
@@ -187,7 +137,7 @@ router.get('/', (req: Request, res: Response) => {
 
     // Enrich with contact data
     const enrichedEntries = campaignEntries.map(entry => {
-      const contact = mockContacts.find(c => c.contactId === entry.contactId);
+      const contact = contacts.find(c => c.contactId === entry.contactId);
       return {
         ...entry,
         contact: contact || null
@@ -249,7 +199,7 @@ router.post('/next', (req: Request, res: Response) => {
     }
 
     // Lock the contact and mark as dialing
-    const contact = mockContacts.find(c => c.contactId === nextEntry.contactId);
+    const contact = contacts.find(c => c.contactId === nextEntry.contactId);
     if (contact) {
       contact.locked = true;
       contact.lockedBy = agentId;
@@ -307,7 +257,7 @@ router.put('/:queueId/status', (req: Request, res: Response) => {
     }
 
     // Update contact status and unlock
-    const contact = mockContacts.find(c => c.contactId === queueEntry.contactId);
+    const contact = contacts.find(c => c.contactId === queueEntry.contactId);
     if (contact) {
       contact.locked = false;
       contact.lockedBy = undefined;
@@ -353,7 +303,7 @@ router.get('/stats/:campaignId', (req: Request, res: Response) => {
     const { campaignId } = req.params;
 
     const campaignEntries = mockQueueEntries.filter(entry => entry.campaignId === campaignId);
-    const campaignContacts = mockContacts.filter(contact => 
+    const campaignContacts = contacts.filter(contact => 
       campaignEntries.some(entry => entry.contactId === contact.contactId)
     );
 

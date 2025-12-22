@@ -115,106 +115,37 @@ let campaignTemplates: CampaignTemplate[] = [];
 
 // GET /api/admin/campaign-management/campaigns
 router.get('/campaigns', async (req: Request, res: Response) => {
-    displayName: 'Q4 Sales Outreach Campaign', 
-    description: 'Q4 sales outreach campaign for lead generation',
-    status: 'ACTIVE',
-    category: 'SALES',
-    type: 'OUTBOUND',
-    dialingMode: 'PROGRESSIVE',
-    maxCallsPerAgent: 50,
-    maxAttemptsPerRecord: 3,
-    abandonRateThreshold: 5,
-    pacingMultiplier: 1.0,
-    defaultTimezone: 'Europe/London',
-    startDate: new Date().toISOString(),
-    targetLeads: 1000,
-    targetCompletions: 100,
-    expectedDuration: 30,
-    // Frontend display properties
-    totalTargets: 1000,
-    totalCalls: 0,
-    totalConnections: 0,
-    totalConversions: 0,
-    totalRevenue: 0,
-    budget: 10000,
-    budgetCurrency: 'USD',
-    priority: 1,
-    approvalStatus: 'APPROVED',
-    scheduledStart: new Date().toISOString(),
-    scheduledEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    openingScript: 'Hello, this is a call from our sales team...',
-    closingScript: 'Thank you for your time!',
-    emailTemplate: 'Follow-up email template',
-    smsTemplate: 'SMS follow-up template',
-    isActive: true,
-    // Dial Queue Properties
-    dialMethod: 'MANUAL_DIAL',
-    dialSpeed: 60,
-    agentCount: 0,
-    predictiveDialingEnabled: false,
-    maxConcurrentCalls: 10,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedAgents: [],
-    dataLists: [],
-    _count: {
-      interactions: 0,
-      contacts: 0,
-      completedCalls: 0
-    }
-  },
-  {
-    id: 'campaign_002',
-    name: 'Customer_Satisfaction_Survey',
-    displayName: 'Customer Satisfaction Survey',
-    description: 'Customer satisfaction survey campaign',
-    status: 'ACTIVE',
-    category: 'SURVEYS',
-    type: 'OUTBOUND', 
-    dialingMode: 'PREVIEW',
-    maxCallsPerAgent: 30,
-    maxAttemptsPerRecord: 2,
-    abandonRateThreshold: 3,
-    pacingMultiplier: 1.0,
-    defaultTimezone: 'Europe/London',
-    startDate: new Date().toISOString(),
-    targetLeads: 500,
-    targetCompletions: 200,
-    expectedDuration: 20,
-    // Frontend display properties
-    totalTargets: 500,
-    totalCalls: 0,
-    totalConnections: 0,
-    totalConversions: 0,
-    totalRevenue: 0,
-    budget: 5000,
-    budgetCurrency: 'USD',
-    priority: 2,
-    approvalStatus: 'APPROVED',
-    scheduledStart: new Date().toISOString(),
-    scheduledEnd: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-    openingScript: 'Hello, we would like to get your feedback...',
-    closingScript: 'Thank you for participating in our survey!',
-    emailTemplate: 'Survey follow-up email template',
-    smsTemplate: 'Survey reminder SMS template',
-    isActive: true,
-    // Dial Queue Properties  
-    dialMethod: 'MANUAL_DIAL',
-    dialSpeed: 60,
-    agentCount: 0,
-    predictiveDialingEnabled: false,
-    maxConcurrentCalls: 10,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedAgents: [],
-    dataLists: [],
-    _count: {
-      interactions: 0,
-      contacts: 0,
-      completedCalls: 0
-    }
+  try {
+    res.json({
+      success: true,
+      data: campaigns,
+      count: campaigns.length
+    });
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch campaigns'
+    });
   }
-];
+});
+
+// GET /api/admin/campaign-management/templates
+router.get('/templates', async (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: campaignTemplates,
+      count: campaignTemplates.length
+    });
+  } catch (error) {
+    console.error('Error fetching campaign templates:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch campaign templates'
+    });
+  }
+});
 
 // Mock data for templates
 let mockTemplates: CampaignTemplate[] = [
@@ -283,8 +214,8 @@ router.get('/campaigns', async (req: Request, res: Response) => {
   try {
     const { status, category, type, search, page, limit } = req.query;
     
-    // Return the empty mockCampaigns array (no campaigns until user creates them)
-    let filteredCampaigns = [...mockCampaigns];
+    // Return the empty campaigns array (no campaigns until user creates them)
+    let filteredCampaigns = [...campaigns];
 
     // Apply filters
     if (status) {
@@ -374,23 +305,23 @@ router.get('/templates', (req: Request, res: Response) => {
 // GET /api/admin/campaign-management/stats
 router.get('/stats', (req: Request, res: Response) => {
   try {
-    const activeCampaigns = mockCampaigns.filter(c => c.status === 'ACTIVE');
-    const totalInteractions = mockCampaigns.reduce((sum, c) => sum + (c._count?.interactions || 0), 0);
-    const totalContacts = mockCampaigns.reduce((sum, c) => sum + (c._count?.contacts || 0), 0);
-    const totalCompletedCalls = mockCampaigns.reduce((sum, c) => sum + (c._count?.completedCalls || 0), 0);
+    const activeCampaigns = campaigns.filter(c => c.status === 'ACTIVE');
+    const totalInteractions = campaigns.reduce((sum, c) => sum + (c._count?.interactions || 0), 0);
+    const totalContacts = campaigns.reduce((sum, c) => sum + (c._count?.contacts || 0), 0);
+    const totalCompletedCalls = campaigns.reduce((sum, c) => sum + (c._count?.completedCalls || 0), 0);
 
     const stats = {
-      totalCampaigns: mockCampaigns.length,
+      totalCampaigns: campaigns.length,
       activeCampaigns: activeCampaigns.length,
-      draftCampaigns: mockCampaigns.filter(c => c.status === 'DRAFT').length,
-      pausedCampaigns: mockCampaigns.filter(c => c.status === 'PAUSED').length,
-      completedCampaigns: mockCampaigns.filter(c => c.status === 'COMPLETED').length,
+      draftCampaigns: campaigns.filter(c => c.status === 'DRAFT').length,
+      pausedCampaigns: campaigns.filter(c => c.status === 'PAUSED').length,
+      completedCampaigns: campaigns.filter(c => c.status === 'COMPLETED').length,
       totalTemplates: mockTemplates.length,
       totalInteractions,
       totalContacts,
       totalCompletedCalls,
       conversionRate: totalContacts > 0 ? (totalCompletedCalls / totalContacts * 100).toFixed(2) : '0.00',
-      averageCallsPerCampaign: mockCampaigns.length > 0 ? (totalCompletedCalls / mockCampaigns.length).toFixed(1) : '0.0'
+      averageCallsPerCampaign: campaigns.length > 0 ? (totalCompletedCalls / campaigns.length).toFixed(1) : '0.0'
     };
 
     res.json({
@@ -467,7 +398,7 @@ router.post('/campaigns', (req: Request, res: Response) => {
       }
     };
 
-    mockCampaigns.push(newCampaign);
+    campaigns.push(newCampaign);
 
     res.status(201).json({
       success: true,
@@ -492,7 +423,7 @@ router.put('/campaigns/:id', (req: Request, res: Response) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const campaignIndex = mockCampaigns.findIndex(c => c.id === id);
+    const campaignIndex = campaigns.findIndex(c => c.id === id);
     if (campaignIndex === -1) {
       return res.status(404).json({
         success: false,
@@ -501,8 +432,8 @@ router.put('/campaigns/:id', (req: Request, res: Response) => {
     }
 
     // Update campaign
-    mockCampaigns[campaignIndex] = {
-      ...mockCampaigns[campaignIndex],
+    campaigns[campaignIndex] = {
+      ...campaigns[campaignIndex],
       ...updateData,
       updatedAt: new Date().toISOString()
     };
@@ -510,7 +441,7 @@ router.put('/campaigns/:id', (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
-        campaign: mockCampaigns[campaignIndex],
+        campaign: campaigns[campaignIndex],
         message: 'Campaign updated successfully'
       }
     });
@@ -529,7 +460,7 @@ router.delete('/campaigns/:id', (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const campaignIndex = mockCampaigns.findIndex(c => c.id === id);
+    const campaignIndex = campaigns.findIndex(c => c.id === id);
     if (campaignIndex === -1) {
       return res.status(404).json({
         success: false,
@@ -537,7 +468,7 @@ router.delete('/campaigns/:id', (req: Request, res: Response) => {
       });
     }
 
-    const deletedCampaign = mockCampaigns.splice(campaignIndex, 1)[0];
+    const deletedCampaign = campaigns.splice(campaignIndex, 1)[0];
 
     res.json({
       success: true,
@@ -564,7 +495,7 @@ router.patch('/campaigns/:id/dial-method', async (req: Request, res: Response) =
     const { id } = req.params;
     const { dialMethod } = req.body;
 
-    const campaign = mockCampaigns.find(c => c.id === id);
+    const campaign = campaigns.find(c => c.id === id);
     if (!campaign) {
       return res.status(404).json({
         success: false,
@@ -604,7 +535,7 @@ router.patch('/campaigns/:id/activate', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { isActive } = req.body;
 
-    const campaign = mockCampaigns.find(c => c.id === id);
+    const campaign = campaigns.find(c => c.id === id);
     if (!campaign) {
       return res.status(404).json({
         success: false,
@@ -673,7 +604,7 @@ router.patch('/campaigns/:id/dial-speed', async (req: Request, res: Response) =>
     const { id } = req.params;
     const { dialSpeed } = req.body;
 
-    const campaign = mockCampaigns.find(c => c.id === id);
+    const campaign = campaigns.find(c => c.id === id);
     if (!campaign) {
       return res.status(404).json({
         success: false,
@@ -721,7 +652,7 @@ router.post('/campaigns/:id/join-agent', async (req: Request, res: Response) => 
     const { id } = req.params;
     const { agentId, agentName, agentEmail } = req.body;
 
-    const campaign = mockCampaigns.find(c => c.id === id);
+    const campaign = campaigns.find(c => c.id === id);
     if (!campaign) {
       return res.status(404).json({
         success: false,
@@ -784,7 +715,7 @@ router.post('/campaigns/:id/leave-agent', async (req: Request, res: Response) =>
     const { id } = req.params;
     const { agentId } = req.body;
 
-    const campaign = mockCampaigns.find(c => c.id === id);
+    const campaign = campaigns.find(c => c.id === id);
     if (!campaign) {
       return res.status(404).json({
         success: false,

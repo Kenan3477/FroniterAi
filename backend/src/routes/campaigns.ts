@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import { prisma } from '../database';
 import {
   createCampaign,
   updateCampaign,
@@ -24,8 +25,8 @@ router.get('/', async (req, res) => {
   try {
     console.log('📋 Fetching campaigns...');
     
-    let campaigns;
-    let mappedCampaigns;
+    let campaigns: any[];
+    let mappedCampaigns: any[];
     
     try {
       // Try to get campaigns from database
