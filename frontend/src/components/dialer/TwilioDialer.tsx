@@ -143,10 +143,21 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     setIsConnecting(true);
     setConnectionError(null);
 
+    // Validate required environment variables - Production safety check
+    if (!process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN) {
+      throw new Error('NEXT_PUBLIC_TWILIO_SIP_DOMAIN environment variable is required for production');
+    }
+    if (!process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME) {
+      throw new Error('NEXT_PUBLIC_TWILIO_SIP_USERNAME environment variable is required for production');
+    }
+    if (!process.env.NEXT_PUBLIC_TWILIO_SIP_PASSWORD) {
+      throw new Error('NEXT_PUBLIC_TWILIO_SIP_PASSWORD environment variable is required for production');
+    }
+
     const config = {
-      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'omnivox-dev.sip.twilio.com',
-      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME || 'Omnivox',
-      password: process.env.NEXT_PUBLIC_TWILIO_SIP_PASSWORD || 'Albert3477!',
+      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN,
+      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME,
+      password: process.env.NEXT_PUBLIC_TWILIO_SIP_PASSWORD,
       transport: 'UDP' as const,
       codec: 'PCMU' as const,
       callerIdNumber: callerIdNumber
@@ -434,7 +445,7 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
         <dl className="text-xs space-y-1">
           <div className="flex justify-between">
             <dt className="text-gray-600">SIP Domain:</dt>
-            <dd className="text-gray-900 font-mono">omnivox-dev.sip.twilio.com</dd>
+            <dd className="text-gray-900 font-mono">{process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'Not configured'}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-gray-600">Username:</dt>

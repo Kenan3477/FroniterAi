@@ -31,6 +31,9 @@ router.post('/login', async (req, res) => {
 
     console.log('🔐 DIRECT SQL Backend login attempt for:', loginIdentifier);
 
+    // TODO: This entire auth route contains multiple demo credentials and test users
+    // Production deployment requires complete replacement with proper authentication system
+
     // Handle demo credentials first
     if (loginIdentifier === 'demo' && password === 'demo') {
       const token = jwt.sign({ userId: 'demo', username: 'demo' }, JWT_SECRET, { expiresIn: '24h' });

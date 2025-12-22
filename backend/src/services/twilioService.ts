@@ -9,7 +9,11 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_API_KEY = process.env.TWILIO_API_KEY;
 const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
-const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN || 'omnivox-dev.sip.twilio.com';
+// Twilio configuration - require environment variables for production
+const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN;
+if (!TWILIO_SIP_DOMAIN) {
+  throw new Error('TWILIO_SIP_DOMAIN environment variable is required for production');
+}
 
 // Validate environment variables
 const hasValidCredentials = TWILIO_ACCOUNT_SID && 

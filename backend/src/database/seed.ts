@@ -15,7 +15,7 @@ async function main() {
       lastName: 'Admin', 
       name: 'Omnivox AI Admin',
       email: 'admin@omnivox.ai',
-      password: '$2a$12$placeholder', // Placeholder hashed password
+      password: '$2a$12$1Uo5M4eA1WFmCMmECCHCzeDOiQTySdExcD2GeCUKZ9YSlTLW67wKK', // SecureAdmin2025!@#$%^
     },
   });
 

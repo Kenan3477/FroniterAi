@@ -17,7 +17,7 @@
 The Omnivox AI Backend API provides a comprehensive suite of endpoints for managing AI-powered call center operations, user management, campaign management, and real-time monitoring.
 
 ### Base URL
-- Production: `https://api.kennex.ai`
+- Production: `https://api.omnivox.ai`
 - Development: `http://localhost:3000`
 
 ### API Version
@@ -40,21 +40,21 @@ All requests and responses use `application/json` unless otherwise specified.
 1. **Obtain API credentials**
    ```bash
    # Contact support for API key and secret
-   curl -X POST https://api.kennex.ai/auth/register \
+   curl -X POST https://api.omnivox.ai/auth/register \
      -H "Content-Type: application/json" \
      -d '{"email": "your@email.com", "password": "secure_password"}'
    ```
 
 2. **Authenticate and get access token**
    ```bash
-   curl -X POST https://api.kennex.ai/auth/login \
+   curl -X POST https://api.omnivox.ai/auth/login \
      -H "Content-Type: application/json" \
      -d '{"email": "your@email.com", "password": "secure_password"}'
    ```
 
 3. **Make your first API call**
    ```bash
-   curl -X GET https://api.kennex.ai/api/v1/users/profile \
+   curl -X GET https://api.omnivox.ai/api/v1/users/profile \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
    ```
 
@@ -507,7 +507,7 @@ Content-Encoding: gzip
 Monitor API health using the health check endpoint:
 
 ```bash
-curl https://api.kennex.ai/api/v1/monitoring/health
+curl https://api.omnivox.ai/api/v1/monitoring/health
 ```
 
 ### Metrics
@@ -589,10 +589,10 @@ This provides additional information in error responses (development only).
 
 ### Support
 
-- **Documentation**: https://docs.kennex.ai
-- **Status Page**: https://status.kennex.ai
-- **Support**: support@kennex.ai
-- **GitHub**: https://github.com/kennex-ai/api-docs
+- **Documentation**: https://docs.omnivox.ai
+- **Status Page**: https://status.omnivox.ai
+- **Support**: support@omnivox.ai
+- **GitHub**: https://github.com/omnivox-ai/api-docs
 
 ### SDKs and Libraries
 

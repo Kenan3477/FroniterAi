@@ -36,14 +36,15 @@ router.post('/status', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
-// Welcome/demo route for inbound calls
+// Welcome route for inbound calls
 router.post('/welcome', (req: Request, res: Response) => {
   console.log('🎤 Welcome webhook called:', req.body);
   
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Hello! You have reached Omnivox-AI. This is a demonstration of our outbound calling system. Thank you for calling. Goodbye!</Say>
-  <Hangup/>
+  <Say voice="alice">Thank you for calling. Please hold while we connect you to an available agent.</Say>
+  <Pause length="2"/>
+  <Redirect>/api/webhooks/queue</Redirect>
 </Response>`;
 
   res.type('text/xml');

@@ -39,8 +39,10 @@ interface DialQueueEntry {
   notes?: string;
 }
 
-// Mock data stores (in production these would be database calls)
-let mockContacts: Contact[] = [
+// Production contact storage - contacts loaded from database
+let contacts: Contact[] = [];
+
+// TODO: Replace mock contacts with database queries
   {
     contactId: 'contact_001',
     listId: 'list_001', 

@@ -1,8 +1,23 @@
-import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+/**
+ * Omnivox AI Campaign API Routes
+ * Production-ready campaign management replacing sample campaign endpoints
+ */
 
-const router = Router();
-const prisma = new PrismaClient();
+import express from 'express';
+import {
+  createCampaign,
+  updateCampaign,
+  getCampaignById,
+  searchCampaigns,
+  getCampaignStats,
+  assignAgentToCampaign,
+  removeAgentFromCampaign,
+  CreateCampaignRequest,
+  UpdateCampaignRequest,
+  CampaignSearchFilters
+} from '../services/campaignService';
+
+const router = express.Router();
 
 // Get all available campaigns for a user
 router.get('/', async (req, res) => {
@@ -35,50 +50,14 @@ router.get('/', async (req, res) => {
     } catch (dbError) {
       // Enhanced error handling with proper logging and user feedback
       console.error('⚠️ Database connection failed:', dbError);
-      console.log('🔄 Falling back to demo data due to database unavailability');
+      console.log('🔄 Database unavailable - returning empty campaigns array');
       
       // In production, this should trigger alerts and proper error monitoring
-      // For now, provide demo data with clear indication of system state
-      mappedCampaigns = [
-        {
-          campaignId: 'demo-camp-1',
-          name: 'Lead Generation (Demo Data)',
-          status: 'active',
-          dialMethod: 'POWER',
-          description: 'Generate new leads for sales team - DATABASE NOT AVAILABLE'
-        },
-        {
-          campaignId: 'camp-2', 
-          name: 'Customer Retention',
-          status: 'active',
-          dialMethod: 'POWER',
-          description: 'Retain existing customers'
-        },
-        {
-          campaignId: 'camp-3',
-          name: 'Holiday Sales',
-          status: 'active', 
-          dialMethod: 'PREDICTIVE',
-          description: 'Holiday season sales campaign'
-        },
-        {
-          campaignId: 'camp-4',
-          name: 'Follow-up Outreach',
-          status: 'active',
-          dialMethod: 'PREVIEW',
-          description: 'Follow up with potential customers'
-        },
-        {
-          campaignId: 'camp-5',
-          name: 'Survey Campaign',
-          status: 'active',
-          dialMethod: 'POWER',
-          description: 'Customer satisfaction survey'
-        }
-      ];
+      // Return empty array instead of demo data - forces proper error handling in UI
+      mappedCampaigns = [];
       
-      // Add warning header to indicate demo mode
-      res.set('X-System-Status', 'DEMO_MODE_DATABASE_UNAVAILABLE');
+      // Set error header to indicate database issue
+      res.set('X-System-Status', 'DATABASE_UNAVAILABLE');
     }
     
     res.json({
@@ -86,7 +65,7 @@ router.get('/', async (req, res) => {
       campaigns: mappedCampaigns,
       data: mappedCampaigns,
       // Include system status in response for frontend awareness
-      systemStatus: mappedCampaigns[0]?.campaignId?.startsWith('demo-') ? 'DEMO_MODE' : 'OPERATIONAL'
+      systemStatus: mappedCampaigns.length > 0 ? 'OPERATIONAL' : 'DATABASE_ISSUE'
     });
   } catch (error) {
     console.error('❌ Error fetching campaigns:', error);

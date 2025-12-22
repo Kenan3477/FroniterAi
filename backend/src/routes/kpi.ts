@@ -1,50 +1,66 @@
 /**
  * KPI Routes - Dashboard statistics and metrics
+ * Production-ready KPI calculation based on real database data
  */
 
 import express from 'express';
+import { getDashboardStats, getAgentKPIs, getCampaignKPIs } from '../services/kpiService';
 
 const router = express.Router();
 
-// Get dashboard stats (basic implementation)
+// Get dashboard stats (production implementation)
 router.get('/dashboard', async (req, res) => {
   try {
-    // Return mock dashboard data matching frontend expectations
-    const dashboardStats = {
+    const dashboardStats = await getDashboardStats();
+    
+    console.log('✅ KPI Dashboard stats calculated from real data');
+    res.json({
       success: true,
-      today: {
-        todayCalls: 0,
-        successfulCalls: 0,
-        totalTalkTime: 0,
-        conversionRate: 0
-      },
-      week: {
-        weekCalls: 0,
-        weekSuccessful: 0,
-        weekTalkTime: 0,
-        weekConversion: 0
-      },
-      trends: {
-        callsTrend: null,
-        successTrend: null,
-        timeTrend: null,
-        conversionTrend: null
-      },
-      recentActivity: [],
-      campaignProgress: {
-        activeCampaigns: 0,
-        totalContacts: 0,
-        contactedToday: 0
-      }
-    };
-
-    console.log('✅ KPI Dashboard stats requested - returning mock data');
-    res.json(dashboardStats);
+      ...dashboardStats
+    });
   } catch (error) {
     console.error('❌ KPI Dashboard error:', error);
     res.status(500).json({
       success: false,
       error: { message: 'Failed to fetch dashboard statistics' }
+    });
+  }
+});
+
+// Get agent KPIs
+router.get('/agents', async (req, res) => {
+  try {
+    const agentId = req.query.agentId as string;
+    const agentKPIs = await getAgentKPIs(agentId);
+    
+    res.json({
+      success: true,
+      data: agentKPIs
+    });
+  } catch (error) {
+    console.error('❌ Agent KPI error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch agent KPIs' }
+    });
+  }
+});
+
+// Get campaign KPIs
+router.get('/campaigns', async (req, res) => {
+  try {
+    const campaignId = req.query.campaignId as string;
+    const campaignKPIs = await getCampaignKPIs(campaignId);
+    
+    res.json({
+      success: true,
+      data: campaignKPIs
+    });
+  } catch (error) {
+    console.error('❌ Campaign KPI error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch campaign KPIs' }
     });
   }
 });

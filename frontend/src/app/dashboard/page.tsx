@@ -10,8 +10,8 @@ export default function Dashboard() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock authentication state for demo purposes
-  const user = { firstName: 'Demo', lastName: 'User' };
+  // TODO: Replace with actual authentication system
+  const user = { firstName: 'User', lastName: 'Profile' };
   const isAuthenticated = true;
 
   useEffect(() => {

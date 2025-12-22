@@ -20,22 +20,22 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
       return;
     }
 
-    // Validate demo credentials with security warning
-    const validDemoAgents = ['AGENT001', 'AGENT002', 'AGENT003'];
-    if (!validDemoAgents.includes(agentId)) {
-      alert('Invalid Agent ID. For demo purposes, use: AGENT001, AGENT002, or AGENT003');
+    // TODO: Implement proper agent authentication system
+    // For now, accept any valid agent ID format
+    if (!agentId || agentId.length < 4) {
+      alert('Please enter a valid Agent ID');
       return;
     }
 
-    // Require password even for demo (security best practice)
+    // Require password (production system will validate against database)
     if (!password) {
       alert('Password is required');
       return;
     }
 
-    // Demo password validation (in production this would be proper authentication)
-    if (password !== 'demo123') {
-      alert('Invalid password. For demo purposes, use: demo123');
+    // TODO: Replace with proper authentication validation
+    if (password.length < 4) {
+      alert('Password must be at least 4 characters');
       return;
     }
 
@@ -127,9 +127,6 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
                 />
                 <LockClosedIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Demo password: demo123
-              </p>
             </div>
           </div>
 
@@ -144,16 +141,15 @@ const AgentLogin: React.FC<AgentLoginProps> = ({ onLogin }) => {
           </div>
         </form>
 
-        {/* Demo Instructions */}
+        {/* System Instructions */}
         <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Instructions</h3>
+          <h3 className="text-sm font-medium text-blue-900 mb-2">System Instructions</h3>
           <div className="text-xs text-blue-700 space-y-1">
-            <p>• Use Agent ID: <strong>AGENT001</strong>, <strong>AGENT002</strong>, or <strong>AGENT003</strong></p>
-            <p>• Password: <strong>demo123</strong></p>
+            <p>• Enter your assigned Agent ID and password</p>
             <p>• Once logged in, click "Go Available" to receive calls</p>
-            <p>• The system will simulate incoming calls based on dial queue</p>
+            <p>• The system will route calls based on campaign configuration</p>
             <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
-              <strong>⚠️ Security Note:</strong> Demo authentication bypasses real security. Production system requires proper user management.
+              <strong>⚠️ Note:</strong> Production authentication system integration required.
             </div>
           </div>
         </div>

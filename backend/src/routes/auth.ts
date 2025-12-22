@@ -2,82 +2,32 @@ import { Router } from 'express';
 import { prisma } from '../database';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { authRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Real authentication with database lookup
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimiter, async (req, res) => {
   try {
     const { username, password, email } = req.body;
     const loginIdentifier = email || username;
 
     console.log('🔐 Backend login attempt for:', loginIdentifier);
-    console.log('🔧 DEBUG: Using FIXED auth route version 2.0 - name field only');
 
-    // For now, handle demo credentials while transitioning
-    if (loginIdentifier === 'demo' && password === 'demo') {
-      const token = jwt.sign({ userId: 'demo', username: 'demo' }, JWT_SECRET, { expiresIn: '24h' });
-      
-      return res.json({
-        success: true,
-        data: {
-          user: {
-            id: 'demo',
-            name: 'Demo User',
-            email: 'demo@omnivox-ai.com',
-            username: 'demo',
-            role: 'agent'
-          },
-          token: token
-        }
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username/email and password are required'
       });
     }
 
-    if (loginIdentifier === 'admin' && password === 'admin') {
-      const token = jwt.sign({ userId: 'admin', username: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-      
-      return res.json({
-        success: true,
-        data: {
-          user: {
-            id: 'admin',
-            name: 'Admin User', 
-            email: 'admin@omnivox-ai.com',
-            username: 'admin',
-            role: 'admin'
-          },
-          token: token
-        }
-      });
-    }
-
-    // Add Albert as a temporary user
-    if (loginIdentifier === 'Albert' && password === '3477') {
-      const token = jwt.sign({ userId: 'albert', username: 'Albert' }, JWT_SECRET, { expiresIn: '24h' });
-      
-      return res.json({
-        success: true,
-        data: {
-          user: {
-            id: 'albert',
-            name: 'Albert', 
-            email: 'albert@omnivox-ai.com',
-            username: 'Albert',
-            role: 'agent'
-          },
-          token: token
-        }
-      });
-    }
-
-    // Real database user lookup for created users
-    console.log('🔧 DEBUG: Using NAME field that definitely exists in database');
+    // Database user lookup for authenticated users
     const user = await prisma.user.findFirst({
       where: { 
         OR: [
           { email: loginIdentifier },
-          { name: loginIdentifier } // Use 'name' field - verified exists in DB
+          { name: loginIdentifier }
         ]
       }
     });

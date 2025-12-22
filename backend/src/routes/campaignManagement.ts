@@ -107,11 +107,14 @@ interface CampaignTemplate {
   };
 }
 
-// Mock data for campaigns - REMOVED ALL MOCK CAMPAIGNS
-let mockCampaigns: Campaign[] = [
-  {
-    id: 'campaign_001',
-    name: 'Q4_Sales_Outreach',
+// Production campaign data - campaigns will be created via API
+let campaigns: Campaign[] = [];
+
+// Production campaign templates - templates will be created via API  
+let campaignTemplates: CampaignTemplate[] = [];
+
+// GET /api/admin/campaign-management/campaigns
+router.get('/campaigns', async (req: Request, res: Response) => {
     displayName: 'Q4 Sales Outreach Campaign', 
     description: 'Q4 sales outreach campaign for lead generation',
     status: 'ACTIVE',

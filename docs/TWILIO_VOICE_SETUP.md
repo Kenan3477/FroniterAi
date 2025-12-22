@@ -1,7 +1,7 @@
 # Twilio Voice Integration Setup Guide
 
 ## Overview
-This guide explains how to set up the Twilio Voice integration for Kennex, allowing agents to make two-way calls through their browser.
+This guide explains how to set up the Twilio Voice integration for Omnivox AI, allowing agents to make two-way calls through their browser.
 
 ## Architecture
 ```
@@ -41,7 +41,7 @@ BACKEND_URL=http://localhost:3002
 2. Navigate to **Voice** → **Manage** → **TwiML Apps**
 3. Click **Create new TwiML App**
 4. Configure the app:
-   - **Friendly Name**: `Kennex Dialer`
+   - **Friendly Name**: `Omnivox AI Dialer`
    - **Voice Request URL**: `http://localhost:3002/api/calls/twiml`
    - **Voice Request Method**: `GET`
    - **Status Callback URL**: `http://localhost:3002/api/calls/status`
@@ -93,7 +93,7 @@ For trial accounts, verify the customer phone numbers:
 ## How It Works
 
 ### Call Flow
-1. Agent logs into Kennex at http://localhost:3000/work
+1. Agent logs into Omnivox AI at http://localhost:3000/work
 2. Agent clicks "Make Call" and enters customer phone number
 3. Frontend calls `/api/calls/token` to get Twilio access token
 4. Frontend initializes Twilio Voice SDK Device with token

@@ -14,11 +14,12 @@ import { rateLimiter } from './middleware/rateLimiter';
 
 // Import routes
 // Auth routes - enable for frontend integration
-import authRoutes from './routes/auth-direct-sql'; // Use direct SQL version to bypass Prisma issues
+import authRoutes from './routes/auth'; // Use proper Prisma-based authentication
 // Agent routes for frontend integration
 import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';
-// import campaignRoutes from './routes/campaigns'; // TEMPORARILY DISABLED - schema conflicts
+import campaignRoutes from './routes/campaignsNew'; // NEW: Production campaign service
+import interactionRoutes from './routes/interactionsNew'; // NEW: Production interaction service
 // import queueRoutes from './routes/queue'; // TEMPORARILY DISABLED - schema conflicts
 import reportsRoutes from './routes/reports';
 import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
@@ -26,6 +27,8 @@ import contactRoutes from './routes/contacts'; // Re-enabled for dial queue inte
 import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after creating missing route file
 // Enhanced user routes with enterprise features
 import userRoutes from './routes/users'; // RE-ENABLED - stats endpoint for admin dashboard
+import userManagementRoutes from './routes/userManagement'; // Enterprise user management system
+import callRecordsRoutes from './routes/callRecords'; // Production call records service
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
@@ -132,11 +135,14 @@ class App {
     this.app.use('/api/auth', authRoutes); // Auth routes - enabled and working
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
-    // this.app.use('/api/campaigns', campaignRoutes); // Campaign management - TEMPORARILY DISABLED
+    this.app.use('/api/campaigns', campaignRoutes); // NEW: Production campaign management service
+    this.app.use('/api/interactions', interactionRoutes); // NEW: Production interaction tracking service
     // this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents - TEMPORARILY DISABLED
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
     this.app.use('/api/admin/users', userRoutes); // RE-ENABLED - stats endpoint for admin dashboard
+    this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
+    this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts

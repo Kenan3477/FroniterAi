@@ -17,22 +17,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { getOutcomedInteractions, getActiveInteractions, InteractionData } from '@/services/interactionService';
 
-const mockTasks = [
-  {
-    id: '1',
-    agentName: 'Harley',
-    customerName: 'John Smith',
-    interactionType: 'call' as const,
-    telephone: '+44123456789',
-    direction: 'outbound' as const,
-    subject: 'Follow up call',
-    campaignName: 'Customer Follow-up',
-    outcome: 'Scheduled',
-    dateTime: '10/12/2025 09:00',
-    duration: '-',
-  },
-];
-
 export default function WorkPage() {
   const [selectedView, setSelectedView] = useState('Queued Interactions');
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,9 +33,9 @@ export default function WorkPage() {
   const activeCall = useSelector((state: RootState) => state.activeCall);
   
   useEffect(() => {
-    // Get agent ID from session/auth
-    // For now, use a default
-    setAgentId('demo-agent');
+    // TODO: Get agent ID from authentication system
+    // For now, use a session-based default
+    setAgentId('current-agent');
   }, []);
 
   // Load interaction data when view changes or component mounts
@@ -98,7 +82,7 @@ export default function WorkPage() {
       case 'Sent Interactions':
         return [];
       case 'Tasks':
-        return mockTasks;
+        return []; // Tasks will be implemented with real task management system
       default:
         return [];
     }
@@ -115,7 +99,7 @@ export default function WorkPage() {
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           outcomedInteractionsCount={outcomedInteractions.length}
           activeInteractionsCount={activeInteractions.length}
-          tasksCount={mockTasks.length}
+          tasksCount={0} // Tasks will be implemented with real task management system
         />
 
         {/* Main Content */}

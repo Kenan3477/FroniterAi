@@ -14,9 +14,9 @@ import JsSIP from 'jssip';
 import { EventEmitter } from 'events';
 
 export interface TwilioSipConfig {
-  sipDomain: string;           // kennex-dev.sip.twilio.com
-  username: string;            // Kennex
-  password: string;            // Albert3477!
+  sipDomain: string;           // Production SIP domain from environment
+  username: string;            // Omnivox
+  password: string;            // Secure password from environment variables
   transport: 'UDP';            // UDP only
   codec: 'PCMU';              // G.711u only
   callerIdNumber: string;      // Must be verified Twilio number
