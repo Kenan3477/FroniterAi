@@ -9,7 +9,7 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_API_KEY = process.env.TWILIO_API_KEY;
 const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
-const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN || 'kennex-dev.sip.twilio.com';
+const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN || 'omnivox-dev.sip.twilio.com';
 
 // Validate environment variables
 const hasValidCredentials = TWILIO_ACCOUNT_SID && 

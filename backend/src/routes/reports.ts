@@ -15,7 +15,7 @@ router.get('/users', (req, res) => {
           {
             id: '1',
             name: 'Demo User',
-            email: 'demo@kennex.ai',
+            email: 'demo@omnivox.ai',
             role: 'agent',
             status: 'active',
             lastLogin: new Date().toISOString(),
@@ -25,7 +25,7 @@ router.get('/users', (req, res) => {
           {
             id: '2',
             name: 'Admin User',
-            email: 'admin@kennex.ai',
+            email: 'admin@omnivox.ai',
             role: 'admin',
             status: 'active',
             lastLogin: new Date().toISOString(),

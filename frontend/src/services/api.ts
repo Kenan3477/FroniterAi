@@ -88,7 +88,7 @@ export interface PaginationParams {
   search?: string;
 }
 
-// Flow types (specific to Kennex Flows)
+// Flow types (specific to Omnivox Flows)
 export interface Flow {
   id: string;
   name: string;
@@ -153,7 +153,7 @@ class APIClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('kennex_token');
+        const token = localStorage.getItem('omnivox_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -176,8 +176,8 @@ class APIClient {
             return this.client.request(error.config);
           } catch (refreshError) {
             // Refresh failed, logout user
-            localStorage.removeItem('kennex_token');
-            localStorage.removeItem('kennex_refresh_token');
+            localStorage.removeItem('omnivox_token');
+            localStorage.removeItem('omnivox_refresh_token');
             window.location.href = '/login';
           }
         }
@@ -191,8 +191,8 @@ class APIClient {
     const response = await this.client.post<APIResponse<AuthResponse>>('/api/auth/login', credentials);
     
     if (response.data.success && response.data.data) {
-      localStorage.setItem('kennex_token', response.data.data.token);
-      localStorage.setItem('kennex_refresh_token', response.data.data.refreshToken);
+      localStorage.setItem('omnivox_token', response.data.data.token);
+      localStorage.setItem('omnivox_refresh_token', response.data.data.refreshToken);
       return response.data.data;
     }
     
@@ -201,18 +201,18 @@ class APIClient {
 
   async logout(): Promise<void> {
     await this.client.post('/api/auth/logout');
-    localStorage.removeItem('kennex_token');
-    localStorage.removeItem('kennex_refresh_token');
+    localStorage.removeItem('omnivox_token');
+    localStorage.removeItem('omnivox_refresh_token');
   }
 
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = localStorage.getItem('kennex_refresh_token');
+    const refreshToken = localStorage.getItem('omnivox_refresh_token');
     const response = await this.client.post<APIResponse<AuthResponse>>('/api/auth/refresh', {
       refreshToken,
     });
     
     if (response.data.success && response.data.data) {
-      localStorage.setItem('kennex_token', response.data.data.token);
+      localStorage.setItem('omnivox_token', response.data.data.token);
       return response.data.data;
     }
     

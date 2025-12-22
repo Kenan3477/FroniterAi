@@ -13,6 +13,7 @@ router.post('/login', async (req, res) => {
     const loginIdentifier = email || username;
 
     console.log('🔐 Backend login attempt for:', loginIdentifier);
+    console.log('🔧 DEBUG: Using FIXED auth route version 2.0 - name field only');
 
     // For now, handle demo credentials while transitioning
     if (loginIdentifier === 'demo' && password === 'demo') {
@@ -71,11 +72,12 @@ router.post('/login', async (req, res) => {
     }
 
     // Real database user lookup for created users
+    console.log('🔧 DEBUG: Using NAME field that definitely exists in database');
     const user = await prisma.user.findFirst({
       where: { 
         OR: [
           { email: loginIdentifier },
-          { name: loginIdentifier }
+          { name: loginIdentifier } // Use 'name' field - verified exists in DB
         ]
       }
     });
@@ -129,7 +131,7 @@ router.post('/login', async (req, res) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          username: user.username,
+          username: user.name, // Use name as username for compatibility
           role: user.role.toLowerCase()
         },
         token: token

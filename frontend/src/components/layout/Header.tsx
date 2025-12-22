@@ -177,7 +177,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     </div>
                   </div>
                 </div>
-                <button className="w-full mt-3 text-center text-sm text-slate-600 hover:text-kennex-500">
+                <button className="w-full mt-3 text-center text-sm text-slate-600 hover:text-omnivox-500">
                   View all notifications
                 </button>
               </div>

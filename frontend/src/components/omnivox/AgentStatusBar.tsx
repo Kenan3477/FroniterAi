@@ -37,7 +37,7 @@ const AgentStatusBar = () => {
 
   const updateStatus = async (newStatus: 'available' | 'away' | 'paused') => {
     try {
-      const response = await fetch('/api/kennex/dashboard', {
+      const response = await fetch('/api/omnivox/dashboard', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

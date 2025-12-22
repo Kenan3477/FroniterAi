@@ -3,25 +3,25 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding Kennex Flows database...');
+  console.log('🌱 Seeding Omnivox AI Flows database...');
 
   // Create demo user
   const demoUser = await prisma.user.upsert({
-    where: { email: 'admin@kennex.ai' },
+    where: { email: 'admin@omnivox.ai' },
     update: {},
     create: {
-      username: 'admin@kennex.ai',
-      firstName: 'Kennex',
+      username: 'admin@omnivox.ai',
+      firstName: 'Omnivox AI',
       lastName: 'Admin', 
-      name: 'Kennex Admin',
-      email: 'admin@kennex.ai',
+      name: 'Omnivox AI Admin',
+      email: 'admin@omnivox.ai',
       password: '$2a$12$placeholder', // Placeholder hashed password
     },
   });
 
   console.log('✅ Created demo user:', demoUser.name);
 
-  // Define node type definitions for Kennex Flows
+  // Define node type definitions for Omnivox AI Flows
   const nodeTypeDefinitions = [
     // EVENT TRIGGERS
     {
@@ -318,7 +318,7 @@ async function main() {
                 y: 250,
                 config: JSON.stringify({ 
                   audioType: 'tts', 
-                  ttsText: 'Welcome to Kennex. Your call is important to us.',
+                  ttsText: 'Welcome to Omnivox AI. Your call is important to us.',
                   voice: 'english-female'
                 })
               },
@@ -357,7 +357,7 @@ async function main() {
   });
 
   console.log('✅ Created demo flow:', demoFlow.name);
-  console.log('🎉 Kennex Flows database seeded successfully!');
+  console.log('🎉 Omnivox AI Flows database seeded successfully!');
 }
 
 main()

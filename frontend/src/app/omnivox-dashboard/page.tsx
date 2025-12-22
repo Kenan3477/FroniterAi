@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import AgentStatusBar from '@/components/kennex/AgentStatusBar';
-import InteractionsCard from '@/components/kennex/InteractionsCard';
-import InteractionOutcomesCard from '@/components/kennex/InteractionOutcomesCard';
-import InteractionsTimeCard from '@/components/kennex/InteractionsTimeCard';
-import DmcsConversionCard from '@/components/kennex/DmcsConversionCard';
-import SalesChart from '@/components/kennex/SalesChart';
-import InteractionsDurationChart from '@/components/kennex/InteractionsDurationChart';
-import LatestContactsList from '@/components/kennex/LatestContactsList';
-import TasksTable from '@/components/kennex/TasksTable';
+import AgentStatusBar from '@/components/omnivox/AgentStatusBar';
+import InteractionsCard from '@/components/omnivox/InteractionsCard';
+import InteractionOutcomesCard from '@/components/omnivox/InteractionOutcomesCard';
+import InteractionsTimeCard from '@/components/omnivox/InteractionsTimeCard';
+import DmcsConversionCard from '@/components/omnivox/DmcsConversionCard';
+import SalesChart from '@/components/omnivox/SalesChart';
+import InteractionsDurationChart from '@/components/omnivox/InteractionsDurationChart';
+import LatestContactsList from '@/components/omnivox/LatestContactsList';
+import TasksTable from '@/components/omnivox/TasksTable';
 
 // Sidebar component
 const Sidebar = () => {

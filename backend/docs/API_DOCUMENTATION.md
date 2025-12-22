@@ -1,4 +1,4 @@
-# Kennex AI Backend API Documentation
+# Omnivox AI Backend API Documentation
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@
 
 ## Overview
 
-The Kennex AI Backend API provides a comprehensive suite of endpoints for managing AI-powered call center operations, user management, campaign management, and real-time monitoring.
+The Omnivox AI Backend API provides a comprehensive suite of endpoints for managing AI-powered call center operations, user management, campaign management, and real-time monitoring.
 
 ### Base URL
 - Production: `https://api.kennex.ai`

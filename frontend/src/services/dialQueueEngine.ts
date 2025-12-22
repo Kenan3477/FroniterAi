@@ -13,7 +13,7 @@ import { getActiveListsByCampaign } from './listCampaignService';
 
 /**
  * 3️⃣ Generate the Dial Queue - Core Engine
- * Replicates Kennex's auto-feed dial queue system
+ * Replicates Omnivox AI's auto-feed dial queue system
  */
 
 // Mock data stores - in production these would be your actual database
@@ -22,7 +22,7 @@ let mockContacts: Contact[] = [];
 
 let mockDialQueue: DialQueueEntry[] = [];
 
-// Engine configuration (Kennex-style defaults)
+// Engine configuration (Omnivox AI-style defaults)
 const defaultConfig: QueueEngineConfig = {
   loopInterval: 750,          // 750ms between checks
   maxQueueSize: 50,           // max 50 queued calls per campaign
@@ -154,7 +154,7 @@ export async function createDialQueueEntry(campaignId: string): Promise<DialQueu
 
 /**
  * Function C: runDialQueueLoop()
- * A looping engine that mirrors Kennex's auto-feed into dialer
+ * A looping engine that mirrors Omnivox AI's auto-feed into dialer
  */
 export function startDialQueueEngine(customConfig?: Partial<QueueEngineConfig>): void {
   
@@ -214,7 +214,7 @@ export async function runDialQueueLoop(): Promise<void> {
 
       const availableAgents = getAvailableAgentCount(campaignId); // Mock: returns random number
       
-      // Kennex-style logic: queue should be 2-3x available agents
+      // Omnivox AI-style logic: queue should be 2-3x available agents
       const targetQueueSize = Math.min(availableAgents * 2, config.maxQueueSize);
       
       if (currentQueueSize < targetQueueSize) {

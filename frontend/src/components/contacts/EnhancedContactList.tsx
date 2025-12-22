@@ -266,20 +266,20 @@ export default function EnhancedContactList({
               {/* Contact Metadata */}
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                 <div className="flex items-center text-gray-600">
-                  <Target className="h-4 w-4 mr-2 text-kennex-500" />
+                  <Target className="h-4 w-4 mr-2 text-omnivox-500" />
                   <span className="font-medium">List:</span>
                   <span className="ml-1">{contact.listName}</span>
                 </div>
                 
                 <div className="flex items-center text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2 text-kennex-500" />
+                  <Calendar className="h-4 w-4 mr-2 text-omnivox-500" />
                   <span className="font-medium">Uploaded:</span>
                   <span className="ml-1">{formatDate(contact.uploadDate)}</span>
                 </div>
                 
                 {contact.lastAttempt && (
                   <div className="flex items-center text-gray-600">
-                    <Clock className="h-4 w-4 mr-2 text-kennex-500" />
+                    <Clock className="h-4 w-4 mr-2 text-omnivox-500" />
                     <span className="font-medium">Last Call:</span>
                     <span className="ml-1">{formatDate(contact.lastAttempt)}</span>
                   </div>
@@ -287,7 +287,7 @@ export default function EnhancedContactList({
                 
                 {contact.lastOutcome && (
                   <div className="flex items-center">
-                    <TrendingUp className="h-4 w-4 mr-2 text-kennex-500" />
+                    <TrendingUp className="h-4 w-4 mr-2 text-omnivox-500" />
                     <span className="font-medium text-gray-600">Outcome:</span>
                     <span className={`ml-1 font-medium ${getOutcomeColor(contact.lastOutcome)}`}>
                       {contact.lastOutcome}

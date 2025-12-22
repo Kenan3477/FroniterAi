@@ -21,7 +21,7 @@ module.exports = {
           800: '#166534',
           900: '#14532d',
         },
-        kennex: {
+        omnivox: {
           50: '#f0fdfa',
           100: '#ccfbf1',
           200: '#99f6e4',

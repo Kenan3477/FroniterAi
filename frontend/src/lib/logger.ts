@@ -46,7 +46,7 @@ const logger = winston.createLogger({
   levels: logLevels,
   format: fileFormat,
   defaultMeta: { 
-    service: 'kennex-api',
+    service: 'omnivox-api',
     environment: process.env.NODE_ENV || 'development'
   },
   transports: [

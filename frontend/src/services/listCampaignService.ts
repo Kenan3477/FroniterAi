@@ -2,7 +2,7 @@ import { DataList, Contact, ListCampaignLinkResult, ListLinkError } from '../typ
 
 /**
  * List-Campaign Management Functions
- * Replicates Kennex's data list assignment system
+ * Replicates Omnivox AI's data list assignment system
  */
 
 // Mock database - in production this would be your actual database
@@ -12,7 +12,7 @@ let mockLists: DataList[] = [];
 let mockCampaigns: string[] = []; // No mock campaign IDs - empty until user creates campaigns
 
 /**
- * 1️⃣ Link Lists to Campaigns (Kennex-style)
+ * 1️⃣ Link Lists to Campaigns (Omnivox AI-style)
  * Function: assignListToCampaign(listId, campaignId)
  */
 export async function assignListToCampaign(
@@ -71,7 +71,7 @@ export async function assignListToCampaign(
       }
     }
 
-    // Perform the assignment (Kennex-style rules)
+    // Perform the assignment (Omnivox AI-style rules)
     mockLists[listIndex] = {
       ...list,
       campaignId: campaignId,
@@ -165,7 +165,7 @@ export async function activateListInDialStrategy(
       );
     }
 
-    // Activate the list (Kennex-style)
+    // Activate the list (Omnivox AI-style)
     mockLists[listIndex] = {
       ...list,
       active: true,
@@ -224,7 +224,7 @@ export async function deactivateList(listId: string): Promise<ListCampaignLinkRe
 
     const list = mockLists[listIndex];
 
-    // Deactivate the list (Kennex-style)
+    // Deactivate the list (Omnivox AI-style)
     mockLists[listIndex] = {
       ...list,
       active: false,          // Stop feeding new records

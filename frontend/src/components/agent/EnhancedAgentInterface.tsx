@@ -389,7 +389,7 @@ export default function EnhancedAgentInterface({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Kennex Agent Interface
+            Omnivox AI Agent Interface
           </h1>
           <p className="text-gray-600">
             Agent: {agentName} • Campaign: {campaignName}

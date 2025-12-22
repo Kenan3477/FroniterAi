@@ -1,6 +1,6 @@
 /**
  * Twilio SIP Dialer - Complete Integrated Solution
- * Kennex acts as SIP client, handling audio through user's microphone/headset
+ * Omnivox AI acts as SIP client, handling audio through user's microphone/headset
  * Twilio provides SIP infrastructure
  */
 
@@ -178,8 +178,8 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     setConnectionError(null);
 
     const config = {
-      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'kennex-dev.sip.twilio.com',
-      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME || 'Kennex',
+      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'omnivox-dev.sip.twilio.com',
+      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME || 'Omnivox',
       password: process.env.NEXT_PUBLIC_TWILIO_SIP_PASSWORD || 'Albert3477!',
       transport: 'UDP' as const,
       codec: 'PCMU' as const,
@@ -294,7 +294,7 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Kennex SIP Dialer</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Omnivox AI SIP Dialer</h3>
           <p className="text-sm text-gray-600">Your AI-powered calling platform</p>
         </div>
         <div className="flex items-center space-x-2">

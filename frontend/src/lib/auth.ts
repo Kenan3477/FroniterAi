@@ -28,16 +28,16 @@ export interface JWTPayload {
 export const generateAccessToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, JWT_SECRET, { 
     expiresIn: JWT_EXPIRES_IN,
-    issuer: 'kennex-system',
-    audience: 'kennex-users'
+    issuer: 'omnivox-system',
+    audience: 'omnivox-users'
   });
 };
 
 export const generateRefreshToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, JWT_REFRESH_SECRET, { 
     expiresIn: JWT_REFRESH_EXPIRES_IN,
-    issuer: 'kennex-system',
-    audience: 'kennex-users'
+    issuer: 'omnivox-system',
+    audience: 'omnivox-users'
   });
 };
 

@@ -576,11 +576,11 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold">Active Call</h2>
-                    <p className="text-kennex-200">Campaign: {currentWorkItem.campaign?.name || 'Unknown'}</p>
+                    <p className="text-omnivox-200">Campaign: {currentWorkItem.campaign?.name || 'Unknown'}</p>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-mono">{formatDuration(callState.duration)}</div>
-                    <div className="text-kennex-200 text-sm capitalize">{callState.status}</div>
+                    <div className="text-omnivox-200 text-sm capitalize">{callState.status}</div>
                   </div>
                 </div>
               </div>

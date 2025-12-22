@@ -1,6 +1,6 @@
 /**
  * Twilio SIP Dialer - Manual Outbound Calling
- * Integrates with Kennex for PSTN calls via Twilio SIP
+ * Integrates with Omnivox AI for PSTN calls via Twilio SIP
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -144,8 +144,8 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     setConnectionError(null);
 
     const config = {
-      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'kennex-dev.sip.twilio.com',
-      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME || 'Kennex',
+      sipDomain: process.env.NEXT_PUBLIC_TWILIO_SIP_DOMAIN || 'omnivox-dev.sip.twilio.com',
+      username: process.env.NEXT_PUBLIC_TWILIO_SIP_USERNAME || 'Omnivox',
       password: process.env.NEXT_PUBLIC_TWILIO_SIP_PASSWORD || 'Albert3477!',
       transport: 'UDP' as const,
       codec: 'PCMU' as const,
@@ -434,11 +434,11 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
         <dl className="text-xs space-y-1">
           <div className="flex justify-between">
             <dt className="text-gray-600">SIP Domain:</dt>
-            <dd className="text-gray-900 font-mono">kennex-dev.sip.twilio.com</dd>
+            <dd className="text-gray-900 font-mono">omnivox-dev.sip.twilio.com</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-gray-600">Username:</dt>
-            <dd className="text-gray-900 font-mono">Kennex</dd>
+            <dd className="text-gray-900 font-mono">Omnivox</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-gray-600">Transport:</dt>

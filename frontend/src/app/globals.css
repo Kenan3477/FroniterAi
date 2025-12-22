@@ -16,7 +16,7 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-kennex-600 hover:bg-kennex-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2;
+    @apply bg-omnivox-600 hover:bg-omnivox-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-omnivox-500 focus:ring-offset-2;
   }
   
   .btn-secondary {
@@ -24,11 +24,11 @@
   }
   
   .btn-outline {
-    @apply border border-kennex-600 text-kennex-600 hover:bg-kennex-600 hover:text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2;
+    @apply border border-omnivox-600 text-omnivox-600 hover:bg-omnivox-600 hover:text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-omnivox-500 focus:ring-offset-2;
   }
   
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-kennex-500 focus:border-kennex-500;
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-omnivox-500 focus:border-omnivox-500;
   }
   
   .card {
@@ -40,7 +40,7 @@
   }
   
   .sidebar-item.active {
-    @apply bg-kennex-100 text-kennex-900 border-r-2 border-kennex-600;
+    @apply bg-omnivox-100 text-omnivox-900 border-r-2 border-omnivox-600;
   }
 }
 

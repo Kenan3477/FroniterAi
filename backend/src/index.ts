@@ -14,7 +14,7 @@ import { rateLimiter } from './middleware/rateLimiter';
 
 // Import routes
 // Auth routes - enable for frontend integration
-import authRoutes from './routes/auth';
+import authRoutes from './routes/auth-direct-sql'; // Use direct SQL version to bypass Prisma issues
 // Agent routes for frontend integration
 import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';

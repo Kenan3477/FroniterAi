@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// Always use Railway backend for production testing
-const BACKEND_URL = 'https://froniterai-production.up.railway.app';
+// Use environment variable for backend URL - FIXED: No hardcoded URLs
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
 
 export async function POST(request: NextRequest) {
   try {

@@ -23,19 +23,19 @@ export default function OmniCube() {
         }}
       >
         {/* Cube faces */}
-        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-kennex-400 to-kennex-600 transform translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
+        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-omnivox-400 to-omnivox-600 transform translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
           <div className="text-white text-6xl font-bold">O</div>
         </div>
         <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-primary-400 to-primary-600 transform rotate-y-90 translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
           <div className="text-white text-6xl font-bold">M</div>
         </div>
-        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-kennex-500 to-primary-500 transform rotate-y-180 translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
+        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-omnivox-500 to-primary-500 transform rotate-y-180 translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
           <div className="text-white text-6xl font-bold">N</div>
         </div>
-        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-primary-400 to-kennex-400 transform rotate-y-270 translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
+        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-primary-400 to-omnivox-400 transform rotate-y-270 translate-z-32 rounded-lg shadow-lg flex items-center justify-center">
           <div className="text-white text-6xl font-bold">I</div>
         </div>
-        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-kennex-600 to-primary-600 transform rotate-x-90 translate-z-32 rounded-lg shadow-lg">
+        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-omnivox-600 to-primary-600 transform rotate-x-90 translate-z-32 rounded-lg shadow-lg">
           {/* Top face with AI icons */}
           <div className="w-full h-full flex items-center justify-center space-x-4">
             <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -50,7 +50,7 @@ export default function OmniCube() {
             </div>
           </div>
         </div>
-        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-primary-600 to-kennex-600 transform rotate-x-270 translate-z-32 rounded-lg shadow-lg">
+        <div className="absolute inset-0 w-64 h-64 bg-gradient-to-br from-primary-600 to-omnivox-600 transform rotate-x-270 translate-z-32 rounded-lg shadow-lg">
           {/* Bottom face with workflow icons */}
           <div className="w-full h-full flex items-center justify-center">
             <div className="grid grid-cols-2 gap-2">

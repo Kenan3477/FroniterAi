@@ -166,7 +166,7 @@ const ChannelsManagement: React.FC = () => {
   const loadChannels = async () => {
     try {
       // Load from localStorage for demo (replace with API call)
-      const stored = localStorage.getItem('kennex_channels');
+      const stored = localStorage.getItem('omnivox_channels');
       if (stored) {
         setChannels(JSON.parse(stored));
       } else {
@@ -203,7 +203,7 @@ const ChannelsManagement: React.FC = () => {
 
   const loadVoiceConfiguration = async () => {
     try {
-      const stored = localStorage.getItem('kennex_voice_config');
+      const stored = localStorage.getItem('omnivox_voice_config');
       if (stored) {
         setVoiceConfig(JSON.parse(stored));
       } else {
@@ -263,7 +263,7 @@ const ChannelsManagement: React.FC = () => {
 
   const saveVoiceConfiguration = (config: VoiceConfiguration) => {
     setVoiceConfig(config);
-    localStorage.setItem('kennex_voice_config', JSON.stringify(config));
+    localStorage.setItem('omnivox_voice_config', JSON.stringify(config));
   };
 
   const getChannelIcon = (type: string) => {

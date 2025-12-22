@@ -110,14 +110,14 @@ export default function ContactInfoModal({ isOpen, onClose, contactId }: Contact
               <h2 className="text-xl font-semibold">
                 Contact Information
               </h2>
-              <p className="text-kennex-100 text-sm">
+              <p className="text-omnivox-100 text-sm">
                 Detailed contact analysis and history
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-kennex-100 hover:text-white"
+            className="text-omnivox-100 hover:text-white"
           >
             <X className="h-6 w-6" />
           </button>
