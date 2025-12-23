@@ -6,6 +6,8 @@ import morgan from 'morgan';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
+// Force deployment to test schema migration
+
 import config from './config';
 import { connectDatabase } from './database';
 import { connectRedis } from './config/redis';
