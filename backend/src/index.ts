@@ -41,6 +41,7 @@ import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition col
 import productionDialerRoutes from './routes/productionDialerRoutes'; // PRODUCTION: Real Twilio SIP integration
 import callManagementRoutes from './routes/callManagementRoutes'; // PRODUCTION: Call state machine management
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
+import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -161,6 +162,7 @@ class App {
     // this.app.use('/api/calls', callsRoutes); // SIP call control system - DISABLED to avoid conflict
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
+    this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
     this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
     this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
 

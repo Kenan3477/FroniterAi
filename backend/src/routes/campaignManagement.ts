@@ -230,6 +230,8 @@ router.post('/campaigns', async (req: Request, res: Response) => {
         dialMethod: campaignData.dialMethod || 'Progressive',
         speed: campaignData.dialSpeed || 2.0,
         status: 'Inactive', // Start inactive, user can activate later
+        isActive: false, // NEW: Campaign starts disabled until manually activated
+        outboundNumber: campaignData.outboundNumber || null, // NEW: CLI number selection
         maxCallsPerAgent: campaignData.maxCallsPerAgent || 1,
         abandonRateThreshold: campaignData.abandonRateThreshold || 0.05,
         pacingMultiplier: campaignData.pacingMultiplier || 1.0,
