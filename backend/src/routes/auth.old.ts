@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'omnivox-ai-fallback-secret-key-cha
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'omnivox-ai-refresh-secret-key-change-in-production';
 
 // Production authentication with database lookup and security features
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimiter, async (req, res) => {
   try {
     const { username, password, email } = req.body;
     const loginIdentifier = email || username;
@@ -146,7 +146,6 @@ router.post('/login', async (req, res) => {
           lastLogin: user.lastLogin,
           preferences: user.preferences ? JSON.parse(user.preferences) : null
         },
-        token: accessToken, // For backward compatibility
         accessToken: accessToken,
         refreshToken: refreshToken,
         expiresIn: 15 * 60 // 15 minutes in seconds
@@ -191,7 +190,7 @@ router.post('/refresh', async (req, res) => {
         token: refreshToken,
         userId: decoded.userId,
         expiresAt: { gt: new Date() },
-        isRevoked: false
+        revoked: false
       },
       include: { user: true }
     });
@@ -233,7 +232,6 @@ router.post('/refresh', async (req, res) => {
       success: true,
       data: {
         accessToken: newAccessToken,
-        token: newAccessToken, // For backward compatibility
         expiresIn: 15 * 60
       }
     });
@@ -246,8 +244,93 @@ router.post('/refresh', async (req, res) => {
     });
   }
 });
+            id: 'demo',
+            name: 'Demo User',
+            email: 'demo@omnivox-ai.com',
+            username: 'demo',
+            role: 'agent'
+          },
+          token: token
+        }
+      });
+    }
 
-// Profile endpoint with proper authentication middleware
+    // Database user lookup for authenticated users
+    const user = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { email: loginIdentifier },
+          { name: loginIdentifier }
+        ]
+      }
+    });
+    
+    if (!user) {
+      console.log('❌ User not found:', loginIdentifier);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if user is active
+    if (user.status !== 'ACTIVE') {
+      return res.status(401).json({
+        success: false,
+        message: `Account is ${user.status.toLowerCase()}`
+      });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password || '');
+    if (!isPasswordValid) {
+      console.log('❌ Invalid password for:', loginIdentifier);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ 
+      userId: user.id, 
+      username: user.name,
+      email: user.email,
+      role: user.role 
+    }, JWT_SECRET, { expiresIn: '24h' });
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
+
+    console.log('✅ User authenticated successfully:', user.name, `(${user.role})`);
+
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          username: user.name, // Use name as username for compatibility
+          role: user.role.toLowerCase()
+        },
+        token: token
+      }
+    });
+
+  } catch (error) {
+    console.error('Auth error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+});
+
+// Profile endpoint
 router.get('/profile', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -259,167 +342,88 @@ router.get('/profile', async (req, res) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as any;
-    } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-    // Get fresh user data from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        name: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isActive: true,
-        twoFactorEnabled: true,
-        lastLogin: true,
-        preferences: true,
-        status: true,
-        statusSince: true
-      }
-    });
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'User account not found or inactive'
-      });
-    }
+    // Return user profile based on token
+    const userProfile = {
+      id: decoded.userId,
+      name: decoded.userId === 'admin' ? 'Admin User' : 'Demo User',
+      email: `${decoded.username}@omnivox-ai.com`,
+      username: decoded.username,
+      role: decoded.userId === 'admin' ? 'admin' : 'agent',
+      status: 'active'
+    };
 
     res.json({
       success: true,
       data: {
-        user: {
-          ...user,
-          preferences: user.preferences ? JSON.parse(user.preferences) : null
-        }
+        user: userProfile
       }
     });
 
   } catch (error) {
-    console.error('❌ Profile error:', error);
-    res.status(500).json({
+    console.error('Profile error:', error);
+    res.status(401).json({
       success: false,
-      message: 'Profile service temporarily unavailable'
+      message: 'Invalid token'
     });
   }
 });
 
-// Logout endpoint with token revocation
-router.post('/logout', async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-    const authHeader = req.headers.authorization;
-
-    // Revoke refresh token if provided
-    if (refreshToken) {
-      await prisma.refreshToken.updateMany({
-        where: { token: refreshToken },
-        data: { isRevoked: true }
-      });
-    }
-
-    // In a production system with token blacklisting, you would also blacklist the access token
-    // For now, we rely on short token expiry times
-
-    res.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Logout error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Logout service temporarily unavailable'
-    });
-  }
+router.post('/logout', (req, res) => {
+  // In a real implementation, you might want to blacklist the token
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
 });
 
-// Registration endpoint for admin user creation
+// Add missing register endpoint for frontend compatibility
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, role = 'AGENT' } = req.body;
+    const { username, email, password, name } = req.body;
     
-    console.log('🔐 Registration attempt for:', username);
-
-    // Validate required fields
-    if (!username || !email || !password || !firstName || !lastName) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields are required: username, email, password, firstName, lastName'
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: email.toLowerCase() },
-          { username: username }
-        ]
-      }
+    console.log('🔐 Backend registration attempt for:', username);
+    
+    // Basic implementation for frontend compatibility
+    // In production, this would create a user in the database
+    res.status(501).json({
+      success: false,
+      message: 'Registration not yet implemented'
     });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'User with this email or username already exists'
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user
-    const newUser = await prisma.user.create({
-      data: {
-        username: username,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        firstName: firstName,
-        lastName: lastName,
-        name: `${firstName} ${lastName}`,
-        role: role.toUpperCase(),
-        isActive: true
-      }
-    });
-
-    console.log(`✅ User created successfully: ${newUser.username} (${newUser.email})`);
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      data: {
-        user: {
-          id: newUser.id,
-          username: newUser.username,
-          email: newUser.email,
-          name: newUser.name,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          role: newUser.role,
-          isActive: newUser.isActive
-        }
-      }
-    });
-
   } catch (error) {
     console.error('❌ Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Registration service temporarily unavailable'
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Add missing refresh endpoint for frontend compatibility  
+router.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    // Basic implementation for frontend compatibility
+    // In production, this would validate and refresh the token
+    res.status(501).json({
+      success: false,
+      message: 'Token refresh not yet implemented'
+    });
+  } catch (error) {
+    console.error('❌ Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
     });
   }
 });

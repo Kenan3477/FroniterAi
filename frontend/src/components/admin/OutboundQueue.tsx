@@ -76,28 +76,32 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
   const loadQueueData = async () => {
     try {
       setLoading(true);
-      // First, generate queue entries for this campaign
-      const generateResponse = await fetch('/api/dial-queue/generate', {
+      
+      // First, generate queue entries for this campaign using the new campaign management API
+      const generateResponse = await fetch(`/api/admin/campaign-management/campaigns/${campaign.id}/generate-queue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          campaignId: campaign.campaignId,
-          maxRecords: 20 
+          maxRecords: 100 
         })
       });
 
       if (!generateResponse.ok) {
-        throw new Error('Failed to generate queue');
+        // If generate fails, it might be because there are no data lists assigned
+        console.warn('Queue generation failed, possibly no data lists assigned to campaign');
+        setQueueEntries([]);
+        return;
       }
 
-      // Then fetch the queue entries
-      const queueResponse = await fetch(`/api/dial-queue?campaignId=${campaign.campaignId}`);
-      if (!queueResponse.ok) {
-        throw new Error('Failed to fetch queue');
+      const generateData = await generateResponse.json();
+      
+      if (generateData.success) {
+        // Use the generated entries directly
+        setQueueEntries(generateData.data.entries || []);
+      } else {
+        console.warn('Queue generation returned no entries:', generateData.message);
+        setQueueEntries([]);
       }
-
-      const queueData = await queueResponse.json();
-      setQueueEntries(queueData.entries || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load queue');
     } finally {
@@ -107,27 +111,36 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
 
   const loadContacts = async () => {
     try {
-      // Fetch contacts assigned to this campaign via data lists
-      const response = await fetch(`/api/contacts?campaignId=${campaign.campaignId}`);
+      // Fetch contacts assigned to this campaign via data lists using the new campaign management API
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaign.id}/contacts`);
       if (!response.ok) {
-        throw new Error('Failed to fetch contacts');
+        console.warn('Failed to fetch campaign contacts, campaign may not have data lists assigned');
+        setContacts([]);
+        return;
       }
 
       const contactsData = await response.json();
-      setContacts(contactsData.contacts || []);
+      if (contactsData.success) {
+        setContacts(contactsData.data || []);
+      } else {
+        console.warn('No contacts found for campaign:', contactsData.message);
+        setContacts([]);
+      }
     } catch (err) {
       console.error('Failed to load contacts:', err);
+      setContacts([]);
     }
   };
 
   const handleDialContact = async (contactId: string) => {
     try {
-      const response = await fetch('/api/dial-queue/next', {
+      // Use the campaign management API to dial the next contact
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaign.id}/dial-next`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          campaignId: campaign.campaignId,
-          agentId: 'AGENT_001' // Using test agent
+          agentId: 'AGENT_001', // Using test agent - in production this would come from auth context
+          contactId: contactId // Optionally specify which contact to dial
         })
       });
 
@@ -136,11 +149,15 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
       }
 
       const result = await response.json();
-      console.log('Dialed contact:', result);
       
-      // Reload queue data
-      loadQueueData();
-      loadContacts();
+      if (result.success) {
+        console.log('Successfully dialed contact:', result.data);
+        // Reload queue data to reflect the dialed contact
+        loadQueueData();
+        loadContacts();
+      } else {
+        throw new Error(result.message || 'Dial operation failed');
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to dial contact');
     }

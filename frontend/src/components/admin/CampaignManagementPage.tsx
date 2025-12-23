@@ -114,6 +114,7 @@ interface ManagementCampaign {
   // Dial Queue Properties
   dialMethod: 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP';
   dialSpeed: number; // Calls per minute for autodial
+  outboundNumber?: string; // CLI (Caller Line Identification) number for outbound calls
   isActive: boolean; // Whether the campaign is actively dialing
   agentCount: number; // Number of agents assigned to this campaign
   queuePosition?: number; // Position in dial queue
@@ -173,6 +174,7 @@ const CampaignManagementPage: React.FC = () => {
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
   const [isCampaignViewDialogOpen, setIsCampaignViewDialogOpen] = useState(false);
   const [isCampaignEditDialogOpen, setIsCampaignEditDialogOpen] = useState(false);
+  const [isQueueViewDialogOpen, setIsQueueViewDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<CampaignTemplate | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<ManagementCampaign | null>(null);
 
@@ -735,6 +737,23 @@ const CampaignManagementPage: React.FC = () => {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="outboundNumber">Outbound Number (CLI)</Label>
+                  <Select
+                    value={campaignForm.outboundNumber}
+                    onValueChange={(value: string) => setCampaignForm({ ...campaignForm, outboundNumber: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select outbound number" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+442046343130">+44 20 4634 3130 (UK Local)</SelectItem>
+                      <SelectItem value="+15551234567">+1 555 123 4567 (US Toll-Free)</SelectItem>
+                      <SelectItem value="+447700900123">+44 77 0090 0123 (UK Mobile)</SelectItem>
+                      <SelectItem value="+14155552456">+1 415 555 2456 (US Local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="priority">Priority</Label>
                   <Select
                     value={campaignForm.priority?.toString()}
@@ -930,6 +949,141 @@ const CampaignManagementPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Queue View Dialog */}
+      <Dialog open={isQueueViewDialogOpen} onOpenChange={setIsQueueViewDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Outbound Queue - {selectedCampaign?.displayName}</DialogTitle>
+            <DialogDescription>
+              View and manage the outbound queue for this campaign
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCampaign && (
+            <div className="space-y-4">
+              {/* Queue Statistics */}
+              <div className="grid grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Pending Calls</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">1,247</div>
+                    <div className="text-xs text-gray-500">awaiting dial</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Active Calls</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">23</div>
+                    <div className="text-xs text-gray-500">in progress</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Completed Today</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">486</div>
+                    <div className="text-xs text-gray-500">finished calls</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">CLI Number</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm font-mono">{selectedCampaign.outboundNumber || '+442046343130'}</div>
+                    <div className="text-xs text-gray-500">outbound number</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Queue Table */}
+              <div className="border rounded-lg">
+                <div className="p-4 border-b bg-gray-50">
+                  <h3 className="font-medium">Queue Items</h3>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Attempts</TableHead>
+                        <TableHead>Next Attempt</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* Sample queue items - replace with real data */}
+                      <TableRow>
+                        <TableCell>John Smith</TableCell>
+                        <TableCell>+44 20 7123 4567</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">High</Badge>
+                        </TableCell>
+                        <TableCell>2/3</TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>14:30 Today</div>
+                            <div className="text-gray-500 text-xs">in 2 hours</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">Queued</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">
+                            <Phone className="w-3 h-3 mr-1" />
+                            Call Now
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Sarah Johnson</TableCell>
+                        <TableCell>+44 161 234 5678</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">Medium</Badge>
+                        </TableCell>
+                        <TableCell>1/3</TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>15:15 Today</div>
+                            <div className="text-gray-500 text-xs">in 3 hours</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">Queued</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">
+                            <Phone className="w-3 h-3 mr-1" />
+                            Call Now
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsQueueViewDialogOpen(false)}>
+              Close
+            </Button>
+            <Button>
+              <Settings className="w-4 h-4 mr-2" />
+              Queue Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -995,6 +1149,7 @@ const CampaignManagementPage: React.FC = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Dial Method</TableHead>
+                      <TableHead>CLI Number</TableHead>
                       <TableHead>Queue Controls</TableHead>
                       <TableHead>Agents</TableHead>
                       <TableHead>Actions</TableHead>
@@ -1062,6 +1217,12 @@ const CampaignManagementPage: React.FC = () => {
                           </Select>
                         </TableCell>
                         <TableCell>
+                          <div className="text-sm">
+                            <div className="font-mono">{campaign.outboundNumber || '+442046343130'}</div>
+                            <div className="text-xs text-gray-500">outbound CLI</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
                               <Button 
@@ -1072,6 +1233,19 @@ const CampaignManagementPage: React.FC = () => {
                               >
                                 <Power className="w-3 h-3 mr-1" />
                                 {campaign.isActive ? 'Active' : 'Inactive'}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedCampaign(campaign);
+                                  setIsQueueViewDialogOpen(true);
+                                }}
+                                className="h-6"
+                                title="View Outbound Queue"
+                              >
+                                <Target className="w-3 h-3 mr-1" />
+                                Queue
                               </Button>
                             </div>
                             {campaign.dialMethod === 'AUTODIAL' && (

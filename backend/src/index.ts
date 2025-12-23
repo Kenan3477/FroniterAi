@@ -33,10 +33,13 @@ import callRecordsRoutes from './routes/callRecords'; // Production call records
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
 // import campaignManagementRoutes from './routes/campaignManagement'; // DISABLED - schema conflicts
+import campaignManagementRoutes from './routes/campaignManagement'; // RE-ENABLED - Fixed with proper Prisma integration
 // import businessSettingsRoutes from './routes/businessSettings'; // DISABLED - schema conflicts
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
 // import callsRoutes from './routes/callsRoutes'; // SIP call control system - DISABLED due to schema conflicts
 import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
+import productionDialerRoutes from './routes/productionDialerRoutes'; // PRODUCTION: Real Twilio SIP integration
+import callManagementRoutes from './routes/callManagementRoutes'; // PRODUCTION: Call state machine management
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
@@ -147,6 +150,7 @@ class App {
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // DISABLED - schema conflicts
+    this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // RE-ENABLED - Fixed with proper Prisma integration
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts
@@ -157,6 +161,8 @@ class App {
     // this.app.use('/api/calls', callsRoutes); // SIP call control system - DISABLED to avoid conflict
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
+    this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
+    this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
 
     // Omnivox-AI Flows API routes - TEMPORARILY DISABLED DUE TO SCHEMA CONFLICTS
     // this.app.use('/api/flows', flowRoutes); // DISABLED - User model conflicts
