@@ -208,6 +208,50 @@ router.get('/stats', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/admin/campaign-management/data-lists - Get all available data lists
+router.get('/data-lists', async (req: Request, res: Response) => {
+  try {
+    const dataLists = await prisma.dataList.findMany({
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    const transformedLists = dataLists.map(list => ({
+      id: list.id,
+      listId: list.listId,
+      name: list.name,
+      campaignId: list.campaignId,
+      active: list.active,
+      totalContacts: list._count.contacts,
+      blendWeight: list.blendWeight,
+      createdAt: list.createdAt,
+      updatedAt: list.updatedAt
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        dataLists: transformedLists
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching data lists:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch data lists' }
+    });
+  }
+});
+
 // POST /api/admin/campaign-management/campaigns
 router.post('/campaigns', async (req: Request, res: Response) => {
   try {

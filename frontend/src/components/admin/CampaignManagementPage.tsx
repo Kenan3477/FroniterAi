@@ -120,6 +120,7 @@ interface ManagementCampaign {
   queuePosition?: number; // Position in dial queue
   predictiveDialingEnabled: boolean;
   maxConcurrentCalls: number;
+  assignedDataListIds?: string[]; // Data list IDs assigned to this campaign
   template?: {
     id: string;
     name: string;
@@ -163,6 +164,7 @@ const CampaignManagementPage: React.FC = () => {
   const [stats, setStats] = useState<CampaignStats | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<ManagementCampaign | null>(null);
   const [inboundNumbers, setInboundNumbers] = useState<any[]>([]);
+  const [dataLists, setDataLists] = useState<any[]>([]);
   const [queueEntries, setQueueEntries] = useState<any[]>([]);
   const [queueStats, setQueueStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -204,6 +206,7 @@ const CampaignManagementPage: React.FC = () => {
     agentCount: 0,
     predictiveDialingEnabled: false,
     maxConcurrentCalls: 10,
+    assignedDataListIds: [], // For data list assignment
   });
 
   // Dial Queue Handlers
@@ -385,17 +388,19 @@ const CampaignManagementPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [campaignsResponse, templatesResponse, statsResponse, inboundNumbersResponse] = await Promise.all([
+      const [campaignsResponse, templatesResponse, statsResponse, inboundNumbersResponse, dataListsResponse] = await Promise.all([
         fetch('/api/admin/campaign-management/campaigns'),
         fetch('/api/admin/campaign-management/templates'),
         fetch('/api/admin/campaign-management/stats'),
-        fetch('/api/voice/inbound-numbers')
+        fetch('/api/voice/inbound-numbers'),
+        fetch('/api/admin/campaign-management/data-lists')
       ]);
 
       const campaignsData = await campaignsResponse.json();
       const templatesData = await templatesResponse.json();
       const statsData = await statsResponse.json();
       const inboundNumbersData = await inboundNumbersResponse.json();
+      const dataListsData = await dataListsResponse.json();
 
       // Add default dial queue properties to campaigns
       const campaignsWithDialQueue = (campaignsData.data?.campaigns || []).map((campaign: ManagementCampaign) => ({
@@ -412,6 +417,7 @@ const CampaignManagementPage: React.FC = () => {
       setTemplates(templatesData.data?.templates || []);
       setStats(statsData.data || statsData);
       setInboundNumbers(inboundNumbersData.data || []);
+      setDataLists(dataListsData.data?.dataLists || []);
     } catch (err) {
       setError('Failed to fetch campaign management data');
       console.error('Error fetching data:', err);
@@ -460,6 +466,38 @@ const CampaignManagementPage: React.FC = () => {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        const newCampaignId = result.data?.campaign?.id;
+
+        // If data lists were assigned, assign them to the campaign
+        if (campaignForm.assignedDataListIds && campaignForm.assignedDataListIds.length > 0 && newCampaignId) {
+          for (const listId of campaignForm.assignedDataListIds) {
+            try {
+              await fetch(`/api/admin/campaign-management/campaigns/${newCampaignId}/assign-data-list`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ listId }),
+              });
+            } catch (error) {
+              console.error(`Failed to assign data list ${listId}:`, error);
+            }
+          }
+
+          // Generate queue entries for the assigned data lists
+          try {
+            await fetch(`/api/admin/campaign-management/campaigns/${newCampaignId}/generate-queue`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+          } catch (error) {
+            console.error('Failed to generate queue entries:', error);
+          }
+        }
+
         setIsCampaignDialogOpen(false);
         setCampaignForm({
           category: 'SALES',
@@ -467,6 +505,13 @@ const CampaignManagementPage: React.FC = () => {
           priority: 1,
           status: 'DRAFT',
           budgetCurrency: 'USD',
+          dialMethod: 'MANUAL_DIAL',
+          dialSpeed: 60,
+          isActive: false,
+          agentCount: 0,
+          predictiveDialingEnabled: false,
+          maxConcurrentCalls: 10,
+          assignedDataListIds: [],
         });
         fetchData();
       }
@@ -793,6 +838,58 @@ const CampaignManagementPage: React.FC = () => {
                       <SelectItem value="5">Low (5)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="dataLists">Assign Data Lists</Label>
+                  <Select
+                    value=""
+                    onValueChange={(value: string) => {
+                      const currentIds = campaignForm.assignedDataListIds || [];
+                      if (!currentIds.includes(value)) {
+                        setCampaignForm({ 
+                          ...campaignForm, 
+                          assignedDataListIds: [...currentIds, value] 
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select data lists to assign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dataLists.filter(list => !list.campaignId).map((list) => (
+                        <SelectItem key={list.id} value={list.listId}>
+                          {list.name} ({list.totalContacts} contacts)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {campaignForm.assignedDataListIds && campaignForm.assignedDataListIds.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-sm text-gray-500">Assigned Lists:</div>
+                      {campaignForm.assignedDataListIds.map((listId) => {
+                        const list = dataLists.find(l => l.listId === listId);
+                        return list ? (
+                          <div key={listId} className="flex items-center justify-between text-sm bg-gray-100 px-2 py-1 rounded">
+                            <span>{list.name} ({list.totalContacts} contacts)</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => {
+                                setCampaignForm({
+                                  ...campaignForm,
+                                  assignedDataListIds: campaignForm.assignedDataListIds?.filter(id => id !== listId)
+                                });
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="budget">Budget</Label>
