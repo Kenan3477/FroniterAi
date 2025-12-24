@@ -162,6 +162,7 @@ const CampaignManagementPage: React.FC = () => {
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
   const [stats, setStats] = useState<CampaignStats | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<ManagementCampaign | null>(null);
+  const [inboundNumbers, setInboundNumbers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -366,15 +367,17 @@ const CampaignManagementPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [campaignsResponse, templatesResponse, statsResponse] = await Promise.all([
+      const [campaignsResponse, templatesResponse, statsResponse, inboundNumbersResponse] = await Promise.all([
         fetch('/api/admin/campaign-management/campaigns'),
         fetch('/api/admin/campaign-management/templates'),
-        fetch('/api/admin/campaign-management/stats')
+        fetch('/api/admin/campaign-management/stats'),
+        fetch('/api/voice/inbound-numbers')
       ]);
 
       const campaignsData = await campaignsResponse.json();
       const templatesData = await templatesResponse.json();
       const statsData = await statsResponse.json();
+      const inboundNumbersData = await inboundNumbersResponse.json();
 
       // Add default dial queue properties to campaigns
       const campaignsWithDialQueue = (campaignsData.data?.campaigns || []).map((campaign: ManagementCampaign) => ({
@@ -390,6 +393,7 @@ const CampaignManagementPage: React.FC = () => {
       setCampaigns(campaignsWithDialQueue);
       setTemplates(templatesData.data?.templates || []);
       setStats(statsData.data || statsData);
+      setInboundNumbers(inboundNumbersData.data || []);
     } catch (err) {
       setError('Failed to fetch campaign management data');
       console.error('Error fetching data:', err);
@@ -746,10 +750,11 @@ const CampaignManagementPage: React.FC = () => {
                       <SelectValue placeholder="Select outbound number" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="+442046343130">+44 20 4634 3130 (UK Local)</SelectItem>
-                      <SelectItem value="+15551234567">+1 555 123 4567 (US Toll-Free)</SelectItem>
-                      <SelectItem value="+447700900123">+44 77 0090 0123 (UK Mobile)</SelectItem>
-                      <SelectItem value="+14155552456">+1 415 555 2456 (US Local)</SelectItem>
+                      {inboundNumbers.map((number) => (
+                        <SelectItem key={number.id} value={number.phoneNumber}>
+                          {number.phoneNumber} ({number.displayName})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

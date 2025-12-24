@@ -1,7 +1,9 @@
 import express from 'express';
 import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
 interface InboundNumber {
   id: string;
@@ -20,8 +22,41 @@ interface InboundNumber {
 // GET /api/voice/inbound-numbers - Get available inbound numbers for CLI selection
 router.get('/inbound-numbers', async (req: Request, res: Response) => {
   try {
-    // For now, return hardcoded numbers until database migration is complete
-    const inboundNumbers: InboundNumber[] = [
+    // Fetch active inbound numbers from database
+    const inboundNumbers = await prisma.inboundNumber.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: [
+        { country: 'asc' },
+        { numberType: 'asc' },
+        { phoneNumber: 'asc' }
+      ]
+    });
+
+    // Parse capabilities field (stored as JSON string) and transform for response
+    const transformedNumbers = inboundNumbers.map((number: any) => ({
+      id: number.id,
+      phoneNumber: number.phoneNumber,
+      displayName: number.displayName,
+      country: number.country,
+      region: number.region,
+      numberType: number.numberType,
+      provider: number.provider,
+      capabilities: number.capabilities ? JSON.parse(number.capabilities) : [],
+      isActive: number.isActive
+    }));
+
+    res.json({
+      success: true,
+      data: transformedNumbers
+    });
+
+  } catch (error) {
+    console.error('Error fetching inbound numbers:', error);
+    
+    // Fallback to hardcoded numbers if database query fails
+    const fallbackNumbers: InboundNumber[] = [
       {
         id: 'fallback-1',
         phoneNumber: '+442046343130',
@@ -78,7 +113,7 @@ router.get('/inbound-numbers', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: inboundNumbers.map(number => ({
+      data: fallbackNumbers.map(number => ({
         id: number.id,
         phoneNumber: number.phoneNumber,
         displayName: number.displayName,
@@ -88,13 +123,6 @@ router.get('/inbound-numbers', async (req: Request, res: Response) => {
         provider: number.provider,
         capabilities: number.capabilities
       }))
-    });
-
-  } catch (error) {
-    console.error('Error fetching inbound numbers:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch inbound numbers'
     });
   }
 });
