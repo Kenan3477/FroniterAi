@@ -965,4 +965,112 @@ router.post('/campaigns/:id/dial-next', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/admin/campaign-management/campaigns/:campaignId/queue
+router.get('/campaigns/:campaignId/queue', async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const { status, limit = '50' } = req.query;
+
+    // Build where clause for filtering
+    const where: any = { campaignId };
+    if (status) {
+      where.status = status;
+    }
+
+    // Fetch queue entries with related contact and list data
+    const queueEntries = await prisma.dialQueueEntry.findMany({
+      where,
+      include: {
+        contact: {
+          select: {
+            id: true,
+            contactId: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+            phone: true,
+            mobile: true,
+            workPhone: true,
+            homePhone: true,
+            email: true,
+            company: true,
+            jobTitle: true,
+            status: true,
+            attemptCount: true,
+            maxAttempts: true,
+            lastOutcome: true,
+            lastAttempt: true,
+            nextAttempt: true,
+            locked: true,
+            lockedBy: true
+          }
+        },
+        list: {
+          select: {
+            id: true,
+            listId: true,
+            name: true
+          }
+        }
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { queuedAt: 'asc' }
+      ],
+      take: parseInt(limit as string)
+    });
+
+    // Calculate queue statistics
+    const stats = await prisma.dialQueueEntry.aggregate({
+      where: { campaignId },
+      _count: {
+        id: true
+      }
+    });
+
+    const statusBreakdown = await prisma.dialQueueEntry.groupBy({
+      by: ['status'],
+      where: { campaignId },
+      _count: {
+        id: true
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        queueEntries: queueEntries.map(entry => ({
+          id: entry.id,
+          queueId: entry.queueId,
+          campaignId: entry.campaignId,
+          contact: entry.contact,
+          list: entry.list,
+          status: entry.status,
+          assignedAgentId: entry.assignedAgentId,
+          priority: entry.priority,
+          queuedAt: entry.queuedAt,
+          dialedAt: entry.dialedAt,
+          completedAt: entry.completedAt,
+          outcome: entry.outcome,
+          notes: entry.notes
+        })),
+        stats: {
+          total: stats._count.id,
+          statusBreakdown: statusBreakdown.reduce((acc, item) => {
+            acc[item.status] = item._count.id;
+            return acc;
+          }, {} as Record<string, number>)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching campaign queue:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch campaign queue' }
+    });
+  }
+});
+
 export default router;

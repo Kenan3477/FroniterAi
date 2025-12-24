@@ -163,6 +163,8 @@ const CampaignManagementPage: React.FC = () => {
   const [stats, setStats] = useState<CampaignStats | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<ManagementCampaign | null>(null);
   const [inboundNumbers, setInboundNumbers] = useState<any[]>([]);
+  const [queueEntries, setQueueEntries] = useState<any[]>([]);
+  const [queueStats, setQueueStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -205,6 +207,22 @@ const CampaignManagementPage: React.FC = () => {
   });
 
   // Dial Queue Handlers
+  const fetchCampaignQueue = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/queue`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setQueueEntries(data.data.queueEntries);
+        setQueueStats(data.data.stats);
+      } else {
+        console.error('Failed to fetch queue data:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching campaign queue:', error);
+    }
+  };
+
   const handleDialMethodChange = async (campaignId: string, dialMethod: ManagementCampaign['dialMethod']) => {
     try {
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
@@ -972,7 +990,9 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">Pending Calls</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">1,247</div>
+                    <div className="text-2xl font-bold">
+                      {queueStats?.statusBreakdown?.queued || 0}
+                    </div>
                     <div className="text-xs text-gray-500">awaiting dial</div>
                   </CardContent>
                 </Card>
@@ -981,7 +1001,9 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">Active Calls</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">23</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {queueStats?.statusBreakdown?.dialing || 0}
+                    </div>
                     <div className="text-xs text-gray-500">in progress</div>
                   </CardContent>
                 </Card>
@@ -990,7 +1012,9 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">Completed Today</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">486</div>
+                    <div className="text-2xl font-bold">
+                      {queueStats?.statusBreakdown?.completed || 0}
+                    </div>
                     <div className="text-xs text-gray-500">finished calls</div>
                   </CardContent>
                 </Card>
@@ -1024,53 +1048,75 @@ const CampaignManagementPage: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {/* Sample queue items - replace with real data */}
-                      <TableRow>
-                        <TableCell>John Smith</TableCell>
-                        <TableCell>+44 20 7123 4567</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">High</Badge>
-                        </TableCell>
-                        <TableCell>2/3</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>14:30 Today</div>
-                            <div className="text-gray-500 text-xs">in 2 hours</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">Queued</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="outline">
-                            <Phone className="w-3 h-3 mr-1" />
-                            Call Now
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sarah Johnson</TableCell>
-                        <TableCell>+44 161 234 5678</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Medium</Badge>
-                        </TableCell>
-                        <TableCell>1/3</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>15:15 Today</div>
-                            <div className="text-gray-500 text-xs">in 3 hours</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">Queued</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="outline">
-                            <Phone className="w-3 h-3 mr-1" />
-                            Call Now
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      {queueEntries.length > 0 ? (
+                        queueEntries.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell>
+                              {entry.contact.fullName || `${entry.contact.firstName} ${entry.contact.lastName}`}
+                            </TableCell>
+                            <TableCell>{entry.contact.phone}</TableCell>
+                            <TableCell>
+                              <Badge variant={entry.priority > 200 ? "default" : entry.priority > 100 ? "secondary" : "outline"}>
+                                {entry.priority > 200 ? "High" : entry.priority > 100 ? "Medium" : "Low"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {entry.contact.attemptCount}/{entry.contact.maxAttempts}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {entry.contact.nextAttempt ? (
+                                  <>
+                                    <div>{new Date(entry.contact.nextAttempt).toLocaleDateString()}</div>
+                                    <div className="text-gray-500 text-xs">
+                                      {new Date(entry.contact.nextAttempt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-gray-500">Not scheduled</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                entry.status === 'queued' ? "secondary" :
+                                entry.status === 'dialing' ? "default" :
+                                entry.status === 'completed' ? "outline" : "destructive"
+                              }>
+                                {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {entry.status === 'queued' && (
+                                <Button size="sm" variant="outline">
+                                  <Phone className="w-3 h-3 mr-1" />
+                                  Call Now
+                                </Button>
+                              )}
+                              {entry.status === 'completed' && entry.outcome && (
+                                <div className="text-xs text-gray-500">
+                                  {entry.outcome}
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                            {selectedCampaign ? (
+                              <>
+                                <div className="mb-2">No queue entries found for this campaign</div>
+                                <div className="text-sm">
+                                  Queue entries are created when data lists are assigned to campaigns
+                                </div>
+                              </>
+                            ) : (
+                              'No campaign selected'
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -1245,6 +1291,7 @@ const CampaignManagementPage: React.FC = () => {
                                 onClick={() => {
                                   setSelectedCampaign(campaign);
                                   setIsQueueViewDialogOpen(true);
+                                  fetchCampaignQueue(campaign.id);
                                 }}
                                 className="h-6"
                                 title="View Outbound Queue"
