@@ -15,7 +15,7 @@ async function main() {
       region: 'London',
       numberType: 'LOCAL',
       provider: 'TWILIO',
-      capabilities: ['VOICE', 'SMS']
+      capabilities: JSON.stringify(['VOICE', 'SMS'])
     },
     {
       id: 'us-toll-free',
@@ -25,7 +25,7 @@ async function main() {
       region: 'National',
       numberType: 'TOLL_FREE',
       provider: 'TWILIO',
-      capabilities: ['VOICE', 'SMS']
+      capabilities: JSON.stringify(['VOICE', 'SMS'])
     },
     {
       id: 'uk-mobile',
@@ -35,7 +35,7 @@ async function main() {
       region: 'National',
       numberType: 'MOBILE',
       provider: 'TWILIO',
-      capabilities: ['VOICE', 'SMS', 'MMS']
+      capabilities: JSON.stringify(['VOICE', 'SMS', 'MMS'])
     },
     {
       id: 'us-local-sf',
@@ -45,7 +45,7 @@ async function main() {
       region: 'San Francisco',
       numberType: 'LOCAL',
       provider: 'TWILIO',
-      capabilities: ['VOICE', 'SMS']
+      capabilities: JSON.stringify(['VOICE', 'SMS'])
     }
   ];
 
