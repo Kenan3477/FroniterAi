@@ -36,8 +36,10 @@ import callRecordsRoutes from './routes/callRecords'; // Production call records
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
 // import campaignManagementRoutes from './routes/campaignManagement'; // DISABLED - schema conflicts
 import campaignManagementRoutes from './routes/campaignManagement'; // RE-ENABLED - Fixed with proper Prisma integration
-// import businessSettingsRoutes from './routes/businessSettings'; // DISABLED - schema conflicts
+import businessSettingsRoutes from './routes/businessSettings'; // RE-ENABLED - Needed for frontend business settings
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
+import callsRoutes from './routes/callsRoutes'; // TwiML and call management routes
+import adminSetupRoutes from './routes/adminSetup'; // Admin setup for initial user creation
 // import callsRoutes from './routes/callsRoutes'; // SIP call control system - DISABLED due to schema conflicts
 import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
 import productionDialerRoutes from './routes/productionDialerRoutes'; // PRODUCTION: Real Twilio SIP integration
@@ -154,6 +156,7 @@ class App {
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // DISABLED - schema conflicts
     this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // RE-ENABLED - Fixed with proper Prisma integration
+    this.app.use('/api/admin/business-settings', businessSettingsRoutes); // RE-ENABLED - Needed for frontend business settings
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts
@@ -161,7 +164,8 @@ class App {
     // this.app.use('/api/interactions', interactionRoutes); // Disabled - model not in schema
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
-    // this.app.use('/api/calls', callsRoutes); // SIP call control system - DISABLED to avoid conflict
+    this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
+    this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection

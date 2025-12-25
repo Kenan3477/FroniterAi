@@ -2,6 +2,7 @@ import express from 'express';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { campaignEvents, agentEvents } from '../utils/eventHelpers';
+import { createRestApiCall } from '../services/twilioService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -1116,5 +1117,360 @@ router.get('/campaigns/:campaignId/queue', async (req: Request, res: Response) =
     });
   }
 });
+
+// POST /api/admin/campaign-management/campaigns/:campaignId/queue/:queueId/call
+router.post('/campaigns/:campaignId/queue/:queueId/call', async (req: Request, res: Response) => {
+  try {
+    const { campaignId, queueId } = req.params;
+    const { agentId, agentNumber } = req.body;
+
+    // Find the queue entry with contact details
+    const queueEntry = await prisma.dialQueueEntry.findFirst({
+      where: {
+        queueId: queueId,
+        campaignId: campaignId,
+        status: 'queued'
+      },
+      include: {
+        contact: true,
+        list: true
+      }
+    });
+
+    if (!queueEntry) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Queue entry not found or already processed' }
+      });
+    }
+
+    // Find the campaign to get CLI number
+    const campaign = await prisma.campaign.findFirst({
+      where: { campaignId: campaignId }
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    // Use campaign's outbound number or default
+    const fromNumber = campaign.outboundNumber || '+442046343130';
+    const toNumber = queueEntry.contact.phone;
+
+    // Update queue entry to dialing status
+    await prisma.dialQueueEntry.update({
+      where: { id: queueEntry.id },
+      data: {
+        status: 'dialing',
+        assignedAgentId: agentId,
+        dialedAt: new Date()
+      }
+    });
+
+    // Update contact attempt count
+    await prisma.contact.update({
+      where: { id: queueEntry.contact.id },
+      data: {
+        attemptCount: queueEntry.contact.attemptCount + 1,
+        lastAttempt: new Date(),
+        lastAgentId: agentId,
+        locked: true,
+        lockedBy: agentId,
+        lockedAt: new Date()
+      }
+    });
+
+    try {
+      // Make the actual Twilio call
+      const twilioCall = await createRestApiCall({
+        to: toNumber,
+        from: fromNumber,
+        url: `${process.env.BACKEND_URL || 'https://superb-imagination-production.up.railway.app'}/api/calls-twiml/twiml-outbound?queueId=${queueId}&campaignId=${campaignId}`,
+        agentNumber: agentNumber
+      });
+
+      // Create call record
+      const callRecord = await prisma.callRecord.create({
+        data: {
+          callId: `call_${Date.now()}_${queueEntry.id}`,
+          contactId: queueEntry.contact.contactId,
+          campaignId: campaignId,
+          agentId: agentId,
+          phoneNumber: toNumber,
+          callType: 'outbound',
+          startTime: new Date(),
+          outcome: 'initiated',
+          notes: `Twilio call initiated via REST API - SID: ${Array.isArray(twilioCall) ? twilioCall[0]?.sid : twilioCall.sid}`
+        }
+      });
+
+      res.json({
+        success: true,
+        data: {
+          callRecord,
+          queueEntry,
+          contact: queueEntry.contact,
+          twilioCallSid: Array.isArray(twilioCall) ? twilioCall[0]?.sid : twilioCall.sid,
+          message: `Successfully initiated call to ${toNumber} from ${fromNumber}`
+        }
+      });
+
+    } catch (twilioError) {
+      // Revert queue entry status if Twilio call failed
+      await prisma.dialQueueEntry.update({
+        where: { id: queueEntry.id },
+        data: {
+          status: 'failed',
+          outcome: 'twilio_error',
+          completedAt: new Date(),
+          notes: `Twilio error: ${twilioError}`
+        }
+      });
+
+      // Unlock contact
+      await prisma.contact.update({
+        where: { id: queueEntry.contact.id },
+        data: {
+          locked: false,
+          lockedBy: null,
+          lockedAt: null,
+          lastOutcome: 'failed'
+        }
+      });
+
+      return res.status(500).json({
+        success: false,
+        error: { message: `Failed to initiate call: ${twilioError}` }
+      });
+    }
+
+  } catch (error) {
+    console.error('Error initiating manual call:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error initiating call' }
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/campaigns/:campaignId/auto-dial - Start auto-dialing for campaign
+router.post('/campaigns/:campaignId/auto-dial', async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId: campaignId }
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+
+    if (campaign.status !== 'ACTIVE') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Campaign must be active to start auto-dialing' }
+      });
+    }
+
+    // Update campaign to AUTODIAL mode
+    await prisma.campaign.update({
+      where: { campaignId: campaignId },
+      data: { dialMethod: 'AUTODIAL', status: 'RUNNING' }
+    });
+
+    // Get available contacts from existing queue entries or create from contact lists
+    // For now, let's use existing contacts that are unlocked
+    const availableContacts = await prisma.contact.findMany({
+      where: {
+        locked: false,
+        OR: [
+          { lastOutcome: null },
+          { lastOutcome: { notIn: ['completed', 'answered'] } }
+        ]
+      },
+      take: 10, // Limit initial batch size
+      orderBy: { createdAt: 'asc' }
+    });
+
+    if (availableContacts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'No available contacts for auto-dialing' }
+      });
+    }
+
+    // Create queue entries for auto-dialing
+    const queueEntries = await Promise.all(
+      availableContacts.map(async (contact) => {
+        // Lock the contact
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: {
+            locked: true,
+            lockedBy: 'AUTO_DIALER',
+            lockedAt: new Date(),
+            attemptCount: { increment: 1 }
+          }
+        });
+
+        // Create queue entry
+        return await prisma.dialQueueEntry.create({
+          data: {
+            queueId: `auto_${campaignId}_${contact.id}_${Date.now()}`,
+            contactId: contact.contactId,
+            campaignId: campaignId,
+            listId: contact.listId,
+            priority: 1,
+            status: 'pending'
+          }
+        });
+      })
+    );
+
+    console.log(`🚀 Auto-dialing started for campaign ${campaignId} with ${queueEntries.length} contacts`);
+
+    // Start auto-dialing process (fire and forget)
+    setTimeout(async () => {
+      await processAutoDialQueue(campaignId);
+    }, 1000);
+
+    res.json({
+      success: true,
+      data: {
+        campaignId,
+        queuedContacts: queueEntries.length,
+        status: 'AUTODIAL_STARTED',
+        message: 'Auto-dialing started successfully'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error starting auto-dial:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to start auto-dialing' }
+    });
+  }
+});
+
+// AUTO-DIALING PROCESS FUNCTION
+async function processAutoDialQueue(campaignId: string) {
+  console.log(`📞 Processing auto-dial queue for campaign ${campaignId}`);
+  
+  try {
+    // Get campaign details first
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId: campaignId },
+      select: {
+        id: true,
+        campaignId: true,
+        outboundNumber: true,
+        status: true
+      }
+    });
+
+    if (!campaign) {
+      console.error(`Campaign ${campaignId} not found`);
+      return;
+    }
+
+    // Get pending queue entries for this campaign
+    const pendingEntries = await prisma.dialQueueEntry.findMany({
+      where: {
+        campaignId: campaignId,
+        status: 'pending'
+      },
+      include: {
+        contact: true
+      },
+      orderBy: { queuedAt: 'asc' },
+      take: 5 // Process in batches
+    });
+
+    for (const queueEntry of pendingEntries) {
+      try {
+        // Update status to dialing
+        await prisma.dialQueueEntry.update({
+          where: { id: queueEntry.id },
+          data: { status: 'dialing', dialedAt: new Date() }
+        });
+
+        // Make Twilio call - note: using correct field name 'phone' for Contact model
+        const twilioCall = await createRestApiCall({
+          to: queueEntry.contact.phone,
+          from: campaign.outboundNumber || '+442046343130',
+          url: `${process.env.BACKEND_URL || 'https://superb-imagination-production.up.railway.app'}/api/calls-twiml/twiml-outbound?queueId=${queueEntry.queueId}&campaignId=${campaignId}`,
+        });
+
+        // Create call record
+        await prisma.callRecord.create({
+          data: {
+            callId: `auto_${Date.now()}_${queueEntry.id}`,
+            contactId: queueEntry.contact.contactId,
+            campaignId: campaignId,
+            agentId: null, // No agent for auto-dial initially
+            phoneNumber: queueEntry.contact.phone,
+            callType: 'outbound',
+            startTime: new Date(),
+            outcome: 'initiated',
+            notes: `Auto-dial initiated - SID: ${Array.isArray(twilioCall) ? twilioCall[0]?.sid : twilioCall.sid}`
+          }
+        });
+
+        console.log(`📞 Auto-dial call initiated: ${queueEntry.contact.phone}`);
+        
+        // Wait between calls (pacing)
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+
+      } catch (callError) {
+        console.error(`Error making auto-dial call for queue ${queueEntry.queueId}:`, callError);
+        
+        // Mark queue entry as failed
+        await prisma.dialQueueEntry.update({
+          where: { id: queueEntry.id },
+          data: { status: 'failed', outcome: 'call_failed' }
+        });
+
+        // Unlock contact
+        await prisma.contact.update({
+          where: { id: queueEntry.contact.id },
+          data: {
+            locked: false,
+            lockedBy: null,
+            lockedAt: null,
+            lastOutcome: 'failed'
+          }
+        });
+      }
+    }
+
+    // Continue processing if there are more pending entries
+    const remainingEntries = await prisma.dialQueueEntry.count({
+      where: {
+        campaignId: campaignId,
+        status: 'pending'
+      }
+    });
+
+    if (remainingEntries > 0) {
+      // Schedule next batch
+      setTimeout(async () => {
+        await processAutoDialQueue(campaignId);
+      }, 10000); // 10 second delay between batches
+    } else {
+      console.log(`✅ Auto-dial queue processing complete for campaign ${campaignId}`);
+    }
+
+  } catch (error) {
+    console.error(`Error processing auto-dial queue for campaign ${campaignId}:`, error);
+  }
+}
 
 export default router;

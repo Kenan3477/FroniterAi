@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc && npx prisma generate",
-    "start": "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/index.js",
+    "start": "npx prisma db push && npx tsx prisma/seed.ts && node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
@@ -49,6 +49,9 @@
     "winston": "^3.19.0",
     "ws": "^8.16.0",
     "zod": "^3.25.76"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

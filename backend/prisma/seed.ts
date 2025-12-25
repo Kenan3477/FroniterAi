@@ -1,9 +1,67 @@
 import { PrismaClient } from '@prisma/client';
+import bcryptjs from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding inbound numbers...');
+  console.log('🌱 Seeding database...');
+
+  // Create initial users first
+  console.log('👥 Creating initial users...');
+  
+  const users = [
+    {
+      username: 'admin',
+      email: 'admin@omnivox-ai.com',
+      password: 'OmnivoxAdmin2025!',
+      role: 'ADMIN',
+      firstName: 'System',
+      lastName: 'Administrator'
+    },
+    {
+      username: 'agent',
+      email: 'agent@omnivox-ai.com',
+      password: 'OmnivoxAgent2025!',
+      role: 'AGENT',
+      firstName: 'Demo',
+      lastName: 'Agent'
+    },
+    {
+      username: 'supervisor',
+      email: 'supervisor@omnivox-ai.com',
+      password: 'OmnivoxSupervisor2025!',
+      role: 'SUPERVISOR',
+      firstName: 'Demo',
+      lastName: 'Supervisor'
+    }
+  ];
+
+  for (const user of users) {
+    const hashedPassword = await bcryptjs.hash(user.password, 12);
+    const fullName = `${user.firstName} ${user.lastName}`;
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: {
+        password: hashedPassword,
+        role: user.role as any,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: fullName
+      },
+      create: {
+        username: user.username,
+        email: user.email,
+        password: hashedPassword,
+        role: user.role as any,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: fullName
+      }
+    });
+    console.log(`✅ Created/updated user: ${user.email}`);
+  }
+
+  console.log('📞 Seeding inbound numbers...');
 
   // Create inbound numbers
   const inboundNumbers = [
