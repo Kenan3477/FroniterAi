@@ -314,6 +314,63 @@ const CampaignManagementPage: React.FC = () => {
     }
   };
 
+  // Call Management Handlers
+  const handleCallNow = async (campaignId: string, queueId: string, entryId: string) => {
+    try {
+      setIsQueueViewDialogOpen(false); // Close dialog to show call in progress
+      
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/queue/${queueId}/call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: 'agent_001', // TODO: Get from auth context
+          agentNumber: '+442046343130' // TODO: Get from user preferences or config
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('📞 Call initiated successfully:', data.data);
+        // Refresh queue data to show updated status
+        fetchCampaignQueue(campaignId);
+      } else {
+        console.error('Failed to initiate call:', data.error);
+        alert(`Failed to initiate call: ${data.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      alert('Error initiating call. Please try again.');
+    }
+  };
+
+  const handleStartAutoDial = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/auto-dial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('🚀 Auto-dial started:', data.data);
+        alert(`Auto-dial started successfully! ${data.data.queuedContacts} contacts queued for dialing.`);
+        
+        // Update campaign status to show auto-dial is running
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId ? { ...c, dialMethod: 'AUTODIAL' as const, status: 'ACTIVE' as const } : c
+        ));
+      } else {
+        console.error('Failed to start auto-dial:', data.error);
+        alert(`Failed to start auto-dial: ${data.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error starting auto-dial:', error);
+      alert('Error starting auto-dial. Please try again.');
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -840,6 +897,37 @@ const CampaignManagementPage: React.FC = () => {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="dialMethod">Dial Method *</Label>
+                  <Select
+                    value={campaignForm.dialMethod}
+                    onValueChange={(value: string) => setCampaignForm({ ...campaignForm, dialMethod: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select dial method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MANUAL_DIAL">Manual Dial</SelectItem>
+                      <SelectItem value="MANUAL_PREVIEW">Manual Preview</SelectItem>
+                      <SelectItem value="AUTODIAL">Auto Dial</SelectItem>
+                      <SelectItem value="SKIP">Skip</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {campaignForm.dialMethod === 'AUTODIAL' && (
+                  <div>
+                    <Label htmlFor="dialSpeed">Dial Speed (Calls/Minute)</Label>
+                    <Input
+                      id="dialSpeed"
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={campaignForm.dialSpeed || ''}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, dialSpeed: parseInt(e.target.value) || 1 })}
+                      placeholder="10"
+                    />
+                  </div>
+                )}
+                <div>
                   <Label htmlFor="dataLists">Assign Data Lists</Label>
                   <Select
                     value=""
@@ -1185,7 +1273,12 @@ const CampaignManagementPage: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               {entry.status === 'queued' && (
-                                <Button size="sm" variant="outline">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleCallNow(selectedCampaign?.id || '', entry.queueId, entry.id)}
+                                  disabled={!selectedCampaign}
+                                >
                                   <Phone className="w-3 h-3 mr-1" />
                                   Call Now
                                 </Button>
@@ -1200,7 +1293,7 @@ const CampaignManagementPage: React.FC = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                          <TableCell className="text-center text-gray-500 py-8">
                             {selectedCampaign ? (
                               <>
                                 <div className="mb-2">No queue entries found for this campaign</div>
@@ -1396,6 +1489,19 @@ const CampaignManagementPage: React.FC = () => {
                                 <Target className="w-3 h-3 mr-1" />
                                 Queue
                               </Button>
+                              {campaign.status === 'ACTIVE' && (
+                                <Button 
+                                  size="sm" 
+                                  variant={campaign.dialMethod === 'AUTODIAL' ? "default" : "secondary"}
+                                  onClick={() => handleStartAutoDial(campaign.id)}
+                                  className="h-6"
+                                  title="Start Auto-Dialing"
+                                  disabled={!campaign.isActive}
+                                >
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  Auto-Dial
+                                </Button>
+                              )}
                             </div>
                             {campaign.dialMethod === 'AUTODIAL' && (
                               <div className="flex items-center gap-1">
