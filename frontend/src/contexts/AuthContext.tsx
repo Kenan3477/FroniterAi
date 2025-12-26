@@ -85,49 +85,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshCampaigns = async () => {
     try {
-      if (!user) return;
+      if (!user?.id) {
+        console.log('❌ No user ID available for campaign fetch');
+        setAvailableCampaigns([]);
+        return;
+      }
+
+      console.log('🔍 Fetching user-assigned campaigns...');
       
-      // Use the same endpoint as the campaign management page
-      const response = await fetch('/api/admin/campaign-management/campaigns', {
+      // Fetch user-assigned campaigns instead of all active campaigns
+      const response = await fetch(`/api/admin/users/${user.id}/campaigns`, {
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+        }
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Transform the admin campaign format to the dropdown format
-        const campaigns = data.data?.campaigns || data.campaigns || [];
+        console.log('📋 User campaign assignments:', data);
         
-        // Filter out mock/demo campaigns that users shouldn't see
-        const mockCampaignIds = ['campaign_001', 'campaign_002', 'campaign_test'];
-        const mockCampaignNames = ['Q4_Sales_Outreach', 'Customer_Satisfaction_Survey', 'Test_Campaign'];
-        
-        const realCampaigns = campaigns.filter((campaign: any) => {
-          // Exclude mock campaigns by their IDs or names
-          return !mockCampaignIds.includes(campaign.id) && 
-                 !mockCampaignNames.includes(campaign.name);
-        });
-        
-        const transformedCampaigns = realCampaigns.map((campaign: any) => ({
-          campaignId: campaign.id,
-          name: campaign.displayName || campaign.name,
-          description: campaign.description,
-          status: campaign.status?.toLowerCase()
-        }));
-        
-        setAvailableCampaigns(transformedCampaigns);
-        
-        // Clear current campaign if it's a mock campaign
-        if (currentCampaign && mockCampaignIds.includes(currentCampaign.campaignId)) {
-          setCurrentCampaign(null);
+        if (data.success && data.data?.assignments) {
+          // Filter to only active campaigns from user assignments
+          const activeCampaigns = data.data.assignments
+            .filter((assignment: any) => assignment.campaignStatus === 'Active')
+            .map((assignment: any) => ({
+              campaignId: assignment.campaignId,
+              name: assignment.campaignName,
+              displayName: assignment.campaignName,
+              type: 'OUTBOUND', // Default type
+              dialMethod: assignment.dialMethod || 'MANUAL_DIAL',
+              status: assignment.campaignStatus
+            }));
+
+          console.log('✅ Active user-assigned campaigns:', activeCampaigns);
+          setAvailableCampaigns(activeCampaigns);
+        } else {
+          console.log('📭 No campaign assignments found');
+          setAvailableCampaigns([]);
         }
-        
-        // Auto-select first campaign if none selected and campaigns available
-        if (!currentCampaign && transformedCampaigns.length > 0) {
-          setCurrentCampaign(transformedCampaigns[0]);
-        }
+      } else {
+        console.error('❌ Failed to fetch user campaigns:', response.status);
+        setAvailableCampaigns([]);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
+      console.error('❌ Error fetching user campaigns:', error);
+      setAvailableCampaigns([]);
     }
   };
 
