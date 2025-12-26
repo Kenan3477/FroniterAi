@@ -270,6 +270,151 @@ export async function getUserStats() {
   };
 }
 
+/**
+ * Get campaigns assigned to a user
+ */
+async function getUserCampaigns(userId: number) {
+  const assignments = await prisma.userCampaignAssignment.findMany({
+    where: {
+      userId,
+      isActive: true
+    },
+    include: {
+      campaign: {
+        select: {
+          campaignId: true,
+          name: true,
+          status: true,
+          description: true,
+          dialMethod: true,
+          createdAt: true
+        }
+      }
+    }
+  });
+
+  return assignments.map(assignment => ({
+    id: assignment.campaign.campaignId,
+    campaignId: assignment.campaign.campaignId,
+    name: assignment.campaign.name,
+    status: assignment.campaign.status,
+    description: assignment.campaign.description,
+    dialMethod: assignment.campaign.dialMethod,
+    assignedAt: assignment.assignedAt,
+    createdAt: assignment.campaign.createdAt
+  }));
+}
+
+/**
+ * Assign a campaign to a user
+ */
+async function assignCampaignToUser(userId: number, campaignId: string, assignedBy?: number) {
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  });
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Check if campaign exists
+  const campaign = await prisma.campaign.findUnique({
+    where: { campaignId }
+  });
+  
+  if (!campaign) {
+    throw new Error('Campaign not found');
+  }
+
+  // Check if assignment already exists
+  const existingAssignment = await prisma.userCampaignAssignment.findUnique({
+    where: {
+      userId_campaignId: {
+        userId,
+        campaignId
+      }
+    }
+  });
+
+  if (existingAssignment) {
+    if (existingAssignment.isActive) {
+      throw new Error('User is already assigned to this campaign');
+    } else {
+      // Reactivate existing assignment
+      return await prisma.userCampaignAssignment.update({
+        where: { id: existingAssignment.id },
+        data: {
+          isActive: true,
+          assignedAt: new Date(),
+          assignedBy
+        }
+      });
+    }
+  }
+
+  // Create new assignment
+  return await prisma.userCampaignAssignment.create({
+    data: {
+      userId,
+      campaignId,
+      assignedBy,
+      isActive: true
+    }
+  });
+}
+
+/**
+ * Unassign a campaign from a user
+ */
+async function unassignCampaignFromUser(userId: number, campaignId: string) {
+  const assignment = await prisma.userCampaignAssignment.findUnique({
+    where: {
+      userId_campaignId: {
+        userId,
+        campaignId
+      }
+    }
+  });
+
+  if (!assignment) {
+    throw new Error('Campaign assignment not found');
+  }
+
+  // Soft delete by setting isActive to false
+  await prisma.userCampaignAssignment.update({
+    where: { id: assignment.id },
+    data: { isActive: false }
+  });
+}
+
+/**
+ * Get all available campaigns for assignment
+ */
+async function getAvailableCampaigns() {
+  return await prisma.campaign.findMany({
+    select: {
+      campaignId: true,
+      name: true,
+      status: true,
+      description: true,
+      dialMethod: true,
+      createdAt: true,
+      _count: {
+        select: {
+          userAssignments: {
+            where: { isActive: true }
+          }
+        }
+      }
+    },
+    orderBy: [
+      { status: 'asc' },
+      { name: 'asc' }
+    ]
+  });
+}
+
 export default {
   createUser,
   updateUser,
@@ -278,5 +423,9 @@ export default {
   getUserStats,
   generateSecurePassword,
   hashPassword,
-  verifyPassword
+  verifyPassword,
+  getUserCampaigns,
+  assignCampaignToUser,
+  unassignCampaignFromUser,
+  getAvailableCampaigns
 };

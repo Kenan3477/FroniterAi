@@ -1473,4 +1473,196 @@ async function processAutoDialQueue(campaignId: string) {
   }
 }
 
+// PATCH /api/admin/campaign-management/campaigns/:id/activate
+router.patch('/campaigns/:id/activate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    console.log(`🔄 ${isActive ? 'Activating' : 'Deactivating'} campaign ${id}`);
+
+    const campaign = await prisma.campaign.update({
+      where: { campaignId: id },
+      data: { 
+        isActive: isActive,
+        status: isActive ? 'Active' : 'Inactive',
+        updatedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Campaign ${id} ${isActive ? 'activated' : 'deactivated'} successfully`);
+
+    res.json({
+      success: true,
+      data: campaign,
+      message: `Campaign ${isActive ? 'activated' : 'deactivated'} successfully`
+    });
+
+  } catch (error: any) {
+    console.error('Error toggling campaign activation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle campaign activation',
+      error: error.message
+    });
+  }
+});
+
+// PATCH /api/admin/campaign-management/campaigns/:id/dial-method
+router.patch('/campaigns/:id/dial-method', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { dialMethod } = req.body;
+
+    console.log(`🔄 Updating dial method for campaign ${id} to ${dialMethod}`);
+
+    const campaign = await prisma.campaign.update({
+      where: { campaignId: id },
+      data: { 
+        dialMethod: dialMethod,
+        updatedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Campaign ${id} dial method updated to ${dialMethod}`);
+
+    res.json({
+      success: true,
+      data: campaign,
+      message: 'Dial method updated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error updating dial method:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update dial method',
+      error: error.message
+    });
+  }
+});
+
+// PATCH /api/admin/campaign-management/campaigns/:id/dial-speed
+router.patch('/campaigns/:id/dial-speed', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { speed } = req.body;
+
+    console.log(`🔄 Updating dial speed for campaign ${id} to ${speed}`);
+
+    const campaign = await prisma.campaign.update({
+      where: { campaignId: id },
+      data: { 
+        speed: parseFloat(speed),
+        updatedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Campaign ${id} dial speed updated to ${speed}`);
+
+    res.json({
+      success: true,
+      data: campaign,
+      message: 'Dial speed updated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error updating dial speed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update dial speed',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/campaigns/:id/join-agent
+router.post('/campaigns/:id/join-agent', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { agentId } = req.body;
+
+    console.log(`🔄 Adding agent ${agentId} to campaign ${id}`);
+
+    // Check if agent is already assigned to this campaign
+    const existingAssignment = await prisma.agentCampaignAssignment.findFirst({
+      where: {
+        agentId: agentId,
+        campaignId: id
+      }
+    });
+
+    if (existingAssignment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Agent is already assigned to this campaign'
+      });
+    }
+
+    // Create new agent assignment
+    const assignment = await prisma.agentCampaignAssignment.create({
+      data: {
+        agentId: agentId,
+        campaignId: id,
+        assignedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Agent ${agentId} joined campaign ${id}`);
+
+    res.json({
+      success: true,
+      data: assignment,
+      message: 'Agent joined campaign successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error joining agent to campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to join agent to campaign',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/admin/campaign-management/campaigns/:id/leave-agent
+router.delete('/campaigns/:id/leave-agent', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { agentId } = req.body;
+
+    console.log(`🔄 Removing agent ${agentId} from campaign ${id}`);
+
+    const result = await prisma.agentCampaignAssignment.deleteMany({
+      where: {
+        agentId: agentId,
+        campaignId: id
+      }
+    });
+
+    if (result.count === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agent assignment not found'
+      });
+    }
+
+    console.log(`✅ Agent ${agentId} left campaign ${id}`);
+
+    res.json({
+      success: true,
+      message: 'Agent left campaign successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error removing agent from campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove agent from campaign',
+      error: error.message
+    });
+  }
+});
+
 export default router;

@@ -116,6 +116,63 @@ async function main() {
     console.log(`✅ Created/updated inbound number: ${number.displayName}`);
   }
 
+  console.log('📈 Seeding campaigns...');
+
+  // Create sample campaigns
+  const campaigns = [
+    {
+      campaignId: 'DEMO-SALES-2025',
+      name: 'Demo Sales Campaign',
+      description: 'Demonstration sales campaign for lead generation',
+      dialMethod: 'Progressive',
+      status: 'Active',
+      speed: 2.0,
+      dropPercentage: 3.0,
+      recordCalls: true,
+      allowTransfers: true,
+      maxLines: 5,
+      dialRatio: 1.5,
+      isActive: true
+    },
+    {
+      campaignId: 'FOLLOW-UP-2025',
+      name: 'Follow-up Campaign',
+      description: 'Customer follow-up and retention campaign',
+      dialMethod: 'Preview',
+      status: 'Active',
+      speed: 1.0,
+      dropPercentage: 1.0,
+      recordCalls: true,
+      allowTransfers: false,
+      maxLines: 3,
+      dialRatio: 1.0,
+      isActive: true
+    },
+    {
+      campaignId: 'SURVEY-2025',
+      name: 'Customer Survey',
+      description: 'Customer satisfaction survey campaign',
+      dialMethod: 'Predictive',
+      status: 'Inactive',
+      speed: 3.0,
+      dropPercentage: 5.0,
+      recordCalls: false,
+      allowTransfers: false,
+      maxLines: 10,
+      dialRatio: 2.0,
+      isActive: false
+    }
+  ];
+
+  for (const campaign of campaigns) {
+    await prisma.campaign.upsert({
+      where: { campaignId: campaign.campaignId },
+      update: campaign,
+      create: campaign
+    });
+    console.log(`✅ Created/updated campaign: ${campaign.name}`);
+  }
+
   console.log('🌱 Seeding completed!');
 }
 

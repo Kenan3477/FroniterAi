@@ -234,4 +234,117 @@ router.post('/:id/reset-password', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/users/:userId/campaigns
+ * Get campaigns assigned to a user (Admin only)
+ */
+router.get('/:userId/campaigns', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const campaigns = await userManagementService.getUserCampaigns(parseInt(userId));
+    
+    res.json({
+      success: true,
+      data: campaigns
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching user campaigns:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user campaigns',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/users/:userId/campaigns
+ * Assign a campaign to a user (Admin only)
+ */
+router.post('/:userId/campaigns', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { campaignId } = req.body;
+    const assignedBy = req.user?.userId ? parseInt(req.user.userId) : undefined;
+
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Campaign ID is required'
+      });
+    }
+
+    const assignment = await userManagementService.assignCampaignToUser(
+      parseInt(userId),
+      campaignId,
+      assignedBy
+    );
+    
+    res.json({
+      success: true,
+      data: assignment,
+      message: 'Campaign assigned successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error assigning campaign to user:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to assign campaign to user'
+    });
+  }
+});
+
+/**
+ * DELETE /api/users/:userId/campaigns/:campaignId
+ * Unassign a campaign from a user (Admin only)
+ */
+router.delete('/:userId/campaigns/:campaignId', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { userId, campaignId } = req.params;
+    
+    await userManagementService.unassignCampaignFromUser(
+      parseInt(userId),
+      campaignId
+    );
+    
+    res.json({
+      success: true,
+      message: 'Campaign unassigned successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error unassigning campaign from user:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to unassign campaign from user'
+    });
+  }
+});
+
+/**
+ * GET /api/campaigns/available
+ * Get all available campaigns for assignment (Admin only)
+ */
+router.get('/campaigns/available', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const campaigns = await userManagementService.getAvailableCampaigns();
+    
+    res.json({
+      success: true,
+      data: campaigns
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching available campaigns:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch available campaigns',
+      error: error.message
+    });
+  }
+});
+
 export default router;
