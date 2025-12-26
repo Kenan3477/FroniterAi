@@ -388,10 +388,20 @@ const CampaignManagementPage: React.FC = () => {
         setCampaigns(prev => prev.filter(c => c.id !== campaignId));
         // Refresh data to ensure consistency
         fetchData();
+        alert('Campaign deleted successfully!');
       } else {
         const errorData = await response.json();
         console.error('Failed to delete campaign:', errorData);
-        alert(`Failed to delete campaign: ${errorData.error?.message || 'Unknown error'}`);
+        
+        // Handle specific error cases
+        if (response.status === 404) {
+          // Campaign doesn't exist - remove from UI anyway
+          setCampaigns(prev => prev.filter(c => c.id !== campaignId));
+          alert('Campaign was already deleted or not found. Removing from list.');
+          fetchData(); // Refresh to ensure consistency
+        } else {
+          alert(`Failed to delete campaign: ${errorData.error?.message || 'Unknown error'}`);
+        }
       }
     } catch (error) {
       console.error('Error deleting campaign:', error);
@@ -1410,22 +1420,23 @@ const CampaignManagementPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               {campaigns.length > 0 ? (
-                <div className="w-full">
-                  <div className="max-h-96 overflow-y-auto border rounded-md">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Campaign</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Dial Method</TableHead>
-                          <TableHead>CLI Number</TableHead>
-                          <TableHead>Queue Controls</TableHead>
-                          <TableHead>Agents</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                <div className="relative">
+                  <div className="h-96 overflow-auto border rounded-md">
+                    <div className="min-w-full">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="sticky top-0 bg-white">Campaign</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Type</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Status</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Category</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Dial Method</TableHead>
+                            <TableHead className="sticky top-0 bg-white">CLI Number</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Queue Controls</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Agents</TableHead>
+                            <TableHead className="sticky top-0 bg-white">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
                   <TableBody>
                     {campaigns.map((campaign) => (
                       <TableRow key={campaign.id}>
@@ -1618,7 +1629,8 @@ const CampaignManagementPage: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
-                </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">
