@@ -75,9 +75,9 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/admin/users', {
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         }
       });
       if (response.ok) {
@@ -105,9 +105,9 @@ export default function UserManagement() {
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/admin/users/stats', {
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         }
       });
       if (response.ok) {
@@ -239,15 +239,15 @@ export default function UserManagement() {
       // Fetch user's current campaigns and available campaigns
       const [userCampaignsRes, availableCampaignsRes] = await Promise.all([
         fetch(`/api/admin/users/${user.id}/campaigns`, {
+          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Content-Type': 'application/json'
           }
         }),
         fetch('/api/admin/campaigns/available', {
+          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Content-Type': 'application/json'
           }
         })
       ]);
@@ -274,9 +274,9 @@ export default function UserManagement() {
     try {
       const response = await fetch(`/api/admin/users/${managingCampaignsUser.id}/campaigns`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           campaignId,
@@ -305,9 +305,9 @@ export default function UserManagement() {
         `/api/admin/users/${managingCampaignsUser.id}/campaigns?campaignId=${campaignId}`,
         { 
           method: 'DELETE',
+          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -335,9 +335,9 @@ export default function UserManagement() {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData),
       });

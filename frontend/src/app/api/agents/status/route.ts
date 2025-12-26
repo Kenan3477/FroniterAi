@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
     const updatedAgent = await prisma.agent.update({
       where: { id: agentId },
       data: { 
-        currentStatus: status,
-        lastLoginAt: new Date(),
-        isActive: status !== 'OFFLINE'
+        status: status,
+        lastStatusChange: new Date(),
+        isLoggedIn: status !== 'OFFLINE'
       }
     });
 
@@ -59,8 +59,7 @@ export async function GET(request: NextRequest) {
     const agent = await prisma.agent.findUnique({
       where: { id: agentId },
       include: {
-        campaignAgents: {
-          where: { priority: { gte: 1 } }, // Use available field instead
+        campaignAssignments: {
           include: {
             campaign: true
           }

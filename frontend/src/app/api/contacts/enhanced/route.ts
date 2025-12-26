@@ -12,23 +12,25 @@ export const GET = withRequestLogging(requireAuth(async (request, user) => {
     const { searchParams } = new URL(request.url);
     
     // Validate pagination parameters
-    const paginationValidation = validateData(paginationSchema, {
+    const paginationParams = {
       page: searchParams.get('page') || '1',
       limit: searchParams.get('limit') || '25',
-      sortBy: searchParams.get('sortBy'),
-      sortOrder: searchParams.get('sortOrder') || 'desc',
-      search: searchParams.get('search')
-    });
+      sortBy: searchParams.get('sortBy') || undefined,
+      sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc',
+      search: searchParams.get('search') || undefined
+    };
+    
+    const paginationValidation = paginationSchema.safeParse(paginationParams);
 
-    if (!paginationValidation.isValid) {
+    if (!paginationValidation.success) {
       return NextResponse.json({
         success: false,
         message: 'Invalid pagination parameters',
-        errors: paginationValidation.errors
+        errors: paginationValidation.error.errors.map(err => err.message)
       }, { status: 400 });
     }
 
-    const { page, limit, sortBy, sortOrder, search } = paginationValidation.data!;
+    const { page, limit, sortBy, sortOrder, search } = paginationValidation.data;
     const offset = ((page || 1) - 1) * (limit || 25);
     
     const campaignId = searchParams.get('campaignId');
@@ -128,7 +130,7 @@ export const GET = withRequestLogging(requireAuth(async (request, user) => {
     const total = totalResult[0]?.total || 0;
 
     // Log the request
-    request.logger.logBusiness('Contacts fetched', {
+    console.log('Contacts fetched', {
       userId: user.userId,
       contactCount: enhancedContacts.length,
       campaignId,
@@ -140,12 +142,12 @@ export const GET = withRequestLogging(requireAuth(async (request, user) => {
       page || 1,
       limit || 25,
       total,
-      request.correlationId,
+      'request-id', // request.correlationId,
       'Contacts retrieved successfully'
     );
 
   } catch (error) {
-    request.logger.error('Error fetching enhanced contacts', {
+    console.error('Error fetching enhanced contacts', {
       error: error instanceof Error ? error.message : 'Unknown error',
       userId: user.userId
     });

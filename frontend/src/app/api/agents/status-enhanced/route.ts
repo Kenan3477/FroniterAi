@@ -190,15 +190,81 @@ async function checkAndStartDialling(campaignId: string) {
       }
     });
 
-    if (availableAgents === 1) {
-      console.log(`🎯 First agent available - starting dialling for campaign ${campaignId}`);
-      // Here you would trigger your dialling engine
-      // await diallingEngine.start(campaignId);
-    } else {
-      console.log(`👥 ${availableAgents} agents now available for dialling`);
+    if (availableAgents >= 1) {
+      console.log(`🎯 ${availableAgents} agent(s) available - starting auto-dial for campaign ${campaignId}`);
+      
+      // Auto-dial: Find available agents and assign calls immediately
+      const availableAgentsList = await prisma.agent.findMany({
+        where: {
+          status: 'Available',
+          isLoggedIn: true,
+          currentCall: null
+        },
+        take: 5 // Limit to prevent overwhelming
+      });
+
+      for (const agent of availableAgentsList) {
+        await autoAssignNextCall(agent.agentId, campaignId);
+      }
     }
   } catch (error) {
     console.error('Error checking dial start:', error);
+  }
+}
+
+/**
+ * Auto-assign next call to available agent
+ */
+async function autoAssignNextCall(agentId: string, campaignId: string) {
+  try {
+    // Get next available call from queue
+    const queueEntry = await prisma.dialQueueEntry.findFirst({
+      where: {
+        campaignId: campaignId,
+        status: 'queued',
+        assignedAgentId: null
+      },
+      include: {
+        contact: true,
+        list: true
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { queuedAt: 'asc' }
+      ]
+    });
+
+    if (queueEntry) {
+      // Assign call to agent
+      await prisma.dialQueueEntry.update({
+        where: { queueId: queueEntry.queueId },
+        data: {
+          assignedAgentId: agentId,
+          status: 'dialing',
+          dialedAt: new Date()
+        }
+      });
+
+      // Update agent with current call
+      await prisma.agent.update({
+        where: { agentId },
+        data: {
+          currentCall: `${queueEntry.contact.firstName} ${queueEntry.contact.lastName}`
+        }
+      });
+
+      console.log(`� Auto-assigned call to agent ${agentId}: ${queueEntry.contact.firstName} ${queueEntry.contact.lastName} (${queueEntry.contact.phone})`);
+      
+      // TODO: Here you would integrate with actual telephony system (Twilio)
+      // await twilioService.initiateCall(queueEntry.contact.phone, agentId);
+      
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`Error auto-assigning call to agent ${agentId}:`, error);
+    return false;
   }
 }
 
@@ -566,8 +632,6 @@ async function requestNextCall(agentId: string, campaignId: string) {
           phone: lockedEntry.contact.phone,
           email: lockedEntry.contact.email,
           company: lockedEntry.contact.company,
-          lastCallDate: lockedEntry.contact.lastCallDate,
-          callCount: lockedEntry.contact.callCount,
           status: lockedEntry.contact.status,
           listName: lockedEntry.list.name
         },

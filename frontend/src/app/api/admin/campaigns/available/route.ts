@@ -1,20 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
+// Helper function to get authentication token
+function getAuthToken(request: NextRequest): string | null {
+  // Try Authorization header first
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  
+  // Try cookies
+  const cookieStore = cookies();
+  const authCookie = cookieStore.get('auth-token');
+  if (authCookie?.value) {
+    return authCookie.value;
+  }
+  
+  return null;
+}
 
 // GET - Get all campaigns available for assignment
 export async function GET(request: NextRequest) {
   try {
     console.log('🔗 Proxying available campaigns request to backend...');
     
-    // Forward authentication headers to backend
-    const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
+    // Get authentication token from header or cookie
+    const authToken = getAuthToken(request);
     
     const response = await fetch(`${BACKEND_URL}/api/user-management/campaigns/available`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        ...(authHeader && { 'Authorization': authHeader.includes('Bearer') ? authHeader : `Bearer ${authHeader}` })
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
       }
     });
 
