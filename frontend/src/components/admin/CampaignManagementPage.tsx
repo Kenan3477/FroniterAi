@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import {
   Dialog,
   DialogContent,
@@ -228,6 +229,8 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleDialMethodChange = async (campaignId: string, dialMethod: ManagementCampaign['dialMethod']) => {
     try {
+      console.log(`📞 Updating dial method for campaign ${campaignId} to ${dialMethod}`);
+      
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -235,17 +238,29 @@ const CampaignManagementPage: React.FC = () => {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Dial method updated to ${dialMethod} for campaign ${campaignId}`);
+        
         setCampaigns(prev => prev.map(c => 
           c.id === campaignId ? { ...c, dialMethod } : c
         ));
+        
+        // Show feedback
+        alert(`Dial method updated to ${dialMethod.replace('_', ' ').toLowerCase()}`);
+      } else {
+        console.error(`❌ Failed to update dial method for ${campaignId}`);
+        alert('Failed to update dial method. Please try again.');
       }
     } catch (error) {
       console.error('Failed to update dial method:', error);
+      alert('Error updating dial method. Please check your connection and try again.');
     }
   };
 
   const handleActivateToggle = async (campaignId: string, isActive: boolean) => {
     try {
+      console.log(`🔄 Toggling campaign ${campaignId} activation to ${isActive}`);
+      
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/activate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -253,9 +268,18 @@ const CampaignManagementPage: React.FC = () => {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Campaign activation toggled:`, data);
+        
         setCampaigns(prev => prev.map(c => 
-          c.id === campaignId ? { ...c, isActive } : c
+          c.id === campaignId ? { 
+            ...c, 
+            isActive,
+            status: isActive ? 'ACTIVE' as const : 'PAUSED' as const
+          } : c
         ));
+      } else {
+        console.error(`❌ Failed to toggle campaign activation for ${campaignId}`);
       }
     } catch (error) {
       console.error('Failed to toggle campaign activation:', error);
@@ -264,16 +288,24 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleDialSpeedChange = async (campaignId: string, dialSpeed: number) => {
     try {
+      // Clamp dial speed to 1-4 range to prevent overdialing
+      const clampedSpeed = Math.max(1, Math.min(4, dialSpeed));
+      
+      console.log(`🎛️ Updating dial speed for campaign ${campaignId} to ${clampedSpeed}`);
+      
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-speed`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dialSpeed }),
+        body: JSON.stringify({ dialSpeed: clampedSpeed }),
       });
 
       if (response.ok) {
         setCampaigns(prev => prev.map(c => 
-          c.id === campaignId ? { ...c, dialSpeed } : c
+          c.id === campaignId ? { ...c, dialSpeed: clampedSpeed } : c
         ));
+        console.log(`✅ Dial speed updated to ${clampedSpeed} for campaign ${campaignId}`);
+      } else {
+        console.error(`❌ Failed to update dial speed for ${campaignId}`);
       }
     } catch (error) {
       console.error('Failed to update dial speed:', error);
@@ -346,6 +378,8 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleStartAutoDial = async (campaignId: string) => {
     try {
+      console.log(`🚀 Starting auto-dial for campaign ${campaignId}`);
+      
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/auto-dial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -353,21 +387,26 @@ const CampaignManagementPage: React.FC = () => {
 
       const data = await response.json();
       
-      if (data.success) {
-        console.log('🚀 Auto-dial started:', data.data);
-        alert(`Auto-dial started successfully! ${data.data.queuedContacts} contacts queued for dialing.`);
+      if (data.success || response.ok) {
+        console.log('🚀 Auto-dial started successfully:', data);
         
-        // Update campaign status to show auto-dial is running
+        // Update campaign to reflect auto-dial is running
         setCampaigns(prev => prev.map(c => 
-          c.id === campaignId ? { ...c, dialMethod: 'AUTODIAL' as const, status: 'ACTIVE' as const } : c
+          c.id === campaignId ? { 
+            ...c, 
+            dialMethod: 'AUTODIAL' as const
+          } : c
         ));
+        
+        // Show success message
+        alert(`Auto-dial started successfully! ${data.data?.queuedContacts || 'Contacts'} queued for dialing.`);
       } else {
         console.error('Failed to start auto-dial:', data.error);
         alert(`Failed to start auto-dial: ${data.error?.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error starting auto-dial:', error);
-      alert('Error starting auto-dial. Please try again.');
+      alert('Error starting auto-dial. Please check your connection and try again.');
     }
   };
 
@@ -953,16 +992,19 @@ const CampaignManagementPage: React.FC = () => {
                 </div>
                 {campaignForm.dialMethod === 'AUTODIAL' && (
                   <div>
-                    <Label htmlFor="dialSpeed">Dial Speed (Calls/Minute)</Label>
-                    <Input
-                      id="dialSpeed"
-                      type="number"
-                      min="1"
-                      max="60"
-                      value={campaignForm.dialSpeed || ''}
-                      onChange={(e) => setCampaignForm({ ...campaignForm, dialSpeed: parseInt(e.target.value) || 1 })}
-                      placeholder="10"
-                    />
+                    <Label htmlFor="dialSpeed">Dial Speed (Level 1-4)</Label>
+                    <div className="flex items-center gap-2">
+                      <Slider
+                        value={[Math.max(1, Math.min(4, campaignForm.dialSpeed || 1))]}
+                        onValueChange={(values) => setCampaignForm({ ...campaignForm, dialSpeed: values[0] })}
+                        min={1}
+                        max={4}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <span className="text-sm text-gray-600 w-8">{Math.max(1, Math.min(4, campaignForm.dialSpeed || 1))}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Level 1: Conservative • Level 4: Aggressive</p>
                   </div>
                 )}
                 <div>
@@ -1163,13 +1205,19 @@ const CampaignManagementPage: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-dial-speed">Dial Speed (CPM)</Label>
-                <Input
-                  id="edit-dial-speed"
-                  type="number"
-                  value={editingCampaign.dialSpeed}
-                  onChange={(e) => setEditingCampaign({ ...editingCampaign, dialSpeed: parseInt(e.target.value) || 60 })}
-                />
+                <Label htmlFor="edit-dial-speed">Dial Speed (Level 1-4)</Label>
+                <div className="flex items-center gap-2">
+                  <Slider
+                    value={[Math.max(1, Math.min(4, editingCampaign.dialSpeed || 1))]}
+                    onValueChange={(values) => setEditingCampaign({ ...editingCampaign, dialSpeed: values[0] })}
+                    min={1}
+                    max={4}
+                    step={1}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-gray-600 w-8">{Math.max(1, Math.min(4, editingCampaign.dialSpeed || 1))}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Level 1: Conservative • Level 4: Aggressive</p>
               </div>
               <div className="col-span-2">
                 <Label htmlFor="edit-description">Description</Label>
@@ -1530,14 +1578,13 @@ const CampaignManagementPage: React.FC = () => {
                                 <Target className="w-3 h-3 mr-1" />
                                 Queue
                               </Button>
-                              {campaign.status === 'ACTIVE' && (
+                              {campaign.isActive && (
                                 <Button 
                                   size="sm" 
                                   variant={campaign.dialMethod === 'AUTODIAL' ? "default" : "secondary"}
                                   onClick={() => handleStartAutoDial(campaign.id)}
                                   className="h-6"
                                   title="Start Auto-Dialing"
-                                  disabled={!campaign.isActive}
                                 >
                                   <Zap className="w-3 h-3 mr-1" />
                                   Auto-Dial
@@ -1545,17 +1592,19 @@ const CampaignManagementPage: React.FC = () => {
                               )}
                             </div>
                             {campaign.dialMethod === 'AUTODIAL' && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <Input
-                                  type="number"
-                                  value={campaign.dialSpeed || 60}
-                                  onChange={(e) => handleDialSpeedChange(campaign.id, parseInt(e.target.value) || 60)}
-                                  className="w-12 h-6 text-xs"
-                                  min="1"
-                                  max="300"
-                                />
-                                <span className="text-xs text-gray-500">cpm</span>
+                              <div className="flex items-center gap-2 w-32">
+                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <Slider
+                                    value={[Math.max(1, Math.min(4, campaign.dialSpeed || 1))]}
+                                    onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
+                                    min={1}
+                                    max={4}
+                                    step={1}
+                                    className="w-full"
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-600 w-4 text-center">{Math.max(1, Math.min(4, campaign.dialSpeed || 1))}</span>
                               </div>
                             )}
                           </div>
