@@ -371,6 +371,34 @@ const CampaignManagementPage: React.FC = () => {
     }
   };
 
+  const handleDeleteCampaign = async (campaignId: string, campaignName: string) => {
+    if (!confirm(`Are you sure you want to delete the campaign "${campaignName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        console.log('✅ Campaign deleted successfully');
+        // Remove from local state immediately
+        setCampaigns(prev => prev.filter(c => c.id !== campaignId));
+        // Refresh data to ensure consistency
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete campaign:', errorData);
+        alert(`Failed to delete campaign: ${errorData.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      alert('Error deleting campaign. Please try again.');
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -1382,20 +1410,21 @@ const CampaignManagementPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               {campaigns.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Campaign</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Dial Method</TableHead>
-                      <TableHead>CLI Number</TableHead>
-                      <TableHead>Queue Controls</TableHead>
-                      <TableHead>Agents</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Campaign</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Dial Method</TableHead>
+                        <TableHead>CLI Number</TableHead>
+                        <TableHead>Queue Controls</TableHead>
+                        <TableHead>Agents</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {campaigns.map((campaign) => (
                       <TableRow key={campaign.id}>
@@ -1575,12 +1604,20 @@ const CampaignManagementPage: React.FC = () => {
                             >
                               {campaign.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleDeleteCampaign(campaign.id, campaign.displayName || campaign.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   No campaigns found. Create your first campaign to get started.
