@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     // Forward authentication headers to backend
     const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
     
-    const response = await fetch(`${BACKEND_URL}/api/users/${userId}/campaigns`, {
+    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

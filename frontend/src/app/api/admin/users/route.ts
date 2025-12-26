@@ -1,36 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// GET - Fetch all users
+// GET - Fetch all users from backend
 export async function GET(request: NextRequest) {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc'
+    console.log('🔗 Proxying users request to backend...');
+    
+    // Forward authentication headers to backend
+    const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
+    
+    const response = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader.includes('Bearer') ? authHeader : `Bearer ${authHeader}` })
       }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: users
-    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`❌ Backend users request failed: ${response.status}`, errorData);
+      return NextResponse.json({ 
+        success: false, 
+        message: `Backend request failed: ${response.status}` 
+      }, { status: response.status });
+    }
+
+    const data = await response.json();
+    console.log(`✅ Successfully fetched users from backend`);
+    return NextResponse.json(data);
+
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('❌ Error proxying users request:', error);
     return NextResponse.json({
       success: false,
       message: 'Failed to fetch users'
@@ -38,150 +40,130 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create new user with enterprise features
+// POST - Create new user via backend
 export async function POST(request: NextRequest) {
   try {
-    const userData = await request.json();
-    const ipAddress = request.ip || 'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-
-    // Enhanced validation
-    const validation = await validateUserData(userData);
-    if (!validation.isValid) {
-      return NextResponse.json({
-        success: false,
-        message: 'Validation failed',
-        errors: validation.errors
-      }, { status: 400 });
-    }
-
-    // Check email uniqueness
-    const existingUser = await prisma.user.findUnique({
-      where: { email: userData.email }
+    const body = await request.json();
+    console.log('🔗 Proxying create user request to backend...');
+    
+    // Forward authentication headers to backend
+    const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
+    
+    const response = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader.includes('Bearer') ? authHeader : `Bearer ${authHeader}` })
+      },
+      body: JSON.stringify(body)
     });
 
-    if (existingUser) {
-      return NextResponse.json({
-        success: false,
-        message: 'User with this email already exists',
-        field: 'email'
-      }, { status: 400 });
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`❌ Backend create user request failed: ${response.status}`, errorData);
+      return NextResponse.json({ 
+        success: false, 
+        message: `Backend request failed: ${response.status}` 
+      }, { status: response.status });
     }
 
-    // Hash password with enterprise-grade security
-    const hashedPassword = await bcrypt.hash(userData.password, 12);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        username: userData.email.toLowerCase().trim(), // Use email as username
-        firstName: userData.name.split(' ')[0] || userData.name,
-        lastName: userData.name.split(' ').slice(1).join(' ') || '',
-        name: userData.name.trim(),
-        email: userData.email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: userData.role || 'AGENT',
-        isActive: userData.status === 'ACTIVE' || userData.status === undefined,
-      }
-    });
-
-    // Create audit log entry - DISABLED DUE TO SCHEMA CONFLICTS
-    // Note: auditLog model doesn't exist in current schema
-    try {
-      // TODO: Re-enable when schema alignment is complete
-      console.log(`[AUDIT] User created: ${user.name} (${user.role}) - IP: ${ipAddress}`);
-    } catch (auditError) {
-      console.warn('Audit logging failed:', auditError);
-    }
-
-    // Create email verification record - DISABLED DUE TO SCHEMA CONFLICTS
-    // Note: emailVerification model doesn't exist in current schema
-    let verificationToken: string | undefined;
-    try {
-      // TODO: Re-enable when schema alignment is complete
-      console.log(`[EMAIL] Email verification would be created for ${user.email}`);
-      verificationToken = 'PLACEHOLDER_TOKEN'; // For future implementation
-    } catch (verifyError) {
-      console.warn('Email verification creation failed:', verifyError);
-    }
-
-    // Format response
-    const userResponse = {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      status: user.isActive ? 'ACTIVE' : 'INACTIVE',
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    };
-
-    console.log(`✅ User created with enterprise features: ${user.name} (${user.role})`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'User created successfully with enterprise features',
-      data: userResponse,
-      emailVerification: verificationToken ? {
-        required: true,
-        token: verificationToken, // In production, sent via email
-        expiresIn: '24 hours',
-        message: 'Email verification token generated'
-      } : {
-        required: false
-      }
-    }, { status: 201 });
+    const data = await response.json();
+    console.log(`✅ Successfully created user via backend`);
+    return NextResponse.json(data);
 
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('❌ Error proxying create user request:', error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to create user',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Failed to create user'
     }, { status: 500 });
   }
 }
 
-// Helper functions
-interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
+// PUT - Update user via backend
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    console.log('🔗 Proxying update user request to backend...');
+    
+    // Forward authentication headers to backend
+    const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
+    
+    const response = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader.includes('Bearer') ? authHeader : `Bearer ${authHeader}` })
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`❌ Backend update user request failed: ${response.status}`, errorData);
+      return NextResponse.json({ 
+        success: false, 
+        message: `Backend request failed: ${response.status}` 
+      }, { status: response.status });
+    }
+
+    const data = await response.json();
+    console.log(`✅ Successfully updated user via backend`);
+    return NextResponse.json(data);
+
+  } catch (error) {
+    console.error('❌ Error proxying update user request:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to update user'
+    }, { status: 500 });
+  }
 }
 
-async function validateUserData(userData: any): Promise<ValidationResult> {
-  const errors: string[] = [];
-
-  if (!userData.name?.trim()) errors.push('Name is required');
-  if (!userData.email?.trim()) errors.push('Email is required');
-  if (!userData.password) errors.push('Password is required');
-
-  // Email format validation
-  if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
-    errors.push('Invalid email format');
-  }
-
-  // Password strength validation
-  if (userData.password) {
-    if (userData.password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
+// DELETE - Delete user via backend
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('id');
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User ID required' 
+      }, { status: 400 });
     }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(userData.password)) {
-      errors.push('Password must contain uppercase, lowercase, and number');
+
+    console.log(`🔗 Proxying delete user request to backend for user ${userId}...`);
+    
+    // Forward authentication headers to backend
+    const authHeader = request.headers.get('authorization') || request.headers.get('cookie');
+    
+    const response = await fetch(`${BACKEND_URL}/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader.includes('Bearer') ? authHeader : `Bearer ${authHeader}` })
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`❌ Backend delete user request failed: ${response.status}`, errorData);
+      return NextResponse.json({ 
+        success: false, 
+        message: `Backend request failed: ${response.status}` 
+      }, { status: response.status });
     }
+
+    const data = await response.json();
+    console.log(`✅ Successfully deleted user via backend`);
+    return NextResponse.json(data);
+
+  } catch (error) {
+    console.error('❌ Error proxying delete user request:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to delete user'
+    }, { status: 500 });
   }
-
-  // Role validation
-  if (userData.role && !['ADMIN', 'MANAGER', 'AGENT', 'VIEWER'].includes(userData.role)) {
-    errors.push('Invalid role specified');
-  }
-
-  return { isValid: errors.length === 0, errors };
-}
-
-function generateVerificationToken(): string {
-  return Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
 }
