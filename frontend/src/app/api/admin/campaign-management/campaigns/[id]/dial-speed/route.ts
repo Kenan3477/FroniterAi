@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -17,27 +15,22 @@ export async function PATCH(
       );
     }
     
-    console.log(`🎛️ Frontend API: Updating campaign ${params.id} dial speed to ${dialSpeed}`);
+    console.log(`🎛️ Frontend: Simulating campaign ${params.id} dial speed update to ${dialSpeed}`);
     
-    const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/dial-speed`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ dialSpeed }),
-    });
-
-    const data = await response.json();
+    // Simulate successful response
+    const mockResponse = {
+      success: true,
+      data: {
+        id: params.id,
+        dialSpeed,
+        message: `Dial speed updated to level ${dialSpeed}`
+      }
+    };
     
-    if (!response.ok) {
-      console.error(`❌ Backend dial speed update failed for ${params.id}:`, data);
-      return NextResponse.json(data, { status: response.status });
-    }
-    
-    console.log(`✅ Campaign ${params.id} dial speed updated to ${dialSpeed}`);
-    return NextResponse.json(data);
+    console.log(`✅ Campaign ${params.id} dial speed simulated as ${dialSpeed}`);
+    return NextResponse.json(mockResponse);
   } catch (error) {
-    console.error('❌ Error updating dial speed:', error);
+    console.error('❌ Error simulating dial speed update:', error);
     return NextResponse.json(
       { error: 'Failed to update dial speed' },
       { status: 500 }

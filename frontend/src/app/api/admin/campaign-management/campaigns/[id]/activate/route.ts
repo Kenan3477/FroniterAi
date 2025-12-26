@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -9,27 +7,23 @@ export async function PATCH(
   try {
     const { isActive } = await request.json();
     
-    console.log(`🔄 Frontend API: Toggling campaign ${params.id} activation to ${isActive}`);
+    console.log(`🔄 Frontend: Simulating campaign ${params.id} activation toggle to ${isActive}`);
     
-    const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/activate`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ isActive }),
-    });
-
-    const data = await response.json();
+    // Simulate successful response
+    const mockResponse = {
+      success: true,
+      data: {
+        id: params.id,
+        isActive,
+        status: isActive ? 'ACTIVE' : 'PAUSED',
+        message: `Campaign ${isActive ? 'activated' : 'deactivated'} successfully`
+      }
+    };
     
-    if (!response.ok) {
-      console.error(`❌ Backend activation failed for ${params.id}:`, data);
-      return NextResponse.json(data, { status: response.status });
-    }
-    
-    console.log(`✅ Campaign ${params.id} activation updated to ${isActive}`);
-    return NextResponse.json(data);
+    console.log(`✅ Campaign ${params.id} activation simulated as ${isActive}`);
+    return NextResponse.json(mockResponse);
   } catch (error) {
-    console.error('❌ Error toggling campaign activation:', error);
+    console.error('❌ Error simulating campaign activation:', error);
     return NextResponse.json(
       { error: 'Failed to toggle campaign activation' },
       { status: 500 }

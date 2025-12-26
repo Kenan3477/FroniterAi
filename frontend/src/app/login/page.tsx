@@ -58,39 +58,80 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Interactive 3D Cube */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 items-center justify-center p-8 relative overflow-hidden">
-        {/* Dynamic background grid */}
+      {/* Left side - Starfield Background with Logo */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 items-center justify-center p-8 relative overflow-hidden">
+        {/* Animated Starfield Background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)]"></div>
-          <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100">
-            <defs>
-              <pattern id="dynamic-grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-white">
-                  <animate attributeName="stroke-opacity" values="0.2;0.8;0.2" dur="4s" repeatCount="indefinite" />
-                </path>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#dynamic-grid)" />
-          </svg>
+          {/* Background gradient that matches the logo */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-blue-950 to-purple-950"></div>
+          
+          {/* Animated stars */}
+          {[...Array(150)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute bg-white rounded-full opacity-60"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 3 + 1}px`,
+                height: `${Math.random() * 3 + 1}px`,
+                animationDelay: `${Math.random() * 3}s`,
+                animation: `twinkle ${2 + Math.random() * 2}s infinite`
+              }}
+            />
+          ))}
+          
+          {/* Larger glowing stars */}
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={`glow-${i}`}
+              className="absolute rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 4 + 2}px`,
+                height: `${Math.random() * 4 + 2}px`,
+                background: `hsl(${180 + Math.random() * 60}, 70%, 70%)`,
+                boxShadow: `0 0 ${Math.random() * 10 + 5}px currentColor`,
+                animationDelay: `${Math.random() * 4}s`,
+                animation: `pulse ${3 + Math.random() * 2}s infinite ease-in-out`
+              }}
+            />
+          ))}
+          
+          {/* Nebula effects */}
+          <div className="absolute inset-0">
+            <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+            <div className="absolute top-1/2 right-1/2 w-32 h-32 bg-cyan-500/15 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+          </div>
         </div>
 
         {/* Centered Content Container */}
-        <div className="flex flex-col items-center justify-center text-center space-y-12 relative z-10 max-w-lg">
+        <div className="flex flex-col items-center justify-center text-center space-y-8 relative z-10 max-w-lg">
           {/* Animated Matrix Cube - Perfectly Centered */}
           <div className="flex items-center justify-center">
             <OmniCube />
           </div>
 
-          {/* Brand Text with Perfect Alignment */}
-          <div className="space-y-6 text-center">
-            <h1 className="text-6xl font-bold text-white tracking-tight relative">
-              <span className="relative z-10">Omnivox-AI</span>
-              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-blue-400 to-slate-400 opacity-50 animate-pulse"></div>
+          {/* OMNIVOX AI Logo Text */}
+          <div className="space-y-4 text-center">
+            <h1 className="text-6xl font-bold text-white tracking-wider relative">
+              <span className="relative z-10 bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
+                OMNIVOX AI
+              </span>
+              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-cyan-400 to-blue-400 opacity-30 animate-pulse"></div>
             </h1>
-            <p className="text-xl text-slate-100 leading-relaxed max-w-md mx-auto">
+            <p className="text-lg text-slate-200 leading-relaxed max-w-md mx-auto opacity-90">
               Advanced conversational AI platform with intelligent workflow automation
             </p>
+            
+            {/* Powered by Quanterae Solutions */}
+            <div className="pt-4">
+              <p className="text-sm text-slate-400 font-light">
+                Powered by <span className="text-cyan-300 font-medium">Quanterae Solutions</span>
+              </p>
+            </div>
           </div>
             
           {/* Animated Feature Pills - Centered */}
@@ -102,7 +143,7 @@ export default function LoginPage() {
             ].map((feature, index) => (
               <span 
                 key={index}
-                className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full text-white text-sm font-medium border border-white/20 shadow-lg hover:bg-white/20 transition-all duration-300"
+                className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full text-white text-sm font-medium border border-cyan-400/20 shadow-lg hover:bg-white/20 hover:border-cyan-400/40 transition-all duration-300"
                 style={{
                   animation: `slideUp 0.8s ease-out ${feature.delay}`,
                 }}
@@ -114,12 +155,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Floating Elements - Positioned Relative to Container */}
-        <div className="absolute top-16 left-12 w-4 h-4 bg-blue-400/40 rounded-full animate-bounce" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-24 right-16 w-6 h-6 bg-slate-400/30 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/3 right-8 w-3 h-3 bg-white/40 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
-        <div className="absolute bottom-1/3 left-8 w-5 h-5 bg-indigo-400/30 rounded-full animate-bounce" style={{ animationDelay: '1.5s' }}></div>
-
+        {/* CSS for animations */}
         <style jsx>{`
           @keyframes slideUp {
             from {
@@ -129,6 +165,26 @@ export default function LoginPage() {
             to {
               opacity: 1;
               transform: translateY(0);
+            }
+          }
+          
+          @keyframes twinkle {
+            0%, 100% {
+              opacity: 0.3;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 1;
+              transform: scale(1.2);
+            }
+          }
+          
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 0.4;
+            }
+            50% {
+              opacity: 0.8;
             }
           }
         `}</style>
@@ -270,7 +326,7 @@ export default function LoginPage() {
 
             <div className="text-center pt-4">
               <p className="text-sm text-gray-500">
-                Powered by <span className="font-semibold text-slate-600">Omnivox-AI</span> • 2025 • All rights reserved
+                Powered by <span className="font-semibold text-slate-600">Quanterae Solutions</span> • 2025 • All rights reserved
               </p>
             </div>
           </div>
