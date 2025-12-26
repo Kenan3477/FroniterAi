@@ -25,7 +25,7 @@
       "@/utils/*": ["src/utils/*"],
       "@/database/*": ["src/database/*"]
     },
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "include": [
     "src/**/*"
