@@ -114,13 +114,37 @@ export default function LoginPage() {
             <OmniCube />
           </div>
 
-          {/* OMNIVOX AI Logo Text */}
+          {/* OMNIVOX AI Logo Text with Voice Waves */}
           <div className="space-y-4 text-center">
-            <h1 className="text-6xl font-bold text-white tracking-wider relative">
+            <h1 className="text-6xl font-bold text-white tracking-wider relative flex items-center justify-center">
               <span className="relative z-10 bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
-                OMNIVOX AI
+                OMNI
               </span>
-              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-cyan-400 to-blue-400 opacity-30 animate-pulse"></div>
+              
+              {/* Voice Wave V replacement */}
+              <div className="relative mx-2 flex items-end justify-center h-16 space-x-1">
+                {/* Voice wave bars representing the "V" */}
+                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
+                     style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
+                     style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
+                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+              </div>
+              
+              <span className="relative z-10 bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
+                OX AI
+              </span>
+              
+              <div className="absolute inset-0 blur-lg bg-gradient-to-r from-cyan-400 to-blue-400 opacity-20 animate-pulse"></div>
             </h1>
             <p className="text-lg text-slate-200 leading-relaxed max-w-md mx-auto opacity-90">
               Advanced conversational AI platform with intelligent workflow automation
