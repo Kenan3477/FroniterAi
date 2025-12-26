@@ -1410,21 +1410,22 @@ const CampaignManagementPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               {campaigns.length > 0 ? (
-                <div className="max-h-96 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Campaign</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Dial Method</TableHead>
-                        <TableHead>CLI Number</TableHead>
-                        <TableHead>Queue Controls</TableHead>
-                        <TableHead>Agents</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                <div className="w-full">
+                  <div className="max-h-96 overflow-y-auto border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Campaign</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Dial Method</TableHead>
+                          <TableHead>CLI Number</TableHead>
+                          <TableHead>Queue Controls</TableHead>
+                          <TableHead>Agents</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
                   <TableBody>
                     {campaigns.map((campaign) => (
                       <TableRow key={campaign.id}>
@@ -1617,6 +1618,7 @@ const CampaignManagementPage: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">
