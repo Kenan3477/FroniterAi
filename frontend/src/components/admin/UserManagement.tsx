@@ -15,6 +15,7 @@ import {
   XCircleIcon,
   ClockIcon,
   FunnelIcon,
+  BriefcaseIcon,
 } from '@heroicons/react/24/outline';
 
 interface User {
@@ -54,6 +55,11 @@ export default function UserManagement() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [managingCampaignsUser, setManagingCampaignsUser] = useState<User | null>(null);
+  const [availableCampaigns, setAvailableCampaigns] = useState<any[]>([]);
+  const [userCampaigns, setUserCampaigns] = useState<any[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -68,7 +74,12 @@ export default function UserManagement() {
   // Fetch users and stats
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         // Handle the backend format: { success: true, data: { users: [...] } }
@@ -93,7 +104,12 @@ export default function UserManagement() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/users/stats');
+      const response = await fetch('/api/admin/users/stats', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         // Transform backend response to match frontend interface
@@ -213,6 +229,102 @@ export default function UserManagement() {
     }
   };
 
+  // Campaign Management Functions
+  const openCampaignManagement = async (user: User) => {
+    setManagingCampaignsUser(user);
+    setShowCampaignModal(true);
+    setLoadingCampaigns(true);
+    
+    try {
+      // Fetch user's current campaigns and available campaigns
+      const [userCampaignsRes, availableCampaignsRes] = await Promise.all([
+        fetch(`/api/admin/users/${user.id}/campaigns`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        }),
+        fetch('/api/admin/campaigns/available', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        })
+      ]);
+
+      if (userCampaignsRes.ok) {
+        const userCampaignsData = await userCampaignsRes.json();
+        setUserCampaigns(userCampaignsData.data?.assignments || []);
+      }
+
+      if (availableCampaignsRes.ok) {
+        const availableCampaignsData = await availableCampaignsRes.json();
+        setAvailableCampaigns(availableCampaignsData.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch campaign data:', error);
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  };
+
+  const assignCampaign = async (campaignId: string) => {
+    if (!managingCampaignsUser) return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${managingCampaignsUser.id}/campaigns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          campaignId,
+          assignedBy: 1 // TODO: Get current admin user ID
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh user campaigns
+        await openCampaignManagement(managingCampaignsUser);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to assign campaign');
+      }
+    } catch (error) {
+      console.error('Failed to assign campaign:', error);
+      alert('Failed to assign campaign');
+    }
+  };
+
+  const unassignCampaign = async (campaignId: string) => {
+    if (!managingCampaignsUser) return;
+
+    try {
+      const response = await fetch(
+        `/api/admin/users/${managingCampaignsUser.id}/campaigns?campaignId=${campaignId}`,
+        { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        // Refresh user campaigns
+        await openCampaignManagement(managingCampaignsUser);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to remove campaign');
+      }
+    } catch (error) {
+      console.error('Failed to remove campaign:', error);
+      alert('Failed to remove campaign');
+    }
+  };
+
   const createUser = async () => {
     if (!formData.name || !formData.email || !formData.password) {
       alert('Please fill in all required fields: name, email, and password');
@@ -225,6 +337,7 @@ export default function UserManagement() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify(formData),
       });
@@ -526,6 +639,13 @@ export default function UserManagement() {
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
+                    <button
+                      onClick={() => openCampaignManagement(user)}
+                      className="text-purple-600 hover:text-purple-900"
+                      title="Manage campaigns"
+                    >
+                      <BriefcaseIcon className="h-4 w-4" />
+                    </button>
                     <button className="text-gray-400 hover:text-gray-600">
                       <EyeIcon className="h-4 w-4" />
                     </button>
@@ -688,6 +808,109 @@ export default function UserManagement() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Campaign Management Modal */}
+      {showCampaignModal && managingCampaignsUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Manage Campaigns for {managingCampaignsUser.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCampaignModal(false);
+                    setManagingCampaignsUser(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {loadingCampaigns ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-2">Loading campaigns...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Assigned Campaigns */}
+                  {userCampaigns.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                        Assigned Campaigns
+                      </h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {userCampaigns.map((campaign) => (
+                          <div
+                            key={campaign.id}
+                            className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded"
+                          >
+                            <span className="text-sm text-gray-900">{campaign.name}</span>
+                            <button
+                              onClick={() => unassignCampaign(campaign.id)}
+                              className="text-red-600 hover:text-red-800 text-xs"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Campaigns */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Available Campaigns
+                    </h4>
+                    {availableCampaigns.length > 0 ? (
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {availableCampaigns.map((campaign) => (
+                          <div
+                            key={campaign.id}
+                            className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded"
+                          >
+                            <span className="text-sm text-gray-900">{campaign.name}</span>
+                            <button
+                              onClick={() => assignCampaign(campaign.id)}
+                              className="text-blue-600 hover:text-blue-800 text-xs"
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">
+                        {userCampaigns.length > 0 
+                          ? 'All campaigns have been assigned to this user.'
+                          : 'No campaigns available.'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Close Button */}
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCampaignModal(false);
+                        setManagingCampaignsUser(null);
+                      }}
+                      className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
