@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Omnivox-AI Platform - Conversational AI with workflow automation",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "npm run dev:frontend",
+    "dev:local-backend": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:verified": "node scripts/dev.js",
     "dev:backend-only": "cd backend && npm run dev",
     "dev:frontend-only": "cd frontend && npm run dev",
