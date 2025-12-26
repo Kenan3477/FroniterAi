@@ -460,7 +460,7 @@ const CampaignManagementPage: React.FC = () => {
       const dataListsData = await dataListsResponse.json();
 
       // Add default dial queue properties to campaigns
-      const campaignsWithDialQueue = (campaignsData.data?.campaigns || []).map((campaign: ManagementCampaign) => ({
+      const campaignsWithDialQueue = (campaignsData.data || []).map((campaign: ManagementCampaign) => ({
         ...campaign,
         dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
         dialSpeed: campaign.dialSpeed || 60,
