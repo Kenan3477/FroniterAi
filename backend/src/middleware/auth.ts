@@ -107,7 +107,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         id: true,
         name: true,
         role: true,
-        status: true
+        isActive: true  // Check the correct field for account activation
       }
     });
 
@@ -120,7 +120,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    if (!user || user.status !== 'ACTIVE') {
+    if (!user.isActive) {
       res.status(401).json({
         success: false,
         message: 'Account is deactivated',
@@ -343,11 +343,11 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
             id: true,
             name: true,
             role: true,
-            status: true
+            isActive: true  // Check the correct field for account activation
           }
         });
 
-        if (user && user.status === 'ACTIVE') {
+        if (user && user.isActive) {
           const permissions = ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS] || [];
           
           req.user = {

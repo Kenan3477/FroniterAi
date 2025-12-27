@@ -13,6 +13,7 @@ interface UserRow {
   name: string;
   role: string;
   status: string;
+  isActive: boolean;
 }
 
 const router = Router();
@@ -94,7 +95,7 @@ router.post('/login', async (req, res) => {
     console.log('🔧 DIRECT SQL: Querying users table directly with SQL');
     
     const query = `
-      SELECT id, username, email, password, name, role, status 
+      SELECT id, username, email, password, name, role, status, isActive 
       FROM users 
       WHERE email = ? OR username = ? 
       LIMIT 1
@@ -119,11 +120,11 @@ router.post('/login', async (req, res) => {
 
       console.log('✅ User found:', user.username || user.email, 'Role:', user.role);
 
-      // Check if user is active (accept both ACTIVE and AVAILABLE statuses)
-      if (user.status !== 'ACTIVE' && user.status !== 'AVAILABLE') {
+      // Check if user account is active (isActive field)
+      if (!user.isActive) {
         return res.status(401).json({
           success: false,
-          message: `Account is ${user.status.toLowerCase()}`
+          message: 'Account is deactivated'
         });
       }
 
