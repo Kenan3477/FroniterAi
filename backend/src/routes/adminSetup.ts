@@ -19,7 +19,31 @@ router.post('/create-users', async (req: Request, res: Response) => {
       where: { email: 'admin@omnivox-ai.com' }
     });
 
+    // Check for force activation parameter
+    const { forceActivate } = req.body;
+
     if (existingAdmin) {
+      // If forceActivate is true, activate the admin user
+      if (forceActivate) {
+        console.log('🔓 Force activating admin user...');
+        const updatedAdmin = await prisma.user.update({
+          where: { email: 'admin@omnivox-ai.com' },
+          data: { isActive: true }
+        });
+        console.log('✅ Admin user force-activated');
+        
+        return res.json({
+          success: true,
+          message: 'Admin user activated successfully',
+          admin: { email: updatedAdmin.email, isActive: updatedAdmin.isActive },
+          credentials: {
+            admin: { email: 'admin@omnivox-ai.com', password: 'OmnivoxAdmin2025!' },
+            agent: { email: 'agent@omnivox-ai.com', password: 'OmnivoxAgent2025!' },
+            supervisor: { email: 'supervisor@omnivox-ai.com', password: 'OmnivoxSupervisor2025!' }
+          }
+        });
+      }
+
       return res.json({
         success: true,
         message: 'Users already exist',
