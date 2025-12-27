@@ -336,8 +336,35 @@ export default function UserManagement() {
   };
 
   const createUser = async () => {
+    // Enhanced validation
     if (!formData.name || !formData.email || !formData.password) {
       alert('Please fill in all required fields: name, email, and password');
+      return;
+    }
+
+    // Password validation to match backend requirements
+    if (formData.password.length < 8) {
+      alert('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (!/(?=.*[a-z])/.test(formData.password)) {
+      alert('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/(?=.*[A-Z])/.test(formData.password)) {
+      alert('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/(?=.*\d)/.test(formData.password)) {
+      alert('Password must contain at least one number');
+      return;
+    }
+
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?])/.test(formData.password)) {
+      alert('Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)');
       return;
     }
 
@@ -742,6 +769,9 @@ export default function UserManagement() {
                             placeholder="Enter secure password"
                             required
                           />
+                          <p className="mt-1 text-xs text-gray-500">
+                            Must be 8+ characters with uppercase, lowercase, number, and special character
+                          </p>
                         </div>
 
                         <div>
