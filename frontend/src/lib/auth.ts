@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 // Environment configuration
 export const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
@@ -26,27 +26,37 @@ export interface JWTPayload {
 }
 
 export const generateAccessToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { 
-    expiresIn: JWT_EXPIRES_IN,
+  const secret = JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  
+  return jwt.sign(payload, secret, { 
+    expiresIn: '15m',
     issuer: 'omnivox-system',
     audience: 'omnivox-users'
   });
 };
 
 export const generateRefreshToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, { 
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
+  const secret = JWT_REFRESH_SECRET;
+  if (!secret) {
+    throw new Error('JWT_REFRESH_SECRET is not defined');
+  }
+  
+  return jwt.sign(payload, secret, { 
+    expiresIn: '7d',
     issuer: 'omnivox-system',
     audience: 'omnivox-users'
   });
 };
 
 export const verifyAccessToken = (token: string): JWTPayload => {
-  return jwt.verify(token, JWT_SECRET) as JWTPayload;
+  return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
 };
 
 export const verifyRefreshToken = (token: string): JWTPayload => {
-  return jwt.verify(token, JWT_REFRESH_SECRET) as JWTPayload;
+  return jwt.verify(token, JWT_REFRESH_SECRET as string) as JWTPayload;
 };
 
 // Security constants

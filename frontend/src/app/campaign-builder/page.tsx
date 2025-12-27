@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import MainLayout from '../../../components/layout/MainLayout';
+import MainLayout from '../../components/layout/MainLayout';
 import { 
   PlusIcon, 
   TrashIcon, 

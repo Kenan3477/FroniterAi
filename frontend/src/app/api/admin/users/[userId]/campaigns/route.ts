@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
     // Get authentication token from header or cookie
     const authToken = getAuthToken(request);
     
-    const response = await fetch(`${BACKEND_URL}/api/users/${userId}/campaigns`, {
+    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -160,7 +160,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { userI
     // Get authentication token from header or cookie
     const authToken = getAuthToken(request);
     
-    const response = await fetch(`${BACKEND_URL}/api/users/${userId}/campaigns/${campaignId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns/${campaignId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

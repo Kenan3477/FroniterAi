@@ -55,7 +55,6 @@ async function seedAnalyticsData() {
           email: `contact${i}@example.com`,
           company: i % 5 === 0 ? `Company ${Math.floor(i / 5)}` : null,
           status: ['new', 'contacted', 'qualified', 'converted', 'do_not_call'][i % 5],
-          campaignId: i % 2 === 0 ? 'camp-001' : 'camp-002',
           createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within last 30 days
         },
       });
@@ -97,29 +96,26 @@ async function seedAnalyticsData() {
 
     // Create dispositions
     const dispositions = [
-      { category: 'Successful', subcategory: 'Sale Completed', priority: 1 },
-      { category: 'Successful', subcategory: 'Appointment Set', priority: 2 },
-      { category: 'Follow-up', subcategory: 'Call Back Later', priority: 3 },
-      { category: 'Follow-up', subcategory: 'Send Information', priority: 3 },
-      { category: 'Not Interested', subcategory: 'Not Qualified', priority: 4 },
-      { category: 'Not Interested', subcategory: 'No Need', priority: 4 },
-      { category: 'Unavailable', subcategory: 'No Answer', priority: 5 },
-      { category: 'Unavailable', subcategory: 'Voicemail', priority: 5 },
-      { category: 'Unavailable', subcategory: 'Busy Signal', priority: 5 },
-      { category: 'Do Not Call', subcategory: 'Requested Removal', priority: 6 },
+      { name: 'Sale Completed', category: 'Successful', description: 'Sale was successfully completed' },
+      { name: 'Appointment Set', category: 'Successful', description: 'Appointment was successfully scheduled' },
+      { name: 'Call Back Later', category: 'Follow-up', description: 'Customer requested callback later' },
+      { name: 'Send Information', category: 'Follow-up', description: 'Customer requested information to be sent' },
+      { name: 'Not Qualified', category: 'Not Interested', description: 'Customer not qualified for offer' },
+      { name: 'No Need', category: 'Not Interested', description: 'Customer has no need for product/service' },
+      { name: 'No Answer', category: 'Unavailable', description: 'No one answered the call' },
+      { name: 'Voicemail', category: 'Unavailable', description: 'Call went to voicemail' },
+      { name: 'Busy Signal', category: 'Unavailable', description: 'Line was busy' },
+      { name: 'Requested Removal', category: 'Do Not Call', description: 'Customer requested to be removed from calls' },
     ];
 
     const createdDispositions = [];
+    
+    // Delete existing dispositions first
+    await prisma.disposition.deleteMany();
+    
     for (const disp of dispositions) {
-      const created = await prisma.disposition.upsert({
-        where: {
-          category_subcategory: {
-            category: disp.category,
-            subcategory: disp.subcategory,
-          },
-        },
-        update: {},
-        create: disp,
+      const created = await prisma.disposition.create({
+        data: disp,
       });
       createdDispositions.push(created);
     }
@@ -164,7 +160,7 @@ async function seedAnalyticsData() {
         await prisma.callRecord.create({
           data: {
             callId: `call-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            campaignId: contact.campaignId || 'camp-001',
+            campaignId: 'camp-001',
             contactId: contact.contactId,
             agentId: agent.id.toString(),
             phoneNumber: contact.phone,
@@ -175,7 +171,7 @@ async function seedAnalyticsData() {
             duration: outcome !== 'no_answer' ? duration : 0,
             outcome,
             dispositionId: outcome === 'completed' || outcome === 'answered' ? disposition.id : null,
-            notes: outcome === 'completed' ? `${disposition.category} - ${disposition.subcategory}` : null,
+            notes: outcome === 'completed' ? `${disposition.category} - ${disposition.name}` : null,
           },
         });
       }

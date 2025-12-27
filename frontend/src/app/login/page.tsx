@@ -121,22 +121,22 @@ export default function LoginPage() {
                 OMNI
               </span>
               
-              {/* Voice Wave V replacement */}
-              <div className="relative mx-2 flex items-end justify-center h-16 space-x-1">
-                {/* Voice wave bars representing the "V" */}
-                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+              {/* Voice Wave V replacement - Flipped upside down */}
+              <div className="relative mx-2 flex items-start justify-center h-16 space-x-1">
+                {/* Voice wave bars representing the "V" - now pointing downward */}
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
                      style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
                      style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
                      style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
                      style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
                      style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
                      style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
-                <div className="w-2 bg-gradient-to-t from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
                      style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
               </div>
               
@@ -223,7 +223,30 @@ export default function LoginPage() {
               <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">O</span>
               </div>
-              <span className="text-3xl font-bold text-gray-900">Omnivox-AI</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-3xl font-bold text-gray-900">OMNI</span>
+                
+                {/* Voice Wave V replacement - login form header size */}
+                <div className="flex items-start justify-center h-8 space-x-0.5 mx-1">
+                  {/* Voice wave bars representing the "V" - pointing downward */}
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                       style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                       style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                       style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                       style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                       style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                       style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                       style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+                </div>
+                
+                <span className="text-3xl font-bold text-gray-900">OX-AI</span>
+              </div>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
             <p className="text-gray-600">Sign in to your account to continue your work</p>

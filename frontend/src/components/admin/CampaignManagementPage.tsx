@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useEventSystem, useCampaignEvents, useSystemNotifications } from '@/contexts/EventSystemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Select,
   SelectContent,
@@ -175,6 +176,9 @@ const CampaignManagementPage: React.FC = () => {
   const { connectionStatus, connect } = useEventSystem();
   const campaignEvents = useCampaignEvents();
   const systemNotifications = useSystemNotifications();
+  
+  // Auth context for refreshing header campaigns
+  const { refreshCampaigns } = useAuth();
 
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
@@ -278,6 +282,10 @@ const CampaignManagementPage: React.FC = () => {
             status: isActive ? 'ACTIVE' as const : 'PAUSED' as const
           } : c
         ));
+
+        // Refresh campaigns in AuthContext so header dropdown updates
+        await refreshCampaigns();
+        console.log(`🔄 Header campaigns refreshed after ${isActive ? 'activation' : 'deactivation'}`);
       } else {
         console.error(`❌ Failed to toggle campaign activation for ${campaignId}`);
       }

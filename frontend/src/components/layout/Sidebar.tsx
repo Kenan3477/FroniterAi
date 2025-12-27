@@ -49,7 +49,30 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
-            <span className="text-xl font-bold text-gray-900">Omnivox-AI</span>
+            <div className="flex items-center space-x-1">
+              <span className="text-lg font-bold text-gray-900">OMNI</span>
+              
+              {/* Voice Wave V replacement - smaller for sidebar, flipped upside down */}
+              <div className="flex items-start justify-center h-5 space-x-0.5 mx-1">
+                {/* Voice wave bars representing the "V" - now pointing downward */}
+                <div className="w-1 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                     style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                     style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
+                <div className="w-1 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+              </div>
+              
+              <span className="text-lg font-bold text-gray-900">OX AI</span>
+            </div>
           )}
         </div>
       </div>

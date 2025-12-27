@@ -105,7 +105,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
 
       console.log('✅ Call initiated:', callData);
       
-      setActiveCallSid(callData.callSid);
+      setActiveCallSid(callData.callSid || null);
       setCallStatus('initiated');
       setCallStartTime(new Date());
       
@@ -341,6 +341,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         isOpen={isDialPadOpen}
         onClose={() => setIsDialPadOpen(false)}
         onDial={handleDial}
+        callerIdNumber={callerIdNumber}
       />
 
       {/* Disposition Card */}
@@ -348,11 +349,10 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         <DispositionCard
           isOpen={isDispositionCardOpen}
           onClose={() => setIsDispositionCardOpen(false)}
-          onSubmit={handleDispositionSubmit}
+          onSave={handleDispositionSubmit}
           customerInfo={{
             name: `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || 'Unknown',
-            phone: customerInfo.phone || customerInfo.phoneNumber || dialedNumber,
-            email: customerInfo.email,
+            phoneNumber: customerInfo.phone || customerInfo.phoneNumber || dialedNumber,
           }}
           callDuration={callDuration}
         />

@@ -654,9 +654,9 @@ export default function EnhancedUserManagement() {
                 <button
                   type="button"
                   onClick={createUser}
-                  disabled={isSubmitting || emailValidating || (emailValidation && !emailValidation.isUnique)}
+                  disabled={isSubmitting || emailValidating || (emailValidation ? !emailValidation.isUnique : false)}
                   className={`w-full inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm sm:ml-3 sm:w-auto sm:text-sm ${
-                    isSubmitting || emailValidating || (emailValidation && !emailValidation.isUnique)
+                    isSubmitting || emailValidating || (emailValidation ? !emailValidation.isUnique : false)
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
                   }`}

@@ -153,4 +153,7 @@ If any request conflicts with these rules, these rules take precedence.
 Claude must explain the conflict before proceeding.
 These rules remain in force for the entire Omnivox lifecycle.
 
-## 13. 
+## 13. building
+When building Anything on the frontend make sure to include appropriate recveival and response to the backend API endpoints to ensure full end-to-end functionality. and functionalility
+
+Never Add Simulated or placeholder features.

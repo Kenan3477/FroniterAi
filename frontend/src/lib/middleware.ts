@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, CustomJWTPayload, UserRole } from './auth';
+import { verifyAccessToken, JWTPayload, UserRole } from './auth';
 import prisma from './db';
 
 export interface AuthenticatedRequest extends NextRequest {

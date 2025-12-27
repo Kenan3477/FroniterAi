@@ -66,7 +66,33 @@ export default function Dashboard() {
     <MainLayout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome to Omnivox-AI</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-2">
+            <span>Welcome to</span>
+            <div className="flex items-center space-x-1">
+              <span>OMNI</span>
+              
+              {/* Voice Wave V replacement - dashboard header size */}
+              <div className="flex items-start justify-center h-8 space-x-0.5 mx-1">
+                {/* Voice wave bars representing the "V" - pointing downward */}
+                <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                     style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
+                     style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
+                     style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
+                <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
+                     style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+              </div>
+              
+              <span>OX-AI</span>
+            </div>
+          </h1>
           <p className="mt-2 text-lg text-gray-600">
             Hello, {user?.firstName} {user?.lastName}! Let's get started with your AI-powered dialer.
           </p>

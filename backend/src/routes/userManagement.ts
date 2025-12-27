@@ -4,10 +4,13 @@
  */
 
 import { Router } from 'express';
-import { requireRole } from '../middleware/auth';
+import { authenticate, requireRole } from '../middleware/auth';
 import userManagementService from '../services/userManagement';
 
 const router = Router();
+
+// Apply authentication to all routes
+router.use(authenticate);
 
 /**
  * GET /api/users

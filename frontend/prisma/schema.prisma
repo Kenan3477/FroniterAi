@@ -136,6 +136,7 @@ model Campaign {
   interactions         Interaction[]
   tasks                Task[]
   workItems            WorkItem[]
+  userAssignments      UserCampaignAssignment[]  @relation("CampaignUserAssignments")
 
   @@map("campaigns")
 }
@@ -370,8 +371,25 @@ model User {
   resolvedAlerts        SystemAlert[]          @relation("AlertResolver")
   acknowledgedAlerts    SystemAlert[]          @relation("AlertAcknowledger")
   webhooks              Webhook[]              @relation("UserWebhooks")
+  campaignAssignments   UserCampaignAssignment[] @relation("UserCampaignAssignments")
+  assignedCampaigns     UserCampaignAssignment[] @relation("CampaignAssigner")
 
   @@map("users")
+}
+
+model UserCampaignAssignment {
+  id         String   @id @default(cuid())
+  userId     Int
+  campaignId String
+  isActive   Boolean  @default(true)
+  assignedAt DateTime @default(now())
+  assignedBy Int? // Admin who assigned this campaign
+  user       User     @relation("UserCampaignAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation("CampaignUserAssignments", fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  assignedByUser User? @relation("CampaignAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([userId, campaignId])
+  @@map("user_campaign_assignments")
 }
 
 model RefreshToken {

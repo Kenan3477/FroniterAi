@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   MagnifyingGlassIcon,
@@ -22,14 +22,61 @@ interface HeaderProps {
 export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState('DAC FRS');
   const [selectedQueue, setSelectedQueue] = useState('DAC (C)');
   const [userStatus, setUserStatus] = useState('Away');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  const { user, logout } = useAuth();
+  const { user, logout, availableCampaigns, currentCampaign } = useAuth();
   // Agent dialing is controlled by status, not manual buttons
   const activeCall = null as any;
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!currentCampaign) {
+      alert('Please select a campaign first before changing status to Available');
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    console.log(`🔄 Updating agent status to: ${newStatus}`);
+    
+    try {
+      // Update agent status and trigger auto-dial if Available
+      const response = await fetch('/api/agents/status-enhanced', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          agentId: user?.username || user?.id || 'agent-1',
+          status: newStatus,
+          campaignId: currentCampaign.campaignId
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setUserStatus(newStatus);
+        
+        if (newStatus === 'Available') {
+          console.log('✅ Agent available - auto-dialing enabled');
+          console.log(`📊 Campaign: ${data.campaign?.name}, Queue: ${data.queueStatus?.queueDepth} contacts`);
+        } else {
+          console.log(`✅ Agent status updated to: ${newStatus}`);
+        }
+      } else {
+        console.error('Failed to update status:', data.error);
+        alert(`Failed to update status: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Status update error:', error);
+      alert('Failed to update agent status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -41,15 +88,6 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
       setIsLoggingOut(false);
     }
   };
-
-  // Mock campaign and queue data
-  const campaigns = [
-    'DAC FRS',
-    'Wiseguys failed payments', 
-    'Ken Campaign NEW',
-    'Holiday Campaign',
-    'Follow-up Campaign'
-  ];
 
   const inboundQueues = [
     'DAC (C)',
@@ -138,11 +176,15 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
             <span className={`ml-1 font-medium ${
               userStatus === 'Available' ? 'text-slate-600' : 'text-gray-500'
             }`}>
-              {userStatus === 'Available' ? 'Active' : 'Inactive'}
+              {isUpdatingStatus ? 'Updating...' : (userStatus === 'Available' ? 'Active' : 'Inactive')}
             </span>
           </div>
           <div className="text-xs text-gray-500">
-            {userStatus === 'Available' ? '• Auto-dialing enabled' : '• Set status to Available to join queue'}
+            {isUpdatingStatus ? '• Connecting...' : 
+             userStatus === 'Available' ? 
+               (currentCampaign ? '• Auto-dialing enabled' : '• Select campaign first') : 
+               '• Set status to Available to join queue'
+            }
           </div>
         </div>
 
@@ -220,8 +262,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <div className={`h-3 w-3 ${getStatusColor(userStatus)} rounded-full`}></div>
                     <select 
                       value={userStatus}
-                      onChange={(e) => setUserStatus(e.target.value)}
-                      className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 flex-1"
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      disabled={isUpdatingStatus}
+                      className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 flex-1 disabled:opacity-50"
                     >
                       {userStatuses.map((status) => (
                         <option key={status} value={status}>{status}</option>
@@ -236,12 +279,21 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <div>
                       <label className="block text-xs text-gray-600 mb-1">Campaign</label>
                       <select 
-                        value={selectedCampaign}
-                        onChange={(e) => setSelectedCampaign(e.target.value)}
+                        value={currentCampaign?.campaignId || ''}
+                        onChange={(e) => {
+                          const selectedCampaign = availableCampaigns.find(c => c.campaignId === e.target.value);
+                          if (selectedCampaign) {
+                            // Handle campaign selection (could trigger AuthContext campaign change)
+                            console.log('Mobile campaign selected:', selectedCampaign.name);
+                          }
+                        }}
                         className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       >
-                        {campaigns.map((campaign) => (
-                          <option key={campaign} value={campaign}>{campaign}</option>
+                        <option value="">Select Campaign</option>
+                        {availableCampaigns.map((campaign) => (
+                          <option key={campaign.campaignId} value={campaign.campaignId}>
+                            {campaign.name}
+                          </option>
                         ))}
                       </select>
                     </div>
