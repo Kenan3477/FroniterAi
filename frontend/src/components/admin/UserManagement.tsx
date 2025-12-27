@@ -216,16 +216,26 @@ export default function UserManagement() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/admin/users?id=${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       if (response.ok) {
+        console.log('✅ User deleted successfully');
         await fetchUsers();
         await fetchStats();
+      } else {
+        const error = await response.json();
+        console.error('❌ Delete user failed:', error);
+        alert(error.message || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
+      alert('Failed to delete user');
     }
   };
 

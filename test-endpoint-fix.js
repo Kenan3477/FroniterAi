@@ -28,14 +28,35 @@ async function testEndpointFix() {
     
     const loginData = await loginResponse.json();
     console.log('✅ Login successful');
+    console.log('📋 Login response:', JSON.stringify(loginData, null, 2));
     
-    if (!loginData.data?.token) {
+    if (!loginData.data?.token && !loginData.data?.accessToken) {
       console.log('❌ No auth token in response');
       return;
     }
     
-    const authToken = loginData.data.token;
+    const authToken = loginData.data.accessToken || loginData.data.token;
     console.log('🔑 Got auth token');
+    
+    // Test basic authentication with known working endpoint
+    console.log('\n1.5. Testing auth token with known working endpoint...');
+    const testAuthResponse = await fetch('https://froniterai-production.up.railway.app/api/admin/users', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('GET /api/admin/users (auth test):', testAuthResponse.status);
+    
+    if (!testAuthResponse.ok) {
+      const error = await testAuthResponse.text();
+      console.log('❌ Auth token not working on known endpoint:', error);
+      return;
+    } else {
+      console.log('✅ Auth token working correctly');
+    }
     
     // 2. Test the corrected GET endpoint
     console.log('\n2. Testing corrected GET endpoint...');
