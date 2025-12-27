@@ -130,6 +130,35 @@ router.get('/test-db', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/admin-setup/activate-admin - Activate admin user (temporary fix)
+router.post('/activate-admin', async (req: Request, res: Response) => {
+  try {
+    console.log('🔓 Activating admin user...');
+    
+    // Find and activate admin user
+    const updatedAdmin = await prisma.user.update({
+      where: { email: 'admin@omnivox-ai.com' },
+      data: { isActive: true }
+    });
+
+    console.log('✅ Admin user activated successfully');
+    res.json({
+      success: true,
+      message: 'Admin user activated successfully',
+      user: {
+        email: updatedAdmin.email,
+        isActive: updatedAdmin.isActive
+      }
+    });
+  } catch (error) {
+    console.error('❌ Admin activation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Admin activation failed', details: error }
+    });
+  }
+});
+
 // GET /api/admin-setup/check-users - Check if users table and any users exist
 router.get('/check-users', async (req: Request, res: Response) => {
   try {
