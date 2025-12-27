@@ -8,16 +8,37 @@ function getAuthToken(request: NextRequest): string | null {
   // Try Authorization header first
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
+    console.log('🔑 Found Authorization header');
     return authHeader.substring(7);
   }
   
-  // Try cookies
+  // Try cookies from request headers (more reliable)
+  const cookieHeader = request.headers.get('cookie');
+  console.log('🍪 Raw cookie header:', cookieHeader);
+  
+  if (cookieHeader) {
+    // Parse auth-token from cookie string
+    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    if (authTokenMatch && authTokenMatch[1]) {
+      console.log('✅ Found auth-token in cookies');
+      return authTokenMatch[1];
+    }
+  }
+  
+  // Fallback to Next.js cookies API
   const cookieStore = cookies();
   const authCookie = cookieStore.get('auth-token');
+  console.log('🍪 Next.js cookie check:', { 
+    hasCookie: !!authCookie, 
+    cookieValue: authCookie?.value ? 'EXISTS' : 'NULL' 
+  });
+  
   if (authCookie?.value) {
+    console.log('✅ Using Next.js cookie token for authentication');
     return authCookie.value;
   }
   
+  console.log('❌ No authentication token found');
   return null;
 }
 

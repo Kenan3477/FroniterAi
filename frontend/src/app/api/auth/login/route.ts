@@ -44,6 +44,12 @@ export async function POST(request: NextRequest) {
     // Set secure cookie with backend token
     const isProduction = process.env.NODE_ENV === 'production';
     
+    console.log('🍪 Setting auth-token cookie:', {
+      token: backendData.data.token ? 'EXISTS' : 'NULL',
+      isProduction,
+      tokenLength: backendData.data.token?.length || 0
+    });
+    
     response.cookies.set('auth-token', backendData.data.token, {
       httpOnly: true,
       secure: isProduction,
