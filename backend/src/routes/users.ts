@@ -276,7 +276,7 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: 
  */
 router.get('/my-campaigns', authenticate, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = (req as any).user?.userId;
     
     if (!userId) {
       return res.status(401).json({
@@ -289,7 +289,7 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
 
     // Get user with their campaign assignments
     const userWithCampaigns = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: parseInt(userId) }, // Convert string back to integer
       include: {
         campaignAssignments: {
           where: {

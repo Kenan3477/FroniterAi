@@ -101,7 +101,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     // Get user from database to verify they still exist and are active
     const user = await prisma.user.findUnique({
       where: { 
-        id: decoded.userId  // Remove parseInt since id is string in schema
+        id: parseInt(decoded.userId.toString())  // Convert to integer for database lookup
       },
       select: {
         id: true,

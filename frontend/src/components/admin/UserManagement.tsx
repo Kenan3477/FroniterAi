@@ -941,12 +941,29 @@ export default function UserManagement() {
                       Available Campaigns
                     </h4>
                     {(() => {
+                      // Debug data structures
+                      console.log('🔍 Campaign Assignment Debug:');
+                      console.log('Available campaigns count:', availableCampaigns.length);
+                      console.log('User campaigns count:', userCampaigns.length);
+                      if (availableCampaigns.length > 0) {
+                        console.log('Available campaign sample:', availableCampaigns[0]);
+                      }
+                      if (userCampaigns.length > 0) {
+                        console.log('User campaign sample:', userCampaigns[0]);
+                      }
+                      
                       // Filter out campaigns that the user is already assigned to
                       const unassignedCampaigns = availableCampaigns.filter(
-                        (campaign) => !userCampaigns.some(
-                          (assignment) => assignment.campaignId === campaign.campaignId
-                        )
+                        (campaign) => {
+                          const isAssigned = userCampaigns.some(
+                            (assignment) => assignment.campaignId === campaign.campaignId
+                          );
+                          console.log(`Campaign ${campaign.campaignId} (${campaign.name}): assigned=${isAssigned}`);
+                          return !isAssigned;
+                        }
                       );
+                      
+                      console.log('Unassigned campaigns count:', unassignedCampaigns.length);
                       
                       return unassignedCampaigns.length > 0 ? (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
