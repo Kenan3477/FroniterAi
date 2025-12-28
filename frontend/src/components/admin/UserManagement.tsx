@@ -254,7 +254,7 @@ export default function UserManagement() {
             'Content-Type': 'application/json'
           }
         }),
-        fetch('/api/admin/campaigns/available', {
+        fetch('/api/admin/campaign-management/campaigns', {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
