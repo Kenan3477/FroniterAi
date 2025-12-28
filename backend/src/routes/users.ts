@@ -389,9 +389,12 @@ router.get('/:userId/campaigns', authenticate, requireRole('ADMIN'), async (req:
 
     // Transform to match frontend expectations
     const assignments = userWithCampaigns.campaignAssignments.map(assignment => ({
+      id: assignment.campaign.campaignId, // Frontend expects 'id' for unassign function
       campaignId: assignment.campaign.campaignId,
+      name: assignment.campaign.name, // Frontend expects 'name' for display
       campaignName: assignment.campaign.name,
       campaignStatus: assignment.campaign.status,
+      status: assignment.campaign.status,
       assignedAt: assignment.assignedAt
     }));
 
