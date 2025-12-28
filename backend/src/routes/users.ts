@@ -269,4 +269,73 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: 
   }
 });
 
+/**
+ * @route   GET /api/users/my-campaigns
+ * @desc    Get campaigns assigned to the authenticated user
+ * @access  Private (requires authentication)
+ */
+router.get('/my-campaigns', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    console.log(`📋 Fetching campaigns for user ID: ${userId}`);
+
+    // Get user with their campaign assignments
+    const userWithCampaigns = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        campaignAssignments: {
+          where: {
+            isActive: true
+          },
+          include: {
+            campaign: {
+              select: {
+                campaignId: true,
+                name: true,
+                description: true,
+                status: true,
+                isActive: true,
+                createdAt: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!userWithCampaigns) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Extract campaigns from the assignments
+    const campaigns = userWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+
+    console.log(`✅ Found ${campaigns.length} campaigns for user ${userId}`);
+
+    res.json({
+      success: true,
+      data: campaigns
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching user campaigns:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaigns',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

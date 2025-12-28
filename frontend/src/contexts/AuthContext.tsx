@@ -93,8 +93,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔍 Fetching user-assigned campaigns...');
       
-      // Fetch user-assigned campaigns instead of all active campaigns
-      const response = await fetch(`/api/admin/users/${user.id}/campaigns`, {
+      // Use different endpoints based on user role
+      let apiUrl: string;
+      if (user.role === 'ADMIN') {
+        // Admin can use the admin endpoint to view their own campaigns
+        apiUrl = `/api/admin/users/${user.id}/campaigns`;
+      } else {
+        // Regular users use the user-specific endpoint
+        apiUrl = '/api/users/my-campaigns';
+      }
+
+      const response = await fetch(apiUrl, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
@@ -103,20 +112,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('📋 User campaign assignments:', data);
+        console.log('📋 User campaign response:', data);
         
-        if (data.success && data.data?.assignments) {
-          // Filter to only active campaigns from user assignments
-          const activeCampaigns = data.data.assignments
-            .filter((assignment: any) => assignment.campaignStatus === 'Active')
-            .map((assignment: any) => ({
-              campaignId: assignment.campaignId,
-              name: assignment.campaignName,
-              displayName: assignment.campaignName,
-              type: 'OUTBOUND', // Default type
-              dialMethod: assignment.dialMethod || 'MANUAL_DIAL',
-              status: assignment.campaignStatus
-            }));
+        if (data.success) {
+          let activeCampaigns: any[] = [];
+
+          if (user.role === 'ADMIN' && data.data?.assignments) {
+            // Handle admin endpoint response format
+            activeCampaigns = data.data.assignments
+              .filter((assignment: any) => assignment.campaignStatus === 'Active')
+              .map((assignment: any) => ({
+                campaignId: assignment.campaignId,
+                name: assignment.campaignName,
+                displayName: assignment.campaignName,
+                type: 'OUTBOUND',
+                dialMethod: assignment.dialMethod || 'MANUAL_DIAL',
+                status: assignment.campaignStatus
+              }));
+          } else if (data.data && Array.isArray(data.data)) {
+            // Handle user endpoint response format
+            activeCampaigns = data.data
+              .filter((campaign: any) => campaign.status === 'Active' && campaign.isActive)
+              .map((campaign: any) => ({
+                campaignId: campaign.campaignId,
+                name: campaign.name,
+                displayName: campaign.name,
+                type: 'OUTBOUND',
+                dialMethod: 'MANUAL_DIAL', // Default for now
+                status: campaign.status
+              }));
+          }
 
           console.log('✅ Active user-assigned campaigns:', activeCampaigns);
           setAvailableCampaigns(activeCampaigns);
