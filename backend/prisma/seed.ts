@@ -33,6 +33,22 @@ async function main() {
       role: 'SUPERVISOR',
       firstName: 'Demo',
       lastName: 'Supervisor'
+    },
+    {
+      username: 'test-user',
+      email: 'test.user@example.com',
+      password: 'TestUser123!',
+      role: 'AGENT',
+      firstName: 'Test',
+      lastName: 'User'
+    },
+    {
+      username: 'kenan-test',
+      email: 'kenan.test@gmail.com',
+      password: 'KenanGmail123!',
+      role: 'AGENT',
+      firstName: 'Kenan',
+      lastName: 'Test'
     }
   ];
 

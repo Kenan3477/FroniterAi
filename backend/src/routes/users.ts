@@ -84,7 +84,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
     console.log('  - Raw password:', JSON.stringify(password));
     console.log('  - Password type:', typeof password);
     console.log('  - Password length:', password?.length || 0);
-    console.log('  - Password chars:', password ? Array.from(password).map(c => c.charCodeAt(0)) : []);
+    console.log('  - Password chars:', password ? Array.from(String(password)).map((c: string) => c.charCodeAt(0)) : []);
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);

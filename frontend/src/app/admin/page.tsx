@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import DataManagementContent from '@/components/admin/DataManagementContent';
@@ -28,6 +29,73 @@ export default function AdminPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check user role on client side for better UX
+    const checkAdminAccess = async () => {
+      try {
+        const response = await fetch('/api/auth/profile', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user && data.user.role === 'ADMIN') {
+            setIsAuthorized(true);
+          } else {
+            console.log('🚫 Non-admin user trying to access admin panel, redirecting...');
+            router.push('/dashboard?error=access-denied');
+            return;
+          }
+        } else {
+          router.push('/login');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking admin access:', error);
+        router.push('/dashboard');
+        return;
+      }
+    };
+
+    checkAdminAccess();
+  }, [router]);
+
+  // Show loading state while checking authorization
+  if (isAuthorized === null) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Checking admin access...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show access denied if not authorized (shouldn't reach here due to middleware, but good UX)
+  if (isAuthorized === false) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
+            <p className="text-gray-600 mb-4">You don't have permission to access the admin panel.</p>
+            <button 
+              onClick={() => router.push('/dashboard')}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

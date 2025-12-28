@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
 
     console.log('🔑 Auth token found, fetching profile from backend...');
     
-    // Try to fetch profile from backend
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    // Try to fetch profile from backend - MUST use Railway backend per Instructions Rule 3
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
     
     try {
       const backendResponse = await fetch(`${backendUrl}/api/auth/profile`, {
@@ -43,34 +43,70 @@ export async function GET(request: NextRequest) {
       console.log('⚠️ Backend not available, using token-based fallback');
     }
     
-    // Fallback: Extract user info from token if backend is unavailable
-    // This handles the transition period where some tokens might be old format
-    let username = 'user';
-    if (authToken.startsWith('demo-')) {
-      username = authToken.replace('demo-', '');
-    }
-    
-    const userProfile = {
-      id: username === 'admin' ? 1 : 2,
-      email: `${username}@kennex.ai`,
-      username: username,
-      firstName: username === 'admin' ? 'Admin' : 'Demo',
-      lastName: 'User',
-      name: username === 'admin' ? 'Admin User' : 'Demo User',
-      role: username === 'admin' ? 'admin' : 'agent',
-      status: 'active',
-      preferences: {},
-      createdAt: new Date('2024-01-01'),
-      lastLogin: new Date(),
-      isActive: true
-    };
+    // Fallback: Decode JWT token directly if backend unavailable
+    try {
+      // Extract payload from JWT token (skip signature verification for fallback)
+      const tokenParts = authToken.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+      
+      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+      console.log('✅ Decoded JWT token payload:', { id: payload.userId || payload.id, email: payload.email, role: payload.role });
+      
+      const userProfile = {
+        id: payload.userId || payload.id || 1,
+        email: payload.email || 'unknown@omnivox-ai.com',
+        username: payload.email?.split('@')[0] || 'user',
+        firstName: payload.firstName || 'User',
+        lastName: payload.lastName || 'Name',
+        name: `${payload.firstName || 'User'} ${payload.lastName || 'Name'}`,
+        role: payload.role || 'AGENT', // Preserve exact case from Railway backend
+        status: 'active',
+        preferences: {},
+        createdAt: new Date('2024-01-01'),
+        lastLogin: new Date(),
+        isActive: true
+      };
 
-    console.log('✅ Returning fallback user profile');
-    
-    return NextResponse.json({
-      success: true,
-      user: userProfile
-    });
+      console.log('✅ Returning JWT-based user profile with role:', userProfile.role);
+      
+      return NextResponse.json({
+        success: true,
+        user: userProfile
+      });
+      
+    } catch (parseError) {
+      console.error('Failed to parse JWT token:', parseError);
+      
+      // Final fallback for demo tokens
+      let username = 'user';
+      if (authToken.startsWith('demo-')) {
+        username = authToken.replace('demo-', '');
+      }
+      
+      const demoProfile = {
+        id: username === 'admin' ? 1 : 2,
+        email: `${username}@omnivox-ai.com`,
+        username: username,
+        firstName: username === 'admin' ? 'Admin' : 'Demo',
+        lastName: 'User',
+        name: username === 'admin' ? 'Admin User' : 'Demo User',
+        role: username === 'admin' ? 'ADMIN' : 'AGENT', // Fixed: Use uppercase for consistency
+        status: 'active',
+        preferences: {},
+        createdAt: new Date('2024-01-01'),
+        lastLogin: new Date(),
+        isActive: true
+      };
+
+      console.log('✅ Returning demo fallback user profile');
+      
+      return NextResponse.json({
+        success: true,
+        user: demoProfile
+      });
+    }
 
   } catch (error) {
     console.error('❌ Profile fetch error:', error);

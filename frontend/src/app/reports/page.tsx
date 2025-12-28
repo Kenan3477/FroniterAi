@@ -331,6 +331,10 @@ const voiceDataReports = [
 export default function ReportsPage() {
   const router = useRouter();
   
+  // Authorization state
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
   // Main tab state - choose between categories view or advanced features
   const [activeMainTab, setActiveMainTab] = useState<'categories' | 'dashboard' | 'builder' | 'templates' | 'scheduled'>('categories');
   
@@ -350,6 +354,76 @@ export default function ReportsPage() {
     filters: {} as { [key: string]: any },
     chartType: 'bar' as 'line' | 'bar' | 'pie' | 'doughnut'
   });
+
+  // Check user role authorization
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const response = await fetch('/api/auth/profile');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🔍 Reports page - Profile API response:', data);
+          
+          // Handle the correct response structure { success: true, user: { role: "ADMIN" } }
+          const userProfile = data.success ? data.user : data;
+          const userRole = userProfile.role;
+          
+          console.log('🔍 Reports page - User role:', userRole);
+          
+          if (userRole === 'ADMIN' || userRole === 'SUPERVISOR') {
+            setIsAuthorized(true);
+            console.log('✅ Reports page - Access granted for role:', userRole);
+          } else {
+            setIsAuthorized(false);
+            console.log('❌ Reports page - Access denied for role:', userRole);
+            router.push('/dashboard'); // Redirect unauthorized users
+          }
+        } else {
+          console.log('❌ Reports page - Profile API failed:', response.status);
+          setIsAuthorized(false);
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('❌ Error checking user role:', error);
+        setIsAuthorized(false);
+        router.push('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkUserRole();
+  }, [router]);
+
+  // Show loading or unauthorized states
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Verifying access permissions...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <XMarkIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+            <p className="text-gray-600">You don't have permission to access the reports panel.</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const handleCategorySelect = (categoryId: string, categoryName: string) => {
     setSelectedCategory(categoryId);

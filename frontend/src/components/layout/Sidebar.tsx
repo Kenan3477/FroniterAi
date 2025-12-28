@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   HomeIcon, 
   BriefcaseIcon, 
@@ -27,17 +28,26 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const navigationItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Work', href: '/work', icon: BriefcaseIcon },
-  { name: 'Contacts', href: '/contacts', icon: UsersIcon },
-  { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon },
-  { name: 'Reports', href: '/reports', icon: ChartBarIcon },
-  { name: 'Admin', href: '/admin', icon: CogIcon },
+const allNavigationItems = [
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+  { name: 'Work', href: '/work', icon: BriefcaseIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+  { name: 'Contacts', href: '/contacts', icon: UsersIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+  { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon, roles: ['ADMIN', 'SUPERVISOR'] },
+  { name: 'Reports', href: '/reports', icon: ChartBarIcon, roles: ['ADMIN', 'SUPERVISOR'] },
+  { name: 'Admin', href: '/admin', icon: CogIcon, roles: ['ADMIN'] },
 ];
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Filter navigation items based on user role
+  const navigationItems = allNavigationItems.filter(item => {
+    if (!user?.role) return true; // Show all items if role is not available (fallback)
+    return item.roles.includes(user.role);
+  });
+
+  console.log('🔍 Sidebar - User role:', user?.role, 'Available items:', navigationItems.map(item => item.name));
   return (
     <div className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'

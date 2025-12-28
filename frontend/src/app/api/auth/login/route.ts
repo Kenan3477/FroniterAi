@@ -3,14 +3,15 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
+    const { username, email, password } = await request.json();
+    const loginIdentifier = email || username;
 
-    console.log('🔐 Frontend API: Login attempt for:', username);
+    console.log('🔐 Frontend API: Login attempt for:', loginIdentifier);
 
     // Connect to backend authentication instead of using demo credentials
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
-    console.log('🔐 Attempting backend authentication for:', username);
+    console.log('🔐 Attempting backend authentication for:', loginIdentifier);
     console.log('📡 Backend URL:', `${backendUrl}/api/auth/login`);
     
     const backendResponse = await fetch(`${backendUrl}/api/auth/login`, {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email: loginIdentifier, username: loginIdentifier, password }),
     });
 
     console.log('📡 Backend response status:', backendResponse.status);

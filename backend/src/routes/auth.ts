@@ -132,9 +132,14 @@ router.post('/login', async (req, res) => {
 
     // Verify password
     console.log('🔍 Password verification details:');
+    console.log('  - Login identifier:', JSON.stringify(loginIdentifier));
+    console.log('  - Login type:', email ? 'EMAIL' : 'USERNAME');
     console.log('  - Input password:', JSON.stringify(password));
     console.log('  - Input password type:', typeof password);
     console.log('  - Input password length:', password?.length || 0);
+    console.log('  - Found user ID:', user.id);
+    console.log('  - Found user email:', user.email);
+    console.log('  - Found user username:', user.username);
     console.log('  - Stored hash:', user.password);
     console.log('  - Hash length:', user.password?.length || 0);
     
@@ -146,6 +151,11 @@ router.post('/login', async (req, res) => {
       console.log('🔍 Testing with demo password for debug...');
       const testDemoPassword = await bcrypt.compare('OmnivoxAgent2025!', user.password);
       console.log('🔍 Demo password test result:', testDemoPassword);
+      
+      // Test with the exact password that works with username
+      console.log('🔍 Testing password that works with username...');
+      const testWorkingPassword = await bcrypt.compare('Kenzo3477!', user.password);
+      console.log('🔍 Working password test result:', testWorkingPassword);
     }
     
     if (!isPasswordValid) {
