@@ -914,12 +914,12 @@ export default function UserManagement() {
                       <div className="space-y-2 max-h-32 overflow-y-auto">
                         {availableCampaigns.map((campaign) => (
                           <div
-                            key={campaign.id}
+                            key={campaign.campaignId}
                             className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded"
                           >
                             <span className="text-sm text-gray-900">{campaign.name}</span>
                             <button
-                              onClick={() => assignCampaign(campaign.id)}
+                              onClick={() => assignCampaign(campaign.campaignId)}
                               className="text-blue-600 hover:text-blue-800 text-xs"
                             >
                               Assign
