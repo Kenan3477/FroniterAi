@@ -149,6 +149,7 @@ class App {
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
     this.app.use('/api/admin/users', userRoutes); // RE-ENABLED - stats endpoint for admin dashboard
+    this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
