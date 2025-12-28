@@ -281,25 +281,55 @@ export default function UserManagement() {
   const assignCampaign = async (campaignId: string) => {
     if (!managingCampaignsUser) return;
 
+    // Check if user is already assigned to this campaign
+    const isAlreadyAssigned = userCampaigns.some(
+      (assignment) => assignment.campaignId === campaignId
+    );
+    
+    if (isAlreadyAssigned) {
+      alert('User is already assigned to this campaign');
+      return;
+    }
+
+    console.log('🔍 Assignment Debug Info:');
+    console.log('  - Campaign ID:', campaignId);
+    console.log('  - Campaign ID type:', typeof campaignId);
+    console.log('  - User ID:', managingCampaignsUser.id);
+    console.log('  - User ID type:', typeof managingCampaignsUser.id);
+
     try {
+      const requestBody = {
+        campaignId,
+        assignedBy: 1 // TODO: Get current admin user ID
+      };
+      
+      console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(`/api/admin/users/${managingCampaignsUser.id}/campaigns`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          campaignId,
-          assignedBy: 1 // TODO: Get current admin user ID
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
+        console.log('✅ Campaign assignment successful');
         // Refresh user campaigns
         await openCampaignManagement(managingCampaignsUser);
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to assign campaign');
+        console.error('❌ Campaign assignment failed:', error);
+        
+        // Handle specific error cases
+        if (error.message?.includes('already assigned')) {
+          alert('This user is already assigned to this campaign');
+        } else {
+          alert(error.message || 'Failed to assign campaign');
+        }
       }
     } catch (error) {
       console.error('Failed to assign campaign:', error);
@@ -910,30 +940,39 @@ export default function UserManagement() {
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
                       Available Campaigns
                     </h4>
-                    {availableCampaigns.length > 0 ? (
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {availableCampaigns.map((campaign) => (
-                          <div
-                            key={campaign.campaignId}
-                            className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded"
-                          >
-                            <span className="text-sm text-gray-900">{campaign.name}</span>
-                            <button
-                              onClick={() => assignCampaign(campaign.campaignId)}
-                              className="text-blue-600 hover:text-blue-800 text-xs"
+                    {(() => {
+                      // Filter out campaigns that the user is already assigned to
+                      const unassignedCampaigns = availableCampaigns.filter(
+                        (campaign) => !userCampaigns.some(
+                          (assignment) => assignment.campaignId === campaign.campaignId
+                        )
+                      );
+                      
+                      return unassignedCampaigns.length > 0 ? (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {unassignedCampaigns.map((campaign) => (
+                            <div
+                              key={campaign.campaignId}
+                              className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded"
                             >
-                              Assign
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">
-                        {userCampaigns.length > 0 
-                          ? 'All campaigns have been assigned to this user.'
-                          : 'No campaigns available.'}
-                      </p>
-                    )}
+                              <span className="text-sm text-gray-900">{campaign.name}</span>
+                              <button
+                                onClick={() => assignCampaign(campaign.campaignId)}
+                                className="text-blue-600 hover:text-blue-800 text-xs"
+                              >
+                                Assign
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">
+                          {userCampaigns.length > 0 
+                            ? 'All campaigns have been assigned to this user.'
+                            : 'No campaigns available.'}
+                        </p>
+                      );
+                    })()}
                   </div>
 
                   {/* Close Button */}

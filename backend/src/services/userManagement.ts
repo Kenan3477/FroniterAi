@@ -339,7 +339,9 @@ async function assignCampaignToUser(userId: number, campaignId: string, assigned
 
   if (existingAssignment) {
     if (existingAssignment.isActive) {
-      throw new Error('User is already assigned to this campaign');
+      // Instead of throwing an error, return the existing assignment
+      // This makes the operation idempotent (safe to call multiple times)
+      return existingAssignment;
     } else {
       // Reactivate existing assignment
       return await prisma.userCampaignAssignment.update({

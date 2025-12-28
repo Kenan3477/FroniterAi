@@ -96,7 +96,17 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
     const userId = params.userId;
     const body = await request.json();
     
+    console.log('🔍 Campaign Assignment Debug:');
+    console.log('  - userId from params:', userId);
+    console.log('  - body received:', JSON.stringify(body, null, 2));
+    console.log('  - body.campaignId:', body.campaignId);
+    console.log('  - body.campaignId type:', typeof body.campaignId);
+    
     if (!userId || !body.campaignId) {
+      console.log('❌ Validation failed:');
+      console.log('  - userId valid:', !!userId);
+      console.log('  - campaignId valid:', !!body.campaignId);
+      
       return NextResponse.json({ 
         success: false, 
         message: 'User ID and campaign ID required' 
