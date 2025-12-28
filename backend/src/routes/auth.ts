@@ -8,6 +8,76 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'omnivox-ai-fallback-secret-key-change-in-production';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'omnivox-ai-refresh-secret-key-change-in-production';
 
+// TEMPORARY DEBUG ENDPOINT - Remove after fixing bcrypt issue
+router.post('/debug-user-hash', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    console.log('🔍 Debug endpoint called for:', email);
+    
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase()
+      }
+    });
+    
+    if (!user) {
+      return res.json({
+        success: false,
+        message: 'User not found',
+        email: email
+      });
+    }
+    
+    console.log('🔍 Found user:', {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      hasPasswordField: !!user.password,
+      passwordLength: user.password?.length || 0,
+      passwordPrefix: user.password?.substring(0, 10) || 'N/A'
+    });
+    
+    // Test password comparison
+    const isValid = await bcrypt.compare(password, user.password);
+    
+    // Test with different password variations
+    const testResults = {
+      original: await bcrypt.compare(password, user.password),
+      trimmed: await bcrypt.compare(password.trim(), user.password),
+      normalized: await bcrypt.compare(password.normalize(), user.password)
+    };
+    
+    // Create a fresh hash of the input password for comparison
+    const freshHash = await bcrypt.hash(password, 12);
+    const freshVerify = await bcrypt.compare(password, freshHash);
+    
+    return res.json({
+      success: true,
+      debug: {
+        userId: user.id,
+        inputPassword: password,
+        inputPasswordType: typeof password,
+        inputPasswordLength: password.length,
+        storedHashLength: user.password.length,
+        storedHashPrefix: user.password.substring(0, 20),
+        passwordComparison: isValid,
+        testResults,
+        freshHashWorks: freshVerify,
+        freshHash: freshHash.substring(0, 20) + '...'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug endpoint error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Production authentication with database lookup and security features
 router.post('/login', async (req, res) => {
   try {
@@ -61,7 +131,22 @@ router.post('/login', async (req, res) => {
     }
 
     // Verify password
+    console.log('🔍 Password verification details:');
+    console.log('  - Input password:', JSON.stringify(password));
+    console.log('  - Input password type:', typeof password);
+    console.log('  - Input password length:', password?.length || 0);
+    console.log('  - Stored hash:', user.password);
+    console.log('  - Hash length:', user.password?.length || 0);
+    
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log('🔍 Password comparison result:', isPasswordValid);
+    
+    // Additional debug: test with known working password
+    if (!isPasswordValid && user.email === 'Kennen_02@icloud.com') {
+      console.log('🔍 Testing with demo password for debug...');
+      const testDemoPassword = await bcrypt.compare('OmnivoxAgent2025!', user.password);
+      console.log('🔍 Demo password test result:', testDemoPassword);
+    }
     
     if (!isPasswordValid) {
       // Increment failed login attempts

@@ -79,8 +79,32 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
     // Generate username from email
     const username = email.split('@')[0];
 
+    // Debug password before hashing
+    console.log('🔍 Password details before hashing:');
+    console.log('  - Raw password:', JSON.stringify(password));
+    console.log('  - Password type:', typeof password);
+    console.log('  - Password length:', password?.length || 0);
+    console.log('  - Password chars:', password ? Array.from(password).map(c => c.charCodeAt(0)) : []);
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
+    
+    // Debug password after hashing
+    console.log('🔍 Password after hashing:');
+    console.log('  - Hashed password:', hashedPassword);
+    console.log('  - Hash length:', hashedPassword.length);
+
+    // Test the hash immediately after creation
+    const testVerify = await bcrypt.compare(password, hashedPassword);
+    console.log('🔍 Immediate hash verification test:', testVerify);
+    
+    if (!testVerify) {
+      console.error('❌ CRITICAL: Hash verification failed immediately after creation!');
+      return res.status(500).json({
+        success: false,
+        message: 'Password hashing verification failed'
+      });
+    }
 
     // Create user
     const user = await prisma.user.create({
