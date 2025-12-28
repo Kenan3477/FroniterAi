@@ -338,4 +338,254 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
   }
 });
 
+/**
+ * @route   GET /api/admin/users/:userId/campaigns
+ * @desc    Get campaigns assigned to a specific user (Admin only)
+ * @access  Private (requires ADMIN role)
+ */
+router.get('/:userId/campaigns', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    console.log(`📋 Admin fetching campaigns for user ID: ${userId}`);
+
+    // Get user with their campaign assignments
+    const userWithCampaigns = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        campaignAssignments: {
+          where: {
+            isActive: true
+          },
+          include: {
+            campaign: {
+              select: {
+                campaignId: true,
+                name: true,
+                description: true,
+                status: true,
+                isActive: true,
+                createdAt: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!userWithCampaigns) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Transform to match frontend expectations
+    const assignments = userWithCampaigns.campaignAssignments.map(assignment => ({
+      campaignId: assignment.campaign.campaignId,
+      campaignName: assignment.campaign.name,
+      campaignStatus: assignment.campaign.status,
+      assignedAt: assignment.assignedAt
+    }));
+
+    console.log(`✅ Admin found ${assignments.length} campaign assignments for user ${userId}`);
+
+    res.json({
+      success: true,
+      data: { assignments }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching user campaign assignments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign assignments',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/admin/users/:userId/campaigns
+ * @desc    Assign a campaign to a user (Admin only)
+ * @access  Private (requires ADMIN role)
+ */
+router.post('/:userId/campaigns', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { campaignId, assignedBy } = req.body;
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Campaign ID is required'
+      });
+    }
+
+    console.log(`🎯 Admin assigning campaign ${campaignId} to user ${userId}`);
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if campaign exists
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId }
+    });
+    
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+
+    // Check if assignment already exists
+    const existingAssignment = await prisma.userCampaignAssignment.findUnique({
+      where: {
+        userId_campaignId: {
+          userId,
+          campaignId
+        }
+      }
+    });
+
+    if (existingAssignment) {
+      if (existingAssignment.isActive) {
+        // Return existing assignment (idempotent)
+        console.log(`✅ User ${userId} already assigned to campaign ${campaignId}`);
+        return res.json({
+          success: true,
+          data: existingAssignment,
+          message: 'User is already assigned to this campaign'
+        });
+      } else {
+        // Reactivate existing assignment
+        const reactivatedAssignment = await prisma.userCampaignAssignment.update({
+          where: { id: existingAssignment.id },
+          data: {
+            isActive: true,
+            assignedAt: new Date(),
+            assignedBy: assignedBy || (req as any).user?.id
+          }
+        });
+
+        console.log(`✅ Reactivated campaign assignment for user ${userId}, campaign ${campaignId}`);
+        return res.json({
+          success: true,
+          data: reactivatedAssignment,
+          message: 'Campaign assignment reactivated'
+        });
+      }
+    }
+
+    // Create new assignment
+    const newAssignment = await prisma.userCampaignAssignment.create({
+      data: {
+        userId,
+        campaignId,
+        assignedBy: assignedBy || (req as any).user?.id,
+        isActive: true
+      }
+    });
+
+    console.log(`✅ Created new campaign assignment for user ${userId}, campaign ${campaignId}`);
+
+    res.json({
+      success: true,
+      data: newAssignment,
+      message: 'Campaign assigned successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error assigning campaign to user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign campaign to user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/admin/users/:userId/campaigns/:campaignId
+ * @desc    Unassign a campaign from a user (Admin only)
+ * @access  Private (requires ADMIN role)
+ */
+router.delete('/:userId/campaigns/:campaignId', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { campaignId } = req.params;
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    console.log(`🗑️ Admin removing campaign ${campaignId} from user ${userId}`);
+
+    // Find and deactivate the assignment
+    const assignment = await prisma.userCampaignAssignment.findUnique({
+      where: {
+        userId_campaignId: {
+          userId,
+          campaignId
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign assignment not found'
+      });
+    }
+
+    // Deactivate the assignment instead of deleting
+    await prisma.userCampaignAssignment.update({
+      where: { id: assignment.id },
+      data: { isActive: false }
+    });
+
+    console.log(`✅ Deactivated campaign assignment for user ${userId}, campaign ${campaignId}`);
+
+    res.json({
+      success: true,
+      message: 'Campaign unassigned successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error unassigning campaign from user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unassign campaign from user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
