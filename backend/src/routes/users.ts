@@ -110,7 +110,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
     const user = await prisma.user.create({
       data: {
         username,
-        email,
+        email: email.toLowerCase(), // Ensure email is stored in lowercase
         password: hashedPassword,
         firstName,
         lastName,
