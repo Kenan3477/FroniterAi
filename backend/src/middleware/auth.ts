@@ -65,8 +65,10 @@ export const ROLE_PERMISSIONS = {
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
+    console.log('🔐 Auth middleware - checking auth header:', authHeader ? 'EXISTS' : 'MISSING');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth middleware - no valid Bearer token');
       res.status(401).json({
         success: false,
         message: 'Access token required',
@@ -76,6 +78,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔐 Auth middleware - token extracted, length:', token.length);
     
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET not configured');
@@ -88,8 +91,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+    console.log('🔐 Auth middleware - JWT decoded:', { userId: decoded.userId, username: decoded.username, role: decoded.role });
     
     if (!decoded.userId || !decoded.username) {
+      console.log('❌ Auth middleware - invalid token format');
       res.status(401).json({
         success: false,
         message: 'Invalid token format',
@@ -99,9 +104,12 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     // Get user from database to verify they still exist and are active
+    const userIdInt = parseInt(decoded.userId.toString());
+    console.log('🔐 Auth middleware - looking up user with ID:', userIdInt);
+    
     const user = await prisma.user.findUnique({
       where: { 
-        id: parseInt(decoded.userId.toString())  // Convert to integer for database lookup
+        id: userIdInt  // Convert to integer for database lookup
       },
       select: {
         id: true,
@@ -111,7 +119,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       }
     });
 
+    console.log('🔐 Auth middleware - user lookup result:', user ? 'FOUND' : 'NOT_FOUND');
+    
     if (!user) {
+      console.log('❌ Auth middleware - user not found in database');
       res.status(401).json({
         success: false,
         message: 'User not found',
@@ -121,6 +132,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     if (!user.isActive) {
+      console.log('❌ Auth middleware - user account deactivated');
       res.status(401).json({
         success: false,
         message: 'Account is deactivated',
@@ -140,9 +152,12 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       permissions
     };
 
+    console.log('✅ Auth middleware - authentication successful for user:', user.id);
     next();
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log('❌ Auth middleware - JWT verification failed:', errorMessage);
     if (error instanceof jwt.JsonWebTokenError) {
       res.status(401).json({
         success: false,
