@@ -121,40 +121,65 @@ export async function PUT(request: NextRequest) {
   try {
     console.log('✏️ Profile update request received');
     
+    const authToken = request.cookies.get('auth-token')?.value;
+    
+    if (!authToken) {
+      console.log('🔒 No auth token found for profile update');
+      return NextResponse.json(
+        { success: false, message: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { firstName, lastName, preferences, status } = body;
+    const { firstName, lastName, email, preferences } = body;
 
     // Validate input
-    if (!firstName || !lastName) {
+    if (!firstName && !lastName && !email && !preferences) {
       return NextResponse.json(
-        { success: false, message: 'First name and last name are required' },
+        { success: false, message: 'At least one field is required for update' },
         { status: 400 }
       );
     }
 
-    console.log('✅ Profile update successful (demo mode)');
+    console.log('🔑 Auth token found, updating profile via backend...');
     
-    // For development, return success without database operation
-    const updatedProfile = {
-      id: 1,
-      email: 'demo@kennex.ai',
-      username: 'demo',
-      firstName,
-      lastName,
-      name: `${firstName} ${lastName}`,
-      role: 'agent',
-      status: status || 'active',
-      preferences: preferences || {},
-      createdAt: new Date('2024-01-01'),
-      lastLogin: new Date(),
-      isActive: true
-    };
+    // Try to update profile via Railway backend per Instructions Rule 3
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    
+    try {
+      const backendResponse = await fetch(`${backendUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ firstName, lastName, email, preferences })
+      });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user: updatedProfile
-    });
+      if (backendResponse.ok) {
+        const backendData = await backendResponse.json();
+        console.log('✅ Backend profile update successful');
+        return NextResponse.json({
+          success: true,
+          message: backendData.message,
+          user: backendData.data.user
+        });
+      } else {
+        const errorData = await backendResponse.json();
+        console.log('❌ Backend profile update failed:', errorData.message);
+        return NextResponse.json(
+          { success: false, message: errorData.message || 'Backend profile update failed' },
+          { status: backendResponse.status }
+        );
+      }
+    } catch (error) {
+      console.error('❌ Backend update request failed:', error);
+      return NextResponse.json(
+        { success: false, message: 'Profile update service temporarily unavailable' },
+        { status: 503 }
+      );
+    }
 
   } catch (error) {
     console.error('❌ Profile update error:', error);

@@ -314,10 +314,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
                 {/* Menu Items */}
                 <div className="py-1">
-                  <button className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                  <Link 
+                    href="/profile" 
+                    className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
                     <span>Preferences</span>
                     <Cog6ToothIcon className="h-4 w-4 text-gray-400" />
-                  </button>
+                  </Link>
                   <button 
                     onClick={handleLogout}
                     disabled={isLoggingOut}

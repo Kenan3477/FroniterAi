@@ -411,6 +411,109 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// Profile update endpoint with proper authentication middleware
+router.put('/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    const userId = decoded.userId;
+    const { firstName, lastName, email, preferences } = req.body;
+
+    // Validate input
+    if (!firstName && !lastName && !email && !preferences) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one field (firstName, lastName, email, preferences) is required'
+      });
+    }
+
+    // Build update data
+    const updateData: any = {};
+    
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    
+    // Update name if first or last name changed
+    if (firstName || lastName) {
+      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (currentUser) {
+        updateData.name = `${firstName || currentUser.firstName} ${lastName || currentUser.lastName}`;
+      }
+    }
+    
+    // Handle email change (also updates username)
+    if (email) {
+      updateData.email = email.toLowerCase();
+      updateData.username = email.split('@')[0];
+    }
+    
+    // Handle preferences
+    if (preferences) {
+      updateData.preferences = JSON.stringify(preferences);
+    }
+
+    // Update user in database
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        preferences: true,
+        status: true,
+        statusSince: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    console.log(`✅ Profile updated for user: ${updatedUser.name} (${updatedUser.email})`);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          ...updatedUser,
+          preferences: updatedUser.preferences ? JSON.parse(updatedUser.preferences) : null
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Profile update service temporarily unavailable'
+    });
+  }
+});
+
 // Logout endpoint with token revocation
 router.post('/logout', async (req, res) => {
   try {
