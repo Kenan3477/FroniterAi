@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 // General API rate limiter
 export const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Increased limit: 1000 requests per windowMs for development
   message: {
     success: false,
     error: {
@@ -32,7 +32,7 @@ export const authRateLimiter = rateLimit({
 // Rate limiter for data creation endpoints
 export const createRateLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 20, // Limit each IP to 20 create operations per 5 minutes
+  max: 100, // Increased limit: 100 create operations per 5 minutes for development
   message: {
     success: false,
     error: {
@@ -46,7 +46,7 @@ export const createRateLimiter = rateLimit({
 // Rate limiter for reporting/analytics endpoints
 export const reportingRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit each IP to 10 reporting requests per minute
+  max: 100, // Increased limit: 100 reporting requests per minute for development
   message: {
     success: false,
     error: {
