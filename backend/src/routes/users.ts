@@ -185,6 +185,7 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
     }
 
     // Delete user with cascading deletes for related records
+    // Updated: Fixed field name from assignedById to assignedBy (Dec 29, 2025)
     await prisma.$transaction(async (prisma) => {
       // Delete user campaign assignments first
       await prisma.userCampaignAssignment.deleteMany({
