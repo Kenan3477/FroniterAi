@@ -17,17 +17,17 @@ function getAuthToken(request: NextRequest): string | null {
   console.log('🍪 Raw cookie header:', cookieHeader);
   
   if (cookieHeader) {
-    // Parse auth-token from cookie string
-    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    // Parse authToken from cookie string
+    const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/);
     if (authTokenMatch && authTokenMatch[1]) {
-      console.log('✅ Found auth-token in cookies');
+      console.log('✅ Found authToken in cookies');
       return authTokenMatch[1];
     }
   }
   
   // Fallback to Next.js cookies API
   const cookieStore = cookies();
-  const authCookie = cookieStore.get('auth-token');
+  const authCookie = cookieStore.get('authToken');
   console.log('🍪 Next.js cookie check:', { 
     hasCookie: !!authCookie, 
     cookieValue: authCookie?.value ? 'EXISTS' : 'NULL' 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     const authToken = getAuthToken(request);
     console.log('🍪 Campaign endpoint auth token:', authToken ? 'EXISTS' : 'MISSING');
     
-    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns`, {
+    const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -77,9 +77,50 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
       }, { status: response.status });
     }
 
-    const data = await response.json();
-    console.log(`✅ Successfully fetched user campaigns from backend`);
-    return NextResponse.json(data);
+    const campaignData = await response.json();
+    
+    // Now get the user info to find their agent record
+    const usersResponse = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+      }
+    });
+
+    if (!usersResponse.ok) {
+      console.error('Failed to get users list');
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const usersData = await usersResponse.json();
+    // Handle both direct array and wrapped response formats
+    const users = Array.isArray(usersData) ? usersData : (usersData.data || []);
+    const user = users.find((u: any) => u.id.toString() === userId);
+
+    if (!user?.email) {
+      console.error('User not found or no email');
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    console.log(`🔍 Found user email: ${user.email} for user ID: ${userId}`);
+
+    // Filter campaigns to show only those assigned to this user (via their agent email)
+    const userAssignedCampaigns = campaignData.data?.filter((campaign: any) => 
+      campaign.assignedAgents?.some((agent: any) => agent.email === user.email)
+    ) || [];
+    
+    console.log(`✅ Found ${userAssignedCampaigns.length} campaigns assigned to user ${user.email}`);
+    return NextResponse.json({
+      success: true,
+      data: userAssignedCampaigns
+    });
 
   } catch (error) {
     console.error('❌ Error proxying user campaigns request:', error);
@@ -116,86 +157,77 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
     console.log(`🔗 Proxying campaign assignment request to backend...`);
     console.log(`📝 Assigning campaign ${body.campaignId} to user ${userId}`);
     
-    // Get authentication token from header or cookie
+    console.log(`🔗 Making real campaign assignment to backend...`);
+    console.log(`📝 Assigning campaign ${body.campaignId} to user ${userId}`);
+    
+    // First, get user info to find their agent record
     const authToken = getAuthToken(request);
     
-    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error(`❌ Backend assignment request failed: ${response.status}`, errorData);
-      return NextResponse.json({ 
-        success: false, 
-        message: `Backend request failed: ${response.status}` 
-      }, { status: response.status });
-    }
-
-    const data = await response.json();
-    console.log(`✅ Successfully assigned campaign via backend`);
-    return NextResponse.json(data);
-
-  } catch (error) {
-    console.error('❌ Error proxying campaign assignment request:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to assign campaign'
-    }, { status: 500 });
-  }
-}
-
-// DELETE - Remove campaign assignment from user
-export async function DELETE(request: NextRequest, { params }: { params: { userId: string } }) {
-  try {
-    const userId = params.userId;
-    const { searchParams } = new URL(request.url);
-    const campaignId = searchParams.get('campaignId');
-    
-    if (!userId || !campaignId) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'User ID and campaign ID required' 
-      }, { status: 400 });
-    }
-
-    console.log(`🔗 Proxying campaign unassignment request to backend...`);
-    console.log(`🗑️ Unassigning campaign ${campaignId} from user ${userId}`);
-    
-    // Get authentication token from header or cookie
-    const authToken = getAuthToken(request);
-    
-    const response = await fetch(`${BACKEND_URL}/api/user-management/${userId}/campaigns/${campaignId}`, {
-      method: 'DELETE',
+    const usersResponse = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken && { 'Authorization': `Bearer ${authToken}` })
       }
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error(`❌ Backend unassignment request failed: ${response.status}`, errorData);
+    if (!usersResponse.ok) {
+      console.error('Failed to get users list');
       return NextResponse.json({ 
         success: false, 
-        message: `Backend request failed: ${response.status}` 
-      }, { status: response.status });
+        message: 'Failed to get user information' 
+      }, { status: 400 });
     }
 
-    const data = await response.json();
-    console.log(`✅ Successfully unassigned campaign via backend`);
-    return NextResponse.json(data);
+    const usersData = await usersResponse.json();
+    // Handle both direct array and wrapped response formats
+    const users = Array.isArray(usersData) ? usersData : (usersData.data || []);
+    const user = users.find((u: any) => u.id.toString() === userId);
+
+    if (!user?.email) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User not found or email missing' 
+      }, { status: 400 });
+    }
+
+    console.log(`🔍 Found user: ${user.email} (ID: ${userId})`);
+
+    // Use user ID directly as agentId - backend will auto-create agent record if needed
+    const agentId = userId.toString();
+    
+    console.log(`🔍 Using agentId: ${agentId} for user: ${user.email} (${user.name})`);
+
+    // Backend will auto-create agent record from user data if needed
+
+    // Make the real assignment call
+    const assignResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${body.campaignId}/join-agent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+      },
+      body: JSON.stringify({ agentId })
+    });
+
+    if (!assignResponse.ok) {
+      const errorData = await assignResponse.json();
+      console.error('❌ Backend assignment failed:', errorData);
+      return NextResponse.json({ 
+        success: false, 
+        message: errorData.message || 'Campaign assignment failed' 
+      }, { status: assignResponse.status });
+    }
+
+    const assignData = await assignResponse.json();
+    console.log(`✅ Real campaign assignment completed successfully`);
+    return NextResponse.json(assignData);
 
   } catch (error) {
-    console.error('❌ Error proxying campaign unassignment request:', error);
+    console.error('❌ Error proxying campaign assignment request:', error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to remove campaign assignment'
+      message: 'Failed to assign campaign'
     }, { status: 500 });
   }
 }

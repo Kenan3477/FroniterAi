@@ -827,6 +827,122 @@ router.post('/campaigns/:id/generate-queue', async (req: Request, res: Response)
   }
 });
 
+// GET /api/admin/campaign-management/campaigns/:id/queue
+router.get('/campaigns/:id/queue', async (req: Request, res: Response) => {
+  try {
+    const campaignId = req.params.id;
+    
+    console.log(`📋 Fetching queue for campaign: ${campaignId}`);
+    
+    // Verify campaign exists
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId }
+    });
+    
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Campaign not found' }
+      });
+    }
+    
+    // Get queue entries with contact information
+    const queueEntries = await prisma.dialQueueEntry.findMany({
+      where: { 
+        campaignId: campaignId,
+        status: { in: ['queued', 'dialing', 'failed'] }  // Active queue entries
+      },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            status: true
+          }
+        }
+      },
+      orderBy: [
+        { priority: 'desc' },    // Higher priority first
+        { queuedAt: 'asc' }      // Then oldest first
+      ],
+      take: 100 // Limit to first 100 entries for performance
+    });
+    
+    // Calculate queue statistics
+    const totalQueued = await prisma.dialQueueEntry.count({
+      where: { 
+        campaignId: campaignId,
+        status: 'queued'
+      }
+    });
+    
+    const totalDialing = await prisma.dialQueueEntry.count({
+      where: { 
+        campaignId: campaignId,
+        status: 'dialing'
+      }
+    });
+    
+    const totalCompleted = await prisma.dialQueueEntry.count({
+      where: { 
+        campaignId: campaignId,
+        status: { in: ['completed', 'disposed'] }
+      }
+    });
+    
+    const totalFailed = await prisma.dialQueueEntry.count({
+      where: { 
+        campaignId: campaignId,
+        status: 'failed'
+      }
+    });
+    
+    const stats = {
+      totalQueued,
+      totalDialing,
+      totalCompleted,
+      totalFailed,
+      totalEntries: totalQueued + totalDialing + totalCompleted + totalFailed
+    };
+    
+    console.log(`✅ Retrieved ${queueEntries.length} queue entries for campaign ${campaign.name}`);
+    console.log(`📊 Queue stats:`, stats);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        campaign: {
+          id: campaign.id,
+          name: campaign.name
+        },
+        queueEntries: queueEntries.map(entry => ({
+          id: entry.id,
+          queueId: entry.queueId,
+          contact: entry.contact,
+          priority: entry.priority,
+          status: entry.status,
+          dialedAt: entry.dialedAt,
+          completedAt: entry.completedAt,
+          outcome: entry.outcome,
+          queuedAt: entry.queuedAt
+        })),
+        stats
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching campaign queue:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error fetching queue' }
+    });
+  }
+});
+
 // GET /api/admin/campaign-management/campaigns/:id/contacts
 router.get('/campaigns/:id/contacts', async (req: Request, res: Response) => {
   try {
@@ -1583,6 +1699,47 @@ router.post('/campaigns/:id/join-agent', async (req: Request, res: Response) => 
     const { agentId } = req.body;
 
     console.log(`🔄 Adding agent ${agentId} to campaign ${id}`);
+
+    // First, ensure agent record exists - create if needed
+    let agent = await prisma.agent.findUnique({
+      where: { agentId }
+    });
+
+    if (!agent) {
+      console.log(`🔧 Agent ${agentId} doesn't exist, attempting to create from user data...`);
+      
+      // Try to find corresponding user record
+      const user = await prisma.user.findFirst({
+        where: { id: parseInt(agentId) }
+      });
+
+      if (user) {
+        console.log(`📝 Creating agent record for user: ${user.email}`);
+        agent = await prisma.agent.create({
+          data: {
+            agentId: agentId,
+            firstName: user.firstName || user.name?.split(' ')[0] || 'Agent',
+            lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || 'User',
+            email: user.email,
+            status: 'Offline'
+          }
+        });
+        console.log(`✅ Created agent record: ${agentId} (${user.email})`);
+      } else {
+        // Create generic agent record if no user found
+        console.log(`⚠️ No user found for agentId ${agentId}, creating generic agent record`);
+        agent = await prisma.agent.create({
+          data: {
+            agentId: agentId,
+            firstName: 'Agent',
+            lastName: agentId,
+            email: `agent${agentId}@omnivox.ai`,
+            status: 'Offline'
+          }
+        });
+        console.log(`✅ Created generic agent record: ${agentId}`);
+      }
+    }
 
     // Check if agent is already assigned to this campaign
     const existingAssignment = await prisma.agentCampaignAssignment.findFirst({
