@@ -329,11 +329,13 @@ export const getInboundCallStatus = async (req: Request, res: Response) => {
 async function lookupCallerInformation(phoneNumber: string): Promise<CallerLookupResponse> {
   try {
     // Search for contact by phone number (multiple formats)
+    // Note: Contact model doesn't have campaignId field - need to join via DataList
     const contact = await prisma.$queryRaw`
       SELECT 
-        "contactId", "firstName", "lastName", phone, email, company,
-        "lastOutcome", "lastAttempt", "campaignId"
+        c."contactId", c."firstName", c."lastName", c.phone, c.email, c.company,
+        c."lastOutcome", c."lastAttempt", dl."campaignId"
       FROM contacts c
+      LEFT JOIN data_lists dl ON c."listId" = dl."listId"
       WHERE c.phone = ${phoneNumber}
          OR c.phone = ${phoneNumber.replace(/[\s-()]/g, '')}
          OR c.phone = ${phoneNumber.replace(/\+/g, '')}
@@ -348,12 +350,12 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
       
       // Check if this is a recent callback (called them in last 4 hours)
       const recentCallCheck = await prisma.$queryRaw`
-        SELECT cr.id, "startTime", outcome
+        SELECT cr.id, cr."startTime", cr.outcome
         FROM call_records cr
-        WHERE "phoneNumber" = ${phoneNumber}
-          AND "callType" = 'outbound'
-          AND "startTime" > NOW() - INTERVAL '4 hours'
-        ORDER BY "startTime" DESC
+        WHERE cr."phoneNumber" = ${phoneNumber}
+          AND cr."callType" = 'outbound'
+          AND cr."startTime" > NOW() - INTERVAL '4 hours'
+        ORDER BY cr."startTime" DESC
         LIMIT 1
       ` as any[];
 
@@ -372,20 +374,15 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
 
     // Get available agents (simplified - in production this would check availability)
     const availableAgents = await prisma.$queryRaw`
-      SELECT a.agentId, a.firstName, a.lastName, a.status
+      SELECT a."agentId", a."firstName", a."lastName", a.status
       FROM agents a
-      WHERE a.status = 'available'
-        AND a.isActive = 1
+      WHERE a.status = 'Available'
+        AND a."isLoggedIn" = true
       LIMIT 5
     ` as any[];
 
-    // Get available queues (simplified)
-    const availableQueues = await prisma.$queryRaw`
-      SELECT q.id, q.name, q.description
-      FROM call_queues q
-      WHERE q.isActive = 1
-      LIMIT 5
-    ` as any[];
+    // Note: Simplified routing - no call queues table in current schema
+    const availableQueues: any[] = [];
 
     // Determine priority and routing
     const priority: 'normal' | 'high' | 'urgent' = 
@@ -424,13 +421,17 @@ async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLook
   try {
     await prisma.$executeRaw`
       INSERT INTO inbound_calls (
-        id, "callSid", "callerNumber", "contactId", status, "routingMetadata", "createdAt"
+        id, "callId", "callSid", "callerNumber", "contactId", status, 
+        "isCallback", priority, "routingMetadata", "createdAt"
       ) VALUES (
+        ${inboundCall.id}, 
         ${inboundCall.id}, 
         ${inboundCall.callSid}, 
         ${inboundCall.callerNumber},
         ${inboundCall.contactId || null},
         ${inboundCall.status},
+        ${inboundCall.metadata.isCallback || false},
+        ${inboundCall.metadata.priority},
         ${JSON.stringify({ callerInfo, routingOptions: inboundCall.routingOptions })},
         ${inboundCall.createdAt}
       )
