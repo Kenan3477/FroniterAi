@@ -471,6 +471,44 @@ const CampaignManagementPage: React.FC = () => {
     }
   };
 
+  const handleUpdateCampaign = async (campaignId: string, updateData: Partial<ManagementCampaign>) => {
+    try {
+      console.log('🔄 Updating campaign:', campaignId, updateData);
+
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Campaign updated successfully:', result);
+
+        // Update campaign in local state
+        setCampaigns(prev => prev.map(c => 
+          c.id === campaignId 
+            ? { ...c, ...updateData, updatedAt: new Date().toISOString() }
+            : c
+        ));
+        
+        // Refresh data to ensure consistency
+        fetchData();
+        alert('Campaign updated successfully!');
+        return true;
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to update campaign:', errorData);
+        alert(`Failed to update campaign: ${errorData.error?.message || 'Unknown error'}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      alert('Error updating campaign. Please try again.');
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -1326,9 +1364,24 @@ const CampaignManagementPage: React.FC = () => {
             <Button variant="outline" onClick={() => setIsCampaignEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              // Save logic would go here
-              setIsCampaignEditDialogOpen(false);
+            <Button onClick={async () => {
+              if (editingCampaign) {
+                const success = await handleUpdateCampaign(editingCampaign.id, {
+                  name: editingCampaign.name,
+                  description: editingCampaign.description,
+                  dialMethod: editingCampaign.dialMethod,
+                  dialSpeed: editingCampaign.dialSpeed,
+                  status: editingCampaign.status,
+                  maxCallsPerAgent: editingCampaign.maxCallsPerAgent,
+                  abandonRateThreshold: editingCampaign.abandonRateThreshold,
+                  pacingMultiplier: editingCampaign.pacingMultiplier
+                });
+                
+                if (success) {
+                  setIsCampaignEditDialogOpen(false);
+                  setEditingCampaign(null);
+                }
+              }
             }}>
               Save Changes
             </Button>

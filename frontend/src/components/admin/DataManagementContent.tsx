@@ -95,6 +95,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
 
     try {
+      console.log(`🗑️ Attempting to delete data list: ${list.name} (ID: ${list.id})`);
+
       const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
         method: 'DELETE',
         headers: {
@@ -102,20 +104,30 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         },
       });
 
+      console.log(`📋 Delete response status: ${response.status}`);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Delete request failed:', errorText);
         throw new Error(`Failed to delete data list: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('📋 Delete response data:', result);
+
       if (result.success) {
         // Remove from local state
         setDataLists(prev => prev.filter(l => l.id !== list.id));
         console.log(`✅ Deleted data list: ${list.name}`);
+        alert(`Successfully deleted "${list.name}" and ${result.data?.deletedContacts || 0} contacts`);
+        
+        // Close dropdown
+        setOpenDropdown(null);
       } else {
         throw new Error(result.error?.message || 'Failed to delete data list');
       }
     } catch (error) {
-      console.error('Error deleting data list:', error);
+      console.error('❌ Error deleting data list:', error);
       alert(`Failed to delete data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
