@@ -419,26 +419,31 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
 // Store inbound call in database
 async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLookupResponse): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      INSERT INTO inbound_calls (
-        id, "callId", "callSid", "callerNumber", "contactId", status, 
-        "isCallback", priority, "routingMetadata", "createdAt"
-      ) VALUES (
-        ${inboundCall.id}, 
-        ${inboundCall.id}, 
-        ${inboundCall.callSid}, 
-        ${inboundCall.callerNumber},
-        ${inboundCall.contactId || null},
-        ${inboundCall.status},
-        ${inboundCall.metadata.isCallback || false},
-        ${inboundCall.metadata.priority},
-        ${JSON.stringify({ callerInfo, routingOptions: inboundCall.routingOptions })},
-        ${inboundCall.createdAt}
-      )
-    `;
+    // Use Prisma client instead of raw SQL to avoid schema mismatches
+    await prisma.inboundCall.create({
+      data: {
+        callId: inboundCall.id,
+        callSid: inboundCall.callSid,
+        callerNumber: inboundCall.callerNumber,
+        contactId: inboundCall.contactId || null,
+        status: inboundCall.status,
+        isCallback: inboundCall.metadata.isCallback || false,
+        priority: inboundCall.metadata.priority,
+        routingMetadata: JSON.stringify({ callerInfo, routingOptions: inboundCall.routingOptions }),
+        createdAt: inboundCall.createdAt
+      }
+    });
+    
+    console.log('✅ Inbound call stored successfully:', inboundCall.id);
   } catch (error: any) {
     console.error('❌ Error storing inbound call:', error);
     // Continue execution - don't fail the call flow
+    // Log the specific error for debugging
+    console.error('Database error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.meta
+    });
   }
 }
 
