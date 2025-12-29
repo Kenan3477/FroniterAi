@@ -1174,16 +1174,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showDataListCreator && renderDataListCreatorWizard()}
+      {showUploadWizard && renderUploadWizard()}
     </div>
   );
-
-  return (
-    <div className="h-full bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-semibold text-gray-900">Data Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your contact data and upload new data lists</p>
-      </div>
+}
       
       {/* Sub-tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
