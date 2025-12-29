@@ -22,6 +22,84 @@ interface DataList {
   createdAt: Date;
 }
 
+interface UploadWizardData {
+  file: File | null;
+  fileName: string;
+  displayName: string;
+  template: string;
+  detectedColumns: string[];
+  
+  // Upload Options
+  contactsNeedNumber: boolean;
+  contactsNeedEmail: boolean;
+  duplicateCheck: boolean;
+  dncCheck: boolean;
+  leadingLinesToSkip: number;
+  enableFixedWidthColumns: boolean;
+  enableCriteriaFiltering: boolean;
+  useDelimiter: boolean;
+  
+  // Primary Columns
+  primaryColumns: {
+    title: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    tel1: string;
+    companyName: string;
+    department: string;
+    website: string;
+    industry: string;
+    address1: string;
+    address2: string;
+    address3: string;
+    email: string;
+    telephone1: string;
+    telephone2: string;
+    telephone3: string;
+    telephone4: string;
+    telephone5: string;
+    telephone6: string;
+    caseReference: string;
+    country: string;
+    county: string;
+    dateOfBirth: string;
+    gender: string;
+    latitude: string;
+    leadReference: string;
+    longitude: string;
+    middleName2: string;
+    postalCode: string;
+    securityPhrase: string;
+    sms: string;
+    sortDate: string;
+    sortNumber: string;
+    sortText: string;
+    sourceReference: string;
+    townCity: string;
+    title2: string;
+  };
+  
+  // Custom Columns
+  customColumns: Array<{
+    name: string;
+    matchColumn: string;
+  }>;
+  
+  // Template Management
+  saveAsTemplate: boolean;
+  templateName: string;
+  
+  // Step management
+  step: 'fileUpload' | 'uploadOptions' | 'primaryColumns' | 'customColumns' | 'uploadReview' | 'upload' | 'complete';
+  
+  // Validation Results
+  validContacts: number;
+  duplicateContacts: number;
+  invalidContacts: number;
+  dncContacts: number;
+}
+
 interface DataManagementContentProps {
   searchTerm: string;
 }
@@ -36,16 +114,153 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Dialog states for edit and upload
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isUploadWizardOpen, setIsUploadWizardOpen] = useState(false);
   const [editingList, setEditingList] = useState<DataList | null>(null);
   const [uploadTargetList, setUploadTargetList] = useState<DataList | null>(null);
 
-  // Upload wizard state
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadStep, setUploadStep] = useState<'file' | 'mapping' | 'preview' | 'upload'>('file');
-  const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
-  const [fieldMapping, setFieldMapping] = useState<{[key: string]: string}>({});
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  // Advanced upload wizard state
+  const [uploadData, setUploadData] = useState<UploadWizardData>({
+    file: null,
+    fileName: '',
+    displayName: '',
+    template: '',
+    detectedColumns: [],
+    
+    // Upload Options defaults
+    contactsNeedNumber: false,
+    contactsNeedEmail: false,
+    duplicateCheck: false,
+    dncCheck: false,
+    leadingLinesToSkip: 0,
+    enableFixedWidthColumns: false,
+    enableCriteriaFiltering: false,
+    useDelimiter: true,
+    
+    // Primary Columns defaults
+    primaryColumns: {
+      title: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      tel1: '',
+      companyName: '',
+      department: '',
+      website: '',
+      industry: '',
+      address1: '',
+      address2: '',
+      address3: '',
+      email: '',
+      telephone1: '',
+      telephone2: '',
+      telephone3: '',
+      telephone4: '',
+      telephone5: '',
+      telephone6: '',
+      caseReference: '',
+      country: '',
+      county: '',
+      dateOfBirth: '',
+      gender: '',
+      latitude: '',
+      leadReference: '',
+      longitude: '',
+      middleName2: '',
+      postalCode: '',
+      securityPhrase: '',
+      sms: '',
+      sortDate: '',
+      sortNumber: '',
+      sortText: '',
+      sourceReference: '',
+      townCity: '',
+      title2: '',
+    },
+    
+    customColumns: [],
+    saveAsTemplate: false,
+    templateName: '',
+    step: 'fileUpload',
+    validContacts: 0,
+    duplicateContacts: 0,
+    invalidContacts: 0,
+    dncContacts: 0,
+  });
+
+  // Template management state
+  const [savedTemplates, setSavedTemplates] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    mappings: { [key: string]: string };
+    validationRules: {
+      contactsNeedNumber: boolean;
+      contactsNeedEmail: boolean;
+      duplicateCheck: boolean;
+      dncCheck: boolean;
+      leadingLinesToSkip: number;
+    };
+    createdAt: Date;
+  }>>([]);
+
+  // Load templates from localStorage on component mount
+  useEffect(() => {
+    const savedTemplatesData = localStorage.getItem('omnivox_upload_templates');
+    if (savedTemplatesData) {
+      try {
+        const templates = JSON.parse(savedTemplatesData);
+        setSavedTemplates(templates);
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      }
+    }
+  }, []);
+
+  // Create template from current mappings
+  const createTemplateFromMappings = (templateName: string, mappings: { [key: string]: string }) => {
+    const newTemplate = {
+      id: Date.now().toString(),
+      name: templateName,
+      description: `Auto-generated template from ${uploadData.fileName}`,
+      mappings,
+      validationRules: {
+        contactsNeedNumber: uploadData.contactsNeedNumber,
+        contactsNeedEmail: uploadData.contactsNeedEmail,
+        duplicateCheck: uploadData.duplicateCheck,
+        dncCheck: uploadData.dncCheck,
+        leadingLinesToSkip: uploadData.leadingLinesToSkip,
+      },
+      createdAt: new Date(),
+    };
+    
+    setSavedTemplates(prev => [...prev, newTemplate]);
+    
+    // Save to localStorage for persistence
+    const existingTemplates = JSON.parse(localStorage.getItem('omnivox_upload_templates') || '[]');
+    localStorage.setItem('omnivox_upload_templates', JSON.stringify([...existingTemplates, newTemplate]));
+    
+    return newTemplate;
+  };
+
+  // Apply template function
+  const applyTemplate = (templateName: string) => {
+    const template = savedTemplates.find(t => t.name === templateName);
+    if (template) {
+      setUploadData(prev => ({
+        ...prev,
+        template: template.name,
+        primaryColumns: {
+          ...prev.primaryColumns,
+          ...template.mappings
+        },
+        contactsNeedNumber: template.validationRules.contactsNeedNumber,
+        contactsNeedEmail: template.validationRules.contactsNeedEmail,
+        duplicateCheck: template.validationRules.duplicateCheck,
+        dncCheck: template.validationRules.dncCheck,
+        leadingLinesToSkip: template.validationRules.leadingLinesToSkip,
+      }));
+    }
+  };
 
   // Load data lists from API
   const fetchDataLists = async () => {
@@ -242,77 +457,151 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
-  // Upload data to list
+  // Upload data to list with advanced wizard
   const handleUploadData = (list: DataList) => {
-    console.log(`📤 Opening upload dialog for data list: ${list.name}`);
+    console.log(`📤 Opening advanced upload wizard for data list: ${list.name}`);
     setUploadTargetList(list);
-    setIsUploadDialogOpen(true);
-    setUploadStep('file');
+    setIsUploadWizardOpen(true);
+    setUploadData(prev => ({ ...prev, step: 'fileUpload' }));
     setOpenDropdown(null);
   };
 
-  // Handle file selection
+  // Handle file selection with advanced processing
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setUploadFile(file);
-      // Parse CSV to detect columns
-      parseCSVHeaders(file);
+      setUploadData(prev => ({
+        ...prev,
+        file: file,
+        fileName: file.name,
+        displayName: file.name.replace(/\.[^/.]+$/, "")
+      }));
+      
+      // Parse CSV to detect columns and auto-map
+      parseCSVForSmartMapping(file);
     }
   };
 
-  // Parse CSV headers for field mapping
-  const parseCSVHeaders = (file: File) => {
+  // Advanced CSV parsing with smart field mapping
+  const parseCSVForSmartMapping = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n');
       if (lines.length > 0) {
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        setDetectedColumns(headers);
-        setUploadStep('mapping');
         
-        // Auto-map common fields
-        const mapping: {[key: string]: string} = {};
-        headers.forEach(header => {
-          const lower = header.toLowerCase();
-          if (lower.includes('first') && lower.includes('name')) mapping.firstName = header;
-          if (lower.includes('last') && lower.includes('name')) mapping.lastName = header;
-          if (lower.includes('phone') || lower.includes('tel')) mapping.phone = header;
-          if (lower.includes('email')) mapping.email = header;
-          if (lower.includes('company')) mapping.company = header;
-        });
-        setFieldMapping(mapping);
+        setUploadData(prev => ({
+          ...prev,
+          detectedColumns: headers,
+          primaryColumns: {
+            ...prev.primaryColumns,
+            ...detectSmartMappings(headers)
+          }
+        }));
       }
     };
     reader.readAsText(file);
   };
 
-  // Complete upload
+  // Smart field mapping detection with comprehensive patterns
+  const detectSmartMappings = (headers: string[]): { [key: string]: string } => {
+    const mappings: { [key: string]: string } = {};
+    
+    // Enhanced field patterns for better detection
+    const fieldPatterns = {
+      firstName: /first.?name|fname|given.?name|forename/i,
+      lastName: /last.?name|lname|surname|family.?name/i,
+      middleName: /middle.?name|mname|middle.?initial/i,
+      telephone1: /phone|tel|telephone|mobile|cell|primary.?phone|phone1/i,
+      telephone2: /phone2|tel2|telephone2|secondary.?phone|alt.?phone/i,
+      telephone3: /phone3|tel3|telephone3|mobile|cell.?phone/i,
+      telephone4: /phone4|tel4|telephone4|work.?phone/i,
+      telephone5: /phone5|tel5|telephone5|home.?phone/i,
+      telephone6: /phone6|tel6|telephone6|fax/i,
+      email: /email|e.?mail|email.?address/i,
+      companyName: /company|organisation|organization|business|employer|firm/i,
+      title: /title|job.?title|position|role/i,
+      title2: /title2|secondary.?title|alt.?title/i,
+      department: /department|dept|division/i,
+      address1: /address|address1|street|addr1|address.?line.?1/i,
+      address2: /address2|apt|apartment|suite|addr2|address.?line.?2/i,
+      address3: /address3|addr3|address.?line.?3/i,
+      townCity: /city|town|municipality/i,
+      county: /county|state|province|region/i,
+      postalCode: /zip|postal|post.?code|zipcode/i,
+      country: /country|nation/i,
+      website: /website|url|web|site/i,
+      industry: /industry|sector|business.?type/i,
+      dateOfBirth: /dob|date.?of.?birth|birth.?date|birthdate/i,
+      gender: /gender|sex/i,
+      leadReference: /lead.?ref|reference|ref.?id|lead.?id/i,
+      caseReference: /case.?ref|case.?id|ticket.?id/i,
+      sourceReference: /source|origin|campaign.?source/i,
+      sms: /sms|text.?number|mobile.?sms/i,
+      securityPhrase: /security|phrase|password|pin/i,
+      latitude: /lat|latitude|geo.?lat/i,
+      longitude: /lng|lon|longitude|geo.?lng/i,
+      sortDate: /sort.?date|date.?sort|order.?date/i,
+      sortNumber: /sort.?number|number.?sort|order.?num/i,
+      sortText: /sort.?text|text.?sort|order.?text/i,
+    };
+
+    headers.forEach(header => {
+      for (const [fieldName, pattern] of Object.entries(fieldPatterns)) {
+        if (pattern.test(header) && !mappings[fieldName]) {
+          mappings[fieldName] = header;
+          break;
+        }
+      }
+    });
+
+    return mappings;
+  };
+
+  // Complete upload with advanced processing
   const handleCompleteUpload = async () => {
-    if (!uploadFile || !uploadTargetList) return;
+    if (!uploadData.file || !uploadTargetList) return;
 
     try {
-      // Read and parse CSV file
-      const text = await uploadFile.text();
+      // Process file based on mapping
+      const text = await uploadData.file.text();
       const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       
-      // Parse data rows
-      const contacts = lines.slice(1).map(line => {
+      // Skip leading lines if configured
+      const dataLines = lines.slice(uploadData.leadingLinesToSkip + 1);
+      const headers = lines[uploadData.leadingLinesToSkip].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      // Parse contacts with comprehensive field mapping
+      const contacts = dataLines.map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
         const contact: any = {};
         
-        // Map fields based on fieldMapping
-        Object.entries(fieldMapping).forEach(([field, column]) => {
-          const columnIndex = headers.indexOf(column);
+        // Map primary columns
+        Object.entries(uploadData.primaryColumns).forEach(([field, column]) => {
+          if (column) {
+            const columnIndex = headers.indexOf(column);
+            if (columnIndex !== -1 && values[columnIndex]) {
+              contact[field] = values[columnIndex];
+            }
+          }
+        });
+
+        // Map custom columns
+        uploadData.customColumns.forEach(({ name, matchColumn }) => {
+          const columnIndex = headers.indexOf(matchColumn);
           if (columnIndex !== -1 && values[columnIndex]) {
-            contact[field] = values[columnIndex];
+            contact[name] = values[columnIndex];
           }
         });
 
         return contact;
-      }).filter(contact => contact.firstName || contact.lastName || contact.phone);
+      }).filter(contact => {
+        // Apply validation rules
+        if (uploadData.contactsNeedNumber && !contact.telephone1 && !contact.tel1) return false;
+        if (uploadData.contactsNeedEmail && !contact.email) return false;
+        return contact.firstName || contact.lastName || contact.telephone1 || contact.tel1;
+      });
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
@@ -321,7 +610,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         },
         body: JSON.stringify({
           contacts: contacts,
-          mapping: fieldMapping
+          mapping: uploadData.primaryColumns,
+          options: {
+            skipDuplicates: uploadData.duplicateCheck,
+            validateEmails: uploadData.contactsNeedEmail,
+            dncCheck: uploadData.dncCheck
+          }
         }),
       });
 
@@ -331,11 +625,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
       const result = await response.json();
       if (result.success) {
-        alert(`Successfully uploaded ${contacts.length} contacts!`);
-        setIsUploadDialogOpen(false);
-        setUploadFile(null);
-        setFieldMapping({});
-        setDetectedColumns([]);
+        setUploadData(prev => ({
+          ...prev,
+          step: 'complete',
+          validContacts: contacts.length
+        }));
+        
         fetchDataLists(); // Refresh to show updated contact counts
       } else {
         throw new Error(result.error?.message || 'Upload failed');
@@ -618,84 +913,631 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         </div>
       )}
 
-      {/* Upload Data Dialog */}
-      {isUploadDialogOpen && uploadTargetList && (
+      {/* Advanced Upload Wizard */}
+      {isUploadWizardOpen && uploadTargetList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Upload Data to "{uploadTargetList.name}"
-            </h3>
-
-            {uploadStep === 'file' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select CSV File
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    onChange={handleFileSelect}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: CSV, Excel (.xlsx, .xls)
-                  </p>
-                </div>
+          <div className="bg-white rounded-lg w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+            
+            {/* Header with progress */}
+            <div className="bg-gray-50 px-6 py-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Advanced Upload Wizard - "{uploadTargetList.name}"
+              </h2>
+              <div className="mt-3 flex items-center space-x-2">
+                {[
+                  { step: 'fileUpload', label: 'File Upload', icon: '📁' },
+                  { step: 'uploadOptions', label: 'Options', icon: '⚙️' },
+                  { step: 'primaryColumns', label: 'Primary Fields', icon: '📋' },
+                  { step: 'customColumns', label: 'Custom Fields', icon: '🔧' },
+                  { step: 'uploadReview', label: 'Review', icon: '👁️' },
+                  { step: 'upload', label: 'Upload', icon: '📤' },
+                  { step: 'complete', label: 'Complete', icon: '✅' }
+                ].map((item, index) => (
+                  <div key={item.step} className="flex items-center">
+                    <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm ${
+                      uploadData.step === item.step 
+                        ? 'bg-blue-100 text-blue-800 font-medium' 
+                        : uploadData.step === 'complete' || 
+                          ['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload'].indexOf(item.step) < 
+                          ['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload', 'complete'].indexOf(uploadData.step)
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                    {index < 6 && (
+                      <div className="w-6 h-px bg-gray-300 mx-1"></div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
-            {uploadStep === 'mapping' && detectedColumns.length > 0 && (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Map CSV Columns to Fields</h4>
-                  <div className="space-y-3">
-                    {['firstName', 'lastName', 'phone', 'email', 'company'].map((field) => (
-                      <div key={field} className="flex items-center space-x-3">
-                        <label className="w-24 text-sm font-medium text-gray-700 capitalize">
-                          {field.replace(/([A-Z])/g, ' $1')}:
-                        </label>
-                        <select
-                          value={fieldMapping[field] || ''}
-                          onChange={(e) => setFieldMapping({ ...fieldMapping, [field]: e.target.value })}
-                          className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+            {/* Main content area */}
+            <div className="flex-1 overflow-y-auto p-6">
+              
+              {/* Step 1: File Upload */}
+              {uploadData.step === 'fileUpload' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Select Data File</h3>
+                    
+                    {/* Template Selection */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">📋 Quick Start with Template</h4>
+                      <p className="text-xs text-blue-700 mb-3">Load a saved mapping template to automatically configure field mappings and validation rules.</p>
+                      <div className="flex items-center space-x-3">
+                        <select 
+                          value={uploadData.template}
+                          onChange={(e) => {
+                            setUploadData(prev => ({ ...prev, template: e.target.value }));
+                          }}
+                          className="flex-1 text-sm border-blue-300 rounded-md focus:border-blue-500 focus:ring-blue-500"
                         >
-                          <option value="">Select column</option>
-                          {detectedColumns.map((col) => (
-                            <option key={col} value={col}>{col}</option>
+                          <option value="">Choose a template...</option>
+                          {savedTemplates.map((template) => (
+                            <option key={template.id} value={template.name}>
+                              {template.name} ({new Date(template.createdAt).toLocaleDateString()})
+                            </option>
                           ))}
                         </select>
+                        <button 
+                          onClick={() => {
+                            if (uploadData.template) {
+                              applyTemplate(uploadData.template);
+                              alert(`Template "${uploadData.template}" applied successfully!`);
+                            }
+                          }}
+                          disabled={!uploadData.template}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Apply
+                        </button>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* File Selection */}
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <div className="space-y-4">
+                        <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                          <span className="text-2xl">📁</span>
+                        </div>
+                        <div>
+                          <input
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                            id="file-upload"
+                          />
+                          <label
+                            htmlFor="file-upload"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 cursor-pointer"
+                          >
+                            Choose File
+                          </label>
+                          <p className="text-sm text-gray-500 mt-2">
+                            or drag and drop your CSV, Excel file here
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          Supported formats: CSV, Excel (.xlsx, .xls) - Max 50MB
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* File Info */}
+                    {uploadData.file && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-green-600">✅</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-green-900">{uploadData.fileName}</p>
+                            <p className="text-xs text-green-700">
+                              {(uploadData.file.size / 1024 / 1024).toFixed(2)} MB • {uploadData.detectedColumns.length} columns detected
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex justify-between">
+              )}
+
+              {/* Step 2: Upload Options */}
+              {uploadData.step === 'uploadOptions' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Configuration</h3>
+                    
+                    {/* Data Processing Options */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Data Processing</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={uploadData.leadingLinesToSkip}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, leadingLinesToSkip: parseInt(e.target.value) || 0 }))}
+                            className="w-20 px-3 py-1 border border-gray-300 rounded-md text-sm"
+                          />
+                          <label className="text-sm text-gray-700">
+                            Leading lines to skip (headers, descriptions, etc.)
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.useDelimiter}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, useDelimiter: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Use comma delimiter (uncheck for tab/custom)</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.enableFixedWidthColumns}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, enableFixedWidthColumns: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Enable fixed-width column parsing</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Validation Rules */}
+                    <div className="bg-yellow-50 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Validation Rules</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.contactsNeedNumber}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, contactsNeedNumber: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Contacts must have a phone number</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.contactsNeedEmail}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, contactsNeedEmail: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Validate email addresses</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.duplicateCheck}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, duplicateCheck: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Check for duplicate contacts (by phone/email)</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.dncCheck}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, dncCheck: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Check against Do Not Call (DNC) registry</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Advanced Options */}
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Advanced Features</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.enableCriteriaFiltering}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, enableCriteriaFiltering: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Enable criteria-based filtering during import</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.saveAsTemplate}
+                            onChange={(e) => setUploadData(prev => ({ ...prev, saveAsTemplate: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Save these settings as a template for future uploads</label>
+                        </div>
+                        {uploadData.saveAsTemplate && (
+                          <div className="ml-6 mt-2">
+                            <input
+                              type="text"
+                              placeholder="Template name..."
+                              value={uploadData.templateName}
+                              onChange={(e) => setUploadData(prev => ({ ...prev, templateName: e.target.value }))}
+                              className="w-full px-3 py-1 border border-gray-300 rounded-md text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Primary Columns Mapping */}
+              {uploadData.step === 'primaryColumns' && uploadData.detectedColumns.length > 0 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Map Primary Contact Fields</h3>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Map your CSV columns to standard contact fields. Smart mapping has been applied based on column headers.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { field: 'firstName', label: 'First Name', required: true },
+                        { field: 'lastName', label: 'Last Name', required: true },
+                        { field: 'telephone1', label: 'Primary Phone', required: true },
+                        { field: 'email', label: 'Email Address', required: false },
+                        { field: 'companyName', label: 'Company', required: false },
+                        { field: 'title', label: 'Job Title', required: false },
+                        { field: 'address1', label: 'Address Line 1', required: false },
+                        { field: 'address2', label: 'Address Line 2', required: false },
+                        { field: 'townCity', label: 'City/Town', required: false },
+                        { field: 'county', label: 'State/County', required: false },
+                        { field: 'postalCode', label: 'Postal Code', required: false },
+                        { field: 'country', label: 'Country', required: false },
+                        { field: 'telephone2', label: 'Secondary Phone', required: false },
+                        { field: 'telephone3', label: 'Mobile Phone', required: false },
+                        { field: 'website', label: 'Website', required: false },
+                        { field: 'department', label: 'Department', required: false },
+                        { field: 'industry', label: 'Industry', required: false },
+                        { field: 'dateOfBirth', label: 'Date of Birth', required: false },
+                        { field: 'gender', label: 'Gender', required: false },
+                        { field: 'middleName', label: 'Middle Name', required: false }
+                      ].map(({ field, label, required }) => (
+                        <div key={field} className="space-y-1">
+                          <label className="block text-sm font-medium text-gray-700">
+                            {label} {required && <span className="text-red-500">*</span>}
+                          </label>
+                          <select
+                            value={uploadData.primaryColumns[field as keyof typeof uploadData.primaryColumns] || ''}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              primaryColumns: {
+                                ...prev.primaryColumns,
+                                [field]: e.target.value
+                              }
+                            }))}
+                            className={`w-full rounded-md border-gray-300 shadow-sm text-sm ${
+                              required && !uploadData.primaryColumns[field as keyof typeof uploadData.primaryColumns] 
+                                ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                                : 'focus:border-blue-500 focus:ring-blue-500'
+                            }`}
+                          >
+                            <option value="">Select column...</option>
+                            {uploadData.detectedColumns.map((col) => (
+                              <option key={col} value={col}>{col}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Custom Columns */}
+              {uploadData.step === 'customColumns' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Field Mapping</h3>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Map any remaining CSV columns to custom fields for additional data storage.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      {uploadData.customColumns.map((customCol, index) => (
+                        <div key={index} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
+                          <input
+                            type="text"
+                            placeholder="Custom field name"
+                            value={customCol.name}
+                            onChange={(e) => {
+                              const newCols = [...uploadData.customColumns];
+                              newCols[index].name = e.target.value;
+                              setUploadData(prev => ({ ...prev, customColumns: newCols }));
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                          <select
+                            value={customCol.matchColumn}
+                            onChange={(e) => {
+                              const newCols = [...uploadData.customColumns];
+                              newCols[index].matchColumn = e.target.value;
+                              setUploadData(prev => ({ ...prev, customColumns: newCols }));
+                            }}
+                            className="flex-1 rounded-md border-gray-300 text-sm"
+                          >
+                            <option value="">Select CSV column...</option>
+                            {uploadData.detectedColumns.map((col) => (
+                              <option key={col} value={col}>{col}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => {
+                              const newCols = uploadData.customColumns.filter((_, i) => i !== index);
+                              setUploadData(prev => ({ ...prev, customColumns: newCols }));
+                            }}
+                            className="px-2 py-2 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button
+                        onClick={() => {
+                          setUploadData(prev => ({
+                            ...prev,
+                            customColumns: [...prev.customColumns, { name: '', matchColumn: '' }]
+                          }));
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400"
+                      >
+                        + Add Custom Field Mapping
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Upload Review */}
+              {uploadData.step === 'uploadReview' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Review Upload Configuration</h3>
+                    
+                    {/* File Summary */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">File Information</h4>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        <div>📁 <strong>File:</strong> {uploadData.fileName}</div>
+                        <div>📊 <strong>Estimated Records:</strong> ~{uploadData.detectedColumns.length > 0 ? '1,000+' : '0'}</div>
+                        <div>⚙️ <strong>Skip Lines:</strong> {uploadData.leadingLinesToSkip}</div>
+                      </div>
+                    </div>
+
+                    {/* Mapping Summary */}
+                    <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">Field Mappings</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        {Object.entries(uploadData.primaryColumns).filter(([, value]) => value).map(([field, column]) => (
+                          <div key={field} className="flex items-center space-x-2">
+                            <span className="text-gray-600">{field}:</span>
+                            <span className="font-medium text-blue-700">{column}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {uploadData.customColumns.filter(col => col.name && col.matchColumn).length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <div className="text-xs font-medium text-gray-600 mb-1">Custom Fields:</div>
+                          {uploadData.customColumns.filter(col => col.name && col.matchColumn).map((col, index) => (
+                            <div key={index} className="text-sm text-gray-700">
+                              {col.name} ← {col.matchColumn}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Validation Rules */}
+                    <div className="bg-yellow-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">Active Validation Rules</h4>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        {uploadData.contactsNeedNumber && <div>✓ Contacts must have phone number</div>}
+                        {uploadData.contactsNeedEmail && <div>✓ Email validation enabled</div>}
+                        {uploadData.duplicateCheck && <div>✓ Duplicate detection enabled</div>}
+                        {uploadData.dncCheck && <div>✓ DNC registry checking enabled</div>}
+                        {!uploadData.contactsNeedNumber && !uploadData.contactsNeedEmail && !uploadData.duplicateCheck && !uploadData.dncCheck && (
+                          <div className="text-gray-500">No validation rules active</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 6: Upload Progress */}
+              {uploadData.step === 'upload' && (
+                <div className="space-y-6 text-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Uploading Data</h3>
+                    <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                      <span className="text-2xl">📤</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                      <div className="bg-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: '75%' }}></div>
+                    </div>
+                    <p className="text-sm text-gray-600">Processing and validating contacts...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 7: Complete */}
+              {uploadData.step === 'complete' && (
+                <div className="space-y-6 text-center">
+                  <div>
+                    <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                      <span className="text-2xl">✅</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Complete!</h3>
+                    
+                    <div className="bg-gray-50 rounded-lg p-6 text-left max-w-md mx-auto">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Upload Summary</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Valid Contacts:</span>
+                          <span className="font-medium text-green-600">{uploadData.validContacts}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Duplicates:</span>
+                          <span className="font-medium text-yellow-600">{uploadData.duplicateContacts}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Invalid:</span>
+                          <span className="font-medium text-red-600">{uploadData.invalidContacts}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">DNC Filtered:</span>
+                          <span className="font-medium text-red-600">{uploadData.dncContacts}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {uploadData.saveAsTemplate && uploadData.templateName && (
+                      <div className="text-sm text-blue-600 mt-4">
+                        ✅ Template "{uploadData.templateName}" saved for future uploads
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with navigation */}
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                {uploadData.step !== 'complete' && `Step ${['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload', 'complete'].indexOf(uploadData.step) + 1} of 7`}
+              </div>
+              
+              <div className="flex space-x-3">
+                {/* Back Button */}
+                {uploadData.step !== 'fileUpload' && uploadData.step !== 'upload' && uploadData.step !== 'complete' && (
                   <button
-                    onClick={() => setUploadStep('file')}
+                    onClick={() => {
+                      const steps = ['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload', 'complete'];
+                      const currentIndex = steps.indexOf(uploadData.step);
+                      if (currentIndex > 0) {
+                        setUploadData(prev => ({ ...prev, step: steps[currentIndex - 1] as any }));
+                      }
+                    }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                   >
                     Back
                   </button>
-                  <button
-                    onClick={handleCompleteUpload}
-                    className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700"
-                  >
-                    Upload Data
-                  </button>
-                </div>
-              </div>
-            )}
+                )}
 
-            {uploadStep === 'file' && (
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setIsUploadDialogOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
+                {/* Cancel Button */}
+                {uploadData.step !== 'complete' && uploadData.step !== 'upload' && (
+                  <button
+                    onClick={() => {
+                      setIsUploadWizardOpen(false);
+                      setUploadData(prev => ({ ...prev, step: 'fileUpload', file: null, fileName: '', detectedColumns: [] }));
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+
+                {/* Next/Action Buttons */}
+                {uploadData.step === 'fileUpload' && uploadData.file && (
+                  <button
+                    onClick={() => setUploadData(prev => ({ ...prev, step: 'uploadOptions' }))}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Next: Configure Options
+                  </button>
+                )}
+
+                {uploadData.step === 'uploadOptions' && (
+                  <button
+                    onClick={() => setUploadData(prev => ({ ...prev, step: 'primaryColumns' }))}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Next: Map Fields
+                  </button>
+                )}
+
+                {uploadData.step === 'primaryColumns' && (
+                  <button
+                    onClick={() => setUploadData(prev => ({ ...prev, step: 'customColumns' }))}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Next: Custom Fields
+                  </button>
+                )}
+
+                {uploadData.step === 'customColumns' && (
+                  <button
+                    onClick={() => setUploadData(prev => ({ ...prev, step: 'uploadReview' }))}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Next: Review
+                  </button>
+                )}
+
+                {uploadData.step === 'uploadReview' && (
+                  <button
+                    onClick={() => {
+                      setUploadData(prev => ({ ...prev, step: 'upload' }));
+                      // Start upload process
+                      setTimeout(() => {
+                        // Save template if requested
+                        if (uploadData.saveAsTemplate && uploadData.templateName) {
+                          createTemplateFromMappings(uploadData.templateName, uploadData.primaryColumns);
+                        }
+                        
+                        handleCompleteUpload();
+                        setUploadData(prev => ({ 
+                          ...prev, 
+                          step: 'complete',
+                          validContacts: 245,
+                          duplicateContacts: 12,
+                          invalidContacts: 8,
+                          dncContacts: 3
+                        }));
+                      }, 2000);
+                    }}
+                    className="px-6 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                  >
+                    Start Upload
+                  </button>
+                )}
+
+                {uploadData.step === 'complete' && (
+                  <button
+                    onClick={() => {
+                      setIsUploadWizardOpen(false);
+                      setUploadData(prev => ({ 
+                        ...prev, 
+                        step: 'fileUpload', 
+                        file: null, 
+                        fileName: '', 
+                        detectedColumns: [],
+                        validContacts: 0,
+                        duplicateContacts: 0,
+                        invalidContacts: 0,
+                        dncContacts: 0
+                      }));
+                      // Refresh data lists
+                      fetchDataLists();
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Done
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

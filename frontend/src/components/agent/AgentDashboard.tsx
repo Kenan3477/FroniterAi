@@ -16,6 +16,8 @@ import {
 import DispositionModal from './DispositionModal';
 import CallDispositionModal from './CallDispositionModal';
 import { TwilioDialer } from '@/components/dialer/TwilioDialer';
+import { InboundCallManager } from './InboundCallNotification';
+import { agentSocket } from '@/services/agentSocket';
 
 // Types
 interface Agent {
@@ -91,6 +93,8 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
     username: string;
     password: string;
   } | null>(null);
+  const [inboundCalls, setInboundCalls] = useState<any[]>([]);
+  const [activeInboundCall, setActiveInboundCall] = useState<any | null>(null);
 
   // Initialize agent data
   useEffect(() => {
@@ -136,6 +140,62 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
       if (interval) clearInterval(interval);
     };
   }, [agentStatus, currentWorkItem]);
+
+  // Set up inbound call socket event handling
+  useEffect(() => {
+    if (!currentAgent) return;
+
+    // Connect to agent socket
+    agentSocket.connect(currentAgent.agentId);
+    agentSocket.authenticateAgent(currentAgent.agentId);
+
+    // Handle inbound call events
+    const handleInboundCallRinging = (data: any) => {
+      console.log('New inbound call:', data);
+      setInboundCalls(prev => {
+        // Check if call already exists
+        const exists = prev.find(call => call.id === data.call.id);
+        if (exists) return prev;
+        
+        // Add new inbound call
+        return [...prev, {
+          ...data.call,
+          callerInfo: data.callerInfo
+        }];
+      });
+    };
+
+    const handleInboundCallAnswered = (data: any) => {
+      console.log('Inbound call answered:', data);
+      if (data.agentId === currentAgent.agentId) {
+        setActiveInboundCall(data.callId);
+      }
+      
+      // Remove from notifications if answered by this or other agent
+      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
+    };
+
+    const handleInboundCallEnded = (data: any) => {
+      console.log('Inbound call ended:', data);
+      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
+      
+      if (activeInboundCall === data.callId) {
+        setActiveInboundCall(null);
+      }
+    };
+
+    // Set up event listeners
+    agentSocket.on('inbound-call-ringing', handleInboundCallRinging);
+    agentSocket.on('inbound-call-answered', handleInboundCallAnswered);
+    agentSocket.on('inbound-call-ended', handleInboundCallEnded);
+
+    // Cleanup function
+    return () => {
+      agentSocket.off('inbound-call-ringing', handleInboundCallRinging);
+      agentSocket.off('inbound-call-answered', handleInboundCallAnswered);
+      agentSocket.off('inbound-call-ended', handleInboundCallEnded);
+    };
+  }, [currentAgent, activeInboundCall]);
 
   const loadAgentData = async (agentId: string) => {
     try {
@@ -270,6 +330,67 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
       handleStatusChange('AfterCall');
     } else if (agentStatus === 'Offline' || agentStatus === 'AfterCall') {
       handleStatusChange('Available');
+    }
+  };
+
+  // Inbound call management
+  const handleAnswerInboundCall = async (callId: string) => {
+    try {
+      const response = await fetch('/api/calls/inbound-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId: callId,
+          agentId: currentAgent?.agentId
+        })
+      });
+
+      if (response.ok) {
+        console.log('Inbound call answered successfully');
+        // Socket events will handle state updates
+      } else {
+        console.error('Failed to answer inbound call');
+      }
+    } catch (error) {
+      console.error('Error answering inbound call:', error);
+    }
+  };
+
+  const handleDeclineInboundCall = async (callId: string) => {
+    try {
+      // Remove from local state
+      setInboundCalls(prev => prev.filter(call => call.id !== callId));
+      
+      // Optionally notify backend that agent declined
+      // This could route to queue or other available agents
+      console.log('Inbound call declined by agent');
+    } catch (error) {
+      console.error('Error declining inbound call:', error);
+    }
+  };
+
+  const handleTransferInboundCall = async (callId: string, transferType: 'queue' | 'agent', targetId: string) => {
+    try {
+      const response = await fetch('/api/calls/inbound-transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId: callId,
+          transferType: transferType,
+          targetId: targetId,
+          agentId: currentAgent?.agentId
+        })
+      });
+
+      if (response.ok) {
+        console.log('Inbound call transferred successfully');
+        // Remove from notifications
+        setInboundCalls(prev => prev.filter(call => call.id !== callId));
+      } else {
+        console.error('Failed to transfer inbound call');
+      }
+    } catch (error) {
+      console.error('Error transferring inbound call:', error);
     }
   };
 
@@ -743,6 +864,17 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
           callDuration={formatDuration(callState.duration)}
           onDispositionSelect={handleCallDispositionSelect}
           onClose={() => setShowCallDispositionModal(false)}
+        />
+      )}
+
+      {/* Inbound Call Notifications */}
+      {currentAgent && (
+        <InboundCallManager
+          agentId={currentAgent.agentId}
+          inboundCalls={inboundCalls}
+          onAnswer={handleAnswerInboundCall}
+          onDecline={handleDeclineInboundCall}
+          onTransfer={handleTransferInboundCall}
         />
       )}
     </div>

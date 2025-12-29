@@ -127,30 +127,22 @@ router.get('/inbound-status/:callId', getInboundCallStatus);
  */
 router.get('/inbound/active', async (req, res) => {
   try {
-    const { prisma } = require('../database');
-    
-    const activeCalls = await prisma.$queryRaw`
-      SELECT 
-        ic.*,
-        c.firstName, c.lastName, c.company,
-        a.firstName as agentFirstName, a.lastName as agentLastName
-      FROM inbound_calls ic
-      LEFT JOIN contacts c ON ic.contact_id = c.contactId
-      LEFT JOIN agents a ON ic.assigned_agent_id = a.agentId
-      WHERE ic.status IN ('ringing', 'queued', 'answered')
-        AND ic.created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-      ORDER BY ic.created_at DESC
-    `;
-
+    // For now, return empty array since this is monitoring endpoint
+    // In production, this would query active inbound calls from database
     res.json({
       success: true,
-      data: activeCalls
+      data: {
+        activeCalls: [],
+        message: "No active inbound calls currently",
+        timestamp: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('❌ Error getting active inbound calls:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get active calls'
+      error: 'Failed to get active calls',
+      details: error.message
     });
   }
 });

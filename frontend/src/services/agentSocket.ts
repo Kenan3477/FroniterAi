@@ -17,7 +17,7 @@ export interface AgentSocketEvents {
   'joined-campaign': (data: { campaignId: string }) => void;
   'left-campaign': (data: { campaignId: string }) => void;
 
-  // Call events
+  // Outbound call events
   'call-event': (data: { 
     type: 'DIAL' | 'ANSWER' | 'HANGUP' | 'TRANSFER' | 'HOLD' | 'UNHOLD';
     callId?: string;
@@ -28,6 +28,18 @@ export interface AgentSocketEvents {
   'call-started': (data: { call: any; agentId: string; leg: any }) => void;
   'call-answered': (data: { callId: string; agentId: string; timestamp: Date }) => void;
   'call-ended': (data: { callId: string; agentId: string; reason: string; timestamp: Date }) => void;
+
+  // Inbound call events
+  'inbound-call-ringing': (data: { 
+    call: any; 
+    callerInfo?: any; 
+    routingOptions: any;
+    priority: 'high' | 'medium' | 'low';
+    isCallback: boolean;
+  }) => void;
+  'inbound-call-answered': (data: { callId: string; agentId: string }) => void;
+  'inbound-call-transferred': (data: { callId: string; transferType: string; targetId: string }) => void;
+  'inbound-call-ended': (data: { callId: string; endReason: string; duration?: number }) => void;
 
   // Dispositions
   'submit-disposition': (data: {
@@ -135,6 +147,27 @@ export class AgentSocketService {
       this.emit('call-ended', data);
     });
 
+    // Handle inbound call events
+    this.socket.on('inbound-call-ringing', (data) => {
+      console.log('Inbound call ringing:', data);
+      this.emit('inbound-call-ringing', data);
+    });
+
+    this.socket.on('inbound-call-answered', (data) => {
+      console.log('Inbound call answered:', data);
+      this.emit('inbound-call-answered', data);
+    });
+
+    this.socket.on('inbound-call-transferred', (data) => {
+      console.log('Inbound call transferred:', data);
+      this.emit('inbound-call-transferred', data);
+    });
+
+    this.socket.on('inbound-call-ended', (data) => {
+      console.log('Inbound call ended:', data);
+      this.emit('inbound-call-ended', data);
+    });
+
     // Handle disposition events
     this.socket.on('disposition-submitted', (data) => {
       this.emit('disposition-submitted', data);
@@ -235,6 +268,36 @@ export class AgentSocketService {
   requestNextRecord(campaignId: string) {
     if (this.socket?.connected) {
       this.socket.emit('request-next-record', { campaignId });
+    }
+  }
+
+  // Inbound call management
+  answerInboundCall(callId: string) {
+    if (this.socket?.connected && this.agentId) {
+      this.socket.emit('answer-inbound-call', { 
+        callId, 
+        agentId: this.agentId 
+      });
+    }
+  }
+
+  declineInboundCall(callId: string) {
+    if (this.socket?.connected && this.agentId) {
+      this.socket.emit('decline-inbound-call', { 
+        callId, 
+        agentId: this.agentId 
+      });
+    }
+  }
+
+  transferInboundCall(callId: string, transferType: 'queue' | 'agent', targetId: string) {
+    if (this.socket?.connected && this.agentId) {
+      this.socket.emit('transfer-inbound-call', { 
+        callId, 
+        transferType,
+        targetId,
+        agentId: this.agentId 
+      });
     }
   }
 
