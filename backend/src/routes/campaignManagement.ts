@@ -1008,7 +1008,6 @@ router.delete('/campaigns/:id', async (req: Request, res: Response) => {
         isActive: false,
         status: 'Inactive',
         name: `[DELETED] ${existingCampaign.name}`,
-        displayName: `[DELETED] ${existingCampaign.displayName || existingCampaign.name}`,
         updatedAt: new Date()
       }
     });

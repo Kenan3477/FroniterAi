@@ -623,8 +623,8 @@ const CampaignManagementPage: React.FC = () => {
       // Add default dial queue properties to campaigns and filter out deleted ones
       const campaignsWithDialQueue = (campaignsData.data || [])
         .filter((campaign: ManagementCampaign) => {
-          // Filter out soft-deleted campaigns (those with [DELETED] prefix)
-          const isDeleted = campaign.name?.startsWith('[DELETED]') || campaign.displayName?.startsWith('[DELETED]');
+          // Filter out soft-deleted campaigns (those with [DELETED] prefix in name)
+          const isDeleted = campaign.name?.startsWith('[DELETED]');
           if (isDeleted) {
             console.log(`🗑️ Filtering out deleted campaign: ${campaign.name}`);
           }
