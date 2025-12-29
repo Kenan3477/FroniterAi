@@ -191,7 +191,7 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
         where: { 
           OR: [
             { userId: userId },
-            { assignedById: userId }
+            { assignedBy: userId }
           ]
         }
       });
