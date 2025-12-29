@@ -11,13 +11,60 @@ let webSocketService: WebSocketService;
 export const initializeSocket = (io: Server): WebSocketService => {
   console.log('🚀 Initializing Socket.IO event system...');
 
-  // Create WebSocket service
+  // Create WebSocket service for main namespace
   webSocketService = new WebSocketService(io);
+  
+  // Set up dialler namespace for agent communications
+  const diallerNamespace = io.of('/dialler');
+  console.log('🎯 Setting up /dialler namespace for agent communications');
+  
+  // Handle dialler namespace connections directly
+  diallerNamespace.on('connection', (socket) => {
+    console.log(`🔌 Agent connected to dialler namespace: ${socket.id}`);
+    
+    // Handle authentication for agents
+    socket.on('authenticate-agent', async (data: { agentId: string; token?: string }) => {
+      try {
+        console.log(`🔐 Authenticating agent: ${data.agentId}`);
+        
+        // Join agent-specific room
+        socket.join(`agent:${data.agentId}`);
+        
+        // Join any assigned campaigns
+        // Query agent's campaigns
+        const agentCampaigns = await (await import('../database')).prisma.$queryRaw`
+          SELECT uc."campaignId"
+          FROM user_campaigns uc
+          INNER JOIN agents a ON a."agentId" = uc."userId"::text
+          WHERE a."agentId" = ${data.agentId}
+        ` as any[];
+        
+        for (const campaign of agentCampaigns) {
+          socket.join(`campaign:${campaign.campaignId}`);
+          console.log(`👥 Agent ${data.agentId} joined campaign: ${campaign.campaignId}`);
+        }
+        
+        socket.emit('authenticated', { success: true, agent: { agentId: data.agentId } });
+        console.log(`✅ Agent authenticated in dialler namespace: ${data.agentId}`);
+        
+      } catch (error) {
+        console.error('❌ Agent authentication failed:', error);
+        socket.emit('auth-error', { message: 'Authentication failed' });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log(`🔌 Agent disconnected from dialler namespace: ${socket.id}`);
+    });
+  });
+  
+  // Store reference to dialler namespace for global access
+  (webSocketService as any).diallerNamespace = diallerNamespace;
 
   // Set up global event listeners for system integration
   setupSystemEventListeners();
 
-  console.log('✅ Socket.IO event system initialized');
+  console.log('✅ Socket.IO event system initialized with /dialler namespace');
   return webSocketService;
 };
 

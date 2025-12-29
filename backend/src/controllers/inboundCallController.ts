@@ -467,13 +467,58 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
       status: 'ringing'
     });
 
-    // Also notify via WebSocket service for immediate delivery
+    // Notify available agents in DAC campaign via WebSocket service
     if (webSocketService) {
-      // Send to all available agents (broadcast approach)
-      webSocketService.sendToAgent('*', 'inbound-call-ringing', {
-        call: inboundCall,
-        callerInfo: callerInfo.contact
-      });
+      console.log('🔔 Notifying agents of inbound call:', inboundCall.id);
+      
+      // Find agents available in DAC campaign (campaign_1766695393511)
+      const availableAgents = await prisma.$queryRaw`
+        SELECT DISTINCT a."agentId", a."firstName", a."lastName"
+        FROM agents a
+        INNER JOIN user_campaigns uc ON a."agentId" = uc."userId"::text
+        WHERE a.status = 'Available' 
+          AND a."isLoggedIn" = true
+          AND uc."campaignId" = 'campaign_1766695393511'
+      ` as any[];
+
+      console.log('🎯 Found available agents for inbound call:', availableAgents.length);
+
+      // Send notification to each available agent
+      if (availableAgents.length > 0) {
+        const notificationData = {
+          call: inboundCall,
+          callerInfo: callerInfo.contact,
+          routingOptions: inboundCall.routingOptions,
+          priority: inboundCall.metadata.priority,
+          isCallback: inboundCall.metadata.isCallback
+        };
+
+        // Get dialler namespace for agent communications
+        const diallerNamespace = (webSocketService as any).diallerNamespace;
+        
+        if (diallerNamespace) {
+          // Send to each agent individually using dialler namespace
+          for (const agent of availableAgents) {
+            console.log(`📤 Sending inbound call notification to agent: ${agent.agentId}`);
+            diallerNamespace.to(`agent:${agent.agentId}`).emit('inbound-call-ringing', notificationData);
+          }
+
+          // Also broadcast to the DAC campaign room in dialler namespace
+          diallerNamespace.to('campaign:campaign_1766695393511').emit('inbound-call-ringing', notificationData);
+          
+          console.log('✅ Inbound call notifications sent to available agents via dialler namespace');
+        } else {
+          console.log('⚠️ Dialler namespace not available, using main namespace');
+          
+          // Fallback to main namespace
+          for (const agent of availableAgents) {
+            webSocketService.sendToAgent(agent.agentId, 'inbound-call-ringing', notificationData);
+          }
+          webSocketService.sendToCampaign('campaign_1766695393511', 'inbound-call-ringing', notificationData);
+        }
+      } else {
+        console.log('⚠️ No available agents found for inbound call notification');
+      }
     }
 
   } catch (error: any) {
