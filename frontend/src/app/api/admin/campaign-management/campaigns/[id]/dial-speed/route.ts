@@ -7,10 +7,10 @@ export async function PATCH(
   try {
     const { dialSpeed } = await request.json();
     
-    // Validate dial speed is within allowed range (10-120 CPM per agent)
-    if (dialSpeed < 10 || dialSpeed > 120) {
+    // Validate dial speed is within allowed range (1-4 CPM per agent)
+    if (dialSpeed < 1 || dialSpeed > 4) {
       return NextResponse.json(
-        { error: 'Dial speed must be between 10 and 120 CPM per agent' },
+        { error: 'Dial speed must be between 1 and 4 CPM per agent' },
         { status: 400 }
       );
     }

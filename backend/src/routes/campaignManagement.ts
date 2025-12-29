@@ -2119,11 +2119,11 @@ router.patch('/campaigns/:id/dial-speed', async (req: Request, res: Response) =>
     const { id } = req.params;
     const { dialSpeed } = req.body;
 
-    // Validate dial speed range (10-120 CPM per agent)
-    if (dialSpeed < 10 || dialSpeed > 120) {
+    // Validate dial speed range (1-4 CPM per agent)
+    if (dialSpeed < 1 || dialSpeed > 4) {
       return res.status(400).json({
         success: false,
-        message: 'Dial speed must be between 10 and 120 CPM per agent',
+        message: 'Dial speed must be between 1 and 4 CPM per agent',
         error: 'Invalid dial speed range'
       });
     }
