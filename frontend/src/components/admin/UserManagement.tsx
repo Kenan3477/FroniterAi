@@ -355,6 +355,8 @@ export default function UserManagement() {
   const unassignCampaign = async (campaignId: string) => {
     if (!managingCampaignsUser) return;
 
+    console.log('🗑️ Unassigning campaign:', campaignId, 'from user:', managingCampaignsUser.id);
+
     try {
       const response = await fetch(
         `/api/admin/users/${managingCampaignsUser.id}/campaigns/${campaignId}`,
@@ -932,20 +934,27 @@ export default function UserManagement() {
                         Assigned Campaigns ({userCampaigns.length})
                       </h4>
                       <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {userCampaigns.map((campaign) => (
+                        {userCampaigns.map((campaign) => {
+                          console.log('🎯 Rendering assigned campaign:', { 
+                            id: campaign.id, 
+                            campaignId: campaign.campaignId, 
+                            name: campaign.name 
+                          });
+                          return (
                           <div
                             key={campaign.id}
                             className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded"
                           >
                             <span className="text-sm text-gray-900">{campaign.name}</span>
                             <button
-                              onClick={() => unassignCampaign(campaign.id)}
+                              onClick={() => unassignCampaign(campaign.campaignId)}
                               className="text-red-600 hover:text-red-800 text-xs"
                             >
                               Remove
                             </button>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

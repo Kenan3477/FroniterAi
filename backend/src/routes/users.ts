@@ -292,8 +292,10 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
       where: { agentId: userId } // Our system uses userId as agentId
     });
 
+    console.log(`🔍 Agent lookup result for user ${userId}:`, agent ? `Found agent: ${agent.agentId}` : 'No agent found');
+
     if (!agent) {
-      console.log(`📋 No agent record found for user ${userId}, checking for campaigns anyway...`);
+      console.log(`📋 No agent record found for user ${userId}, returning empty campaigns`);
       // Return empty campaigns if no agent record exists
       res.json({
         success: true,
@@ -328,7 +330,13 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
       }
     });
 
+    console.log(`🔍 Agent campaign assignments query result:`, {
+      found: !!agentWithCampaigns,
+      assignmentCount: agentWithCampaigns?.campaignAssignments?.length || 0
+    });
+
     if (!agentWithCampaigns) {
+      console.log(`📋 No agent found in campaign assignments query for user ${userId}`);
       res.json({
         success: true,
         data: []
@@ -338,6 +346,13 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
 
     // Extract campaigns from the assignments
     const campaigns = agentWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+    
+    console.log(`🔍 Campaign details for user ${userId}:`, campaigns.map(c => ({
+      campaignId: c.campaignId,
+      name: c.name,
+      status: c.status,
+      isActive: c.isActive
+    })));
 
     console.log(`✅ Found ${campaigns.length} campaigns for user ${userId}`);
 
