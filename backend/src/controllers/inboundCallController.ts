@@ -123,7 +123,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     res.type('text/xml');
     res.send(twiml);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error handling inbound call webhook:', error);
     
     // Send fallback TwiML
@@ -243,7 +243,7 @@ export const answerInboundCall = async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error answering inbound call:', error);
     res.status(500).json({
       success: false,
@@ -285,7 +285,7 @@ export const transferInboundCall = async (req: Request, res: Response) => {
       data: { callId, transferType, targetId }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error transferring inbound call:', error);
     res.status(500).json({
       success: false,
@@ -312,7 +312,7 @@ export const getInboundCallStatus = async (req: Request, res: Response) => {
       data: callDetails
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error getting inbound call status:', error);
     res.status(500).json({
       success: false,
@@ -404,7 +404,7 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
       }
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error looking up caller information:', error);
     
     // Return default response for unknown callers
@@ -435,7 +435,7 @@ async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLook
         ${inboundCall.createdAt}
       )
     `;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error storing inbound call:', error);
     // Continue execution - don't fail the call flow
   }
@@ -470,7 +470,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
       });
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error notifying agents of inbound call:', error);
     // Continue execution - don't fail the call flow
   }
@@ -488,7 +488,7 @@ async function getInboundCallDetails(callId: string): Promise<any> {
     ` as any[];
 
     return callDetails.length > 0 ? callDetails[0] : null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error getting inbound call details:', error);
     return null;
   }

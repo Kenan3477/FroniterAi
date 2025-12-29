@@ -97,7 +97,7 @@ router.post('/webhook/inbound-status', validateTwilioWebhook, async (req, res) =
     }
     
     res.status(200).send('OK');
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error processing inbound call status webhook:', error);
     res.status(500).send('Error');
   }
@@ -137,12 +137,12 @@ router.get('/inbound/active', async (req, res) => {
         timestamp: new Date().toISOString()
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error getting active inbound calls:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get active calls',
-      details: error.message
+      details: error?.message || 'Unknown error'
     });
   }
 });
@@ -188,7 +188,7 @@ router.post('/twiml/inbound-agent', async (req, res) => {
     res.type('text/xml');
     res.send(twiml.toString());
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error generating agent TwiML for inbound call:', error);
     res.type('text/xml').send(`
       <?xml version="1.0" encoding="UTF-8"?>
