@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Admin can use the admin endpoint to view their own campaigns
         apiUrl = `/api/admin/users/${user.id}/campaigns`;
       } else {
-        // Regular users use the user-specific endpoint
+        // Regular users use the Next.js proxy to backend endpoint
         apiUrl = '/api/campaigns/my-campaigns';
       }
 
