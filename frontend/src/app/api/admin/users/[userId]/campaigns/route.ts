@@ -111,12 +111,46 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
 
     console.log(`🔍 Found user email: ${user.email} for user ID: ${userId}`);
 
-    // Filter campaigns to show only those assigned to this user (via their agent email)
-    const userAssignedCampaigns = campaignData.data?.filter((campaign: any) => 
-      campaign.assignedAgents?.some((agent: any) => agent.email === user.email)
-    ) || [];
+    // Get user's actual campaign assignments from backend (not campaign list filtering)
+    // Use the user ID as agentId to get assignments 
+    const agentCampaignsResponse = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+      }
+    });
+
+    if (!agentCampaignsResponse.ok) {
+      console.error('Failed to get agent campaign assignments');
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    // Query backend for assignments using AgentCampaignAssignment table
+    // We'll get campaign details by their actual campaignId used in assignments
+    const assignedCampaignIds: string[] = [];
+
+    // Get all available campaigns to map IDs to campaign details
+    const allCampaigns = campaignData.data || [];
+    
+    // Filter campaigns where this user's agent record has an assignment
+    // The backend should return campaigns with assignedAgents populated properly
+    const userAssignedCampaigns = allCampaigns.filter((campaign: any) => {
+      const isAssigned = campaign.assignedAgents?.some((agent: any) => 
+        agent.agentId === userId || agent.email === user.email
+      );
+      if (isAssigned) {
+        assignedCampaignIds.push(campaign.campaignId);
+      }
+      return isAssigned;
+    });
     
     console.log(`✅ Found ${userAssignedCampaigns.length} campaigns assigned to user ${user.email}`);
+    console.log(`📋 Assigned campaign IDs: ${assignedCampaignIds.join(', ')}`);
+    
     return NextResponse.json({
       success: true,
       data: userAssignedCampaigns

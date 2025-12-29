@@ -1790,6 +1790,26 @@ router.delete('/campaigns/:id/leave-agent', async (req: Request, res: Response) 
     const { agentId } = req.body;
 
     console.log(`🔄 Removing agent ${agentId} from campaign ${id}`);
+    console.log(`🔄 Request params.id: ${id} (type: ${typeof id})`);
+    console.log(`🔄 Request body.agentId: ${agentId} (type: ${typeof agentId})`);
+
+    // First, let's check what assignments exist in the database
+    const existingAssignments = await prisma.agentCampaignAssignment.findMany({
+      where: {
+        agentId: agentId
+      },
+      select: {
+        id: true,
+        agentId: true,
+        campaignId: true,
+        isActive: true
+      }
+    });
+    
+    console.log(`🔍 Found ${existingAssignments.length} assignments for agent ${agentId}:`);
+    existingAssignments.forEach(assignment => {
+      console.log(`   - Assignment ID: ${assignment.id}, Campaign: ${assignment.campaignId}, Active: ${assignment.isActive}`);
+    });
 
     const result = await prisma.agentCampaignAssignment.deleteMany({
       where: {
