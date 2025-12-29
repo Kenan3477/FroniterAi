@@ -3,21 +3,14 @@ import { Request, Response } from 'express';
 
 const router = Router();
 
-// Voice webhook handler for incoming calls
+// Voice webhook handler for incoming calls - REDIRECTED TO NEW INBOUND CALL SYSTEM
 router.post('/voice', (req: Request, res: Response) => {
-  console.log('📞 Incoming voice webhook:', req.body);
+  console.log('📞 Legacy voice webhook - redirecting to new inbound call system:', req.body);
   
-  // Generate TwiML to handle incoming calls
+  // Redirect to new inbound call handling system
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Welcome to Omnivox-AI. Please hold while we connect you to an agent.</Say>
-  <Dial>
-    <Conference 
-      beep="false"
-      waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical"
-      endConferenceOnExit="true"
-    >inbound-${Date.now()}</Conference>
-  </Dial>
+  <Redirect method="POST">${process.env.BACKEND_URL || 'https://superb-imagination-production.up.railway.app'}/api/calls/webhook/inbound-call</Redirect>
 </Response>`;
 
   res.type('text/xml');

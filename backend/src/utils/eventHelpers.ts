@@ -40,6 +40,19 @@ export const callEvents = {
 
   unmuted: (data: Omit<CallEvent, 'id' | 'timestamp' | 'type'>) =>
     eventManager.emitEvent({ ...data, type: 'call.unmuted' }, `agent:${data.agentId}`),
+
+  // Inbound call event helpers
+  inboundRinging: (data: any) =>
+    eventManager.emitEvent({ ...data, type: 'call.inbound.ringing' } as any, 'global', EventPriority.HIGH),
+
+  inboundAnswered: (data: any) =>
+    eventManager.emitEvent({ ...data, type: 'call.inbound.answered' } as any, `agent:${data.agentId}`, EventPriority.HIGH),
+
+  inboundTransferred: (data: any) =>
+    eventManager.emitEvent({ ...data, type: 'call.inbound.transferred' } as any, 'global', EventPriority.MEDIUM),
+
+  inboundEnded: (data: any) =>
+    eventManager.emitEvent({ ...data, type: 'call.inbound.ended' } as any, 'global'),
 };
 
 /**

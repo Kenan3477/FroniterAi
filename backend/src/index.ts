@@ -44,6 +44,7 @@ import adminSetupRoutes from './routes/adminSetup'; // Admin setup for initial u
 import dispositionsRoutes from './routes/dispositionsRoutes'; // Disposition collection system
 import productionDialerRoutes from './routes/productionDialerRoutes'; // PRODUCTION: Real Twilio SIP integration
 import callManagementRoutes from './routes/callManagementRoutes'; // PRODUCTION: Call state machine management
+import inboundCallRoutes from './routes/inboundCallRoutes'; // PRODUCTION: Inbound call handling system
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
@@ -187,6 +188,7 @@ class App {
     
     // NEW: Twilio Dialer API routes - THIS IS THE ONE WE NEED FOR TOKENS
     this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system (includes /token endpoint)
+    this.app.use('/api/calls', inboundCallRoutes); // PRODUCTION: Inbound call handling webhooks and management
     this.app.use('/api/dial-queue', dialQueueRoutes); // Dial queue system for auto-dialer
     this.app.use('/api/events', eventTestRoutes); // Real-time event system testing
 

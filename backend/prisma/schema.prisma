@@ -91,6 +91,7 @@ model Contact {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   callRecords       CallRecord[] // Full call history
+  inboundCalls      InboundCall[] // Inbound calls from this contact
   list              DataList         @relation(fields: [listId], references: [listId], onDelete: Cascade)
   queueEntries      DialQueueEntry[]
   interactions      Interaction[]
@@ -179,6 +180,7 @@ model Agent {
   updatedAt           DateTime                  @updatedAt
   campaignAssignments AgentCampaignAssignment[]
   callRecords         CallRecord[]
+  inboundCalls        InboundCall[] // Inbound calls handled by this agent
   interactions        Interaction[]
   sales               Sale[]
   tasks               Task[]
@@ -296,6 +298,30 @@ model CallRecord {
   recordingFile Recording? // One-to-one relation
 
   @@map("call_records")
+}
+
+model InboundCall {
+  id                String    @id @default(cuid())
+  callId            String    @unique // Our internal ID
+  callSid           String    @unique // Twilio Call SID
+  callerNumber      String    // Phone number of caller
+  contactId         String? // Link to contact if found
+  status            String    @default("ringing") // ringing, queued, answered, transferred, ended
+  assignedAgentId   String? // Agent handling the call
+  assignedQueueId   String? // Queue if transferred
+  routingMetadata   String? // JSON metadata for routing decisions
+  isCallback        Boolean   @default(false) // Is this a callback from recent outbound?
+  priority          String    @default("normal") // normal, high, urgent
+  duration          Int? // Call duration in seconds
+  createdAt         DateTime  @default(now())
+  answeredAt        DateTime?
+  endedAt           DateTime?
+  
+  // Relations
+  contact           Contact?  @relation(fields: [contactId], references: [contactId])
+  assignedAgent     Agent?    @relation(fields: [assignedAgentId], references: [agentId])
+
+  @@map("inbound_calls")
 }
 
 model Interaction {
