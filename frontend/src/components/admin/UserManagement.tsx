@@ -209,7 +209,7 @@ export default function UserManagement() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      const response = await fetch(`/api/admin/users?id=${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
