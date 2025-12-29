@@ -200,7 +200,7 @@ router.post('/login', async (req, res) => {
         email: user.email
       }, 
       JWT_SECRET, 
-      { expiresIn: '15m' } // Short-lived access token
+      { expiresIn: '8h' } // 8-hour access token for call center shifts
     );
 
     const refreshToken = jwt.sign(
@@ -244,7 +244,7 @@ router.post('/login', async (req, res) => {
         token: accessToken, // For backward compatibility
         accessToken: accessToken,
         refreshToken: refreshToken,
-        expiresIn: 15 * 60 // 15 minutes in seconds
+        expiresIn: 8 * 60 * 60 // 8 hours in seconds
       }
     });
 
@@ -315,7 +315,7 @@ router.post('/refresh', async (req, res) => {
         email: storedToken.user.email
       },
       JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: '8h' }
     );
 
     // Update last used timestamp
@@ -329,7 +329,7 @@ router.post('/refresh', async (req, res) => {
       data: {
         accessToken: newAccessToken,
         token: newAccessToken, // For backward compatibility
-        expiresIn: 15 * 60
+        expiresIn: 8 * 60 * 60
       }
     });
 
