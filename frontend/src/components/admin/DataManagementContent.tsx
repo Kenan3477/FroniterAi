@@ -34,6 +34,19 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   const [searchTerm2, setSearchTerm2] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
+  // Dialog states for edit and upload
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [editingList, setEditingList] = useState<DataList | null>(null);
+  const [uploadTargetList, setUploadTargetList] = useState<DataList | null>(null);
+
+  // Upload wizard state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadStep, setUploadStep] = useState<'file' | 'mapping' | 'preview' | 'upload'>('file');
+  const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
+  const [fieldMapping, setFieldMapping] = useState<{[key: string]: string}>({});
+  const [previewData, setPreviewData] = useState<any[]>([]);
+
   // Load data lists from API
   const fetchDataLists = async () => {
     try {
@@ -177,6 +190,159 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     } catch (error) {
       console.error('Error cloning data list:', error);
       alert(`Failed to clone data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Edit data list
+  const handleEditList = (list: DataList) => {
+    console.log(`📝 Opening edit dialog for data list: ${list.name}`);
+    setEditingList(list);
+    setIsEditDialogOpen(true);
+    setOpenDropdown(null);
+  };
+
+  // Save edited data list
+  const handleSaveEdit = async () => {
+    if (!editingList) return;
+
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${editingList.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingList.name,
+          campaignId: editingList.campaign !== 'Unassigned' ? editingList.campaign : null,
+          blendWeight: 75 // Default weight
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setDataLists(prev => prev.map(l => 
+          l.id === editingList.id 
+            ? { ...l, name: editingList.name, campaign: editingList.campaign }
+            : l
+        ));
+        setIsEditDialogOpen(false);
+        setEditingList(null);
+        alert('Data list updated successfully!');
+      } else {
+        throw new Error(result.error?.message || 'Failed to update data list');
+      }
+    } catch (error) {
+      console.error('Error updating data list:', error);
+      alert(`Failed to update data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Upload data to list
+  const handleUploadData = (list: DataList) => {
+    console.log(`📤 Opening upload dialog for data list: ${list.name}`);
+    setUploadTargetList(list);
+    setIsUploadDialogOpen(true);
+    setUploadStep('file');
+    setOpenDropdown(null);
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+      // Parse CSV to detect columns
+      parseCSVHeaders(file);
+    }
+  };
+
+  // Parse CSV headers for field mapping
+  const parseCSVHeaders = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      if (lines.length > 0) {
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        setDetectedColumns(headers);
+        setUploadStep('mapping');
+        
+        // Auto-map common fields
+        const mapping: {[key: string]: string} = {};
+        headers.forEach(header => {
+          const lower = header.toLowerCase();
+          if (lower.includes('first') && lower.includes('name')) mapping.firstName = header;
+          if (lower.includes('last') && lower.includes('name')) mapping.lastName = header;
+          if (lower.includes('phone') || lower.includes('tel')) mapping.phone = header;
+          if (lower.includes('email')) mapping.email = header;
+          if (lower.includes('company')) mapping.company = header;
+        });
+        setFieldMapping(mapping);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Complete upload
+  const handleCompleteUpload = async () => {
+    if (!uploadFile || !uploadTargetList) return;
+
+    try {
+      // Read and parse CSV file
+      const text = await uploadFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      // Parse data rows
+      const contacts = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const contact: any = {};
+        
+        // Map fields based on fieldMapping
+        Object.entries(fieldMapping).forEach(([field, column]) => {
+          const columnIndex = headers.indexOf(column);
+          if (columnIndex !== -1 && values[columnIndex]) {
+            contact[field] = values[columnIndex];
+          }
+        });
+
+        return contact;
+      }).filter(contact => contact.firstName || contact.lastName || contact.phone);
+
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contacts: contacts,
+          mapping: fieldMapping
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`Successfully uploaded ${contacts.length} contacts!`);
+        setIsUploadDialogOpen(false);
+        setUploadFile(null);
+        setFieldMapping({});
+        setDetectedColumns([]);
+        fetchDataLists(); // Refresh to show updated contact counts
+      } else {
+        throw new Error(result.error?.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading data:', error);
+      alert(`Failed to upload data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -329,11 +495,23 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                               {openDropdown === list.id && (
                                 <div className="absolute right-0 top-8 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
                                   <div className="py-1">
-                                    <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <button 
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        handleEditList(list);
+                                      }}
+                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    >
                                       <PencilIcon className="h-4 w-4 mr-3" />
                                       Edit List
                                     </button>
-                                    <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <button 
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        handleUploadData(list);
+                                      }}
+                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    >
                                       <CloudArrowUpIcon className="h-4 w-4 mr-3" />
                                       Upload Data
                                     </button>
@@ -395,6 +573,132 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           </div>
         )}
       </div>
+
+      {/* Edit Data List Dialog */}
+      {isEditDialogOpen && editingList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Data List</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editingList.name}
+                  onChange={(e) => setEditingList({ ...editingList, name: e.target.value })}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
+                <input
+                  type="text"
+                  value={editingList.campaign}
+                  onChange={(e) => setEditingList({ ...editingList, campaign: e.target.value })}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  placeholder="Enter campaign name or 'Unassigned'"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setIsEditDialogOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Data Dialog */}
+      {isUploadDialogOpen && uploadTargetList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Upload Data to "{uploadTargetList.name}"
+            </h3>
+
+            {uploadStep === 'file' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select CSV File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Supported formats: CSV, Excel (.xlsx, .xls)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {uploadStep === 'mapping' && detectedColumns.length > 0 && (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">Map CSV Columns to Fields</h4>
+                  <div className="space-y-3">
+                    {['firstName', 'lastName', 'phone', 'email', 'company'].map((field) => (
+                      <div key={field} className="flex items-center space-x-3">
+                        <label className="w-24 text-sm font-medium text-gray-700 capitalize">
+                          {field.replace(/([A-Z])/g, ' $1')}:
+                        </label>
+                        <select
+                          value={fieldMapping[field] || ''}
+                          onChange={(e) => setFieldMapping({ ...fieldMapping, [field]: e.target.value })}
+                          className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                        >
+                          <option value="">Select column</option>
+                          {detectedColumns.map((col) => (
+                            <option key={col} value={col}>{col}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => setUploadStep('file')}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCompleteUpload}
+                    className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700"
+                  >
+                    Upload Data
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {uploadStep === 'file' && (
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setIsUploadDialogOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
