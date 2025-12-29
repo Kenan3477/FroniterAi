@@ -503,13 +503,12 @@ router.post('/data-lists/:id/clone', async (req: Request, res: Response) => {
               address: contact.address,
               city: contact.city,
               state: contact.state,
-              zip: contact.zip,
+              zipCode: contact.zipCode,
               country: contact.country,
-              customFields: contact.customFields,
+              custom1: contact.custom1,
               status: 'New', // Reset status for cloned contacts
               attemptCount: 0,
-              maxAttempts: contact.maxAttempts,
-              timezone: contact.timezone
+              maxAttempts: contact.maxAttempts
             }
           });
         }
@@ -650,13 +649,12 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
               address: contactData.address || null,
               city: contactData.city || null,
               state: contactData.state || null,
-              zip: contactData.zip || null,
+              zipCode: contactData.zipCode || null,
               country: contactData.country || 'US',
-              customFields: contactData.customFields ? JSON.stringify(contactData.customFields) : null,
+              custom1: contactData.custom1 || null,
               status: 'New',
               attemptCount: 0,
-              maxAttempts: contactData.maxAttempts || 3,
-              timezone: contactData.timezone || 'UTC'
+              maxAttempts: contactData.maxAttempts || 3
             }
           });
 
