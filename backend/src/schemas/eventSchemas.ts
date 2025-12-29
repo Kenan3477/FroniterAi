@@ -12,7 +12,12 @@ const baseEventSchema = z.object({
 
 // Call event schema
 export const callEventSchema = baseEventSchema.extend({
-  type: z.enum(['call.initiated', 'call.connected', 'call.ended', 'call.failed', 'call.transferred', 'call.hold', 'call.unhold', 'call.muted', 'call.unmuted']),
+  type: z.enum([
+    'call.initiated', 'call.connected', 'call.ended', 'call.failed', 
+    'call.transferred', 'call.hold', 'call.unhold', 'call.muted', 'call.unmuted',
+    // Inbound call events
+    'call.inbound.ringing', 'call.inbound.answered', 'call.inbound.queued', 'call.inbound.transferred'
+  ]),
   callId: z.string(),
   agentId: z.string().optional(),
   contactId: z.string().optional(),
