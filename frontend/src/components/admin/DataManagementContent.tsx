@@ -104,13 +104,185 @@ const initialDataLists: DataList[] = [
 
 export default function DataManagementContent({ searchTerm }: DataManagementContentProps) {
   const [selectedSubTab, setSelectedSubTab] = useState('Manage Data Lists');
-  const [dataLists, setDataLists] = useState<DataList[]>(initialDataLists);
+  const [dataLists, setDataLists] = useState<DataList[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm2, setSearchTerm2] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showDataListCreator, setShowDataListCreator] = useState(false);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [selectedListForUpload, setSelectedListForUpload] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load data lists from API
+  const fetchDataLists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/admin/campaign-management/data-lists');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data lists: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      if (result.success && result.data?.dataLists) {
+        // Transform backend data to frontend format
+        const transformedLists = result.data.dataLists.map((list: any) => ({
+          id: list.id,
+          listId: list.listId,
+          name: list.name,
+          description: list.campaignId ? `Assigned to Campaign: ${list.campaignId}` : 'No campaign assigned',
+          campaign: list.campaignId || 'Unassigned',
+          total: list.totalContacts || 0,
+          available: list.totalContacts || 0,
+          dialAttempts: 0,
+          lastDialed: new Date().toISOString().split('T')[0],
+          status: list.active ? 'Active' : 'Inactive' as 'Active' | 'Inactive',
+          createdAt: new Date(list.createdAt),
+          blendWeight: list.blendWeight || 100
+        }));
+        setDataLists(transformedLists);
+      } else {
+        console.error('Invalid response format:', result);
+        setError('Invalid response format from server');
+      }
+    } catch (error) {
+      console.error('Error fetching data lists:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch data lists');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize data on component mount
+  useEffect(() => {
+    fetchDataLists();
+  }, []);
+
+  // Delete data list via API
+  const handleDeleteList = async (list: DataList) => {
+    if (!confirm(`Are you sure you want to delete "${list.name}"? This will also delete all contacts in this list.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Remove from local state
+        setDataLists(prev => prev.filter(l => l.id !== list.id));
+        console.log(`✅ Deleted data list: ${list.name}`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to delete data list');
+      }
+    } catch (error) {
+      console.error('Error deleting data list:', error);
+      alert(`Failed to delete data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Clone data list via API
+  const handleCloneList = async (list: DataList) => {
+    const includeContacts = confirm(`Clone "${list.name}"?\n\nClick OK to clone with contacts, Cancel to clone without contacts.`);
+    
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/clone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newName: `${list.name} (Copy)`,
+          includeContacts: includeContacts
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to clone data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.data?.dataList) {
+        // Transform and add to local state
+        const clonedList = {
+          id: result.data.dataList.id,
+          listId: result.data.dataList.listId,
+          name: result.data.dataList.name,
+          description: result.data.dataList.campaignId ? `Assigned to Campaign: ${result.data.dataList.campaignId}` : 'No campaign assigned',
+          campaign: result.data.dataList.campaignId || 'Unassigned',
+          total: result.data.dataList.totalContacts || 0,
+          available: result.data.dataList.totalContacts || 0,
+          dialAttempts: 0,
+          lastDialed: new Date().toISOString().split('T')[0],
+          status: 'Inactive' as const,
+          createdAt: new Date(result.data.dataList.createdAt),
+          blendWeight: result.data.dataList.blendWeight || 100
+        };
+        
+        setDataLists(prev => [...prev, clonedList]);
+        console.log(`✅ Cloned data list: ${list.name} -> ${clonedList.name}`);
+        console.log(`📊 Contacts cloned: ${result.data.contactsCloned}`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to clone data list');
+      }
+    } catch (error) {
+      console.error('Error cloning data list:', error);
+      alert(`Failed to clone data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Update data list via API
+  const handleUpdateList = async (updatedList: DataList) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${updatedList.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: updatedList.name,
+          active: updatedList.status === 'Active',
+          blendWeight: updatedList.blendWeight
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.data?.dataList) {
+        // Update local state
+        setDataLists(prev => prev.map(list => 
+          list.id === updatedList.id 
+            ? {
+                ...list,
+                name: result.data.dataList.name,
+                status: result.data.dataList.active ? 'Active' : 'Inactive' as const,
+                blendWeight: result.data.dataList.blendWeight
+              }
+            : list
+        ));
+        console.log(`✅ Updated data list: ${updatedList.name}`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to update data list');
+      }
+    } catch (error) {
+      console.error('Error updating data list:', error);
+      alert(`Failed to update data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   // Data List Creator State
   const [dataListCreator, setDataListCreator] = useState<DataListCreator>({
@@ -235,34 +407,67 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   };
 
   // Create or edit data list
-  const handleSaveDataList = () => {
-    if (dataListCreator.id) {
-      // Edit existing
-      setDataLists(prev => prev.map(list => 
-        list.id === dataListCreator.id 
-          ? { ...list, ...dataListCreator, status: dataListCreator.setAsActive ? 'Active' : 'Inactive' }
-          : list
-      ));
-    } else {
-      // Create new
-      const newList: DataList = {
-        id: Date.now().toString(),
-        name: dataListCreator.name,
-        description: dataListCreator.description,
-        campaign: dataListCreator.campaign,
-        total: 0,
-        available: 0,
-        queued: 0,
-        reset: 0,
-        status: dataListCreator.setAsActive ? 'Active' : 'Inactive',
-        createdAt: new Date()
-      };
-      setDataLists(prev => [...prev, newList]);
+  const handleSaveDataList = async () => {
+    try {
+      if (dataListCreator.id) {
+        // Edit existing data list
+        await handleUpdateList({
+          ...dataLists.find(list => list.id === dataListCreator.id)!,
+          name: dataListCreator.name,
+          status: dataListCreator.setAsActive ? 'Active' : 'Inactive',
+          blendWeight: dataListCreator.weight
+        });
+      } else {
+        // Create new data list
+        const response = await fetch('/api/admin/campaign-management/data-lists', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: dataListCreator.name.trim(),
+            campaignId: dataListCreator.campaign !== 'Unassigned' ? dataListCreator.campaign : null,
+            blendWeight: dataListCreator.weight,
+            active: dataListCreator.setAsActive
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to create data list: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.data?.dataList) {
+          // Transform and add to local state
+          const newList = {
+            id: result.data.dataList.id,
+            listId: result.data.dataList.listId,
+            name: result.data.dataList.name,
+            description: result.data.dataList.campaignId ? `Assigned to Campaign: ${result.data.dataList.campaignId}` : 'No campaign assigned',
+            campaign: result.data.dataList.campaignId || 'Unassigned',
+            total: 0,
+            available: 0,
+            dialAttempts: 0,
+            lastDialed: new Date().toISOString().split('T')[0],
+            status: result.data.dataList.active ? 'Active' : 'Inactive' as const,
+            createdAt: new Date(result.data.dataList.createdAt),
+            blendWeight: result.data.dataList.blendWeight
+          };
+          
+          setDataLists(prev => [...prev, newList]);
+          console.log(`✅ Created data list: ${newList.name}`);
+        } else {
+          throw new Error(result.error?.message || 'Failed to create data list');
+        }
+      }
+      
+      // Reset and close
+      setShowDataListCreator(false);
+      resetDataListCreator();
+    } catch (error) {
+      console.error('Error saving data list:', error);
+      alert(`Failed to save data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // Reset and close
-    setShowDataListCreator(false);
-    resetDataListCreator();
   };
 
   const resetDataListCreator = () => {
@@ -1018,14 +1223,80 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </button>
             </div>
 
-            {/* Search */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <input
-                  type="text"
-                  placeholder="Search data lists..."
-                  value={searchTerm2}
-                  onChange={(e) => setSearchTerm2(e.target.value)}
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-red-800">Error loading data lists</h4>
+                    <p className="text-sm text-red-600 mt-1">{error}</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={fetchDataLists}
+                    className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-sm"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="bg-white rounded-lg border border-gray-200 p-8">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+                  <span className="ml-3 text-gray-600">Loading data lists...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Data Lists Table */}
+            {!loading && !error && (
+              <>
+                {/* Search */}
+                <div className="bg-white rounded-lg border border-gray-200">
+                  <div className="p-4 border-b border-gray-200">
+                    <input
+                      type="text"
+                      placeholder="Search data lists..."
+                      value={searchTerm2}
+                      onChange={(e) => setSearchTerm2(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                    />
+                  </div>
+
+                  {/* Empty State */}
+                  {filteredLists.length === 0 && (
+                    <div className="text-center py-12">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No data lists found</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {dataLists.length === 0 ? 'Get started by creating your first data list.' : 'Try adjusting your search terms.'}
+                      </p>
+                      {dataLists.length === 0 && (
+                        <div className="mt-6">
+                          <button
+                            onClick={() => setShowDataListCreator(true)}
+                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-600 hover:bg-slate-700"
+                          >
+                            <PlusIcon className="h-4 w-4 mr-2" />
+                            Create Data List
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Data Table */}
+                  {filteredLists.length > 0 && (
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                 />
               </div>
@@ -1123,15 +1394,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                   <button
                                     onClick={() => {
                                       setOpenDropdown(null);
-                                      const clonedList = {
-                                        ...list,
-                                        id: Date.now().toString(),
-                                        name: `${list.name} (Copy)`,
-                                        total: 0,
-                                        available: 0,
-                                        status: 'Inactive' as const
-                                      };
-                                      setDataLists(prev => [...prev, clonedList]);
+                                      handleCloneList(list);
                                     }}
                                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   >
@@ -1141,9 +1404,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                   <button
                                     onClick={() => {
                                       setOpenDropdown(null);
-                                      if (confirm(`Are you sure you want to delete "${list.name}"?`)) {
-                                        setDataLists(prev => prev.filter(l => l.id !== list.id));
-                                      }
+                                      handleDeleteList(list);
                                     }}
                                     className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
                                   >
@@ -1160,7 +1421,10 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   </tbody>
                 </table>
               </div>
-            </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

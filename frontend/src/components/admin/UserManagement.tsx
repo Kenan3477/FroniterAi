@@ -112,22 +112,15 @@ export default function UserManagement() {
       });
       if (response.ok) {
         const data = await response.json();
-        // Transform backend response to match frontend interface
+        // Handle both direct stats format and wrapped format
+        let statsData = data;
         if (data?.success && data?.data) {
-          const backendData = data.data;
-          const transformedStats = {
-            total: backendData.overview?.totalUsers || 0,
-            active: backendData.overview?.activeUsers || 0,
-            inactive: backendData.overview?.inactiveUsers || 0,
-            suspended: backendData.overview?.suspendedUsers || 0,
-            byRole: {
-              ADMIN: backendData.usersByRole?.ADMIN || 0,
-              MANAGER: backendData.usersByRole?.MANAGER || 0,
-              AGENT: backendData.usersByRole?.AGENT || 0,
-              VIEWER: backendData.usersByRole?.VIEWER || 0,
-            }
-          };
-          setStats(transformedStats);
+          statsData = data.data;
+        }
+        
+        // Check if we have the expected stats structure
+        if (statsData && typeof statsData.total === 'number') {
+          setStats(statsData);
         } else {
           console.error('Invalid stats response format');
           setStats(null);
