@@ -2117,24 +2117,33 @@ router.patch('/campaigns/:id/dial-method', async (req: Request, res: Response) =
 router.patch('/campaigns/:id/dial-speed', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { speed } = req.body;
+    const { dialSpeed } = req.body;
 
-    console.log(`🔄 Updating dial speed for campaign ${id} to ${speed}`);
+    // Validate dial speed range (10-120 CPM per agent)
+    if (dialSpeed < 10 || dialSpeed > 120) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dial speed must be between 10 and 120 CPM per agent',
+        error: 'Invalid dial speed range'
+      });
+    }
+
+    console.log(`🔄 Updating dial speed for campaign ${id} to ${dialSpeed} CPM`);
 
     const campaign = await prisma.campaign.update({
       where: { campaignId: id },
       data: { 
-        speed: parseFloat(speed),
+        speed: parseFloat(dialSpeed),
         updatedAt: new Date()
       }
     });
 
-    console.log(`✅ Campaign ${id} dial speed updated to ${speed}`);
+    console.log(`✅ Campaign ${id} dial speed updated to ${dialSpeed} CPM`);
 
     res.json({
       success: true,
       data: campaign,
-      message: 'Dial speed updated successfully'
+      message: `Dial speed updated to ${dialSpeed} CPM per agent`
     });
 
   } catch (error: any) {

@@ -300,10 +300,10 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleDialSpeedChange = async (campaignId: string, dialSpeed: number) => {
     try {
-      // Clamp dial speed to 1-4 range to prevent overdialing
-      const clampedSpeed = Math.max(1, Math.min(4, dialSpeed));
+      // Clamp dial speed to 10-120 CPM range per agent
+      const clampedSpeed = Math.max(10, Math.min(120, dialSpeed));
       
-      console.log(`🎛️ Updating dial speed for campaign ${campaignId} to ${clampedSpeed}`);
+      console.log(`🎛️ Updating dial speed for campaign ${campaignId} to ${clampedSpeed} CPM`);
       
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/dial-speed`, {
         method: 'PATCH',
@@ -315,7 +315,7 @@ const CampaignManagementPage: React.FC = () => {
         setCampaigns(prev => prev.map(c => 
           c.id === campaignId ? { ...c, dialSpeed: clampedSpeed } : c
         ));
-        console.log(`✅ Dial speed updated to ${clampedSpeed} for campaign ${campaignId}`);
+        console.log(`✅ Dial speed updated to ${clampedSpeed} CPM for campaign ${campaignId}`);
       } else {
         console.error(`❌ Failed to update dial speed for ${campaignId}`);
       }
@@ -1047,19 +1047,19 @@ const CampaignManagementPage: React.FC = () => {
                 </div>
                 {campaignForm.dialMethod === 'AUTODIAL' && (
                   <div>
-                    <Label htmlFor="dialSpeed">Dial Speed (Level 1-4)</Label>
+                    <Label htmlFor="dialSpeed">Dial Speed - CPM per Agent</Label>
                     <div className="flex items-center gap-2">
                       <Slider
-                        value={[Math.max(1, Math.min(4, campaignForm.dialSpeed || 1))]}
+                        value={[Math.max(10, Math.min(120, campaignForm.dialSpeed || 60))]}
                         onValueChange={(values) => setCampaignForm({ ...campaignForm, dialSpeed: values[0] })}
-                        min={1}
-                        max={4}
-                        step={1}
+                        min={10}
+                        max={120}
+                        step={10}
                         className="flex-1"
                       />
-                      <span className="text-sm text-gray-600 w-8">{Math.max(1, Math.min(4, campaignForm.dialSpeed || 1))}</span>
+                      <span className="text-sm text-gray-600 w-12 text-right">{Math.max(10, Math.min(120, campaignForm.dialSpeed || 60))} CPM</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Level 1: Conservative • Level 4: Aggressive</p>
+                    <p className="text-xs text-gray-500 mt-1">10 CPM: Conservative • 60 CPM: Standard • 120 CPM: Aggressive</p>
                   </div>
                 )}
                 <div>
@@ -1246,6 +1246,24 @@ const CampaignManagementPage: React.FC = () => {
                 </Select>
               </div>
               <div>
+                <Label htmlFor="edit-outbound-number">Outbound Number (CLI)</Label>
+                <Select
+                  value={editingCampaign.outboundNumber || ''}
+                  onValueChange={(value) => setEditingCampaign({ ...editingCampaign, outboundNumber: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select outbound number" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {inboundNumbers.map((number) => (
+                      <SelectItem key={number.id} value={number.phoneNumber}>
+                        {number.phoneNumber} ({number.displayName})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="edit-dial-method">Dial Method</Label>
                 <Select value={editingCampaign.dialMethod} onValueChange={(value) => setEditingCampaign({ ...editingCampaign, dialMethod: value as any })}>
                   <SelectTrigger>
@@ -1260,19 +1278,19 @@ const CampaignManagementPage: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-dial-speed">Dial Speed (Level 1-4)</Label>
+                <Label htmlFor="edit-dial-speed">Dial Speed - CPM per Agent</Label>
                 <div className="flex items-center gap-2">
                   <Slider
-                    value={[Math.max(1, Math.min(4, editingCampaign.dialSpeed || 1))]}
+                    value={[Math.max(10, Math.min(120, editingCampaign.dialSpeed || 60))]}
                     onValueChange={(values) => setEditingCampaign({ ...editingCampaign, dialSpeed: values[0] })}
-                    min={1}
-                    max={4}
-                    step={1}
+                    min={10}
+                    max={120}
+                    step={10}
                     className="flex-1"
                   />
-                  <span className="text-sm text-gray-600 w-8">{Math.max(1, Math.min(4, editingCampaign.dialSpeed || 1))}</span>
+                  <span className="text-sm text-gray-600 w-12 text-right">{Math.max(10, Math.min(120, editingCampaign.dialSpeed || 60))} CPM</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Level 1: Conservative • Level 4: Aggressive</p>
+                <p className="text-xs text-gray-500 mt-1">10 CPM: Conservative • 60 CPM: Standard • 120 CPM: Aggressive</p>
               </div>
               <div className="col-span-2">
                 <Label htmlFor="edit-description">Description</Label>
@@ -1559,14 +1577,14 @@ const CampaignManagementPage: React.FC = () => {
                               <div className="flex items-center gap-1">
                                 <Clock className="w-3 h-3 text-gray-400" />
                                 <Slider
-                                  value={[Math.max(1, Math.min(4, campaign.dialSpeed || 1))]}
+                                  value={[Math.max(10, Math.min(120, campaign.dialSpeed || 60))]}
                                   onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
-                                  min={1}
-                                  max={4}
-                                  step={1}
+                                  min={10}
+                                  max={120}
+                                  step={10}
                                   className="flex-1 h-4"
                                 />
-                                <span className="text-xs w-3">{Math.max(1, Math.min(4, campaign.dialSpeed || 1))}</span>
+                                <span className="text-xs w-8">{Math.max(10, Math.min(120, campaign.dialSpeed || 60))}</span>
                               </div>
                             ) : (
                               <div className="text-xs text-gray-400">-</div>

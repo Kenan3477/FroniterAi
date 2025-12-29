@@ -7,15 +7,15 @@ export async function PATCH(
   try {
     const { dialSpeed } = await request.json();
     
-    // Validate dial speed is within allowed range (1-4)
-    if (dialSpeed < 1 || dialSpeed > 4) {
+    // Validate dial speed is within allowed range (10-120 CPM per agent)
+    if (dialSpeed < 10 || dialSpeed > 120) {
       return NextResponse.json(
-        { error: 'Dial speed must be between 1 and 4 to prevent overdialing' },
+        { error: 'Dial speed must be between 10 and 120 CPM per agent' },
         { status: 400 }
       );
     }
     
-    console.log(`🎛️ Frontend: Simulating campaign ${params.id} dial speed update to ${dialSpeed}`);
+    console.log(`🎛️ Frontend: Simulating campaign ${params.id} dial speed update to ${dialSpeed} CPM`);
     
     // Simulate successful response
     const mockResponse = {
@@ -23,11 +23,11 @@ export async function PATCH(
       data: {
         id: params.id,
         dialSpeed,
-        message: `Dial speed updated to level ${dialSpeed}`
+        message: `Dial speed updated to ${dialSpeed} CPM per agent`
       }
     };
     
-    console.log(`✅ Campaign ${params.id} dial speed simulated as ${dialSpeed}`);
+    console.log(`✅ Campaign ${params.id} dial speed simulated as ${dialSpeed} CPM`);
     return NextResponse.json(mockResponse);
   } catch (error) {
     console.error('❌ Error simulating dial speed update:', error);
