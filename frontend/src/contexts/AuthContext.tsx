@@ -136,6 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             activeCampaigns = data.data
               .filter((campaign: any) => {
+                console.log(`🔍 Campaign ${campaign.campaignId} detailed check:`);
+                console.log(`  - status: "${campaign.status}" (type: ${typeof campaign.status})`);
+                console.log(`  - isActive: ${campaign.isActive} (type: ${typeof campaign.isActive})`);
+                console.log(`  - status === 'Active': ${campaign.status === 'Active'}`);
+                console.log(`  - isActive === true: ${campaign.isActive === true}`);
+                
                 const isActive = campaign.status === 'Active' && campaign.isActive;
                 console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, passes filter=${isActive}`);
                 return isActive;

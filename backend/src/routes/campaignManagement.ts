@@ -1756,6 +1756,27 @@ router.post('/campaigns/:id/join-agent', async (req: Request, res: Response) => 
       });
     }
 
+    // Ensure the campaign is active when assigning agents
+    console.log(`🔧 Checking campaign ${id} activation status...`);
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId: id },
+      select: { campaignId: true, name: true, status: true, isActive: true }
+    });
+
+    if (campaign && (campaign.status !== 'Active' || !campaign.isActive)) {
+      console.log(`🔧 Campaign ${id} is not active (status: ${campaign.status}, isActive: ${campaign.isActive}), activating it...`);
+      await prisma.campaign.update({
+        where: { campaignId: id },
+        data: { 
+          status: 'Active',
+          isActive: true
+        }
+      });
+      console.log(`✅ Campaign ${id} activated for agent assignment`);
+    } else if (campaign) {
+      console.log(`✅ Campaign ${id} is already active (status: ${campaign.status}, isActive: ${campaign.isActive})`);
+    }
+
     // Create new agent assignment
     const assignment = await prisma.agentCampaignAssignment.create({
       data: {
