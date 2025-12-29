@@ -983,32 +983,29 @@ router.delete('/campaigns/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Check if campaign exists
+    console.log(`🗑️ Attempting to delete campaign with ID: ${id}`);
+
+    // Check if campaign exists first
     const existingCampaign = await prisma.campaign.findUnique({
       where: { id }
     });
 
     if (!existingCampaign) {
+      console.log(`❌ Campaign not found: ${id}`);
       return res.status(404).json({
         success: false,
         error: { message: 'Campaign not found' }
       });
     }
 
-    // Delete campaign (this will cascade to related records due to Prisma schema)
+    console.log(`🗑️ Deleting campaign: ${existingCampaign.name} (ID: ${id})`);
+
+    // Simple deletion - let Prisma handle cascading based on schema
     const deletedCampaign = await prisma.campaign.delete({
       where: { id }
     });
 
-    // Emit campaign stopped event (closest to deleted)
-    await campaignEvents.stopped({
-      campaignId: deletedCampaign.campaignId,
-      campaignName: deletedCampaign.name,
-      status: deletedCampaign.status,
-      organizationId: 'default', // Add required organizationId
-      agentCount: 0, // Since campaign is being deleted
-      dialMethod: deletedCampaign.dialMethod
-    });
+    console.log(`✅ Campaign ${existingCampaign.name} deleted successfully`);
 
     res.json({
       success: true,
@@ -1018,8 +1015,19 @@ router.delete('/campaigns/:id', async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error) {
-    console.error('Error deleting campaign:', error);
+  } catch (error: any) {
+    console.error('❌ Error deleting campaign:', error);
+    
+    // Handle specific Prisma constraint errors
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Cannot delete campaign: it has related records that prevent deletion. Please remove all associated agents, calls, and data first.' 
+        }
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: { message: 'Internal server error deleting campaign' }

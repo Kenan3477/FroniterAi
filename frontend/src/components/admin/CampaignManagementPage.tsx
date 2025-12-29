@@ -428,10 +428,17 @@ const CampaignManagementPage: React.FC = () => {
     }
 
     try {
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         console.log('✅ Campaign deleted successfully');
@@ -456,7 +463,11 @@ const CampaignManagementPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error deleting campaign:', error);
-      alert('Error deleting campaign. Please try again.');
+      if (error instanceof Error && error.name === 'AbortError') {
+        alert('Campaign deletion timed out after 30 seconds. This may indicate database constraint issues. Please contact support.');
+      } else {
+        alert('Error deleting campaign. Please try again.');
+      }
     }
   };
 
