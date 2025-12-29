@@ -582,8 +582,17 @@ const CampaignManagementPage: React.FC = () => {
         identical: JSON.stringify(campaignsData) === JSON.stringify(comparisonData)
       });
 
-      // Add default dial queue properties to campaigns
-      const campaignsWithDialQueue = (campaignsData.data || []).map((campaign: ManagementCampaign, index: number) => {
+      // Add default dial queue properties to campaigns and filter out deleted ones
+      const campaignsWithDialQueue = (campaignsData.data || [])
+        .filter((campaign: ManagementCampaign) => {
+          // Filter out soft-deleted campaigns (those with [DELETED] prefix)
+          const isDeleted = campaign.name?.startsWith('[DELETED]') || campaign.displayName?.startsWith('[DELETED]');
+          if (isDeleted) {
+            console.log(`🗑️ Filtering out deleted campaign: ${campaign.name}`);
+          }
+          return !isDeleted;
+        })
+        .map((campaign: ManagementCampaign, index: number) => {
         console.log(`🔍 Processing campaign ${index + 1}:`, {
           id: campaign.id,
           name: campaign.name,

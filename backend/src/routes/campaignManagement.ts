@@ -979,11 +979,12 @@ router.put('/campaigns/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/campaign-management/campaigns/:id
+// Note: Implements soft delete due to complex database relationships
 router.delete('/campaigns/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    console.log(`🗑️ Attempting to delete campaign with ID: ${id}`);
+    console.log(`🗑️ Attempting to soft-delete campaign with ID: ${id}`);
 
     // Check if campaign exists first
     const existingCampaign = await prisma.campaign.findUnique({
@@ -998,35 +999,42 @@ router.delete('/campaigns/:id', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`🗑️ Deleting campaign: ${existingCampaign.name} (ID: ${id})`);
+    console.log(`🗑️ Soft-deleting campaign: ${existingCampaign.name} (ID: ${id})`);
 
-    // Simple deletion - let Prisma handle cascading based on schema
-    const deletedCampaign = await prisma.campaign.delete({
-      where: { id }
+    // Soft delete: mark as inactive and update name to indicate deleted
+    const deletedCampaign = await prisma.campaign.update({
+      where: { id },
+      data: {
+        isActive: false,
+        status: 'Inactive',
+        name: `[DELETED] ${existingCampaign.name}`,
+        displayName: `[DELETED] ${existingCampaign.displayName || existingCampaign.name}`,
+        updatedAt: new Date()
+      }
     });
 
-    console.log(`✅ Campaign ${existingCampaign.name} deleted successfully`);
+    console.log(`✅ Campaign ${existingCampaign.name} soft-deleted successfully`);
+
+    // Emit campaign stopped event
+    await campaignEvents.stopped({
+      campaignId: deletedCampaign.campaignId,
+      campaignName: deletedCampaign.name,
+      status: deletedCampaign.status,
+      organizationId: 'default',
+      agentCount: 0,
+      dialMethod: deletedCampaign.dialMethod
+    });
 
     res.json({
       success: true,
       data: {
         campaign: deletedCampaign,
-        message: 'Campaign deleted successfully'
+        message: 'Campaign deleted successfully (soft delete)'
       }
     });
 
   } catch (error: any) {
     console.error('❌ Error deleting campaign:', error);
-    
-    // Handle specific Prisma constraint errors
-    if (error.code === 'P2003') {
-      return res.status(400).json({
-        success: false,
-        error: { 
-          message: 'Cannot delete campaign: it has related records that prevent deletion. Please remove all associated agents, calls, and data first.' 
-        }
-      });
-    }
     
     res.status(500).json({
       success: false,
