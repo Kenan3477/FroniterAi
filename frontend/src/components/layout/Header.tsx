@@ -42,7 +42,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     
     try {
       // Update agent status and trigger auto-dial if Available
-      const response = await fetch('/api/agents/status-enhanced', {
+      const response = await fetch('/api/agent/status-enhanced', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

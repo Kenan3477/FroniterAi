@@ -266,8 +266,8 @@ export const transferInboundCall = async (req: Request, res: Response) => {
     await prisma.$executeRaw`
       UPDATE inbound_calls 
       SET status = 'transferred',
-          assigned_agent_id = ${transferType === 'agent' ? targetId : agentId},
-          assigned_queue_id = ${transferType === 'queue' ? targetId : null}
+          "assignedAgentId" = ${transferType === 'agent' ? targetId : agentId},
+          "assignedQueueId" = ${transferType === 'queue' ? targetId : null}
       WHERE id = ${callId}
     `;
 
@@ -331,13 +331,13 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
     // Search for contact by phone number (multiple formats)
     const contact = await prisma.$queryRaw`
       SELECT 
-        c.contactId, c.firstName, c.lastName, c.phone, c.email, c.company,
-        c.lastOutcome, c.lastAttempt, c.campaignId
+        "contactId", "firstName", "lastName", phone, email, company,
+        "lastOutcome", "lastAttempt", "campaignId"
       FROM contacts c
       WHERE c.phone = ${phoneNumber}
          OR c.phone = ${phoneNumber.replace(/[\s-()]/g, '')}
          OR c.phone = ${phoneNumber.replace(/\+/g, '')}
-      ORDER BY c.lastAttempt DESC
+      ORDER BY c."lastAttempt" DESC
       LIMIT 1
     ` as any[];
 
@@ -348,12 +348,12 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
       
       // Check if this is a recent callback (called them in last 4 hours)
       const recentCallCheck = await prisma.$queryRaw`
-        SELECT cr.id, cr.startTime, cr.outcome
+        SELECT cr.id, "startTime", outcome
         FROM call_records cr
-        WHERE cr.phoneNumber = ${phoneNumber}
-          AND cr.callType = 'outbound'
-          AND cr.startTime > DATE_SUB(NOW(), INTERVAL 4 HOUR)
-        ORDER BY cr.startTime DESC
+        WHERE "phoneNumber" = ${phoneNumber}
+          AND "callType" = 'outbound'
+          AND "startTime" > NOW() - INTERVAL '4 hours'
+        ORDER BY "startTime" DESC
         LIMIT 1
       ` as any[];
 
@@ -424,7 +424,7 @@ async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLook
   try {
     await prisma.$executeRaw`
       INSERT INTO inbound_calls (
-        id, call_sid, caller_number, contact_id, status, routing_metadata, created_at
+        id, "callSid", "callerNumber", "contactId", status, "routingMetadata", "createdAt"
       ) VALUES (
         ${inboundCall.id}, 
         ${inboundCall.callSid}, 
