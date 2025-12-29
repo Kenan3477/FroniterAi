@@ -258,13 +258,17 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: 
     };
 
     console.log('✅ User statistics fetched successfully:', response);
-    res.json(response);
+    res.json({
+      success: true,
+      data: response
+    });
 
   } catch (error) {
     console.error('❌ Error fetching user statistics:', error);
     res.status(500).json({
-      error: 'Failed to fetch user statistics',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      success: false,
+      message: 'Failed to fetch user statistics',
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
