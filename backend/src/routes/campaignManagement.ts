@@ -253,6 +253,463 @@ router.get('/data-lists', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/admin/campaign-management/data-lists - Create new data list
+router.post('/data-lists', async (req: Request, res: Response) => {
+  try {
+    const { name, campaignId, blendWeight = 100, active = true } = req.body;
+
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Data list name is required' }
+      });
+    }
+
+    // Create data list in database
+    const newDataList = await prisma.dataList.create({
+      data: {
+        listId: `list_${Date.now()}`,
+        name: name.trim(),
+        campaignId: campaignId || null,
+        blendWeight: Math.max(1, Math.min(100, blendWeight)),
+        active: active
+      },
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    const transformedList = {
+      id: newDataList.id,
+      listId: newDataList.listId,
+      name: newDataList.name,
+      campaignId: newDataList.campaignId,
+      active: newDataList.active,
+      totalContacts: newDataList._count.contacts,
+      blendWeight: newDataList.blendWeight,
+      createdAt: newDataList.createdAt,
+      updatedAt: newDataList.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      data: {
+        dataList: transformedList,
+        message: 'Data list created successfully'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating data list:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to create data list' }
+    });
+  }
+});
+
+// PUT /api/admin/campaign-management/data-lists/:id - Update data list
+router.put('/data-lists/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, campaignId, blendWeight, active } = req.body;
+
+    // Find existing data list
+    const existingDataList = await prisma.dataList.findUnique({
+      where: { id }
+    });
+
+    if (!existingDataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Update data list in database
+    const updatedDataList = await prisma.dataList.update({
+      where: { id },
+      data: {
+        ...(name && { name: name.trim() }),
+        ...(campaignId !== undefined && { campaignId }),
+        ...(blendWeight !== undefined && { blendWeight: Math.max(1, Math.min(100, blendWeight)) }),
+        ...(active !== undefined && { active })
+      },
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    const transformedList = {
+      id: updatedDataList.id,
+      listId: updatedDataList.listId,
+      name: updatedDataList.name,
+      campaignId: updatedDataList.campaignId,
+      active: updatedDataList.active,
+      totalContacts: updatedDataList._count.contacts,
+      blendWeight: updatedDataList.blendWeight,
+      createdAt: updatedDataList.createdAt,
+      updatedAt: updatedDataList.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: {
+        dataList: transformedList,
+        message: 'Data list updated successfully'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating data list:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to update data list' }
+    });
+  }
+});
+
+// DELETE /api/admin/campaign-management/data-lists/:id - Delete data list
+router.delete('/data-lists/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if data list exists
+    const existingDataList = await prisma.dataList.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    if (!existingDataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Perform cascading deletion with transaction
+    const deletedDataList = await prisma.$transaction(async (tx) => {
+      // Delete all contacts in this list first
+      await tx.contact.deleteMany({
+        where: {
+          listId: existingDataList.listId
+        }
+      });
+
+      // Delete any dial queue entries for this list
+      await tx.dialQueueEntry.deleteMany({
+        where: {
+          listId: existingDataList.listId
+        }
+      });
+
+      // Delete the data list itself
+      return await tx.dataList.delete({
+        where: { id }
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        dataList: deletedDataList,
+        deletedContacts: existingDataList._count.contacts,
+        message: `Data list "${existingDataList.name}" and ${existingDataList._count.contacts} contacts deleted successfully`
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting data list:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to delete data list' }
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/data-lists/:id/clone - Clone data list
+router.post('/data-lists/:id/clone', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { newName, includeContacts = false } = req.body;
+
+    // Find existing data list
+    const sourceDataList = await prisma.dataList.findUnique({
+      where: { id },
+      include: {
+        contacts: includeContacts ? true : false,
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    if (!sourceDataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Source data list not found' }
+      });
+    }
+
+    const cloneName = newName || `${sourceDataList.name} (Copy)`;
+
+    // Perform cloning with transaction
+    const clonedDataList = await prisma.$transaction(async (tx) => {
+      // Create new data list
+      const newDataList = await tx.dataList.create({
+        data: {
+          listId: `list_${Date.now()}_clone`,
+          name: cloneName.trim(),
+          campaignId: sourceDataList.campaignId,
+          blendWeight: sourceDataList.blendWeight,
+          active: false // Start cloned lists as inactive
+        }
+      });
+
+      // Clone contacts if requested
+      if (includeContacts && sourceDataList.contacts && sourceDataList.contacts.length > 0) {
+        for (const contact of sourceDataList.contacts) {
+          await tx.contact.create({
+            data: {
+              contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              listId: newDataList.listId,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              fullName: contact.fullName,
+              phone: contact.phone,
+              mobile: contact.mobile,
+              workPhone: contact.workPhone,
+              homePhone: contact.homePhone,
+              email: contact.email,
+              company: contact.company,
+              jobTitle: contact.jobTitle,
+              address: contact.address,
+              city: contact.city,
+              state: contact.state,
+              zip: contact.zip,
+              country: contact.country,
+              customFields: contact.customFields,
+              status: 'New', // Reset status for cloned contacts
+              attemptCount: 0,
+              maxAttempts: contact.maxAttempts,
+              timezone: contact.timezone
+            }
+          });
+        }
+      }
+
+      return newDataList;
+    });
+
+    // Fetch the complete cloned list with contact count
+    const completeClonedList = await prisma.dataList.findUnique({
+      where: { id: clonedDataList.id },
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    const transformedList = {
+      id: completeClonedList!.id,
+      listId: completeClonedList!.listId,
+      name: completeClonedList!.name,
+      campaignId: completeClonedList!.campaignId,
+      active: completeClonedList!.active,
+      totalContacts: completeClonedList!._count.contacts,
+      blendWeight: completeClonedList!.blendWeight,
+      createdAt: completeClonedList!.createdAt,
+      updatedAt: completeClonedList!.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      data: {
+        dataList: transformedList,
+        sourceList: {
+          id: sourceDataList.id,
+          name: sourceDataList.name,
+          totalContacts: sourceDataList._count.contacts
+        },
+        contactsCloned: includeContacts ? sourceDataList._count.contacts : 0,
+        message: `Data list cloned successfully${includeContacts ? ` with ${sourceDataList._count.contacts} contacts` : ' (without contacts)'}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Error cloning data list:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to clone data list' }
+    });
+  }
+});
+
+// POST /api/admin/campaign-management/data-lists/:id/upload - Upload contacts to data list
+router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { contacts, replaceExisting = false } = req.body;
+
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Contacts array is required and must not be empty' }
+      });
+    }
+
+    // Find existing data list
+    const existingDataList = await prisma.dataList.findUnique({
+      where: { id }
+    });
+
+    if (!existingDataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Perform upload with transaction
+    const uploadResult = await prisma.$transaction(async (tx) => {
+      let uploaded = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      // Clear existing contacts if replaceExisting is true
+      if (replaceExisting) {
+        await tx.contact.deleteMany({
+          where: {
+            listId: existingDataList.listId
+          }
+        });
+      }
+
+      // Process each contact
+      for (let i = 0; i < contacts.length; i++) {
+        const contactData = contacts[i];
+        
+        try {
+          // Validate required fields
+          if (!contactData.phone || (!contactData.firstName && !contactData.fullName)) {
+            errors.push(`Row ${i + 1}: Missing required fields (phone, firstName/fullName)`);
+            skipped++;
+            continue;
+          }
+
+          // Check for duplicates by phone number in this list
+          if (!replaceExisting) {
+            const existingContact = await tx.contact.findFirst({
+              where: {
+                listId: existingDataList.listId,
+                phone: contactData.phone
+              }
+            });
+
+            if (existingContact) {
+              skipped++;
+              continue;
+            }
+          }
+
+          // Create contact
+          await tx.contact.create({
+            data: {
+              contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              listId: existingDataList.listId,
+              firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
+              lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
+              fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
+              phone: contactData.phone,
+              mobile: contactData.mobile || null,
+              workPhone: contactData.workPhone || null,
+              homePhone: contactData.homePhone || null,
+              email: contactData.email || null,
+              company: contactData.company || null,
+              jobTitle: contactData.jobTitle || null,
+              address: contactData.address || null,
+              city: contactData.city || null,
+              state: contactData.state || null,
+              zip: contactData.zip || null,
+              country: contactData.country || 'US',
+              customFields: contactData.customFields ? JSON.stringify(contactData.customFields) : null,
+              status: 'New',
+              attemptCount: 0,
+              maxAttempts: contactData.maxAttempts || 3,
+              timezone: contactData.timezone || 'UTC'
+            }
+          });
+
+          uploaded++;
+        } catch (contactError) {
+          errors.push(`Row ${i + 1}: ${contactError}`);
+          skipped++;
+        }
+      }
+
+      return { uploaded, skipped, errors };
+    });
+
+    // Get updated list with new contact count
+    const updatedDataList = await prisma.dataList.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            contacts: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        dataList: {
+          id: updatedDataList!.id,
+          listId: updatedDataList!.listId,
+          name: updatedDataList!.name,
+          totalContacts: updatedDataList!._count.contacts
+        },
+        upload: {
+          totalSubmitted: contacts.length,
+          uploaded: uploadResult.uploaded,
+          skipped: uploadResult.skipped,
+          errors: uploadResult.errors.slice(0, 10) // Limit error messages
+        },
+        message: `Upload completed: ${uploadResult.uploaded} contacts uploaded, ${uploadResult.skipped} skipped${uploadResult.errors.length > 0 ? `, ${uploadResult.errors.length} errors` : ''}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Error uploading contacts to data list:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to upload contacts to data list' }
+    });
+  }
+});
+
 // POST /api/admin/campaign-management/campaigns
 router.post('/campaigns', async (req: Request, res: Response) => {
   try {
