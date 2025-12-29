@@ -184,9 +184,42 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
       });
     }
 
-    // Delete user
-    await prisma.user.delete({
-      where: { id: userId }
+    // Delete user with cascading deletes for related records
+    await prisma.$transaction(async (prisma) => {
+      // Delete user campaign assignments first
+      await prisma.userCampaignAssignment.deleteMany({
+        where: { 
+          OR: [
+            { userId: userId },
+            { assignedById: userId }
+          ]
+        }
+      });
+
+      // Delete agent campaign assignments if user has agent record
+      await prisma.agentCampaignAssignment.deleteMany({
+        where: { agentId: userId.toString() }
+      });
+
+      // Delete agent record if exists
+      await prisma.agent.deleteMany({
+        where: { agentId: userId.toString() }
+      });
+
+      // Delete refresh tokens
+      await prisma.refreshToken.deleteMany({
+        where: { userId: userId }
+      });
+
+      // Delete email verifications
+      await prisma.emailVerification.deleteMany({
+        where: { userId: userId }
+      });
+
+      // Finally delete the user
+      await prisma.user.delete({
+        where: { id: userId }
+      });
     });
 
     console.log(`✅ User deleted successfully: ${existingUser.name}`);
