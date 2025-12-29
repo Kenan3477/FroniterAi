@@ -1,7 +1,72 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
 
 const router = Router();
+const prisma = new PrismaClient();
+
+// POST /api/agents - Create or get agent record
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const { agentId, firstName, lastName, email, status = 'Offline' } = req.body;
+
+    if (!agentId || !firstName || !lastName || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'agentId, firstName, lastName, and email are required'
+      });
+    }
+
+    // Check if agent already exists
+    const existingAgent = await prisma.agent.findUnique({
+      where: { agentId }
+    });
+
+    if (existingAgent) {
+      return res.status(200).json({
+        success: true,
+        data: existingAgent,
+        message: 'Agent already exists'
+      });
+    }
+
+    // Create new agent record
+    const newAgent = await prisma.agent.create({
+      data: {
+        agentId,
+        firstName,
+        lastName,
+        email,
+        status
+      }
+    });
+
+    console.log(`✅ Created agent record: ${agentId} (${email})`);
+
+    res.status(201).json({
+      success: true,
+      data: newAgent,
+      message: 'Agent created successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error creating agent:', error);
+    
+    // Handle unique constraint violations (agent already exists)
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        message: 'Agent with this agentId or email already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create agent',
+      error: error.message
+    });
+  }
+});
 
 // Agent status management and auto-dialer integration
 interface Agent {

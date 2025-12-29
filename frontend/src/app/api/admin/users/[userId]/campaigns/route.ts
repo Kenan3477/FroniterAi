@@ -17,17 +17,17 @@ function getAuthToken(request: NextRequest): string | null {
   console.log('🍪 Raw cookie header:', cookieHeader);
   
   if (cookieHeader) {
-    // Parse authToken from cookie string
-    const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/);
+    // Parse both authToken and auth-token from cookie string  
+    const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/) || cookieHeader.match(/auth-token=([^;]+)/);
     if (authTokenMatch && authTokenMatch[1]) {
       console.log('✅ Found authToken in cookies');
       return authTokenMatch[1];
     }
   }
   
-  // Fallback to Next.js cookies API
+  // Fallback to Next.js cookies API - check both patterns
   const cookieStore = cookies();
-  const authCookie = cookieStore.get('authToken');
+  const authCookie = cookieStore.get('authToken') || cookieStore.get('auth-token');
   console.log('🍪 Next.js cookie check:', { 
     hasCookie: !!authCookie, 
     cookieValue: authCookie?.value ? 'EXISTS' : 'NULL' 

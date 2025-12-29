@@ -220,14 +220,18 @@ const CampaignManagementPage: React.FC = () => {
       const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/queue`);
       const data = await response.json();
       
-      if (data.success) {
-        setQueueEntries(data.data.queueEntries);
-        setQueueStats(data.data.stats);
+      if (data.success && data.data) {
+        setQueueEntries(Array.isArray(data.data.queueEntries) ? data.data.queueEntries : []);
+        setQueueStats(data.data.stats || {});
       } else {
         console.error('Failed to fetch queue data:', data.error);
+        setQueueEntries([]);
+        setQueueStats({});
       }
     } catch (error) {
       console.error('Error fetching campaign queue:', error);
+      setQueueEntries([]);
+      setQueueStats({});
     }
   };
 
@@ -530,6 +534,9 @@ const CampaignManagementPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      console.log('🔍 CampaignManagementPage - Starting fetchData...');
+      
       const [campaignsResponse, templatesResponse, statsResponse, inboundNumbersResponse, dataListsResponse] = await Promise.all([
         fetch('/api/admin/campaign-management/campaigns'),
         fetch('/api/admin/campaign-management/templates'),
@@ -538,24 +545,64 @@ const CampaignManagementPage: React.FC = () => {
         fetch('/api/admin/campaign-management/data-lists')
       ]);
 
+      // Debug: Compare with UserManagement call
+      console.log('🔍 CampaignManagementPage - Making comparison call like UserManagement...');
+      const comparisonResponse = await fetch('/api/admin/campaign-management/campaigns', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const comparisonData = await comparisonResponse.json();
+      console.log('🔍 CampaignManagementPage - Comparison call (UserManagement style):', comparisonData);
+
       const campaignsData = await campaignsResponse.json();
       const templatesData = await templatesResponse.json();
       const statsData = await statsResponse.json();
       const inboundNumbersData = await inboundNumbersResponse.json();
       const dataListsData = await dataListsResponse.json();
 
+      console.log('🔍 CampaignManagementPage - Raw campaigns from API:', campaignsData);
+      console.log('🔍 CampaignManagementPage - Campaigns data length:', campaignsData.data?.length || 0);
+      console.log('🔍 CampaignManagementPage - Raw vs Comparison lengths:', {
+        raw: campaignsData.data?.length || 0,
+        comparison: comparisonData.data?.length || 0,
+        identical: JSON.stringify(campaignsData) === JSON.stringify(comparisonData)
+      });
+
       // Add default dial queue properties to campaigns
-      const campaignsWithDialQueue = (campaignsData.data || []).map((campaign: ManagementCampaign) => ({
-        ...campaign,
-        dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
-        dialSpeed: campaign.dialSpeed || 60,
-        isActive: campaign.isActive || false,
-        agentCount: campaign.agentCount || 0,
-        predictiveDialingEnabled: campaign.predictiveDialingEnabled || false,
-        maxConcurrentCalls: campaign.maxConcurrentCalls || 10,
-      }));
+      const campaignsWithDialQueue = (campaignsData.data || []).map((campaign: ManagementCampaign, index: number) => {
+        console.log(`🔍 Processing campaign ${index + 1}:`, {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          isActive: campaign.isActive,
+          originalData: campaign
+        });
+        
+        return {
+          ...campaign,
+          dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
+          dialSpeed: campaign.dialSpeed || 60,
+          isActive: campaign.isActive || false,
+          agentCount: campaign.agentCount || 0,
+          predictiveDialingEnabled: campaign.predictiveDialingEnabled || false,
+          maxConcurrentCalls: campaign.maxConcurrentCalls || 10,
+        };
+      });
 
       setCampaigns(campaignsWithDialQueue);
+      console.log('🔍 CampaignManagementPage - Final processed campaigns:', campaignsWithDialQueue);
+      console.log('🔍 CampaignManagementPage - Final campaign count:', campaignsWithDialQueue.length);
+      console.log('🔍 CampaignManagementPage - Final campaign names:', campaignsWithDialQueue.map((c: ManagementCampaign) => `"${c.name}" (${c.status})`));
+      console.log('🔍 CampaignManagementPage - State will be set to:', campaignsWithDialQueue.length, 'campaigns');
+      
+      // Add a timeout check to see if campaigns state is actually updated
+      setTimeout(() => {
+        console.log('🔍 CampaignManagementPage - Campaigns state after setState (1s delay):', campaigns.length);
+      }, 1000);
+      
       setTemplates(templatesData.data?.templates || []);
       setStats(statsData.data || statsData);
       setInboundNumbers(inboundNumbersData.data || []);
@@ -1327,7 +1374,7 @@ const CampaignManagementPage: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {queueEntries.length > 0 ? (
+                      {queueEntries && queueEntries.length > 0 ? (
                         queueEntries.map((entry) => (
                           <TableRow key={entry.id}>
                             <TableCell>
@@ -1419,48 +1466,6 @@ const CampaignManagementPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.overview?.totalCampaigns || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Templates</CardTitle>
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.overview?.totalTemplates || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Targets</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.overview?.totalTargets || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Results</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.overview?.totalResults || 0}</div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       <Tabs defaultValue="campaigns">
         <TabsList>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
@@ -1470,222 +1475,158 @@ const CampaignManagementPage: React.FC = () => {
         </TabsList>
 
         <TabsContent value="campaigns" className="space-y-4">
-          <Card>
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle>Active Campaigns</CardTitle>
+              <CardTitle>All Campaigns ({campaigns.length})</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {campaigns.length > 0 ? (
-                <div className="relative">
-                  <div className="h-96 overflow-auto border rounded-md">
-                    <div className="min-w-full">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="sticky top-0 bg-white">Campaign</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Type</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Status</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Category</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Dial Method</TableHead>
-                            <TableHead className="sticky top-0 bg-white">CLI Number</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Queue Controls</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Agents</TableHead>
-                            <TableHead className="sticky top-0 bg-white">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                  <TableBody>
-                    {campaigns.map((campaign) => (
-                      <TableRow key={campaign.id}>
-                        <TableCell>
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600">
+                    Showing all {campaigns.length} campaigns
+                    {/* Debug info */}
+                    <div className="text-xs text-blue-600 mt-1">
+                      Campaign names: {campaigns.map(c => c.name).join(', ')}
+                    </div>
+                  </div>
+                  
+                  {/* Simple scrollable campaign list */}
+                  <div 
+                    className="space-y-4 overflow-y-auto border rounded-lg p-4 bg-gray-50"
+                    style={{
+                      height: 'calc(100vh - 350px)',
+                      maxHeight: '800px'
+                    }}
+                  >
+                    {campaigns.map((campaign, index) => (
+                      <div
+                        key={campaign.id}
+                        className="bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        {/* Compact Header Row */}
+                        <div className="flex items-center justify-between mb-2">
                           <div>
-                            <div className="font-medium">{campaign.displayName}</div>
-                            <div className="text-sm text-gray-500">{campaign.name}</div>
+                            <h3 className="font-medium text-base">{campaign.displayName || campaign.name}</h3>
+                            <p className="text-xs text-gray-500">{campaign.description || campaign.name}</p>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getTypeIcon(campaign.type)}
-                            {campaign.type}
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="outline" onClick={() => { setSelectedCampaign(campaign); setIsCampaignViewDialogOpen(true); }} className="h-7 px-2">
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditingCampaign(campaign); setIsCampaignEditDialogOpen(true); }} className="h-7 px-2">
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleDeleteCampaign(campaign.id, campaign.displayName || campaign.name)} className="h-7 px-2">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(campaign.status)}>
-                            {campaign.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getCategoryColor(campaign.category)}>
-                            {campaign.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Select 
-                            value={campaign.dialMethod || 'MANUAL_DIAL'} 
-                            onValueChange={(value) => handleDialMethodChange(campaign.id, value as ManagementCampaign['dialMethod'])}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AUTODIAL">
-                                <div className="flex items-center gap-2">
-                                  <Zap className="w-4 h-4" />
-                                  Auto Dial
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="MANUAL_DIAL">
-                                <div className="flex items-center gap-2">
-                                  <Phone className="w-4 h-4" />
-                                  Manual Dial
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="MANUAL_PREVIEW">
-                                <div className="flex items-center gap-2">
-                                  <Eye className="w-4 h-4" />
-                                  Manual Preview
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="SKIP">
-                                <div className="flex items-center gap-2">
-                                  <Pause className="w-4 h-4" />
-                                  Skip
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-mono">{campaign.outboundNumber || '+442046343130'}</div>
-                            <div className="text-xs text-gray-500">outbound CLI</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                size="sm" 
-                                variant={campaign.isActive ? "default" : "outline"}
-                                onClick={() => handleActivateToggle(campaign.id, !campaign.isActive)}
-                                className="h-6"
-                              >
-                                <Power className="w-3 h-3 mr-1" />
-                                {campaign.isActive ? 'Active' : 'Inactive'}
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedCampaign(campaign);
-                                  setIsQueueViewDialogOpen(true);
-                                  fetchCampaignQueue(campaign.id);
-                                }}
-                                className="h-6"
-                                title="View Outbound Queue"
-                              >
-                                <Target className="w-3 h-3 mr-1" />
-                                Queue
-                              </Button>
-                              {campaign.isActive && (
-                                <Button 
-                                  size="sm" 
-                                  variant={campaign.dialMethod === 'AUTODIAL' ? "default" : "secondary"}
-                                  onClick={() => handleStartAutoDial(campaign.id)}
-                                  className="h-6"
-                                  title="Start Auto-Dialing"
-                                >
-                                  <Zap className="w-3 h-3 mr-1" />
-                                  Auto-Dial
-                                </Button>
-                              )}
+                        </div>
+
+                        {/* Compact Main Controls Row */}
+                        <div className="grid grid-cols-12 gap-2 items-center text-sm">
+                          {/* Type & Status - 2 cols */}
+                          <div className="col-span-2 space-y-1">
+                            <div className="flex items-center gap-1">
+                              {getTypeIcon(campaign.type)}
+                              <span className="text-xs">{campaign.type}</span>
                             </div>
-                            {campaign.dialMethod === 'AUTODIAL' && (
-                              <div className="flex items-center gap-2 w-32">
-                                <Clock className="w-3 h-3 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <Slider
-                                    value={[Math.max(1, Math.min(4, campaign.dialSpeed || 1))]}
-                                    onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
-                                    min={1}
-                                    max={4}
-                                    step={1}
-                                    className="w-full"
-                                  />
-                                </div>
-                                <span className="text-xs text-gray-600 w-4 text-center">{Math.max(1, Math.min(4, campaign.dialSpeed || 1))}</span>
+                            <Badge className={getStatusColor(campaign.status)} className="text-xs h-5">
+                              {campaign.status}
+                            </Badge>
+                          </div>
+
+                          {/* Dial Method - 2 cols */}
+                          <div className="col-span-2">
+                            <Select 
+                              value={campaign.dialMethod || 'MANUAL_DIAL'} 
+                              onValueChange={(value) => handleDialMethodChange(campaign.id, value as ManagementCampaign['dialMethod'])}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="AUTODIAL">Auto Dial</SelectItem>
+                                <SelectItem value="MANUAL_DIAL">Manual</SelectItem>
+                                <SelectItem value="MANUAL_PREVIEW">Preview</SelectItem>
+                                <SelectItem value="SKIP">Skip</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Dial Speed - 2 cols (only for AUTODIAL) */}
+                          <div className="col-span-2">
+                            {campaign.dialMethod === 'AUTODIAL' ? (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-gray-400" />
+                                <Slider
+                                  value={[Math.max(1, Math.min(4, campaign.dialSpeed || 1))]}
+                                  onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
+                                  min={1}
+                                  max={4}
+                                  step={1}
+                                  className="flex-1 h-4"
+                                />
+                                <span className="text-xs w-3">{Math.max(1, Math.min(4, campaign.dialSpeed || 1))}</span>
                               </div>
+                            ) : (
+                              <div className="text-xs text-gray-400">-</div>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <Users className="w-3 h-3" />
-                              <span className="text-sm font-medium">{campaign.agentCount || 0}</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => handleAgentJoin(campaign.id)}
-                                className="h-6 w-6 p-0"
-                              >
-                                <UserPlus className="w-3 h-3" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => handleAgentLeave(campaign.id)}
-                                disabled={!campaign.agentCount || campaign.agentCount === 0}
-                                className="h-6 w-6 p-0"
-                              >
-                                <UserMinus className="w-3 h-3" />
-                              </Button>
+
+                          {/* Agents - 1 col */}
+                          <div className="col-span-1">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs">{campaign.agentCount || 0}</span>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+
+                          {/* Controls - 3 cols */}
+                          <div className="col-span-3 flex gap-1">
                             <Button 
                               size="sm" 
-                              variant="outline" 
-                              onClick={() => {
-                                setSelectedCampaign(campaign);
-                                setIsCampaignViewDialogOpen(true);
-                              }}
+                              variant={campaign.isActive ? "default" : "outline"}
+                              onClick={() => handleActivateToggle(campaign.id, !campaign.isActive)}
+                              className="h-7 px-2 text-xs flex-1"
                             >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => {
-                                setEditingCampaign(campaign);
-                                setIsCampaignEditDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
+                              <Power className="w-3 h-3 mr-1" />
+                              {campaign.isActive ? 'ON' : 'OFF'}
                             </Button>
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => handleActivateToggle(campaign.id, !campaign.isActive)}
+                              onClick={() => {
+                                setSelectedCampaign(campaign);
+                                setIsQueueViewDialogOpen(true);
+                                fetchCampaignQueue(campaign.id);
+                              }}
+                              className="h-7 px-2 text-xs flex-1"
                             >
-                              {campaign.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              onClick={() => handleDeleteCampaign(campaign.id, campaign.displayName || campaign.name)}
-                            >
-                              <Trash2 className="w-4 h-4" />
+                              <Target className="w-3 h-3 mr-1" />
+                              Queue
                             </Button>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+
+                        {/* CLI Info Row - Very compact */}
+                        <div className="mt-2 text-xs text-gray-500 flex justify-between">
+                          <span>CLI: {campaign.outboundNumber || '+442046343130'}</span>
+                          <Badge className={getCategoryColor(campaign.category)} className="text-xs h-4">
+                            {campaign.category}
+                          </Badge>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                    
+                    {/* Scroll indicator at bottom */}
+                    <div className="text-center py-4 text-sm text-gray-500">
+                      {campaigns.length > 3 ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span>↑ Scroll up to see more campaigns ↑</span>
+                        </div>
+                      ) : (
+                        <span>All campaigns shown</span>
+                      )}
                     </div>
                   </div>
                 </div>

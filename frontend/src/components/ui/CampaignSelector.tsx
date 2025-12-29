@@ -14,6 +14,7 @@ export default function CampaignSelector() {
     availableCampaigns, 
     joinCampaignQueue, 
     leaveCampaignQueue,
+    setCurrentCampaign,
     isInQueue,
     queueStatus
   } = useAuth();
@@ -25,21 +26,20 @@ export default function CampaignSelector() {
     setIsOpen(false);
     
     try {
-      // If already in a queue, leave it first
-      if (isInQueue && currentCampaign && currentCampaign.campaignId !== campaign.campaignId) {
-        await leaveCampaignQueue();
-      }
+      // For now, just set the current campaign without complex queue logic
+      // TODO: Implement proper queue joining when needed
+      setCurrentCampaign(campaign);
+      console.log(`✅ Selected campaign: ${campaign.name}`);
       
-      // Join the new campaign queue
-      const result = await joinCampaignQueue(campaign);
-      
-      if (result.success) {
-        console.log(`✅ Successfully joined ${campaign.name} outbound queue`);
-      } else {
-        console.error(`❌ Failed to join campaign: ${result.message}`);
-      }
+      // If queue joining is needed in the future, uncomment this:
+      // const result = await joinCampaignQueue(campaign);
+      // if (result.success) {
+      //   console.log(`✅ Successfully joined ${campaign.name} outbound queue`);
+      // } else {
+      //   console.error(`❌ Failed to join campaign: ${result.message}`);
+      // }
     } catch (error) {
-      console.error('Error switching campaigns:', error);
+      console.error('Error selecting campaign:', error);
     } finally {
       setIsJoining(false);
     }

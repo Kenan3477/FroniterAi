@@ -14,7 +14,8 @@ function getAuthToken(request: NextRequest): string | null {
   // Try cookies from request headers
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
-    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    // Try both auth-token and authToken patterns
+    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/) || cookieHeader.match(/authToken=([^;]+)/);
     if (authTokenMatch && authTokenMatch[1]) {
       return authTokenMatch[1];
     }
@@ -22,7 +23,7 @@ function getAuthToken(request: NextRequest): string | null {
   
   // Fallback to Next.js cookies API
   const cookieStore = cookies();
-  const authCookie = cookieStore.get('auth-token');
+  let authCookie = cookieStore.get('auth-token') || cookieStore.get('authToken');
   if (authCookie?.value) {
     return authCookie.value;
   }
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
 
     // First, decode the token to get user ID (or let backend handle it)
     // Make request to backend to get current user's campaigns
+    console.log('🔗 Making backend request with token...');
     const response = await fetch(`${BACKEND_URL}/api/users/my-campaigns`, {
       method: 'GET',
       headers: {

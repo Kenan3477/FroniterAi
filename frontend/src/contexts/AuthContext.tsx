@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         apiUrl = `/api/admin/users/${user.id}/campaigns`;
       } else {
         // Regular users use the user-specific endpoint
-        apiUrl = '/api/users/my-campaigns';
+        apiUrl = '/api/campaigns/my-campaigns';
       }
 
       const response = await fetch(apiUrl, {
@@ -131,8 +131,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }));
           } else if (data.data && Array.isArray(data.data)) {
             // Handle user endpoint response format
+            console.log('🔍 Processing user campaigns:', data.data.length, 'total campaigns');
+            console.log('🔍 All campaigns:', data.data.map((c: any) => ({ id: c.campaignId, name: c.name, status: c.status, isActive: c.isActive })));
+            
             activeCampaigns = data.data
-              .filter((campaign: any) => campaign.status === 'Active' && campaign.isActive)
+              .filter((campaign: any) => {
+                const isActive = campaign.status === 'Active' && campaign.isActive;
+                console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, passes filter=${isActive}`);
+                return isActive;
+              })
               .map((campaign: any) => ({
                 campaignId: campaign.campaignId,
                 name: campaign.name,

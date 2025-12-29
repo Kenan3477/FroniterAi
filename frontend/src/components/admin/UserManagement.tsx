@@ -264,11 +264,26 @@ export default function UserManagement() {
 
       if (userCampaignsRes.ok) {
         const userCampaignsData = await userCampaignsRes.json();
-        setUserCampaigns(userCampaignsData.data?.assignments || []);
+        console.log('🔍 UserManagement - User campaigns from API:', userCampaignsData);
+        setUserCampaigns(userCampaignsData.data || []);
       }
 
       if (availableCampaignsRes.ok) {
         const availableCampaignsData = await availableCampaignsRes.json();
+        console.log('🔍 UserManagement - Available campaigns from API:', availableCampaignsData);
+        console.log('🔍 UserManagement - Available campaigns data length:', availableCampaignsData.data?.length || 0);
+        console.log('🔍 UserManagement - Available campaign details:', 
+          (availableCampaignsData.data || []).map((c, i) => ({
+            index: i + 1,
+            id: c.id,
+            name: c.name,
+            status: c.status,
+            isActive: c.isActive
+          }))
+        );
+        console.log('🔍 UserManagement - Available campaign names with status:', 
+          availableCampaignsData.data?.map(c => `"${c.name}" (${c.status})`) || []
+        );
         setAvailableCampaigns(availableCampaignsData.data || []);
       }
     } catch (error) {
@@ -342,7 +357,7 @@ export default function UserManagement() {
 
     try {
       const response = await fetch(
-        `/api/admin/users/${managingCampaignsUser.id}/campaigns?campaignId=${campaignId}`,
+        `/api/admin/users/${managingCampaignsUser.id}/campaigns/${campaignId}`,
         { 
           method: 'DELETE',
           credentials: 'include',
@@ -914,7 +929,7 @@ export default function UserManagement() {
                   {userCampaigns.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Assigned Campaigns
+                        Assigned Campaigns ({userCampaigns.length})
                       </h4>
                       <div className="space-y-2 max-h-32 overflow-y-auto">
                         {userCampaigns.map((campaign) => (
@@ -938,7 +953,18 @@ export default function UserManagement() {
                   {/* Available Campaigns */}
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
-                      Available Campaigns
+                      Available Campaigns ({(() => {
+                        const unassignedCount = availableCampaigns.filter(
+                          (campaign) => {
+                            const campaignIdentifier = campaign.campaignId || campaign.id;
+                            const isAssigned = userCampaigns.some(
+                              (assignment) => assignment.campaignId === campaignIdentifier
+                            );
+                            return !isAssigned;
+                          }
+                        ).length;
+                        return unassignedCount;
+                      })()})
                     </h4>
                     {(() => {
                       // Debug data structures
@@ -955,10 +981,12 @@ export default function UserManagement() {
                       // Filter out campaigns that the user is already assigned to
                       const unassignedCampaigns = availableCampaigns.filter(
                         (campaign) => {
+                          // Handle both campaignId and id fields for flexibility
+                          const campaignIdentifier = campaign.campaignId || campaign.id;
                           const isAssigned = userCampaigns.some(
-                            (assignment) => assignment.campaignId === campaign.campaignId
+                            (assignment) => assignment.campaignId === campaignIdentifier
                           );
-                          console.log(`Campaign ${campaign.campaignId} (${campaign.name}): assigned=${isAssigned}`);
+                          console.log(`Campaign ${campaignIdentifier} (${campaign.name}): assigned=${isAssigned}`);
                           return !isAssigned;
                         }
                       );
@@ -967,20 +995,23 @@ export default function UserManagement() {
                       
                       return unassignedCampaigns.length > 0 ? (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {unassignedCampaigns.map((campaign) => (
+                          {unassignedCampaigns.map((campaign) => {
+                            const campaignIdentifier = campaign.campaignId || campaign.id;
+                            return (
                             <div
-                              key={campaign.campaignId}
+                              key={campaignIdentifier}
                               className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded"
                             >
                               <span className="text-sm text-gray-900">{campaign.name}</span>
                               <button
-                                onClick={() => assignCampaign(campaign.campaignId)}
+                                onClick={() => assignCampaign(campaignIdentifier)}
                                 className="text-blue-600 hover:text-blue-800 text-xs"
                               >
                                 Assign
                               </button>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">

@@ -13,7 +13,7 @@ function getAuthToken(request: NextRequest): string | null {
   // Try cookies from request headers
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
-    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/) || cookieHeader.match(/auth-token=([^;]+)/);
     if (authTokenMatch && authTokenMatch[1]) {
       return authTokenMatch[1];
     }

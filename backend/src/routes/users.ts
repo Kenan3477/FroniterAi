@@ -287,9 +287,26 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
 
     console.log(`📋 Fetching campaigns for user ID: ${userId}`);
 
-    // Get user with their campaign assignments
-    const userWithCampaigns = await prisma.user.findUnique({
-      where: { id: parseInt(userId) }, // Convert string back to integer
+    // First, find if there's an agent record for this user
+    let agent = await prisma.agent.findFirst({
+      where: { agentId: userId } // Our system uses userId as agentId
+    });
+
+    if (!agent) {
+      console.log(`📋 No agent record found for user ${userId}, checking for campaigns anyway...`);
+      // Return empty campaigns if no agent record exists
+      res.json({
+        success: true,
+        data: []
+      });
+      return;
+    }
+
+    console.log(`📋 Found agent record for user ${userId}: agentId=${agent.agentId}`);
+
+    // Get agent campaign assignments
+    const agentWithCampaigns = await prisma.agent.findUnique({
+      where: { agentId: userId },
       include: {
         campaignAssignments: {
           where: {
@@ -311,15 +328,16 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
       }
     });
 
-    if (!userWithCampaigns) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
+    if (!agentWithCampaigns) {
+      res.json({
+        success: true,
+        data: []
       });
+      return;
     }
 
     // Extract campaigns from the assignments
-    const campaigns = userWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+    const campaigns = agentWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
 
     console.log(`✅ Found ${campaigns.length} campaigns for user ${userId}`);
 
