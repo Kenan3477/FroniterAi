@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Device } from '@twilio/voice-sdk';
+import { RootState } from '@/store';
+import { startCall, answerCall, endCall } from '@/store/slices/activeCallSlice';
 
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
@@ -16,6 +19,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
   const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, startTime: Date} | null>(null);
   const deviceRef = useRef<Device | null>(null);
+
+  // Get active call state from Redux
+  const activeCall = useSelector((state: RootState) => state.activeCall);
+  const dispatch = useDispatch();
 
   // Debug logging for device ready state
   useEffect(() => {
@@ -116,23 +123,35 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             // Set up call event handlers
             call.on('accept', () => {
               console.log('✅ Call accepted - two way audio should be working');
-              // Call is already set above
+              
+              // Update Redux state to show call as active and connected
+              dispatch(answerCall());
+              console.log('📱 Redux state updated - call marked as answered');
             });
             
             call.on('disconnect', () => {
               console.log('📱 Call disconnected');
               setCurrentCall(null);
+              // Clear Redux state
+              dispatch(endCall());
+              console.log('📱 Redux state updated - call ended');
               // Don't stop the microphone stream here - keep it for next call
             });
             
             call.on('cancel', () => {
               console.log('📱 Call cancelled');
               setCurrentCall(null);
+              // Clear Redux state
+              dispatch(endCall());
+              console.log('📱 Redux state updated - call cancelled');
             });
             
             call.on('error', (error: any) => {
               console.error('❌ Call error:', error);
               setCurrentCall(null);
+              // Clear Redux state
+              dispatch(endCall());
+              console.log('📱 Redux state updated - call error');
               // Don't stop the microphone stream on error - keep it for next call
             });
             
@@ -340,6 +359,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     ['7', '8', '9'],
     ['*', '0', '#']
   ];
+
+  // Hide dialer UI when there's an active call, but keep Device running for incoming calls
+  if (activeCall.isActive) {
+    return (
+      <div className="hidden">
+        {/* RestApiDialer Device is running in background for incoming calls */}
+        {/* UI hidden during active calls */}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">

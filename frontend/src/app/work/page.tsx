@@ -137,13 +137,18 @@ export default function WorkPage() {
             <div className="flex-1 p-6 bg-gray-50">
               <div className="max-w-4xl mx-auto space-y-6">
                 
-                {/* Dialer Section - Only show when no active call */}
+                {/* Dialer Section - Always keep RestApiDialer mounted for incoming call handling */}
+                <RestApiDialer 
+                  onCallInitiated={(result) => {
+                    console.log('REST API call result:', result);
+                  }}
+                />
+
+                {/* Show dialing interface only when no active call */}
                 {!activeCall.isActive && (
-                  <RestApiDialer 
-                    onCallInitiated={(result) => {
-                      console.log('REST API call result:', result);
-                    }}
-                  />
+                  <div className="mt-4">
+                    {/* Dialer interface elements can go here if needed */}
+                  </div>
                 )}
 
                 {/* Active Call Section */}
