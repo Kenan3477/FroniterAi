@@ -117,15 +117,22 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     const availableAgents = callerInfo.routing.availableAgents;
     let twiml: string;
     
-    if (availableAgents.length > 0) {
-      // Agents available - generate TwiML to ring them directly
-      twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
-      console.log('✅ Inbound call routed to available agents:', availableAgents.length);
-    } else {
-      // No agents available - send to queue/flow
-      twiml = generateQueueTwiML();
-      console.log('✅ Inbound call sent to queue (no available agents)');
-    }
+    // TEMPORARY: Always use direct agent ring for testing
+    // TODO: Remove this override after agent availability is working
+    console.log('🧪 TESTING MODE: Always routing to direct agent ring');
+    twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
+    console.log('✅ Inbound call routed to direct agent ring (testing mode)');
+    
+    // Original logic (temporarily disabled):
+    // if (availableAgents.length > 0) {
+    //   // Agents available - generate TwiML to ring them directly
+    //   twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
+    //   console.log('✅ Inbound call routed to available agents:', availableAgents.length);
+    // } else {
+    //   // No agents available - send to queue/flow
+    //   twiml = generateQueueTwiML();
+    //   console.log('✅ Inbound call sent to queue (no available agents)');
+    // }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
     
