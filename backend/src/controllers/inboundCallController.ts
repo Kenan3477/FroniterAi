@@ -113,10 +113,12 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // Generate TwiML response FIRST - don't wait for notifications
-    const twiml = generateInboundWelcomeTwiML();
+    // Generate TwiML response FIRST - put customer in conference
+    const conferenceRoom = `inbound-${inboundCallId}`;
+    const twiml = generateInboundWelcomeTwiML(conferenceRoom);
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
+    console.log('🎯 Customer will be placed in conference:', conferenceRoom);
     
     // Send TwiML response immediately
     res.type('text/xml');
@@ -143,20 +145,24 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
 };
 
 /**
- * POST /api/calls/twiml/inbound-welcome
  * Generate initial TwiML response for inbound calls
+ * Puts customer in conference room to wait for agent
  */
-export const generateInboundWelcomeTwiML = (): string => {
-  console.log('🎵 Generating minimal TwiML for inbound call');
+export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
+  console.log('🎵 Generating conference TwiML for inbound call, conference:', conferenceRoom);
   
-  // Minimal TwiML that should never fail
+  // Put customer in conference room with hold music
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Welcome to Omnivox. Please hold.</Say>
-  <Pause length="30"/>
+  <Say voice="alice">Welcome to Omnivox. Please hold while we connect you to an agent.</Say>
+  <Dial>
+    <Conference waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical" startConferenceOnEnter="false" endConferenceOnExit="true">
+      ${conferenceRoom}
+    </Conference>
+  </Dial>
 </Response>`;
 
-  console.log('✅ Minimal TwiML generated');
+  console.log('✅ Conference TwiML generated for customer');
   return twiml;
 };
 

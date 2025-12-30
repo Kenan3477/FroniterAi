@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
-import { startCall, answerCall } from '@/store/slices/activeCallSlice';
+import { startCall, answerCall, endCall, clearCall } from '@/store/slices/activeCallSlice';
 import { useRouter } from 'next/navigation';
 
 interface InboundCall {
@@ -170,12 +170,35 @@ export default function InboundCallPopup() {
           // Initialize Twilio Device if not already initialized
           const { Device } = await import('@twilio/voice-sdk');
           
+          // Request microphone permissions first
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('✅ Microphone access granted');
+            // Stop the test stream
+            stream.getTracks().forEach(track => track.stop());
+          } catch (micError: any) {
+            console.error('❌ Microphone access denied:', micError);
+            alert('Microphone access is required for audio calls. Please allow microphone access and try again.');
+            throw new Error('Microphone access denied');
+          }
+          
           const device = new Device(tokenData.data.token, {
             logLevel: 'info',
-            allowIncomingWhileBusy: false
+            allowIncomingWhileBusy: false,
+            enableImprovedSignalingErrorPrecision: true
+          });
+
+          // Add device event listeners for debugging
+          device.on('ready', () => {
+            console.log('✅ Twilio Device ready for calls');
+          });
+          
+          device.on('error', (error: any) => {
+            console.error('❌ Twilio Device error:', error);
           });
 
           await device.register();
+          console.log('✅ Twilio Device registered successfully');
           
           // Connect to the conference room using Twilio Device
           console.log('📞 Connecting to conference via Twilio Device...');
@@ -190,6 +213,25 @@ export default function InboundCallPopup() {
           });
           
           console.log('✅ Connected to inbound call conference:', webrtcCall.parameters.CallSid);
+          
+          // Add call event listeners to handle disconnection
+          webrtcCall.on('disconnect', () => {
+            console.log('📞 WebRTC call disconnected');
+            dispatch(endCall());
+            dispatch(clearCall());
+          });
+          
+          webrtcCall.on('cancel', () => {
+            console.log('📞 WebRTC call cancelled');
+            dispatch(endCall());
+            dispatch(clearCall());
+          });
+          
+          webrtcCall.on('error', (error: any) => {
+            console.error('❌ WebRTC call error:', error);
+            dispatch(endCall());
+            dispatch(clearCall());
+          });
           
         } catch (webrtcError: any) {
           console.error('❌ Failed to connect via WebRTC:', webrtcError);
