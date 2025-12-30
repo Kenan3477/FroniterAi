@@ -37,10 +37,17 @@ export default function Dashboard() {
     const handleInboundCallRinging = (data: any) => {
       console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
       
+      // Extract caller number properly
+      const callerNumber = data.call?.callerNumber || data.call?.from || 'Unknown Number';
+      const callerName = data.call?.callerName || data.callerInfo?.name || null;
+      const displayName = callerName ? `${callerName} (${callerNumber})` : callerNumber;
+      
+      console.log('📞 Caller details:', { callerNumber, callerName, displayName });
+      
       // Show browser notification
       if (Notification.permission === 'granted') {
         new Notification('Incoming Call', {
-          body: `Call from ${data.call?.from || 'Unknown Number'}`,
+          body: `Call from ${displayName}`,
           icon: '/favicon.ico',
           tag: 'inbound-call'
         });
@@ -54,12 +61,13 @@ export default function Dashboard() {
         return [...prev, {
           ...data.call,
           callerInfo: data.callerInfo,
+          displayName,
           timestamp: new Date()
         }];
       });
       
       // Show alert for immediate visibility
-      alert(`🔔 Incoming Call from ${data.call?.from || 'Unknown Number'}\n\nClick OK to dismiss.`);
+      alert(`🔔 Incoming Call from ${displayName}\n\nCheck the dashboard for Answer/Dismiss options.`);
     };
 
     const handleInboundCallAnswered = (data: any) => {
@@ -92,6 +100,40 @@ export default function Dashboard() {
       agentSocket.disconnect();
     };
   }, [user]);
+
+  // Handle answering an inbound call
+  const handleAnswerCall = async (call: any) => {
+    try {
+      console.log('📞 Answering inbound call:', call.id);
+      
+      const response = await fetch('/api/calls/inbound-answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          callId: call.id,
+          agentId: user?.id?.toString()
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Call answered successfully');
+        // Remove from notifications
+        setInboundCalls(prev => prev.filter(c => c.id !== call.id));
+        alert('Call answered! You are now connected.');
+      } else {
+        console.error('❌ Failed to answer call:', result.error);
+        alert('Failed to answer call. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error answering call:', error);
+      alert('Error answering call. Please try again.');
+    }
+  };
 
   const loadDashboardStats = async () => {
     try {
@@ -142,21 +184,31 @@ export default function Dashboard() {
         {inboundCalls.length > 0 && (
           <div className="mb-6">
             {inboundCalls.map((call, index) => (
-              <div key={call.id || index} className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-2 flex items-center justify-between animate-pulse">
+              <div key={call.id || index} className="bg-red-100 border-2 border-red-400 text-red-800 px-6 py-4 rounded-lg mb-3 flex items-center justify-between animate-pulse shadow-lg">
                 <div className="flex items-center">
-                  <span className="text-2xl mr-3">📞</span>
+                  <span className="text-3xl mr-4 animate-bounce">📞</span>
                   <div>
-                    <p className="font-bold">Incoming Call</p>
-                    <p>From: {call.from || 'Unknown Number'}</p>
+                    <p className="font-bold text-lg">🚨 Incoming Call</p>
+                    <p className="font-semibold text-base">From: {call.displayName || call.callerNumber || call.from || 'Unknown Number'}</p>
                     <p className="text-sm">Received: {call.timestamp?.toLocaleTimeString()}</p>
+                    <p className="text-sm">Call ID: {call.id}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setInboundCalls(prev => prev.filter(c => c.id !== call.id))}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                >
-                  Dismiss
-                </button>
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={() => handleAnswerCall(call)}
+                    className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold flex items-center space-x-2 transition-colors"
+                  >
+                    <span>📞</span>
+                    <span>Answer</span>
+                  </button>
+                  <button 
+                    onClick={() => setInboundCalls(prev => prev.filter(c => c.id !== call.id))}
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-bold transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             ))}
           </div>
