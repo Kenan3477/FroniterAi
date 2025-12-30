@@ -5,20 +5,93 @@ import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
 import { kpiApi, DashboardStats } from '@/services/kpiApi';
+import { agentSocket } from '@/services/agentSocket';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // TODO: Replace with actual authentication system
-  const user = { firstName: 'User', lastName: 'Profile' };
-  const isAuthenticated = true;
+  const [inboundCalls, setInboundCalls] = useState<any[]>([]);
+  
+  // Get authenticated user
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
       loadDashboardStats();
     }
   }, [isAuthenticated]);
+
+  // CRITICAL: Set up WebSocket connection for inbound call notifications
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log('🔌 Setting up WebSocket connection for inbound calls...');
+    console.log('👤 User ID:', user.id, 'Username:', user.username);
+    
+    // Connect to agent socket using user ID (important!)
+    agentSocket.connect(user.id.toString());
+    agentSocket.authenticateAgent(user.id.toString());
+    
+    // Handle inbound call notifications
+    const handleInboundCallRinging = (data: any) => {
+      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
+      
+      // Show browser notification
+      if (Notification.permission === 'granted') {
+        new Notification('Incoming Call', {
+          body: `Call from ${data.call?.from || 'Unknown Number'}`,
+          icon: '/favicon.ico',
+          tag: 'inbound-call'
+        });
+      }
+      
+      // Add to UI state
+      setInboundCalls(prev => {
+        const exists = prev.find(call => call.id === data.call?.id);
+        if (exists) return prev;
+        
+        return [...prev, {
+          ...data.call,
+          callerInfo: data.callerInfo,
+          timestamp: new Date()
+        }];
+      });
+      
+      // Show alert for immediate visibility
+      alert(`🔔 Incoming Call from ${data.call?.from || 'Unknown Number'}\n\nClick OK to dismiss.`);
+    };
+
+    const handleInboundCallAnswered = (data: any) => {
+      console.log('📞 Inbound call answered:', data);
+      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
+    };
+
+    const handleInboundCallEnded = (data: any) => {
+      console.log('📞 Inbound call ended:', data);
+      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
+    };
+
+    // Register event listeners
+    agentSocket.on('inbound-call-ringing', handleInboundCallRinging);
+    agentSocket.on('inbound-call-answered', handleInboundCallAnswered);
+    agentSocket.on('inbound-call-ended', handleInboundCallEnded);
+
+    // Request notification permission
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 Notification permission:', permission);
+      });
+    }
+
+    // Cleanup
+    return () => {
+      agentSocket.off('inbound-call-ringing', handleInboundCallRinging);
+      agentSocket.off('inbound-call-answered', handleInboundCallAnswered);
+      agentSocket.off('inbound-call-ended', handleInboundCallEnded);
+      agentSocket.disconnect();
+    };
+  }, [user]);
 
   const loadDashboardStats = async () => {
     try {
@@ -65,6 +138,30 @@ export default function Dashboard() {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto">
+        {/* Inbound Call Notifications */}
+        {inboundCalls.length > 0 && (
+          <div className="mb-6">
+            {inboundCalls.map((call, index) => (
+              <div key={call.id || index} className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-2 flex items-center justify-between animate-pulse">
+                <div className="flex items-center">
+                  <span className="text-2xl mr-3">📞</span>
+                  <div>
+                    <p className="font-bold">Incoming Call</p>
+                    <p>From: {call.from || 'Unknown Number'}</p>
+                    <p className="text-sm">Received: {call.timestamp?.toLocaleTimeString()}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setInboundCalls(prev => prev.filter(c => c.id !== call.id))}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-2">
             <span>Welcome to</span>

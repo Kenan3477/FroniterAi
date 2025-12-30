@@ -77,13 +77,19 @@ export class AgentSocketService {
   }
 
   private setupSocket() {
-    // Connect to the dialler namespace
-    this.socket = io('/dialler', {
+    // Get the backend URL (Railway in production, localhost in development)
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    
+    console.log('🔌 Connecting to WebSocket at:', backendUrl);
+    
+    // Connect to the dialler namespace on the backend
+    this.socket = io(`${backendUrl}/dialler`, {
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: this.maxReconnectAttempts,
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
     });
 
     this.socket.on('connect', () => {
