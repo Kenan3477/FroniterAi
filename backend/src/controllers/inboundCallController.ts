@@ -113,12 +113,21 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // Generate TwiML response FIRST - put customer in conference
-    const conferenceRoom = `inbound-${inboundCallId}`;
-    const twiml = generateInboundWelcomeTwiML(conferenceRoom);
+    // Check if agents are available for immediate connection
+    const availableAgents = callerInfo.routing.availableAgents;
+    let twiml: string;
+    
+    if (availableAgents.length > 0) {
+      // Agents available - generate TwiML to ring them directly
+      twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
+      console.log('✅ Inbound call routed to available agents:', availableAgents.length);
+    } else {
+      // No agents available - send to queue/flow
+      twiml = generateQueueTwiML();
+      console.log('✅ Inbound call sent to queue (no available agents)');
+    }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
-    console.log('🎯 Customer will be placed in conference:', conferenceRoom);
     
     // Send TwiML response immediately
     res.type('text/xml');
@@ -167,6 +176,44 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 };
 
 /**
+ * Generate TwiML to ring agents directly for immediate pickup
+ */
+function generateDirectAgentRingTwiML(availableAgents: any[], callId: string): string {
+  console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
+  
+  // Ring the browser-based agent directly
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Please hold while we connect you to an available agent.</Say>
+  <Dial timeout="30" record="record-from-answer-dual">
+    <Client>agent-browser</Client>
+  </Dial>
+  <Say voice="alice">All agents are currently busy. Your call will be transferred to our queue.</Say>
+  <Redirect>/api/calls/webhook/queue</Redirect>
+</Response>`;
+
+  return twiml;
+}
+
+/**
+ * Generate TwiML for queue/flow when no agents available
+ */
+function generateQueueTwiML(): string {
+  console.log('📞 Generating queue TwiML - no agents available');
+  
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Thank you for calling Omnivox. All our agents are currently busy.</Say>
+  <Say voice="alice">Please stay on the line and your call will be answered in the order it was received.</Say>
+  <Play loop="10">http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical</Play>
+  <Say voice="alice">We appreciate your patience. Please try again later.</Say>
+  <Hangup/>
+</Response>`;
+
+  return twiml;
+}
+
+/**
  * POST /api/calls/inbound-answer
  * Agent accepts an inbound call
  */
@@ -213,18 +260,9 @@ export const answerInboundCall = async (req: Request, res: Response) => {
       };
     }
 
-    // Create TwiML response without requiring Twilio client
-    const conferenceRoom = `inbound-${callId}`;
+    // For direct calling, we don't need to generate TwiML here
+    // The call is already connected when agent answers via Twilio Device
     
-    // Simple TwiML string (avoiding Twilio client dependency issues)
-    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Connecting you to the customer...</Say>
-  <Dial>
-    <Conference startConferenceOnEnter="true" endConferenceOnExit="true">${conferenceRoom}</Conference>
-  </Dial>
-</Response>`;
-
     console.log('📞 Inbound call answered successfully:', { callId, agentId });
 
     res.json({
@@ -232,9 +270,7 @@ export const answerInboundCall = async (req: Request, res: Response) => {
       data: {
         callId,
         agentId,
-        conferenceRoom,
-        twiml: twimlResponse,
-        message: 'Call answered successfully'
+        message: 'Call answered successfully - direct connection established'
       }
     });
 
