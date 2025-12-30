@@ -54,6 +54,16 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   // Call control functions
   const handleEndCall = () => {
     if (confirm('Are you sure you want to end this call?')) {
+      // Terminate the actual WebRTC call first
+      const callTerminated = (window as any).omnivoxTerminateCall?.() || false;
+      
+      if (callTerminated) {
+        console.log('✅ WebRTC call terminated successfully');
+      } else {
+        console.warn('⚠️ No active WebRTC call found to terminate');
+      }
+      
+      // Update Redux state
       dispatch(endCall());
       // After a short delay, clear the call to allow for disposition
       setTimeout(() => {

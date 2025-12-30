@@ -69,6 +69,22 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     setupAudioDevices();
   }, []);
 
+  // Expose global call termination function for CustomerInfoCard
+  useEffect(() => {
+    (window as any).omnivoxTerminateCall = () => {
+      if (currentCall) {
+        console.log('🔴 Terminating call via global function');
+        currentCall.disconnect();
+        return true;
+      }
+      return false;
+    };
+
+    return () => {
+      delete (window as any).omnivoxTerminateCall;
+    };
+  }, [currentCall]);
+
   // Initialize Twilio Device for browser audio (to receive calls from REST API)
   useEffect(() => {
     const initializeDevice = async () => {
@@ -175,7 +191,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             setCurrentCall(call);
             
             // Accept the call
-            await call.accept();
             await call.accept();
             
             // Set up call event handlers
@@ -298,6 +313,29 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       console.error('❌ Microphone test failed:', error);
       setMicrophonePermissionGranted(false);
       alert('❌ Microphone access denied. Please allow microphone permissions in your browser.');
+    }
+  };
+
+  const testAudioOutput = () => {
+    // Simple audio test to help user identify output device
+    try {
+      const audioContext = new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Low volume
+      
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.5); // Half second beep
+      
+      alert('🔊 Audio test played! If you heard it through your headset, audio routing is correct. If it played through speakers, check your browser\'s audio output settings.');
+    } catch (error) {
+      console.error('❌ Audio test failed:', error);
+      alert('❌ Audio test failed. Your browser may not support audio output testing.');
     }
   };
 
@@ -547,6 +585,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             <p className="text-xs text-slate-800">
               ✅ Browser audio ready - you can speak to customers
             </p>
+            <p className="text-xs text-slate-600 mt-1">
+              💡 Use "Test Audio" button to check if sound routes to your headset
+            </p>
           </div>
         )}
         
@@ -626,6 +667,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             title={microphonePermissionGranted ? "Microphone ready" : "Test microphone permissions"}
           >
             {microphonePermissionGranted ? '🎤✅ Mic Ready' : '🎤 Test Mic'}
+          </button>
+
+          <button
+            onClick={testAudioOutput}
+            className="px-3 py-3 rounded-md transition-colors text-sm bg-purple-600 text-white hover:bg-purple-700"
+            title="Test audio output to check if sound goes to headset or speakers"
+          >
+            🔊 Test Audio
           </button>
           
           <button
