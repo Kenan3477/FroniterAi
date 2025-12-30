@@ -266,31 +266,45 @@ export class EventManager extends EventEmitter {
    */
   private async persistEvent(eventLog: EventLog): Promise<void> {
     try {
-      const key = `event:${eventLog.event.type}:${eventLog.id}`;
-      const ttl = 24 * 60 * 60; // 24 hours
+      // Make Redis operations non-blocking to prevent webhook hanging
+      setImmediate(async () => {
+        try {
+          const key = `event:${eventLog.event.type}:${eventLog.id}`;
+          const ttl = 24 * 60 * 60; // 24 hours
 
-      await redisClient.setEx(key, ttl, JSON.stringify({
-        ...eventLog,
-        event: {
-          ...eventLog.event,
-          timestamp: eventLog.event.timestamp.toISOString(),
-        },
-        processedAt: eventLog.processedAt?.toISOString(),
-      }));
+          await redisClient.setEx(key, ttl, JSON.stringify({
+            ...eventLog,
+            event: {
+              ...eventLog.event,
+              timestamp: eventLog.event.timestamp.toISOString(),
+            },
+            processedAt: eventLog.processedAt?.toISOString(),
+          }));
 
-      // Add to event type index
-      const indexKey = `events:by_type:${eventLog.event.type}`;
-      await redisClient.lPush(indexKey, eventLog.id);
-      await redisClient.lTrim(indexKey, 0, 999); // Keep last 1000 events
+          // Add to event type index
+          const indexKey = `events:by_type:${eventLog.event.type}`;
+          await redisClient.lPush(indexKey, eventLog.id);
+          await redisClient.lTrim(indexKey, 0, 999); // Keep last 1000 events
 
-      // Add to organization index if available
-      if (eventLog.event.organizationId) {
-        const orgIndexKey = `events:by_org:${eventLog.event.organizationId}`;
-        await redisClient.lPush(orgIndexKey, eventLog.id);
-        await redisClient.lTrim(orgIndexKey, 0, 999);
-      }
+          // Add to organization index if available
+          if (eventLog.event.organizationId) {
+            const orgIndexKey = `events:by_org:${eventLog.event.organizationId}`;
+            await redisClient.lPush(orgIndexKey, eventLog.id);
+            await redisClient.lTrim(orgIndexKey, 0, 999);
+          }
+          
+          console.log('✅ Event persisted to Redis:', eventLog.id);
+        } catch (redisError) {
+          console.warn('⚠️ Redis persistence failed (non-blocking):', redisError);
+        }
+      });
+      
+      // Return immediately without waiting for Redis
+      console.log('📝 Event persistence queued (non-blocking):', eventLog.id);
+      
     } catch (error) {
-      console.warn('⚠️ Failed to persist event to Redis:', error);
+      console.warn('⚠️ Event persistence error (non-blocking):', error);
+      // Don't throw - continue execution
     }
   }
 

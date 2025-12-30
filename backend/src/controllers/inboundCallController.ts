@@ -13,7 +13,8 @@ import { Request, Response } from 'express';
 import twilio from 'twilio';
 import { prisma } from '../database';
 import { eventManager } from '../services/eventManager';
-import { callEvents } from '../utils/eventHelpers';
+// REMOVING EVENT SYSTEM TO PREVENT REDIS HANGING
+// import { callEvents } from '../utils/eventHelpers';
 import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -112,16 +113,19 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // Emit real-time notification to available agents
-    await notifyAgentsOfInboundCall(inboundCall, callerInfo);
-
-    // Generate TwiML response
-    const twiml = generateInboundWelcomeTwiML(inboundCall, callerInfo);
+    // Generate TwiML response FIRST - don't wait for notifications
+    const twiml = generateInboundWelcomeTwiML();
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
     
+    // Send TwiML response immediately
     res.type('text/xml');
     res.send(twiml);
+    
+    // Start notifications asynchronously (don't await)
+    notifyAgentsOfInboundCall(inboundCall, callerInfo).catch(error => {
+      console.error('❌ Notification error (non-blocking):', error);
+    });
     
   } catch (error: any) {
     console.error('❌ Error handling inbound call webhook:', error);
@@ -142,39 +146,18 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
  * POST /api/calls/twiml/inbound-welcome
  * Generate initial TwiML response for inbound calls
  */
-export const generateInboundWelcomeTwiML = (inboundCall: InboundCall, callerInfo: CallerLookupResponse): string => {
-  try {
-    console.log('🎵 Generating TwiML response for call:', inboundCall.id);
-    
-    const twiml = new twilio.twiml.VoiceResponse();
-
-    // Simple greeting without personalization to avoid issues
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Thank you for calling. Please hold while we connect you to an available agent.');
-
-    // Add a pause
-    twiml.pause({ length: 1 });
-
-    // Simple hold music - no complex conference setup
-    twiml.play('http://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.mp3');
-
-    const twimlString = twiml.toString();
-    console.log('✅ Simple TwiML generated successfully:', twimlString.length, 'characters');
-    
-    return twimlString;
-  } catch (error) {
-    console.error('❌ Error generating TwiML:', error);
-    
-    // Ultra-simple fallback TwiML
-    return `<?xml version="1.0" encoding="UTF-8"?>
+export const generateInboundWelcomeTwiML = (): string => {
+  console.log('🎵 Generating minimal TwiML for inbound call');
+  
+  // Minimal TwiML that should never fail
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Thank you for calling. Please hold.</Say>
-  <Pause length="1"/>
-  <Play>http://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.mp3</Play>
+  <Say>Welcome to Omnivox. Please hold.</Say>
+  <Pause length="30"/>
 </Response>`;
-  }
+
+  console.log('✅ Minimal TwiML generated');
+  return twiml;
 };
 
 /**
@@ -216,13 +199,8 @@ export const answerInboundCall = async (req: Request, res: Response) => {
       endConferenceOnExit: true
     }, conferenceRoom);
 
-    // Emit real-time event using centralized helper
-    await callEvents.inboundAnswered({
-      callId: callId,
-      callSid: callDetails.call_sid,
-      agentId: agentId,
-      answeredAt: new Date()
-    });
+    // Skip event system for now to prevent Redis hanging
+    console.log('📞 Inbound call answered:', { callId, agentId });
 
     res.json({
       success: true,
@@ -261,14 +239,8 @@ export const transferInboundCall = async (req: Request, res: Response) => {
       WHERE id = ${callId}
     `;
 
-    // Emit real-time event using centralized helper
-    await callEvents.inboundTransferred({
-      callId: callId,
-      transferType: transferType,
-      targetId: targetId,
-      fromAgentId: agentId,
-      transferredAt: new Date()
-    });
+    // Skip event system for now to prevent Redis hanging
+    console.log('📞 Inbound call transferred:', { callId, transferType, targetId, fromAgentId: agentId });
 
     res.json({
       success: true,
@@ -443,28 +415,8 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
     console.log('🔔 Starting agent notification for inbound call:', inboundCall.id);
     console.log('🔍 WebSocket service status:', webSocketService ? 'AVAILABLE' : 'NULL');
     
-    // Use the centralized event helper for inbound call notifications - SKIP FOR NOW TO AVOID CRASH
-    try {
-      console.log('🔔 Attempting to emit inbound ringing event...');
-      await callEvents.inboundRinging({
-        callId: inboundCall.id,
-        callSid: inboundCall.callSid,
-        callerNumber: inboundCall.callerNumber,
-        callerInfo: callerInfo.contact,
-        routingOptions: inboundCall.routingOptions,
-        priority: inboundCall.metadata.priority,
-        isCallback: inboundCall.metadata.isCallback,
-        direction: 'inbound',
-        phoneNumber: inboundCall.callerNumber,
-        contactId: inboundCall.contactId || '',
-        campaignId: '', // Inbound calls aren't tied to specific campaigns initially
-        agentId: '', // No specific agent initially
-        status: 'ringing'
-      });
-      console.log('✅ Event system notification sent successfully');
-    } catch (eventError: any) {
-      console.error('❌ Error with event system notification (continuing anyway):', eventError);
-    }
+    // SKIP EVENT SYSTEM FOR NOW - IT'S HANGING
+    console.log('⚠️ Skipping event system to avoid hanging - proceeding directly to WebSocket notifications');
 
     // Notify available agents in DAC campaign via WebSocket service
     if (webSocketService) {
@@ -520,21 +472,34 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
             isCallback: inboundCall.metadata.isCallback
           };
 
+          console.log('🔔 Preparing to send notifications to', availableAgents.length, 'agents');
+
           // Get dialler namespace for agent communications
           const diallerNamespace = (webSocketService as any).diallerNamespace;
           
           console.log('🔍 Dialler namespace status:', diallerNamespace ? 'AVAILABLE' : 'NULL');
           
           if (diallerNamespace) {
+            console.log('📡 Using dialler namespace for notifications');
             // Send to each agent individually using dialler namespace
             for (const agent of availableAgents) {
               console.log(`📤 Sending inbound call notification to agent: ${agent.agentId}`);
-              diallerNamespace.to(`agent:${agent.agentId}`).emit('inbound-call-ringing', notificationData);
+              try {
+                diallerNamespace.to(`agent:${agent.agentId}`).emit('inbound-call-ringing', notificationData);
+                console.log(`✅ Notification sent to agent: ${agent.agentId}`);
+              } catch (emitError: any) {
+                console.error(`❌ Error sending to agent ${agent.agentId}:`, emitError);
+              }
             }
 
             // Also broadcast to the DAC campaign room in dialler namespace
             console.log('📡 Broadcasting to DAC campaign room');
-            diallerNamespace.to('campaign:campaign_1766695393511').emit('inbound-call-ringing', notificationData);
+            try {
+              diallerNamespace.to('campaign:campaign_1766695393511').emit('inbound-call-ringing', notificationData);
+              console.log('✅ Campaign room broadcast sent');
+            } catch (broadcastError: any) {
+              console.error('❌ Error broadcasting to campaign room:', broadcastError);
+            }
             
             console.log('✅ Inbound call notifications sent to available agents via dialler namespace');
           } else {
@@ -543,9 +508,21 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
             // Fallback to main namespace
             for (const agent of availableAgents) {
               console.log(`📤 Fallback notification to agent: ${agent.agentId}`);
-              webSocketService.sendToAgent(agent.agentId, 'inbound-call-ringing', notificationData);
+              try {
+                webSocketService.sendToAgent(agent.agentId, 'inbound-call-ringing', notificationData);
+                console.log(`✅ Fallback notification sent to agent: ${agent.agentId}`);
+              } catch (fallbackError: any) {
+                console.error(`❌ Error sending fallback to agent ${agent.agentId}:`, fallbackError);
+              }
             }
-            webSocketService.sendToCampaign('campaign_1766695393511', 'inbound-call-ringing', notificationData);
+            
+            try {
+              webSocketService.sendToCampaign('campaign_1766695393511', 'inbound-call-ringing', notificationData);
+              console.log('✅ Fallback campaign notification sent');
+            } catch (campaignError: any) {
+              console.error('❌ Error sending fallback campaign notification:', campaignError);
+            }
+            
             console.log('✅ Inbound call notifications sent via main namespace');
           }
         } else {
@@ -567,7 +544,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         
       } catch (dbError: any) {
         console.error('❌ Database error during agent lookup:', dbError);
-        console.error('❌ Error details:', dbError.message, dbError.stack);
+        console.error('❌ DB Error details:', dbError.message, dbError.stack);
       }
       
     } else {
