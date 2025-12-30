@@ -30,16 +30,23 @@ export async function POST(request: NextRequest) {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
     const endpoint = `${backendUrl}/api/agent/status-enhanced`;
 
-    // Make request to backend
+    // Make request to backend with timeout
     console.log('🔗 Making backend request...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${authToken}`,
+        'User-Agent': 'Omnivox-Frontend/1.0'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.text();
@@ -54,11 +61,30 @@ export async function POST(request: NextRequest) {
     console.log('✅ Successfully updated agent status via backend');
     return NextResponse.json(data);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error updating agent status:', error);
+    
+    // More specific error handling
+    let errorMessage = 'Failed to update agent status';
+    let statusCode = 500;
+    
+    if (error.name === 'AbortError') {
+      errorMessage = 'Request timeout - Railway backend took too long to respond';
+      statusCode = 504;
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMessage = 'Cannot connect to Railway backend';
+      statusCode = 502;
+    } else if (error.code === 'ENOTFOUND') {
+      errorMessage = 'Railway backend URL not found';
+      statusCode = 502;
+    }
+    
+    console.error(`❌ Specific error: ${errorMessage} (${error.message})`);
+    
     return NextResponse.json({
       success: false,
-      message: 'Failed to update agent status'
-    }, { status: 500 });
+      message: errorMessage,
+      error: error.message
+    }, { status: statusCode });
   }
 }
