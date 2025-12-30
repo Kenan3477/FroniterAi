@@ -148,51 +148,31 @@ export const generateInboundWelcomeTwiML = (inboundCall: InboundCall, callerInfo
     
     const twiml = new twilio.twiml.VoiceResponse();
 
-    // Personalized greeting for known contacts
-    if (callerInfo.contact) {
-      if (callerInfo.contact.isRecentCallback) {
-        twiml.say({
-          voice: 'alice',
-          language: 'en-US'
-        }, `Hello ${callerInfo.contact.name}. Thank you for calling back. Please hold while we connect you to an agent.`);
-      } else {
-        twiml.say({
-          voice: 'alice',
-          language: 'en-US'
-        }, `Hello ${callerInfo.contact.name}. Thank you for calling Omnivox-AI. Please hold while we connect you to an agent.`);
-      }
-    } else {
-      twiml.say({
-        voice: 'alice',
-        language: 'en-US'
-      }, 'Thank you for calling Omnivox-AI. Please hold while we connect you to an available agent.');
-    }
-
-    // Add a brief pause
-    twiml.pause({ length: 2 });
-
-    // Simplified approach - just play hold music and wait for agent connection
-    // Remove complex conference setup that might be causing errors
+    // Simple greeting without personalization to avoid issues
     twiml.say({
       voice: 'alice',
       language: 'en-US'
-    }, 'Please continue to hold. An agent will be with you shortly.');
+    }, 'Thank you for calling. Please hold while we connect you to an available agent.');
 
-    // Add hold music
-    twiml.play('http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical');
+    // Add a pause
+    twiml.pause({ length: 1 });
+
+    // Simple hold music - no complex conference setup
+    twiml.play('http://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.mp3');
 
     const twimlString = twiml.toString();
-    console.log('✅ TwiML generated successfully:', twimlString.substring(0, 200) + '...');
+    console.log('✅ Simple TwiML generated successfully:', twimlString.length, 'characters');
     
     return twimlString;
   } catch (error) {
     console.error('❌ Error generating TwiML:', error);
     
-    // Fallback simple TwiML
+    // Ultra-simple fallback TwiML
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Thank you for calling Omnivox-AI. Please hold while we connect you to an agent.</Say>
-  <Play>http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical</Play>
+  <Say voice="alice">Thank you for calling. Please hold.</Say>
+  <Pause length="1"/>
+  <Play>http://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.mp3</Play>
 </Response>`;
   }
 };
@@ -463,22 +443,28 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
     console.log('🔔 Starting agent notification for inbound call:', inboundCall.id);
     console.log('🔍 WebSocket service status:', webSocketService ? 'AVAILABLE' : 'NULL');
     
-    // Use the centralized event helper for inbound call notifications
-    await callEvents.inboundRinging({
-      callId: inboundCall.id,
-      callSid: inboundCall.callSid,
-      callerNumber: inboundCall.callerNumber,
-      callerInfo: callerInfo.contact,
-      routingOptions: inboundCall.routingOptions,
-      priority: inboundCall.metadata.priority,
-      isCallback: inboundCall.metadata.isCallback,
-      direction: 'inbound',
-      phoneNumber: inboundCall.callerNumber,
-      contactId: inboundCall.contactId || '',
-      campaignId: '', // Inbound calls aren't tied to specific campaigns initially
-      agentId: '', // No specific agent initially
-      status: 'ringing'
-    });
+    // Use the centralized event helper for inbound call notifications - SKIP FOR NOW TO AVOID CRASH
+    try {
+      console.log('🔔 Attempting to emit inbound ringing event...');
+      await callEvents.inboundRinging({
+        callId: inboundCall.id,
+        callSid: inboundCall.callSid,
+        callerNumber: inboundCall.callerNumber,
+        callerInfo: callerInfo.contact,
+        routingOptions: inboundCall.routingOptions,
+        priority: inboundCall.metadata.priority,
+        isCallback: inboundCall.metadata.isCallback,
+        direction: 'inbound',
+        phoneNumber: inboundCall.callerNumber,
+        contactId: inboundCall.contactId || '',
+        campaignId: '', // Inbound calls aren't tied to specific campaigns initially
+        agentId: '', // No specific agent initially
+        status: 'ringing'
+      });
+      console.log('✅ Event system notification sent successfully');
+    } catch (eventError: any) {
+      console.error('❌ Error with event system notification (continuing anyway):', eventError);
+    }
 
     // Notify available agents in DAC campaign via WebSocket service
     if (webSocketService) {
@@ -489,6 +475,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         console.log('🔍 Querying for available agents in DAC campaign...');
         
         // First check what agent records exist
+        console.log('🔍 Checking sample agent records...');
         const allAgentsCheck = await prisma.$queryRaw`
           SELECT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
           FROM agents a
@@ -497,6 +484,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         console.log('🔍 Sample agent records:', allAgentsCheck);
         
         // Check user_campaigns structure
+        console.log('🔍 Checking user campaigns for DAC...');
         const userCampaignsCheck = await prisma.$queryRaw`
           SELECT uc."userId", uc."campaignId"
           FROM user_campaigns uc
@@ -506,6 +494,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         console.log('🔍 User campaigns for DAC:', userCampaignsCheck);
         
         // Modified query - handle potential type mismatch between agentId and userId
+        console.log('🔍 Running main agent availability query...');
         const availableAgents = await prisma.$queryRaw`
           SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn", uc."userId"
           FROM agents a
@@ -578,6 +567,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         
       } catch (dbError: any) {
         console.error('❌ Database error during agent lookup:', dbError);
+        console.error('❌ Error details:', dbError.message, dbError.stack);
       }
       
     } else {
@@ -586,6 +576,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
 
   } catch (error: any) {
     console.error('❌ Error notifying agents of inbound call:', error);
+    console.error('❌ Error details:', error.message, error.stack);
     // Continue execution - don't fail the call flow
   }
 }
