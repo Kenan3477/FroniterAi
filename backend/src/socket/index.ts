@@ -33,10 +33,11 @@ export const initializeSocket = (io: Server): WebSocketService => {
         // Join any assigned campaigns
         // Query agent's campaigns
         const agentCampaigns = await (await import('../database')).prisma.$queryRaw`
-          SELECT uc."campaignId"
-          FROM user_campaigns uc
-          INNER JOIN agents a ON a."agentId" = uc."userId"::text
+          SELECT uca."campaignId"
+          FROM user_campaign_assignments uca
+          INNER JOIN agents a ON a."agentId" = uca."userId"::text
           WHERE a."agentId" = ${data.agentId}
+            AND uca."isActive" = true
         ` as any[];
         
         for (const campaign of agentCampaigns) {

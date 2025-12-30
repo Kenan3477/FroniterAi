@@ -435,12 +435,12 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         ` as any[];
         console.log('🔍 Sample agent records:', allAgentsCheck);
         
-        // Check user_campaigns structure
+        // Check user_campaign_assignments structure
         console.log('🔍 Checking user campaigns for DAC...');
         const userCampaignsCheck = await prisma.$queryRaw`
-          SELECT uc."userId", uc."campaignId"
-          FROM user_campaigns uc
-          WHERE uc."campaignId" = 'campaign_1766695393511'
+          SELECT uca."userId", uca."campaignId"
+          FROM user_campaign_assignments uca
+          WHERE uca."campaignId" = 'campaign_1766695393511'
           LIMIT 5
         ` as any[];
         console.log('🔍 User campaigns for DAC:', userCampaignsCheck);
@@ -448,15 +448,16 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         // Modified query - handle potential type mismatch between agentId and userId
         console.log('🔍 Running main agent availability query...');
         const availableAgents = await prisma.$queryRaw`
-          SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn", uc."userId"
+          SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn", uca."userId"
           FROM agents a
-          INNER JOIN user_campaigns uc ON (
-            a."agentId" = uc."userId"::text 
-            OR a."agentId"::integer = uc."userId"
+          INNER JOIN user_campaign_assignments uca ON (
+            a."agentId" = uca."userId"::text 
+            OR a."agentId"::integer = uca."userId"
           )
           WHERE a.status = 'Available' 
             AND a."isLoggedIn" = true
-            AND uc."campaignId" = 'campaign_1766695393511'
+            AND uca."campaignId" = 'campaign_1766695393511'
+            AND uca."isActive" = true
         ` as any[];
 
         console.log('🎯 Found available agents for inbound call:', availableAgents.length);
@@ -532,11 +533,12 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
           const allAgents = await prisma.$queryRaw`
             SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
             FROM agents a
-            INNER JOIN user_campaigns uc ON (
-              a."agentId" = uc."userId"::text 
-              OR a."agentId"::integer = uc."userId"
+            INNER JOIN user_campaign_assignments uca ON (
+              a."agentId" = uca."userId"::text 
+              OR a."agentId"::integer = uca."userId"
             )
-            WHERE uc."campaignId" = 'campaign_1766695393511'
+            WHERE uca."campaignId" = 'campaign_1766695393511'
+              AND uca."isActive" = true
           ` as any[];
           
           console.log('🔍 All agents in DAC campaign:', allAgents);
