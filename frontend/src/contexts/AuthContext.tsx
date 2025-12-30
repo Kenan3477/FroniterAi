@@ -14,7 +14,7 @@ interface User {
   createdAt?: string;
 }
 
-interface Campaign {
+export interface Campaign {
   campaignId: string;
   name: string;
   status: string;
@@ -27,12 +27,15 @@ interface AuthContextType {
   availableCampaigns: Campaign[];
   isInQueue: boolean;
   queueStatus: any | null;
+  agentStatus: string;
+  isUpdatingStatus: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   setCurrentCampaign: (campaign: Campaign | null) => void;
   joinCampaignQueue: (campaign: Campaign) => Promise<{ success: boolean; message: string }>;
   leaveCampaignQueue: () => Promise<{ success: boolean; message: string }>;
   refreshCampaigns: () => Promise<void>;
+  updateAgentStatus: (status: string) => Promise<{ success: boolean; message?: string }>;
   loading: boolean;
   isAuthenticated: boolean;
 }
@@ -45,6 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);
   const [isInQueue, setIsInQueue] = useState(false);
   const [queueStatus, setQueueStatus] = useState<any | null>(null);
+  const [agentStatus, setAgentStatus] = useState<string>('Away');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -74,6 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
         if (data.success) {
           setUser(data.user);
+          
+          // Restore agent status from localStorage
+          const savedStatus = localStorage.getItem('omnivox-agent-status');
+          if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
+            setAgentStatus(savedStatus);
+            console.log('🔄 Restored agent status from localStorage:', savedStatus);
+          }
         }
       }
     } catch (error) {
@@ -269,6 +281,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateAgentStatus = async (newStatus: string) => {
+    setIsUpdatingStatus(true);
+    console.log(`🔄 AuthContext: Updating agent status to: ${newStatus}`);
+    
+    try {
+      // Smart campaign selection logic
+      let campaignToUse = currentCampaign;
+      
+      if (!campaignToUse && availableCampaigns.length > 0) {
+        // Auto-select first available campaign
+        campaignToUse = availableCampaigns[0];
+        setCurrentCampaign(campaignToUse);
+        console.log('🔄 Auto-selected campaign:', campaignToUse.name);
+      }
+      
+      if (!campaignToUse) {
+        setIsUpdatingStatus(false);
+        return { success: false, message: 'No campaigns available. Please ensure you are assigned to at least one active campaign.' };
+      }
+
+      // Update agent status and trigger auto-dial if Available
+      const response = await fetch('/api/agent/status-enhanced', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          agentId: user?.id?.toString() || user?.username || 'agent-1',
+          status: newStatus,
+          campaignId: campaignToUse.campaignId
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setAgentStatus(newStatus);
+        
+        // Store in localStorage for cross-tab persistence
+        localStorage.setItem('omnivox-agent-status', newStatus);
+        
+        console.log(`✅ AuthContext: Agent status updated to: ${newStatus}`);
+        return { success: true };
+      } else {
+        console.error('Failed to update status:', data.error);
+        return { success: false, message: data.error };
+      }
+    } catch (error) {
+      console.error('Status update error:', error);
+      return { success: false, message: 'Failed to update agent status' };
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const login = async (username: string, password: string) => {
     try {
       console.log('🔐 AuthContext: Attempting login for:', username);
@@ -341,12 +409,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       availableCampaigns,
       isInQueue,
       queueStatus,
+      agentStatus,
+      isUpdatingStatus,
       login, 
       logout, 
       setCurrentCampaign,
       joinCampaignQueue,
       leaveCampaignQueue,
       refreshCampaigns,
+      updateAgentStatus,
       loading, 
       isAuthenticated 
     }}>

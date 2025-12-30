@@ -12,7 +12,7 @@ import {
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, Campaign } from '@/contexts/AuthContext';
 import CampaignSelector from '@/components/ui/CampaignSelector';
 
 interface HeaderProps {
@@ -23,68 +23,43 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedQueue, setSelectedQueue] = useState('DAC (C)');
-  const [userStatus, setUserStatus] = useState('Away');
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  const { user, logout, availableCampaigns, currentCampaign, setCurrentCampaign } = useAuth();
+  const { 
+    user, 
+    logout, 
+    availableCampaigns, 
+    currentCampaign, 
+    setCurrentCampaign,
+    agentStatus,
+    isUpdatingStatus,
+    updateAgentStatus
+  } = useAuth();
   // Agent dialing is controlled by status, not manual buttons
   const activeCall = null as any;
 
+  // Helper function to get dialing mode text based on campaign
+  const getDialingModeText = (campaign: Campaign | null) => {
+    if (!campaign) return 'Auto-dialing enabled';
+    
+    switch (campaign.dialMethod) {
+      case 'MANUAL_DIAL':
+        return 'Manual dialing ready';
+      case 'AUTO_DIAL':
+      case 'PREDICTIVE_DIAL':
+        return 'Auto-dialing enabled';
+      case 'PROGRESSIVE_DIAL':
+        return 'Progressive dialing enabled';
+      default:
+        return 'Manual dialing ready';
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
-    // Smart campaign selection logic
-    let campaignToUse = currentCampaign;
+    const result = await updateAgentStatus(newStatus);
     
-    if (!campaignToUse && availableCampaigns.length > 0) {
-      // Auto-select first available campaign
-      campaignToUse = availableCampaigns[0];
-      setCurrentCampaign(campaignToUse);
-      console.log('🔄 Auto-selected campaign:', campaignToUse.name);
-    }
-    
-    if (!campaignToUse) {
-      alert('No campaigns available. Please ensure you are assigned to at least one active campaign.');
-      return;
-    }
-
-    setIsUpdatingStatus(true);
-    console.log(`🔄 Updating agent status to: ${newStatus}`);
-    
-    try {
-      // Update agent status and trigger auto-dial if Available
-      const response = await fetch('/api/agent/status-enhanced', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          agentId: user?.id?.toString() || user?.username || 'agent-1',
-          status: newStatus,
-          campaignId: campaignToUse.campaignId
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setUserStatus(newStatus);
-        
-        if (newStatus === 'Available') {
-          console.log('✅ Agent available - auto-dialing enabled');
-          console.log(`📊 Campaign: ${data.campaign?.name}, Queue: ${data.queueStatus?.queueDepth} contacts`);
-        } else {
-          console.log(`✅ Agent status updated to: ${newStatus}`);
-        }
-      } else {
-        console.error('Failed to update status:', data.error);
-        alert(`Failed to update status: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Status update error:', error);
-      alert('Failed to update agent status');
-    } finally {
-      setIsUpdatingStatus(false);
+    if (!result.success) {
+      alert(result.message || 'Failed to update agent status');
     }
   };
 
@@ -184,15 +159,15 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           <div className="text-sm">
             <span className="text-gray-600">Queue Status:</span>
             <span className={`ml-1 font-medium ${
-              userStatus === 'Available' ? 'text-slate-600' : 'text-gray-500'
+              agentStatus === 'Available' ? 'text-slate-600' : 'text-gray-500'
             }`}>
-              {isUpdatingStatus ? 'Updating...' : (userStatus === 'Available' ? 'Active' : 'Inactive')}
+              {isUpdatingStatus ? 'Updating...' : (agentStatus === 'Available' ? 'Active' : 'Inactive')}
             </span>
           </div>
           <div className="text-xs text-gray-500">
             {isUpdatingStatus ? '• Connecting...' : 
-             userStatus === 'Available' ? 
-               (currentCampaign ? '• Auto-dialing enabled' : '• Select campaign first') : 
+             agentStatus === 'Available' ? 
+               (currentCampaign ? `• ${getDialingModeText(currentCampaign)}` : '• Select campaign first') : 
                '• Set status to Available to join queue'
             }
           </div>
@@ -248,7 +223,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <div className="h-10 w-10 bg-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                 {user?.firstName?.[0] || 'U'}
               </div>
-              <div className={`absolute bottom-0 right-0 h-3 w-3 ${getStatusColor(userStatus)} border-2 border-white rounded-full`}></div>
+              <div className={`absolute bottom-0 right-0 h-3 w-3 ${getStatusColor(agentStatus)} border-2 border-white rounded-full`}></div>
             </div>
             
             {/* User Info */}
@@ -269,9 +244,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                 <div className="px-4 py-2 border-b border-gray-100">
                   <label className="block text-xs text-gray-600 mb-2">Status</label>
                   <div className="flex items-center space-x-3">
-                    <div className={`h-3 w-3 ${getStatusColor(userStatus)} rounded-full`}></div>
+                    <div className={`h-3 w-3 ${getStatusColor(agentStatus)} rounded-full`}></div>
                     <select 
-                      value={userStatus}
+                      value={agentStatus}
                       onChange={(e) => handleStatusChange(e.target.value)}
                       disabled={isUpdatingStatus}
                       className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 flex-1 disabled:opacity-50"
