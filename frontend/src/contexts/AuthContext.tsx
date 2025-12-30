@@ -158,17 +158,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           console.log('✅ Active user-assigned campaigns:', activeCampaigns);
           setAvailableCampaigns(activeCampaigns);
+          
+          // Auto-select current campaign if user has assignments
+          if (activeCampaigns.length > 0) {
+            // If no current campaign is selected, auto-select the first one
+            if (!currentCampaign) {
+              console.log('🔄 Auto-selecting first available campaign:', activeCampaigns[0].name);
+              setCurrentCampaign(activeCampaigns[0]);
+            } else {
+              // Check if current campaign is still valid
+              const stillValid = activeCampaigns.find(c => c.campaignId === currentCampaign.campaignId);
+              if (!stillValid) {
+                console.log('🔄 Current campaign no longer available, switching to first available');
+                setCurrentCampaign(activeCampaigns[0]);
+              }
+            }
+          } else {
+            // No campaigns available, clear current campaign
+            setCurrentCampaign(null);
+          }
         } else {
           console.log('📭 No campaign assignments found');
           setAvailableCampaigns([]);
+          setCurrentCampaign(null);
         }
       } else {
         console.error('❌ Failed to fetch user campaigns:', response.status);
         setAvailableCampaigns([]);
+        setCurrentCampaign(null);
       }
     } catch (error) {
       console.error('❌ Error fetching user campaigns:', error);
       setAvailableCampaigns([]);
+      setCurrentCampaign(null);
     }
   };
 

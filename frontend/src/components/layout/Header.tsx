@@ -27,13 +27,23 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  const { user, logout, availableCampaigns, currentCampaign } = useAuth();
+  const { user, logout, availableCampaigns, currentCampaign, setCurrentCampaign } = useAuth();
   // Agent dialing is controlled by status, not manual buttons
   const activeCall = null as any;
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!currentCampaign) {
-      alert('Please select a campaign first before changing status to Available');
+    // Smart campaign selection logic
+    let campaignToUse = currentCampaign;
+    
+    if (!campaignToUse && availableCampaigns.length > 0) {
+      // Auto-select first available campaign
+      campaignToUse = availableCampaigns[0];
+      setCurrentCampaign(campaignToUse);
+      console.log('🔄 Auto-selected campaign:', campaignToUse.name);
+    }
+    
+    if (!campaignToUse) {
+      alert('No campaigns available. Please ensure you are assigned to at least one active campaign.');
       return;
     }
 
@@ -51,7 +61,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         body: JSON.stringify({
           agentId: user?.username || user?.id || 'agent-1',
           status: newStatus,
-          campaignId: currentCampaign.campaignId
+          campaignId: campaignToUse.campaignId
         }),
       });
 
@@ -283,7 +293,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                         onChange={(e) => {
                           const selectedCampaign = availableCampaigns.find(c => c.campaignId === e.target.value);
                           if (selectedCampaign) {
-                            // Handle campaign selection (could trigger AuthContext campaign change)
+                            setCurrentCampaign(selectedCampaign);
                             console.log('Mobile campaign selected:', selectedCampaign.name);
                           }
                         }}
