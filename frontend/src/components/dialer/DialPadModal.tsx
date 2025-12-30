@@ -123,11 +123,14 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Manual Dial Pad</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Dial Pad</h2>
+            <p className="text-sm text-gray-600">Enter a phone number to place a call</p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 p-2 hover:bg-white rounded-lg transition-all"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -141,21 +144,21 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
               type="text"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+44 or +1 followed by number"
-              className="w-full text-2xl text-center font-mono p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              placeholder="+44 7123 456789"
+              className="w-full text-3xl text-center font-mono p-4 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Enter in E.164 format (e.g., +447700900123)
+            <p className="text-sm text-gray-500 mt-3">
+              Enter number in international format (e.g., +44 7123 456789)
             </p>
           </div>
 
           {/* Dial Pad Grid */}
-          <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
+          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
             {dialPadButtons.flat().map((digit) => (
               <button
                 key={digit}
                 onClick={() => handleDialPadClick(digit)}
-                className="h-16 text-2xl font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                className="h-20 text-3xl font-semibold bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-xl transition-colors shadow-sm border border-gray-200"
               >
                 {digit}
               </button>
@@ -163,20 +166,20 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3 max-w-xs mx-auto">
+          <div className="flex space-x-4 max-w-xs mx-auto">
             <button
               onClick={handleBackspace}
-              className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+              className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors"
             >
               ⌫ Delete
             </button>
             <button
               onClick={handleDial}
               disabled={!phoneNumber.trim() || isLookingUp}
-              className="flex-1 py-3 bg-green-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-2 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 transition-colors"
             >
-              <PhoneIcon className="w-5 h-5" />
-              <span>{isLookingUp ? 'Looking up...' : 'Dial'}</span>
+              <PhoneIcon className="w-6 h-6" />
+              <span>{isLookingUp ? 'Looking up...' : 'Call'}</span>
             </button>
           </div>
 

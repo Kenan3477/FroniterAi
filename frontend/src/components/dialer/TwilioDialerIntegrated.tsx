@@ -93,20 +93,17 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
   // Set up Twilio SIP client event handlers
   useEffect(() => {
     const handleConnected = () => {
-      console.log('✅ Twilio SIP connected');
       setIsConnected(true);
       setIsConnecting(false);
       setConnectionError(null);
     };
 
     const handleDisconnected = () => {
-      console.log('❌ Twilio SIP disconnected');
       setIsConnected(false);
       setIsConnecting(false);
     };
 
     const handleCallOutgoing = (call: TwilioCall) => {
-      console.log('📞 Outgoing call:', call);
       setActiveCall(call);
       setIsDialing(true);
       
@@ -123,7 +120,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     };
 
     const handleCallAnswered = (call: TwilioCall) => {
-      console.log('✅ Call answered:', call);
       setActiveCall(call);
       setIsDialing(false);
       
@@ -132,7 +128,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     };
 
     const handleCallEnded = (call: TwilioCall) => {
-      console.log('📴 Call ended:', call);
       setActiveCall(null);
       setIsDialing(false);
       
@@ -146,7 +141,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     };
 
     const handleCallFailed = ({ call, cause }: { call: TwilioCall; cause: string }) => {
-      console.log('❌ Call failed:', call, cause);
       setActiveCall(null);
       setIsDialing(false);
       setCallDuration(0);
@@ -212,8 +206,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
 
   // Handle dial from modal
   const handleDial = useCallback(async (phoneNumber: string, custInfo: CustomerInfo | null) => {
-    console.log('📞 Dialing:', phoneNumber, 'Customer:', custInfo);
-    
     setDialedNumber(phoneNumber);
     setCustomerInfo(custInfo);
     setIsDialPadOpen(false);
@@ -241,9 +233,8 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
   const toggleMute = useCallback(() => {
     if (activeCall) {
       const newMutedState = !isMuted;
-      // twilioSipClient.mute(activeCall.id, newMutedState); // TODO: Implement mute in TwilioSipClient
+      // TODO: Implement mute in TwilioSipClient
       setIsMuted(newMutedState);
-      console.log(newMutedState ? '🔇 Muted' : '🔊 Unmuted');
     }
   }, [activeCall, isMuted]);
 
@@ -263,8 +254,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
 
   // Handle disposition save
   const handleSaveDisposition = async (disposition: DispositionData) => {
-    console.log('💾 Saving disposition:', disposition);
-
     try {
       const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
@@ -280,7 +269,6 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
       });
 
       if (response.ok) {
-        console.log('✅ Call data saved successfully');
         setIsDispositionCardOpen(false);
         
         // Clear Redux state

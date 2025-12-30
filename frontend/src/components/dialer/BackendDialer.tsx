@@ -86,8 +86,6 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
 
   // Handle dial from modal
   const handleDial = useCallback(async (phoneNumber: string, custInfo: CustomerInfo | null) => {
-    console.log('📞 Dialing via backend:', phoneNumber, 'Customer:', custInfo);
-    
     setError(null);
     setDialedNumber(phoneNumber);
     setCustomerInfo(custInfo);
@@ -102,8 +100,6 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         agentId,
         customerInfo: custInfo,
       });
-
-      console.log('✅ Call initiated:', callData);
       
       setActiveCallSid(callData.callSid || null);
       setCallStatus('initiated');
@@ -143,8 +139,6 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
     if (!activeCallSid) return;
 
     try {
-      console.log('📴 Ending call via backend:', activeCallSid);
-      
       // Call backend API to end call
       const result = await dialerApi.endCall({
         callSid: activeCallSid,
@@ -155,8 +149,6 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
           agentId,
         }
       });
-
-      console.log('✅ Call ended:', result);
       
       setCallStatus('completed');
       
@@ -186,17 +178,14 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
           callSid: activeCallSid,
           digits: digit,
         });
-        console.log('📱 DTMF sent:', digit);
       } catch (err: any) {
-        console.error('❌ Failed to send DTMF:', err);
+        console.error('Failed to send DTMF:', err);
       }
     }
   }, [activeCallSid, callStatus]);
 
   // Handle disposition submission
   const handleDispositionSubmit = useCallback(async (disposition: DispositionData) => {
-    console.log('📋 Disposition submitted:', disposition);
-    
     // Save disposition data
     try {
       // Update customer info with notes if provided
