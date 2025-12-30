@@ -64,6 +64,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
   const [isDialPadOpen, setIsDialPadOpen] = useState(false);
   const [isDispositionCardOpen, setIsDispositionCardOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Timer for call duration
   useEffect(() => {
@@ -236,8 +237,35 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
 
   return (
     <div className="w-full">
+      {/* Header with Collapse Toggle */}
+      <div className="bg-gray-50 border border-gray-200 rounded-t-lg px-4 py-3 border-b-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Backend Dialer</h3>
+            <p className="text-xs text-gray-600">
+              {isCollapsed ? 'Click to expand controls' : 'Backend-powered calling'}
+            </p>
+          </div>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+            title={isCollapsed ? "Expand dialer" : "Collapse dialer"}
+          >
+            <svg 
+              className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {/* Main Dialer Controls */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      {!isCollapsed && (
+        <div className="bg-white rounded-b-lg border border-gray-200 p-4">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
             {error}
@@ -324,6 +352,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Dial Pad Modal */}
       <DialPadModal
