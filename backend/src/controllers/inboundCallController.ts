@@ -143,48 +143,58 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
  * Generate initial TwiML response for inbound calls
  */
 export const generateInboundWelcomeTwiML = (inboundCall: InboundCall, callerInfo: CallerLookupResponse): string => {
-  const twiml = new twilio.twiml.VoiceResponse();
+  try {
+    console.log('🎵 Generating TwiML response for call:', inboundCall.id);
+    
+    const twiml = new twilio.twiml.VoiceResponse();
 
-  // Personalized greeting for known contacts
-  if (callerInfo.contact) {
-    if (callerInfo.contact.isRecentCallback) {
-      twiml.say({
-        voice: 'alice',
-        language: 'en-US'
-      }, `Hello ${callerInfo.contact.name}. Thank you for calling back. Please hold while we connect you to an agent.`);
+    // Personalized greeting for known contacts
+    if (callerInfo.contact) {
+      if (callerInfo.contact.isRecentCallback) {
+        twiml.say({
+          voice: 'alice',
+          language: 'en-US'
+        }, `Hello ${callerInfo.contact.name}. Thank you for calling back. Please hold while we connect you to an agent.`);
+      } else {
+        twiml.say({
+          voice: 'alice',
+          language: 'en-US'
+        }, `Hello ${callerInfo.contact.name}. Thank you for calling Omnivox-AI. Please hold while we connect you to an agent.`);
+      }
     } else {
       twiml.say({
         voice: 'alice',
         language: 'en-US'
-      }, `Hello ${callerInfo.contact.name}. Thank you for calling Omnivox-AI. Please hold while we connect you to an agent.`);
+      }, 'Thank you for calling Omnivox-AI. Please hold while we connect you to an available agent.');
     }
-  } else {
+
+    // Add a brief pause
+    twiml.pause({ length: 2 });
+
+    // Simplified approach - just play hold music and wait for agent connection
+    // Remove complex conference setup that might be causing errors
     twiml.say({
       voice: 'alice',
       language: 'en-US'
-    }, 'Thank you for calling Omnivox-AI. Please hold while we connect you to an available agent.');
+    }, 'Please continue to hold. An agent will be with you shortly.');
+
+    // Add hold music
+    twiml.play('http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical');
+
+    const twimlString = twiml.toString();
+    console.log('✅ TwiML generated successfully:', twimlString.substring(0, 200) + '...');
+    
+    return twimlString;
+  } catch (error) {
+    console.error('❌ Error generating TwiML:', error);
+    
+    // Fallback simple TwiML
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Thank you for calling Omnivox-AI. Please hold while we connect you to an agent.</Say>
+  <Play>http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical</Play>
+</Response>`;
   }
-
-  // Add a brief pause
-  twiml.pause({ length: 2 });
-
-  // Create a unique conference room for this call
-  const conferenceRoom = `inbound-${inboundCall.id}`;
-  
-  twiml.dial({
-    timeout: 30,
-    record: 'record-from-answer-dual',
-    answerOnBridge: true
-  }).conference({
-    beep: 'false',
-      waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
-      startConferenceOnEnter: false,
-      endConferenceOnExit: true,
-      statusCallback: `${process.env.BACKEND_URL}/api/calls/webhook/inbound-status?callId=${inboundCall.id}`,
-      statusCallbackMethod: 'POST'
-    }, conferenceRoom);
-
-  return twiml.toString();
 };
 
 /**
@@ -450,6 +460,9 @@ async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLook
 // Notify agents of inbound call via real-time events
 async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: CallerLookupResponse): Promise<void> {
   try {
+    console.log('🔔 Starting agent notification for inbound call:', inboundCall.id);
+    console.log('🔍 WebSocket service status:', webSocketService ? 'AVAILABLE' : 'NULL');
+    
     // Use the centralized event helper for inbound call notifications
     await callEvents.inboundRinging({
       callId: inboundCall.id,
@@ -469,11 +482,12 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
 
     // Notify available agents in DAC campaign via WebSocket service
     if (webSocketService) {
-      console.log('🔔 Notifying agents of inbound call:', inboundCall.id);
+      console.log('🔔 WebSocket service available, proceeding with agent notification');
       
       // Find agents available in DAC campaign (campaign_1766695393511)
+      console.log('🔍 Querying for available agents in DAC campaign...');
       const availableAgents = await prisma.$queryRaw`
-        SELECT DISTINCT a."agentId", a."firstName", a."lastName"
+        SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
         FROM agents a
         INNER JOIN user_campaigns uc ON a."agentId" = uc."userId"::text
         WHERE a.status = 'Available' 
@@ -482,6 +496,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
       ` as any[];
 
       console.log('🎯 Found available agents for inbound call:', availableAgents.length);
+      console.log('🎯 Agent details:', availableAgents);
 
       // Send notification to each available agent
       if (availableAgents.length > 0) {
@@ -496,6 +511,8 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         // Get dialler namespace for agent communications
         const diallerNamespace = (webSocketService as any).diallerNamespace;
         
+        console.log('🔍 Dialler namespace status:', diallerNamespace ? 'AVAILABLE' : 'NULL');
+        
         if (diallerNamespace) {
           // Send to each agent individually using dialler namespace
           for (const agent of availableAgents) {
@@ -504,6 +521,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
           }
 
           // Also broadcast to the DAC campaign room in dialler namespace
+          console.log('📡 Broadcasting to DAC campaign room');
           diallerNamespace.to('campaign:campaign_1766695393511').emit('inbound-call-ringing', notificationData);
           
           console.log('✅ Inbound call notifications sent to available agents via dialler namespace');
@@ -512,13 +530,27 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
           
           // Fallback to main namespace
           for (const agent of availableAgents) {
+            console.log(`📤 Fallback notification to agent: ${agent.agentId}`);
             webSocketService.sendToAgent(agent.agentId, 'inbound-call-ringing', notificationData);
           }
           webSocketService.sendToCampaign('campaign_1766695393511', 'inbound-call-ringing', notificationData);
+          console.log('✅ Inbound call notifications sent via main namespace');
         }
       } else {
         console.log('⚠️ No available agents found for inbound call notification');
+        console.log('🔍 Checking all agents in campaign...');
+        
+        const allAgents = await prisma.$queryRaw`
+          SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
+          FROM agents a
+          INNER JOIN user_campaigns uc ON a."agentId" = uc."userId"::text
+          WHERE uc."campaignId" = 'campaign_1766695393511'
+        ` as any[];
+        
+        console.log('🔍 All agents in DAC campaign:', allAgents);
       }
+    } else {
+      console.log('❌ WebSocket service not available - cannot send notifications');
     }
 
   } catch (error: any) {
