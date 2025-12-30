@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import InboundCallPopup from '@/components/ui/InboundCallPopup';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -30,6 +31,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
           {children}
         </main>
       </div>
+      
+      {/* Global Inbound Call Popup - visible on all pages */}
+      <InboundCallPopup />
     </div>
   );
 }

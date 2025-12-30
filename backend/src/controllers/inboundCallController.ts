@@ -170,13 +170,13 @@ export const answerInboundCall = async (req: Request, res: Response) => {
     
     console.log(`📞 Agent ${agentId} answering inbound call ${callId}`);
 
-    // Update call status in database
+    // Update call status in database using correct field names and callId
     await prisma.$executeRaw`
       UPDATE inbound_calls 
       SET status = 'answered', 
-          assigned_agent_id = ${agentId},
-          answered_at = NOW()
-      WHERE id = ${callId}
+          "assignedAgentId" = ${agentId},
+          "answeredAt" = NOW()
+      WHERE "callId" = ${callId}
     `;
 
     // Get call details
@@ -230,13 +230,13 @@ export const transferInboundCall = async (req: Request, res: Response) => {
     
     console.log(`📞 Transferring inbound call ${callId} to ${transferType}: ${targetId}`);
 
-    // Update call status
+    // Update call status using correct field names and callId
     await prisma.$executeRaw`
       UPDATE inbound_calls 
       SET status = 'transferred',
           "assignedAgentId" = ${transferType === 'agent' ? targetId : agentId},
           "assignedQueueId" = ${transferType === 'queue' ? targetId : null}
-      WHERE id = ${callId}
+      WHERE "callId" = ${callId}
     `;
 
     // Skip event system for now to prevent Redis hanging
@@ -564,10 +564,10 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
 async function getInboundCallDetails(callId: string): Promise<any> {
   try {
     const callDetails = await prisma.$queryRaw`
-      SELECT ic.*, c.firstName, c.lastName, c.company
+      SELECT ic.*, c."firstName", c."lastName", c.company
       FROM inbound_calls ic
-      LEFT JOIN contacts c ON ic.contact_id = c.contactId
-      WHERE ic.id = ${callId}
+      LEFT JOIN contacts c ON ic."contactId" = c."contactId"
+      WHERE ic."callId" = ${callId}
       LIMIT 1
     ` as any[];
 
