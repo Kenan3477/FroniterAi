@@ -18,6 +18,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [microphoneStream, setMicrophoneStream] = useState<MediaStream | null>(null);
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
   const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, startTime: Date} | null>(null);
+  const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
+  const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const deviceRef = useRef<Device | null>(null);
 
   // Get active call state from Redux
@@ -29,12 +31,56 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     console.log('🔍 Device ready state changed:', isDeviceReady);
   }, [isDeviceReady]);
 
+  // Enumerate audio devices on component mount
+  useEffect(() => {
+    const setupAudioDevices = async () => {
+      try {
+        // Request permissions first
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Get all audio devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInput = devices.filter(device => device.kind === 'audioinput');
+        const audioOutput = devices.filter(device => device.kind === 'audiooutput');
+        
+        setAudioDevices({ input: audioInput, output: audioOutput });
+        
+        // Auto-select the first non-default output device (likely headset)
+        const nonDefaultOutput = audioOutput.find(device => 
+          device.deviceId !== 'default' && 
+          device.label.toLowerCase().includes('headset') || 
+          device.label.toLowerCase().includes('headphones')
+        );
+        
+        if (nonDefaultOutput) {
+          setSelectedAudioOutput(nonDefaultOutput.deviceId);
+          console.log('🎧 Auto-selected audio output:', nonDefaultOutput.label);
+        } else if (audioOutput.length > 0) {
+          setSelectedAudioOutput(audioOutput[0].deviceId);
+          console.log('🔊 Selected default audio output:', audioOutput[0].label);
+        }
+        
+        console.log('🎵 Available audio devices:', { input: audioInput.length, output: audioOutput.length });
+      } catch (error) {
+        console.warn('⚠️ Could not enumerate audio devices:', error);
+      }
+    };
+    
+    setupAudioDevices();
+  }, []);
+
   // Initialize Twilio Device for browser audio (to receive calls from REST API)
   useEffect(() => {
     const initializeDevice = async () => {
       // Prevent duplicate device initialization
       if (deviceRef.current) {
         console.log('🔄 Device already initialized, skipping...');
+        return;
+      }
+
+      // Wait for audio devices to be enumerated
+      if (audioDevices.output.length === 0) {
+        console.log('⏳ Waiting for audio devices to be enumerated...');
         return;
       }
 
@@ -64,9 +110,21 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           enableImprovedSignalingErrorPrecision: true
         });
 
-        // Set up event listeners
-        twilioDevice.on('ready', () => {
+        // Set audio output device after device is ready
+        twilioDevice.on('ready', async () => {
           console.log('✅ WebRTC Device ready for incoming calls');
+          
+          // Set audio output device if available and selected
+          if (selectedAudioOutput && twilioDevice.audio && twilioDevice.audio.speakerDevices) {
+            try {
+              console.log('🎧 Setting audio output device:', selectedAudioOutput);
+              await twilioDevice.audio.speakerDevices.set([selectedAudioOutput]);
+              console.log('✅ Audio output device set to headset');
+            } catch (error) {
+              console.warn('⚠️ Could not set audio output device:', error);
+            }
+          }
+          
           console.log('🔄 Setting device ready state to true');
           setIsDeviceReady(true);
         });
@@ -184,7 +242,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         microphoneStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [audioDevices, selectedAudioOutput]); // Re-initialize when audio devices change
 
   // Cleanup active REST API calls on unmount
   useEffect(() => {
@@ -381,6 +439,58 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       </div>
 
       <div className="p-4">
+        {/* Audio Device Selection */}
+        <div className="mb-4">
+          <label htmlFor="audio-output" className="block text-sm font-medium text-gray-700 mb-2">
+            Audio Output Device (for calls)
+          </label>
+          <select 
+            id="audio-output"
+            value={selectedAudioOutput}
+            onChange={(e) => setSelectedAudioOutput(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="">System Default</option>
+            {audioDevices.output.map(device => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Audio Device ${device.deviceId.slice(0, 8)}`}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Select your headset or preferred output device for call audio
+          </p>
+          {selectedAudioOutput && (
+            <button 
+              onClick={async () => {
+                try {
+                  // Test the selected audio device with a brief tone
+                  const audioContext = new AudioContext();
+                  const oscillator = audioContext.createOscillator();
+                  const gainNode = audioContext.createGain();
+                  
+                  oscillator.connect(gainNode);
+                  gainNode.connect(audioContext.destination);
+                  
+                  oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A note
+                  gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                  
+                  oscillator.start(audioContext.currentTime);
+                  oscillator.stop(audioContext.currentTime + 0.5);
+                  
+                  console.log('🎵 Audio test played on selected device');
+                } catch (error) {
+                  console.warn('⚠️ Could not test audio device:', error);
+                }
+              }}
+              className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+            >
+              Test Audio Device
+            </button>
+          )}
+        </div>
+
         {/* Phone Number Display */}
         <div className="mb-4">
           <label htmlFor="customer-phone" className="block text-sm font-medium text-gray-700 mb-2">
