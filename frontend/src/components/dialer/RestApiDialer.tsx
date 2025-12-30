@@ -330,80 +330,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     setPhoneNumber(prev => prev.slice(0, -1));
   };
 
-  const testMicrophone = async () => {
-    try {
-      // Clean up any existing stream first
-      if (microphoneStream) {
-        microphoneStream.getTracks().forEach(track => track.stop());
-      }
-
-      // Request microphone with high-quality audio settings
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000
-        }
-      });
-      console.log('🎤 Microphone test successful - high-quality stream acquired');
-      
-      // Store the stream for future use
-      setMicrophoneStream(stream);
-      setMicrophonePermissionGranted(true);
-      
-      alert('✅ Microphone access granted! High-quality audio ready for calls.');
-      
-    } catch (error) {
-      console.error('❌ Microphone test failed:', error);
-      setMicrophonePermissionGranted(false);
-      alert('❌ Microphone access denied. Please allow microphone permissions in your browser.');
-    }
-  };
-
-  const testAudioOutput = async () => {
-    // Test audio output using the selected audio device
-    try {
-      // Use a simple data URL for a short beep sound
-      const beepDataUrl = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dzwm8jBSuDzvLZiTYIG2WzbdN5LQUleM7y2YkrBSlYxPHalUEOF1mw5PKAWAoKRrTc9shuYgkcYWa+8N1vJQUqfM/x24ksCCltqeTz1bAoGEa9yeSbY2I8JWmzv+LwgUZO5zOz9vbQhIlxN22c7p2YGScaXqPyq4ZBXA2G3Z2T6lw3Kt+FbNGR8KU5KSyB2KVa6eiwGAwNjMnL3Mk2fNJpBFwKNz85mC4fX1xZ7Dkn';
-      
-      const audioElement = new Audio(beepDataUrl);
-      audioElement.volume = 0.4;
-      
-      // Set the audio output device if one is selected and supported
-      if (selectedAudioOutput && (audioElement as any).setSinkId) {
-        try {
-          await (audioElement as any).setSinkId(selectedAudioOutput);
-          console.log('🎧 Audio test routed to device:', selectedAudioOutput);
-          
-          // Find the device name for user feedback
-          const selectedDevice = audioDevices.output.find(device => device.deviceId === selectedAudioOutput);
-          const deviceName = selectedDevice ? selectedDevice.label || 'Selected Device' : 'Selected Device';
-          
-          await audioElement.play();
-          alert(`🔊 Audio test played to: ${deviceName}\n\n✅ If you heard the beep through your intended device, audio routing is working correctly!`);
-        } catch (sinkError) {
-          console.warn('⚠️ Could not set audio output device:', sinkError);
-          // Fallback to default device
-          await audioElement.play();
-          alert('🔊 Audio test played to default device.\n\n⚠️ Device selection may not be supported by this browser. Check your browser\'s audio settings.');
-        }
-      } else {
-        // No device selected or setSinkId not supported
-        await audioElement.play();
-        if (!selectedAudioOutput) {
-          alert('🔊 Audio test played to default device.\n\n💡 Tip: Select your headset from the "Audio Output Device" dropdown above, then test again.');
-        } else {
-          alert('🔊 Audio test played to default device.\n\n⚠️ Your browser may not support device selection (setSinkId not available).');
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ Audio test failed:', error);
-      alert('❌ Audio test failed. Your browser may not support audio output testing.');
-    }
-  };
-
   // Helper function to end call via backend API
   const endCallViaBackend = async (callSid: string, disposition: string) => {
     try {
@@ -599,38 +525,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
       {!isCollapsed && (
         <div className="p-4">
-          {/* Audio Device Selection */}
-          <div className="mb-4">
-            <label htmlFor="audio-output" className="block text-sm font-medium text-gray-700 mb-2">
-              Audio Output Device (for calls)
-            </label>
-            <select 
-              id="audio-output"
-              value={selectedAudioOutput}
-              onChange={(e) => setSelectedAudioOutput(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-          >
-            <option value="">System Default</option>
-            {audioDevices.output.map(device => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label || `Audio Device ${device.deviceId.slice(0, 8)}`}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Select your headset or preferred output device for call audio
-          </p>
-          {selectedAudioOutput && (
-            <button 
-              onClick={testAudioOutput}
-              className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-            >
-              🔊 Test Selected Device
-            </button>
-          )}
-        </div>
-
-        {/* Phone Number Display */}
+          {/* Phone Number Display */}
         <div className="mb-4">
           <label htmlFor="customer-phone" className="block text-sm font-medium text-gray-700 mb-2">
             Customer Phone Number
@@ -680,45 +575,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             </p>
           </div>
         )}
-        
-        {isDeviceReady && (
-          <div className="mb-4 p-2 bg-green-50 border border-slate-200 rounded-md">
-            <p className="text-xs text-slate-800">
-              ✅ Browser audio ready - you can speak to customers
-            </p>
-            <p className="text-xs text-slate-600 mt-1">
-              💡 Use "Test Audio" button to check if sound routes to your headset
-            </p>
-          </div>
-        )}
-
-        {/* Audio Device Status */}
-        {selectedAudioOutput && (
-          <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded-md">
-            <p className="text-xs text-purple-800">
-              🎧 Audio Output: {audioDevices.output.find(d => d.deviceId === selectedAudioOutput)?.label || 'Selected Device'}
-            </p>
-            <p className="text-xs text-purple-600 mt-1">
-              Click "Test Selected Device" above to verify audio routing
-            </p>
-          </div>
-        )}
-        
-        {/* Microphone Status */}
-        <div className={`mb-4 p-2 rounded-md ${
-          microphonePermissionGranted 
-            ? 'bg-green-50 border border-slate-200' 
-            : 'bg-yellow-50 border border-yellow-200'
-        }`}>
-          <p className={`text-xs ${
-            microphonePermissionGranted ? 'text-slate-800' : 'text-yellow-800'
-          }`}>
-            {microphonePermissionGranted 
-              ? '🎤✅ Microphone ready for two-way audio' 
-              : '🎤⚠️ Click "Test Mic" to enable two-way audio'
-            }
-          </p>
-        </div>
 
         {(currentCall || activeRestApiCall) && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -754,8 +610,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         <div className="flex gap-2 mb-4">
           <button
             onClick={handleCall}
-            disabled={!phoneNumber || isLoading || !isDeviceReady}
-            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-slate-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled={!phoneNumber || isLoading}
+            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -768,26 +624,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             ) : (
               '📞 Call Customer'
             )}
-          </button>
-          
-          <button
-            onClick={testMicrophone}
-            className={`px-3 py-3 rounded-md transition-colors text-sm ${
-              microphonePermissionGranted 
-                ? 'bg-green-600 text-white hover:bg-slate-700' 
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            title={microphonePermissionGranted ? "Microphone ready" : "Test microphone permissions"}
-          >
-            {microphonePermissionGranted ? '🎤✅ Mic Ready' : '🎤 Test Mic'}
-          </button>
-
-          <button
-            onClick={testAudioOutput}
-            className="px-3 py-3 rounded-md transition-colors text-sm bg-purple-600 text-white hover:bg-purple-700"
-            title="Test audio output to check if sound goes to headset or speakers"
-          >
-            🔊 Test Audio
           </button>
           
           <button
