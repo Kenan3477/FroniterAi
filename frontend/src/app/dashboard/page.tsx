@@ -65,9 +65,6 @@ export default function Dashboard() {
           timestamp: new Date()
         }];
       });
-      
-      // Show alert for immediate visibility
-      alert(`🔔 Incoming Call from ${displayName}\n\nCheck the dashboard for Answer/Dismiss options.`);
     };
 
     const handleInboundCallAnswered = (data: any) => {

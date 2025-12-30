@@ -220,16 +220,36 @@ export const generateTwiML = async (req: Request, res: Response) => {
     // Parameters can come from query (GET) or body (POST)
     const To = req.query.To || req.body.To;
     const From = req.query.From || req.body.From;
+    const conference = req.query.conference || req.body.conference;
+    const callId = req.query.callId || req.body.callId;
+    const agentId = req.query.agentId || req.body.agentId;
 
     console.log('📞 TwiML request received:', { 
       method: req.method,
       To, 
       From,
+      conference,
+      callId,
+      agentId,
       query: req.query,
       body: req.body,
       headers: req.headers
     });
 
+    // Check if this is a conference connection request (for inbound calls)
+    if (conference) {
+      console.log('🎯 Conference connection request detected for:', conference);
+      
+      // Generate TwiML to join the conference
+      const twiml = twilioService.generateAgentTwiML(conference as string);
+      
+      console.log('✅ Conference TwiML generated successfully for agent');
+      res.type('text/xml');
+      res.send(twiml);
+      return;
+    }
+
+    // Standard outbound call handling
     if (!To) {
       console.error('❌ Missing To parameter');
       return res.type('text/xml').send('<Response><Say>Missing phone number</Say></Response>');
@@ -238,7 +258,7 @@ export const generateTwiML = async (req: Request, res: Response) => {
     // Generate TwiML to dial the customer
     const twiml = twilioService.generateCallTwiML(To as string, From as string || process.env.TWILIO_PHONE_NUMBER!);
 
-    console.log('✅ TwiML generated successfully:', twiml);
+    console.log('✅ Outbound TwiML generated successfully:', twiml);
     res.type('text/xml');
     res.send(twiml);
   } catch (error) {

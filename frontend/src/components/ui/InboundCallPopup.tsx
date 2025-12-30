@@ -144,6 +144,59 @@ export default function InboundCallPopup() {
         
         console.log('🎯 Navigated to work page with active call state');
         
+        // Now initiate WebRTC connection to join the conference
+        try {
+          console.log('📞 Initiating WebRTC connection to conference...');
+          console.log('🔗 Conference room:', result.data.conferenceRoom);
+          
+          // Get Twilio access token
+          const tokenResponse = await fetch('/api/calls/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              agentId: user?.id?.toString() || 'agent-browser'
+            }),
+          });
+
+          if (!tokenResponse.ok) {
+            throw new Error('Failed to get Twilio access token');
+          }
+
+          const tokenData = await tokenResponse.json();
+          
+          // Initialize Twilio Device if not already initialized
+          const { Device } = await import('@twilio/voice-sdk');
+          
+          const device = new Device(tokenData.data.token, {
+            logLevel: 'info',
+            allowIncomingWhileBusy: false
+          });
+
+          await device.register();
+          
+          // Connect to the conference room using Twilio Device
+          console.log('📞 Connecting to conference via Twilio Device...');
+          
+          // Make a call with parameters that will be passed to TwiML
+          const webrtcCall = await device.connect({
+            params: {
+              conference: result.data.conferenceRoom,
+              callId: call.id,
+              agentId: user?.id?.toString() || 'agent-browser'
+            }
+          });
+          
+          console.log('✅ Connected to inbound call conference:', webrtcCall.parameters.CallSid);
+          
+        } catch (webrtcError: any) {
+          console.error('❌ Failed to connect via WebRTC:', webrtcError);
+          // Still show the call interface, but note that audio may not work
+          alert('Call answered but audio connection failed. Please check your microphone and try again.');
+        }
+        
       } else {
         console.error('❌ Failed to answer call:', result.error);
         alert('Failed to answer call. Please try again.');
