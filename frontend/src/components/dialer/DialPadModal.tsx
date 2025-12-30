@@ -38,6 +38,7 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isCustomerInfoCollapsed, setIsCustomerInfoCollapsed] = useState(false);
 
   // Fetch customer info from backend
   const lookupCustomerInfo = async (number: string) => {
@@ -186,11 +187,28 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
           {/* Customer Information Card */}
           {customerInfo && (
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Customer Information
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Customer Information
+                </h3>
+                <button
+                  onClick={() => setIsCustomerInfoCollapsed(!isCustomerInfoCollapsed)}
+                  className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+                  title={isCustomerInfoCollapsed ? "Expand customer details" : "Collapse customer details"}
+                >
+                  <svg 
+                    className={`w-5 h-5 transition-transform duration-200 ${isCustomerInfoCollapsed ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
               
-              <div className="space-y-4">
+              {!isCustomerInfoCollapsed && (
+                <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -284,6 +302,7 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
                   </div>
                 )}
               </div>
+              )}
             </div>
           )}
         </div>

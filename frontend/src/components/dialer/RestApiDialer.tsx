@@ -20,6 +20,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, startTime: Date} | null>(null);
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const deviceRef = useRef<Device | null>(null);
 
   // Get active call state from Redux
@@ -573,22 +574,41 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-gray-900">Phone Dialer</h3>
-          <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Twilio REST API</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Twilio REST API</span>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+              title={isCollapsed ? "Expand dial pad" : "Collapse dial pad"}
+            >
+              <svg 
+                className={`w-5 h-5 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <p className="text-sm text-gray-600">Make outbound calls to customers</p>
+        <p className="text-sm text-gray-600">
+          {isCollapsed ? 'Click to expand dial pad' : 'Make outbound calls to customers'}
+        </p>
       </div>
 
-      <div className="p-4">
-        {/* Audio Device Selection */}
-        <div className="mb-4">
-          <label htmlFor="audio-output" className="block text-sm font-medium text-gray-700 mb-2">
-            Audio Output Device (for calls)
-          </label>
-          <select 
-            id="audio-output"
-            value={selectedAudioOutput}
-            onChange={(e) => setSelectedAudioOutput(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+      {!isCollapsed && (
+        <div className="p-4">
+          {/* Audio Device Selection */}
+          <div className="mb-4">
+            <label htmlFor="audio-output" className="block text-sm font-medium text-gray-700 mb-2">
+              Audio Output Device (for calls)
+            </label>
+            <select 
+              id="audio-output"
+              value={selectedAudioOutput}
+              onChange={(e) => setSelectedAudioOutput(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
           >
             <option value="">System Default</option>
             {audioDevices.output.map(device => (
@@ -809,7 +829,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             You'll hear the customer through your browser speakers and speak through your microphone.
           </p>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
