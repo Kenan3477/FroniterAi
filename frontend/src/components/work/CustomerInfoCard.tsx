@@ -4,13 +4,18 @@
  */
 
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { endCall, clearCall } from '@/store/slices/activeCallSlice';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
   MapPinIcon, 
   UserIcon,
   ClockIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  PhoneXMarkIcon,
+  ArrowsRightLeftIcon,
+  PauseIcon
 } from '@heroicons/react/24/outline';
 
 export interface CustomerInfoCardData {
@@ -38,11 +43,33 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   onSave
 }) => {
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
+  const dispatch = useDispatch();
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Call control functions
+  const handleEndCall = () => {
+    if (confirm('Are you sure you want to end this call?')) {
+      dispatch(endCall());
+      // After a short delay, clear the call to allow for disposition
+      setTimeout(() => {
+        dispatch(clearCall());
+      }, 2000);
+    }
+  };
+
+  const handleTransferCall = () => {
+    // TODO: Implement transfer functionality
+    alert('Transfer functionality coming soon!');
+  };
+
+  const handleHoldCall = () => {
+    // TODO: Implement hold functionality
+    alert('Hold functionality coming soon!');
   };
 
   const getStatusColor = (status: string) => {
@@ -233,8 +260,36 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           </div>
         )}
 
+        {/* Call Control Buttons */}
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Call Controls</h4>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={handleHoldCall}
+              className="flex items-center justify-center px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-md text-sm font-medium transition-colors"
+            >
+              <PauseIcon className="w-4 h-4 mr-1" />
+              Hold
+            </button>
+            <button
+              onClick={handleTransferCall}
+              className="flex items-center justify-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md text-sm font-medium transition-colors"
+            >
+              <ArrowsRightLeftIcon className="w-4 h-4 mr-1" />
+              Transfer
+            </button>
+            <button
+              onClick={handleEndCall}
+              className="flex items-center justify-center px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-md text-sm font-medium transition-colors"
+            >
+              <PhoneXMarkIcon className="w-4 h-4 mr-1" />
+              End Call
+            </button>
+          </div>
+        </div>
+
         {/* Edit/Save Button */}
-        <div className="pt-2">
+        <div className="pt-4">
           {isEditing ? (
             <button
               onClick={handleSave}

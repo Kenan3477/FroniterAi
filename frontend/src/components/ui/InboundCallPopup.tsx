@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { startCall, answerCall } from '@/store/slices/activeCallSlice';
+import { useRouter } from 'next/navigation';
 
 interface InboundCall {
   id: string;
@@ -17,6 +20,8 @@ interface InboundCall {
 export default function InboundCallPopup() {
   const [inboundCalls, setInboundCalls] = useState<InboundCall[]>([]);
   const { user } = useAuth();
+  const dispatch = useDispatch();
+  const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
@@ -109,8 +114,36 @@ export default function InboundCallPopup() {
       
       if (result.success) {
         console.log('✅ Call answered successfully from popup');
+        
+        // Remove from popup notifications
         setInboundCalls(prev => prev.filter(c => c.id !== call.id));
-        alert('Call answered! You are now connected.');
+        
+        // Set up customer info from caller data
+        const customerInfo = {
+          id: call.callerInfo?.contactId || `temp-${Date.now()}`,
+          contactId: call.callerInfo?.contactId,
+          firstName: call.callerInfo?.name ? call.callerInfo.name.split(' ')[0] : '',
+          lastName: call.callerInfo?.name ? call.callerInfo.name.split(' ').slice(1).join(' ') : '',
+          phone: call.callerNumber,
+          email: call.callerInfo?.email,
+          address: call.callerInfo?.address,
+          notes: call.callerInfo?.notes || ''
+        };
+        
+        // Dispatch Redux actions to set active call state
+        dispatch(startCall({
+          phoneNumber: call.callerNumber,
+          customerInfo
+        }));
+        
+        // Mark call as answered
+        dispatch(answerCall());
+        
+        // Navigate to work page to show the active call interface
+        router.push('/work');
+        
+        console.log('🎯 Navigated to work page with active call state');
+        
       } else {
         console.error('❌ Failed to answer call:', result.error);
         alert('Failed to answer call. Please try again.');

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
 import { RestApiDialer } from '@/components/dialer/RestApiDialer';
 import { RootState } from '@/store';
+import { updateCallDuration } from '@/store/slices/activeCallSlice';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -31,12 +32,39 @@ export default function WorkPage() {
 
   // Get active call from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
+  const dispatch = useDispatch();
   
   useEffect(() => {
     // TODO: Get agent ID from authentication system
     // For now, use a session-based default
     setAgentId('current-agent');
   }, []);
+
+  // Auto-switch to My Interactions when there's an active call
+  useEffect(() => {
+    if (activeCall.isActive && selectedView !== 'My Interactions') {
+      console.log('🎯 Active call detected, switching to My Interactions');
+      setSelectedView('My Interactions');
+    }
+  }, [activeCall.isActive, selectedView]);
+
+  // Update call duration timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (activeCall.isActive && activeCall.callStatus === 'connected' && activeCall.callStartTime) {
+      interval = setInterval(() => {
+        const duration = Math.floor((Date.now() - new Date(activeCall.callStartTime!).getTime()) / 1000);
+        dispatch(updateCallDuration(duration));
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeCall.isActive, activeCall.callStatus, activeCall.callStartTime, dispatch]);
 
   // Load interaction data when view changes or component mounts
   useEffect(() => {
@@ -108,17 +136,38 @@ export default function WorkPage() {
             // For My Interactions, show dialer and active call info
             <div className="flex-1 p-6 bg-gray-50">
               <div className="max-w-4xl mx-auto space-y-6">
-                {/* Dialer Section */}
-                <RestApiDialer 
-                  onCallInitiated={(result) => {
-                    console.log('REST API call result:', result);
-                  }}
-                />
+                
+                {/* Dialer Section - Only show when no active call */}
+                {!activeCall.isActive && (
+                  <RestApiDialer 
+                    onCallInitiated={(result) => {
+                      console.log('REST API call result:', result);
+                    }}
+                  />
+                )}
 
-                {/* Customer Info Card - Only visible during active call */}
+                {/* Active Call Section */}
                 {activeCall.isActive && activeCall.customerInfo ? (
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Active Call</h2>
+                    <div className="bg-green-100 border-l-4 border-green-500 p-4 mb-4">
+                      <div className="flex items-center">
+                        <div className="flex items-center">
+                          <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse mr-3"></div>
+                          <h2 className="text-lg font-semibold text-green-800">
+                            Call Active - {activeCall.phoneNumber}
+                          </h2>
+                        </div>
+                        <div className="ml-auto text-sm text-green-700 flex items-center space-x-4">
+                          <span>
+                            Duration: {Math.floor(activeCall.callDuration / 60)}:{(activeCall.callDuration % 60).toString().padStart(2, '0')}
+                          </span>
+                          {activeCall.callStartTime && (
+                            <span>Started: {new Date(activeCall.callStartTime).toLocaleTimeString()}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
                     <CustomerInfoCard
                       customerData={{
                         id: activeCall.customerInfo.id,
