@@ -71,10 +71,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
 
   // Expose global call termination function for CustomerInfoCard
   useEffect(() => {
-    (window as any).omnivoxTerminateCall = () => {
+    (window as any).omnivoxTerminateCall = async () => {
       if (currentCall) {
         console.log('🔴 Terminating call via global function');
         currentCall.disconnect();
+        
+        // The disconnect handler will call the backend API
         return true;
       }
       return false;
@@ -197,13 +199,43 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             call.on('accept', () => {
               console.log('✅ Call accepted - two way audio should be working');
               
-              // Update Redux state to show call as active and connected
+              // Extract call information for Redux state
+              const callParameters = call.parameters || {};
+              const callerNumber = callParameters.From || 'Unknown';
+              const callSid = call.parameters?.CallSid || call.sid || null;
+              
+              console.log('📞 Incoming call details:', { 
+                from: callerNumber, 
+                callSid: callSid,
+                parameters: callParameters 
+              });
+              
+              // Start call in Redux with proper metadata
+              dispatch(startCall({
+                phoneNumber: callerNumber,
+                callSid: callSid,
+                callType: 'inbound',
+                customerInfo: {
+                  firstName: 'Inbound',
+                  lastName: 'Caller',
+                  phone: callerNumber,
+                  id: `inbound-${callSid || Date.now()}`
+                }
+              }));
+              
+              // Update to connected status
               dispatch(answerCall());
-              console.log('📱 Redux state updated - call marked as answered');
+              console.log('📱 Redux state updated - inbound call started and answered');
             });
             
-            call.on('disconnect', () => {
-              console.log('📱 Call disconnected');
+            call.on('disconnect', async () => {
+              console.log('📱 Call disconnected by customer');
+              
+              // End call via backend API if we have call info
+              if (activeCall.callSid) {
+                await endCallViaBackend(activeCall.callSid, 'customer-hangup');
+              }
+              
               setCurrentCall(null);
               // Clear Redux state
               dispatch(endCall());
@@ -211,16 +243,28 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
               // Don't stop the microphone stream here - keep it for next call
             });
             
-            call.on('cancel', () => {
-              console.log('📱 Call cancelled');
+            call.on('cancel', async () => {
+              console.log('📱 Call cancelled by customer');
+              
+              // End call via backend API if we have call info
+              if (activeCall.callSid) {
+                await endCallViaBackend(activeCall.callSid, 'customer-cancel');
+              }
+              
               setCurrentCall(null);
               // Clear Redux state
               dispatch(endCall());
               console.log('📱 Redux state updated - call cancelled');
             });
             
-            call.on('error', (error: any) => {
+            call.on('error', async (error: any) => {
               console.error('❌ Call error:', error);
+              
+              // End call via backend API if we have call info
+              if (activeCall.callSid) {
+                await endCallViaBackend(activeCall.callSid, 'call-error');
+              }
+              
               setCurrentCall(null);
               // Clear Redux state
               dispatch(endCall());
@@ -316,26 +360,84 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     }
   };
 
-  const testAudioOutput = () => {
-    // Simple audio test to help user identify output device
+  const testAudioOutput = async () => {
+    // Test audio output using the selected audio device
     try {
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      // Use a simple data URL for a short beep sound
+      const beepDataUrl = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dzwm8jBSuDzvLZiTYIG2WzbdN5LQUleM7y2YkrBSlYxPHalUEOF1mw5PKAWAoKRrTc9shuYgkcYWa+8N1vJQUqfM/x24ksCCltqeTz1bAoGEa9yeSbY2I8JWmzv+LwgUZO5zOz9vbQhIlxN22c7p2YGScaXqPyq4ZBXA2G3Z2T6lw3Kt+FbNGR8KU5KSyB2KVa6eiwGAwNjMnL3Mk2fNJpBFwKNz85mC4fX1xZ7Dkn';
       
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      const audioElement = new Audio(beepDataUrl);
+      audioElement.volume = 0.4;
       
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Low volume
+      // Set the audio output device if one is selected and supported
+      if (selectedAudioOutput && (audioElement as any).setSinkId) {
+        try {
+          await (audioElement as any).setSinkId(selectedAudioOutput);
+          console.log('🎧 Audio test routed to device:', selectedAudioOutput);
+          
+          // Find the device name for user feedback
+          const selectedDevice = audioDevices.output.find(device => device.deviceId === selectedAudioOutput);
+          const deviceName = selectedDevice ? selectedDevice.label || 'Selected Device' : 'Selected Device';
+          
+          await audioElement.play();
+          alert(`🔊 Audio test played to: ${deviceName}\n\n✅ If you heard the beep through your intended device, audio routing is working correctly!`);
+        } catch (sinkError) {
+          console.warn('⚠️ Could not set audio output device:', sinkError);
+          // Fallback to default device
+          await audioElement.play();
+          alert('🔊 Audio test played to default device.\n\n⚠️ Device selection may not be supported by this browser. Check your browser\'s audio settings.');
+        }
+      } else {
+        // No device selected or setSinkId not supported
+        await audioElement.play();
+        if (!selectedAudioOutput) {
+          alert('🔊 Audio test played to default device.\n\n💡 Tip: Select your headset from the "Audio Output Device" dropdown above, then test again.');
+        } else {
+          alert('🔊 Audio test played to default device.\n\n⚠️ Your browser may not support device selection (setSinkId not available).');
+        }
+      }
       
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.5); // Half second beep
-      
-      alert('🔊 Audio test played! If you heard it through your headset, audio routing is correct. If it played through speakers, check your browser\'s audio output settings.');
     } catch (error) {
       console.error('❌ Audio test failed:', error);
       alert('❌ Audio test failed. Your browser may not support audio output testing.');
+    }
+  };
+
+  // Helper function to end call via backend API
+  const endCallViaBackend = async (callSid: string, disposition: string) => {
+    try {
+      const callDuration = activeCall.callStartTime 
+        ? Math.floor((new Date().getTime() - new Date(activeCall.callStartTime).getTime()) / 1000)
+        : 0;
+      
+      console.log('📞 Ending call via backend API:', { callSid, duration: callDuration, disposition });
+      
+      const response = await fetch('/api/dialer/end', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ 
+          callSid: callSid,
+          duration: callDuration,
+          status: 'completed',
+          disposition: disposition
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Call ended successfully via backend API');
+        return true;
+      } else {
+        console.error('❌ Backend call end failed:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error calling backend API to end call:', error);
+      return false;
     }
   };
 
@@ -500,31 +602,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           </p>
           {selectedAudioOutput && (
             <button 
-              onClick={async () => {
-                try {
-                  // Test the selected audio device with a brief tone
-                  const audioContext = new AudioContext();
-                  const oscillator = audioContext.createOscillator();
-                  const gainNode = audioContext.createGain();
-                  
-                  oscillator.connect(gainNode);
-                  gainNode.connect(audioContext.destination);
-                  
-                  oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A note
-                  gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                  
-                  oscillator.start(audioContext.currentTime);
-                  oscillator.stop(audioContext.currentTime + 0.5);
-                  
-                  console.log('🎵 Audio test played on selected device');
-                } catch (error) {
-                  console.warn('⚠️ Could not test audio device:', error);
-                }
-              }}
+              onClick={testAudioOutput}
               className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
             >
-              Test Audio Device
+              🔊 Test Selected Device
             </button>
           )}
         </div>
@@ -587,6 +668,18 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             </p>
             <p className="text-xs text-slate-600 mt-1">
               💡 Use "Test Audio" button to check if sound routes to your headset
+            </p>
+          </div>
+        )}
+
+        {/* Audio Device Status */}
+        {selectedAudioOutput && (
+          <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded-md">
+            <p className="text-xs text-purple-800">
+              🎧 Audio Output: {audioDevices.output.find(d => d.deviceId === selectedAudioOutput)?.label || 'Selected Device'}
+            </p>
+            <p className="text-xs text-purple-600 mt-1">
+              Click "Test Selected Device" above to verify audio routing
             </p>
           </div>
         )}

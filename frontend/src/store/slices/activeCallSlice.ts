@@ -3,6 +3,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface ActiveCallState {
   isActive: boolean;
   phoneNumber: string | null;
+  callSid: string | null;
+  callType: 'inbound' | 'outbound' | null;
   customerInfo: {
     id?: string;
     contactId?: string;
@@ -21,6 +23,8 @@ export interface ActiveCallState {
 const initialState: ActiveCallState = {
   isActive: false,
   phoneNumber: null,
+  callSid: null,
+  callType: null,
   customerInfo: null,
   callStartTime: null,
   callDuration: 0,
@@ -31,10 +35,17 @@ const activeCallSlice = createSlice({
   name: 'activeCall',
   initialState,
   reducers: {
-    startCall: (state, action: PayloadAction<{ phoneNumber: string; customerInfo: any }>) => {
+    startCall: (state, action: PayloadAction<{ 
+      phoneNumber: string; 
+      customerInfo: any; 
+      callSid?: string;
+      callType?: 'inbound' | 'outbound';
+    }>) => {
       state.isActive = true;
       state.phoneNumber = action.payload.phoneNumber;
       state.customerInfo = action.payload.customerInfo;
+      state.callSid = action.payload.callSid || null;
+      state.callType = action.payload.callType || 'outbound';
       state.callStartTime = new Date();
       state.callDuration = 0;
       state.callStatus = 'ringing';

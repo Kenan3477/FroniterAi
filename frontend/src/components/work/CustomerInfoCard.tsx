@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { endCall, clearCall } from '@/store/slices/activeCallSlice';
+import { RootState } from '@/store';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
@@ -44,6 +45,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
   const dispatch = useDispatch();
+  const activeCallState = useSelector((state: RootState) => state.activeCall);
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -52,23 +54,71 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   };
 
   // Call control functions
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (confirm('Are you sure you want to end this call?')) {
-      // Terminate the actual WebRTC call first
-      const callTerminated = (window as any).omnivoxTerminateCall?.() || false;
-      
-      if (callTerminated) {
-        console.log('✅ WebRTC call terminated successfully');
-      } else {
-        console.warn('⚠️ No active WebRTC call found to terminate');
+      try {
+        // Terminate the actual WebRTC call first
+        const callTerminated = (window as any).omnivoxTerminateCall?.() || false;
+        
+        if (callTerminated) {
+          console.log('✅ WebRTC call terminated successfully');
+        } else {
+          console.warn('⚠️ No active WebRTC call found to terminate');
+        }
+        
+        // Get call information from Redux state  
+        const callSid = activeCallState?.callSid;
+        const callStartTime = activeCallState?.callStartTime;
+        
+        // Calculate call duration
+        const callDuration = callStartTime 
+          ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
+          : 0;
+        
+        console.log('📞 Ending call with backend API:', { callSid, duration: callDuration });
+        
+        // End the call through backend API if we have a callSid
+        if (callSid) {
+          try {
+            const response = await fetch('/api/dialer/end', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+              },
+              body: JSON.stringify({ 
+                callSid: callSid,
+                duration: callDuration,
+                status: 'completed',
+                disposition: 'agent-hangup'
+              })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              console.log('✅ Call ended successfully via backend API');
+            } else {
+              console.error('❌ Backend call end failed:', result.error);
+            }
+          } catch (apiError) {
+            console.error('❌ Error calling backend API to end call:', apiError);
+          }
+        } else {
+          console.warn('⚠️ No callSid available - cannot end call via backend API');
+        }
+        
+        // Update Redux state
+        dispatch(endCall());
+        // After a short delay, clear the call to allow for disposition
+        setTimeout(() => {
+          dispatch(clearCall());
+        }, 2000);
+        
+      } catch (error) {
+        console.error('❌ Error ending call:', error);
+        alert('❌ Error ending call. Please try again.');
       }
-      
-      // Update Redux state
-      dispatch(endCall());
-      // After a short delay, clear the call to allow for disposition
-      setTimeout(() => {
-        dispatch(clearCall());
-      }, 2000);
     }
   };
 
