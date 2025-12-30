@@ -59,7 +59,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         },
         credentials: 'include',
         body: JSON.stringify({
-          agentId: user?.username || user?.id || 'agent-1',
+          agentId: user?.id?.toString() || user?.username || 'agent-1',
           status: newStatus,
           campaignId: campaignToUse.campaignId
         }),
