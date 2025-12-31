@@ -264,38 +264,209 @@ export const InboundNumbersManager: React.FC<{
   config: any;
   onUpdate: (config: any) => void;
 }> = ({ config, onUpdate }) => {
-  const [numbers, setNumbers] = useState<InboundNumber[]>(config.inboundNumbers || []);
+  const [numbers, setNumbers] = useState<InboundNumber[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingNumber, setEditingNumber] = useState<InboundNumber | null>(null);
 
-  const handleSave = (number: InboundNumber) => {
-    let updatedNumbers;
-    if (editingNumber) {
-      updatedNumbers = numbers.map(num => 
-        num.id === number.id ? number : num
-      );
-    } else {
-      updatedNumbers = [...numbers, { ...number, id: Date.now().toString() }];
+  // Fetch real inbound numbers from backend API
+  useEffect(() => {
+    const fetchInboundNumbers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setError('Authentication required');
+          return;
+        }
+
+        const response = await fetch('/api/voice/inbound-numbers', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch inbound numbers: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📞 Fetched inbound numbers:', data);
+        
+        // Transform backend data to frontend format
+        const transformedNumbers: InboundNumber[] = data.inboundNumbers?.map((num: any) => ({
+          id: num.id,
+          number: num.phoneNumber,
+          name: num.friendlyName || num.phoneNumber,
+          description: num.description || `Inbound number ${num.phoneNumber}`,
+          carrierInboundNumber: num.phoneNumber,
+          displayName: num.friendlyName || num.phoneNumber,
+          autoRejectAnonymous: true,
+          createContactOnAnonymous: true,
+          integration: 'None',
+          countryCode: 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
+          businessHours: '24 Hours',
+          outOfHoursAction: 'Hangup',
+          dayClosedAction: 'Hangup',
+          routeTo: 'Hangup',
+          recordCalls: true,
+          lookupSearchFilter: 'All Lists',
+          assignedToDefaultList: true,
+          type: 'voice',
+          status: num.status === 'active'
+        })) || [];
+
+        setNumbers(transformedNumbers);
+        
+      } catch (err: any) {
+        console.error('❌ Error fetching inbound numbers:', err);
+        setError(err.message);
+        // Fallback to demo data if API fails
+        setNumbers(config.inboundNumbers || []);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInboundNumbers();
+  }, [config.inboundNumbers]);
+
+  const handleSave = async (number: InboundNumber) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      // Prepare data for backend API
+      const updateData = {
+        phoneNumber: number.number,
+        friendlyName: number.displayName,
+        description: number.description,
+        status: number.status ? 'active' : 'inactive'
+      };
+
+      const response = await fetch(`/api/voice/inbound-numbers/${number.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update inbound number: ${response.statusText}`);
+      }
+
+      // Update local state
+      let updatedNumbers;
+      if (editingNumber) {
+        updatedNumbers = numbers.map(num => 
+          num.id === number.id ? number : num
+        );
+      } else {
+        updatedNumbers = [...numbers, { ...number, id: Date.now().toString() }];
+      }
+      
+      setNumbers(updatedNumbers);
+      onUpdate({ ...config, inboundNumbers: updatedNumbers });
+      setShowAddForm(false);
+      setEditingNumber(null);
+      
+    } catch (err: any) {
+      console.error('❌ Error saving inbound number:', err);
+      alert(`Failed to save: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-    
-    setNumbers(updatedNumbers);
-    onUpdate({ ...config, inboundNumbers: updatedNumbers });
-    setShowAddForm(false);
-    setEditingNumber(null);
   };
 
-  const handleDelete = (id: string) => {
-    const updatedNumbers = numbers.filter(num => num.id !== id);
-    setNumbers(updatedNumbers);
-    onUpdate({ ...config, inboundNumbers: updatedNumbers });
+  const handleDelete = async (id: string) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`/api/voice/inbound-numbers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete inbound number: ${response.statusText}`);
+      }
+
+      const updatedNumbers = numbers.filter(num => num.id !== id);
+      setNumbers(updatedNumbers);
+      onUpdate({ ...config, inboundNumbers: updatedNumbers });
+      
+    } catch (err: any) {
+      console.error('❌ Error deleting inbound number:', err);
+      alert(`Failed to delete: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleNumberStatus = (id: string) => {
-    const updatedNumbers = numbers.map(num => 
-      num.id === id ? { ...num, status: !num.status } : num
-    );
-    setNumbers(updatedNumbers);
-    onUpdate({ ...config, inboundNumbers: updatedNumbers });
+  const toggleNumberStatus = async (id: string) => {
+    try {
+      setLoading(true);
+      const number = numbers.find(num => num.id === id);
+      if (!number) return;
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const newStatus = !number.status;
+      const response = await fetch(`/api/voice/inbound-numbers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          phoneNumber: number.number,
+          friendlyName: number.displayName,
+          description: number.description,
+          status: newStatus ? 'active' : 'inactive'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update number status: ${response.statusText}`);
+      }
+
+      const updatedNumbers = numbers.map(num => 
+        num.id === id ? { ...num, status: newStatus } : num
+      );
+      setNumbers(updatedNumbers);
+      onUpdate({ ...config, inboundNumbers: updatedNumbers });
+      
+    } catch (err: any) {
+      console.error('❌ Error toggling number status:', err);
+      alert(`Failed to update status: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getTypeIcon = (type: string) => {
@@ -322,31 +493,67 @@ export const InboundNumbersManager: React.FC<{
         <div>
           <h3 className="text-lg font-medium text-gray-900">Manage Inbound Numbers</h3>
           <p className="text-sm text-gray-500">Configure inbound phone numbers from your SIP provider</p>
+          {error && (
+            <p className="text-sm text-red-600 mt-1">⚠️ {error}</p>
+          )}
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
+          disabled={loading}
+          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <PlusIcon className="h-4 w-4 inline mr-2" />
           Create Inbound Numbers
         </button>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+          <span className="ml-2 text-gray-600">Loading inbound numbers...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Failed to load inbound numbers</h3>
+              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-3 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Inbound Numbers Table - Matching Connex Layout */}
-      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-        <table className="min-w-full divide-y divide-gray-300">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      {!loading && !error && (
+        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-300">{" "}
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Number
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Type
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -406,8 +613,10 @@ export const InboundNumbersManager: React.FC<{
           </tbody>
         </table>
       </div>
+      )}
 
-      {numbers.length === 0 && (
+      {/* Empty State - show only when not loading and no error and no numbers */}
+      {!loading && !error && numbers.length === 0 && (
         <div className="text-center py-12">
           <PhoneArrowDownLeftIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Inbound Numbers</h3>
