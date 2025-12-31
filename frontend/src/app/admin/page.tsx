@@ -453,7 +453,7 @@ export default function AdminPage() {
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {selectedSection === 'System Settings' ? (
               <div className="p-6">
                 <div className="max-w-4xl mx-auto space-y-8">
@@ -558,7 +558,9 @@ export default function AdminPage() {
             ) : selectedSection === 'Twilio Configuration' ? (
               <TwilioConfigurationPage />
             ) : selectedSection === 'Channels' ? (
-              <ChannelsManagement />
+              <div className="p-6">
+                <ChannelsManagement />
+              </div>
             ) : selectedSection === 'Reports & Analytics' ? (
               <ReportsSystem />
             ) : selectedSection === 'Flows' || selectedSection.startsWith('Flows - ') ? (
