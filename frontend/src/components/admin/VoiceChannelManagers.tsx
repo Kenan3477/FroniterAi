@@ -65,6 +65,33 @@ export interface InboundNumber {
   recordCalls: boolean;
   lookupSearchFilter: string; // 'All Lists'
   assignedToDefaultList: boolean;
+  
+  // Audio file configurations for different call conditions
+  audioFiles: {
+    greeting?: AudioFileConfig; // Main greeting when call is answered
+    notAnswered?: AudioFileConfig; // Played when call is not answered
+    outOfHours?: AudioFileConfig; // Played during out of hours
+    busy?: AudioFileConfig; // Played when all agents are busy
+    queue?: AudioFileConfig; // Hold music/message while in queue
+    voicemail?: AudioFileConfig; // Voicemail greeting
+    transferFailed?: AudioFileConfig; // When transfer fails
+    systemError?: AudioFileConfig; // For system errors
+  };
+}
+
+// Audio file configuration interface
+export interface AudioFileConfig {
+  id?: string;
+  filename: string;
+  displayName: string;
+  fileUrl?: string;
+  fileType: 'mp3' | 'wav' | 'aac';
+  duration?: number; // in seconds
+  uploadDate?: string;
+  fileSize?: number; // in bytes
+  description?: string;
+  loop?: boolean; // Whether to loop the audio
+  volume?: number; // Volume level 0-100
 }
 
 export interface RingGroup {
@@ -318,7 +345,50 @@ export const InboundNumbersManager: React.FC<{
           lookupSearchFilter: 'All Lists',
           assignedToDefaultList: true,
           type: 'voice',
-          status: num.status === 'active'
+          status: num.status === 'active',
+          // Initialize with default audio file configurations
+          audioFiles: {
+            greeting: {
+              filename: 'default-greeting.mp3',
+              displayName: 'Default Greeting',
+              fileType: 'mp3',
+              description: 'Default system greeting',
+              loop: false,
+              volume: 80
+            },
+            notAnswered: {
+              filename: 'call-not-answered.mp3',
+              displayName: 'Call Not Answered Message',
+              fileType: 'mp3',
+              description: 'Played when call is not answered',
+              loop: false,
+              volume: 80
+            },
+            outOfHours: {
+              filename: 'out-of-hours.mp3',
+              displayName: 'Out of Hours Message',
+              fileType: 'mp3',
+              description: 'Played during out of business hours',
+              loop: false,
+              volume: 80
+            },
+            busy: {
+              filename: 'agents-busy.mp3',
+              displayName: 'All Agents Busy',
+              fileType: 'mp3',
+              description: 'Played when all agents are busy',
+              loop: false,
+              volume: 80
+            },
+            queue: {
+              filename: 'hold-music.mp3',
+              displayName: 'Queue Hold Music',
+              fileType: 'mp3',
+              description: 'Music played while caller is in queue',
+              loop: true,
+              volume: 60
+            }
+          }
         })) || [];
 
         setNumbers(transformedNumbers);
@@ -964,6 +1034,150 @@ const ConnexInboundNumberForm: React.FC<{
               <option value="general">General Contacts</option>
               <option value="leads">Leads</option>
             </select>
+          </div>
+
+          {/* Audio File Configuration Section */}
+          <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900">Audio File Configuration</h4>
+              <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Call Scenarios</span>
+            </div>
+            <p className="text-sm text-gray-600">Configure audio files played during different call conditions</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Greeting Audio */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
+                  Main Greeting
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={number?.audioFiles?.greeting?.displayName || 'Default Greeting'}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Not Answered Audio */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <PhoneIcon className="h-4 w-4 inline mr-1" />
+                  Call Not Answered
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={number?.audioFiles?.notAnswered?.displayName || 'Call Not Answered Message'}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Out of Hours Audio */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <MicrophoneIcon className="h-4 w-4 inline mr-1" />
+                  Out of Hours
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={number?.audioFiles?.outOfHours?.displayName || 'Out of Hours Message'}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Busy Audio */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <UsersIcon className="h-4 w-4 inline mr-1" />
+                  All Agents Busy
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={number?.audioFiles?.busy?.displayName || 'All Agents Busy'}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Queue Hold Music */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
+                  Queue Hold Music
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={number?.audioFiles?.queue?.displayName || 'Queue Hold Music'}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={number?.audioFiles?.queue?.loop || false}
+                      readOnly
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <span className="ml-1 text-xs text-gray-500">Loop</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Audio File Upload Notice */}
+              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded p-3">
+                <div className="flex items-start">
+                  <DocumentIcon className="h-5 w-5 text-gray-400 mt-0.5 mr-2" />
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium">Supported Audio Formats:</p>
+                    <p>MP3, WAV, AAC files up to 10MB. Recommended: 16-bit, 8kHz for telephony quality.</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Click upload buttons to replace default audio files with custom recordings.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {!isDualtoneValid && (
