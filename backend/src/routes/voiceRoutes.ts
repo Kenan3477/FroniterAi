@@ -1,6 +1,7 @@
 import express from 'express';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -9,18 +10,28 @@ interface InboundNumber {
   id: string;
   phoneNumber: string;
   displayName: string;
+  description?: string;
   country: string;
   region: string;
   numberType: string;
   provider: string;
   capabilities: string[];
   isActive: boolean;
+  greetingAudioUrl?: string;
+  noAnswerAudioUrl?: string;
+  outOfHoursAudioUrl?: string;
+  busyAudioUrl?: string;
+  voicemailAudioUrl?: string;
+  businessHoursStart?: string;
+  businessHoursEnd?: string;
+  businessDays?: string;
+  timezone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // GET /api/voice/inbound-numbers - Get available inbound numbers for CLI selection
-router.get('/inbound-numbers', async (req: Request, res: Response) => {
+router.get('/inbound-numbers', authenticate, async (req: Request, res: Response) => {
   try {
     // Fetch active inbound numbers from database
     const inboundNumbers = await prisma.inboundNumber.findMany({
@@ -39,12 +50,24 @@ router.get('/inbound-numbers', async (req: Request, res: Response) => {
       id: number.id,
       phoneNumber: number.phoneNumber,
       displayName: number.displayName,
+      description: number.description,
       country: number.country,
       region: number.region,
       numberType: number.numberType,
       provider: number.provider,
       capabilities: number.capabilities ? JSON.parse(number.capabilities) : [],
-      isActive: number.isActive
+      isActive: number.isActive,
+      greetingAudioUrl: number.greetingAudioUrl,
+      noAnswerAudioUrl: number.noAnswerAudioUrl,
+      outOfHoursAudioUrl: number.outOfHoursAudioUrl,
+      busyAudioUrl: number.busyAudioUrl,
+      voicemailAudioUrl: number.voicemailAudioUrl,
+      businessHoursStart: number.businessHoursStart,
+      businessHoursEnd: number.businessHoursEnd,
+      businessDays: number.businessDays,
+      timezone: number.timezone,
+      createdAt: number.createdAt,
+      updatedAt: number.updatedAt
     }));
 
     res.json({
@@ -123,6 +146,84 @@ router.get('/inbound-numbers', async (req: Request, res: Response) => {
         provider: number.provider,
         capabilities: number.capabilities
       }))
+    });
+  }
+});
+
+// PUT /api/voice/inbound-numbers/:id - Update an inbound number configuration
+router.put('/inbound-numbers/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const {
+      displayName,
+      description,
+      greetingAudioUrl,
+      noAnswerAudioUrl,
+      outOfHoursAudioUrl,
+      busyAudioUrl,
+      voicemailAudioUrl,
+      businessHoursStart,
+      businessHoursEnd,
+      businessDays,
+      timezone,
+      isActive
+    } = req.body;
+
+    // Update the inbound number in the database
+    const updatedNumber = await prisma.inboundNumber.update({
+      where: { id },
+      data: {
+        displayName,
+        description,
+        greetingAudioUrl,
+        noAnswerAudioUrl,
+        outOfHoursAudioUrl,
+        busyAudioUrl,
+        voicemailAudioUrl,
+        businessHoursStart,
+        businessHoursEnd,
+        businessDays,
+        timezone,
+        isActive,
+        updatedAt: new Date()
+      }
+    });
+
+    // Transform response
+    const transformedNumber = {
+      id: updatedNumber.id,
+      phoneNumber: updatedNumber.phoneNumber,
+      displayName: updatedNumber.displayName,
+      description: updatedNumber.description,
+      country: updatedNumber.country,
+      region: updatedNumber.region,
+      numberType: updatedNumber.numberType,
+      provider: updatedNumber.provider,
+      capabilities: updatedNumber.capabilities ? JSON.parse(updatedNumber.capabilities) : [],
+      isActive: updatedNumber.isActive,
+      greetingAudioUrl: updatedNumber.greetingAudioUrl,
+      noAnswerAudioUrl: updatedNumber.noAnswerAudioUrl,
+      outOfHoursAudioUrl: updatedNumber.outOfHoursAudioUrl,
+      busyAudioUrl: updatedNumber.busyAudioUrl,
+      voicemailAudioUrl: updatedNumber.voicemailAudioUrl,
+      businessHoursStart: updatedNumber.businessHoursStart,
+      businessHoursEnd: updatedNumber.businessHoursEnd,
+      businessDays: updatedNumber.businessDays,
+      timezone: updatedNumber.timezone,
+      createdAt: updatedNumber.createdAt,
+      updatedAt: updatedNumber.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: transformedNumber
+    });
+
+  } catch (error) {
+    console.error('Error updating inbound number:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update inbound number'
     });
   }
 });

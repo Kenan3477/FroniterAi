@@ -47,6 +47,7 @@ import callManagementRoutes from './routes/callManagementRoutes'; // PRODUCTION:
 import inboundCallRoutes from './routes/inboundCallRoutes'; // PRODUCTION: Inbound call handling system
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
+import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue management system
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -171,6 +172,7 @@ class App {
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
+    this.app.use('/api/voice', inboundQueueRoutes); // Inbound queue management system (under /api/voice/inbound-queues)
     this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
     this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
 

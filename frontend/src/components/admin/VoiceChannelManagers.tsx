@@ -303,19 +303,14 @@ export const InboundNumbersManager: React.FC<{
       try {
         setLoading(true);
         setError(null);
-        
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-          setError('Authentication required');
-          return;
-        }
 
+        // Use Next.js API route which handles authentication via cookies
         const response = await fetch('/api/voice/inbound-numbers', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include' // Include cookies for authentication
         });
 
         if (!response.ok) {
@@ -325,8 +320,8 @@ export const InboundNumbersManager: React.FC<{
         const data = await response.json();
         console.log('📞 Fetched inbound numbers:', data);
         
-        // Transform backend data to frontend format
-        const transformedNumbers: InboundNumber[] = data.inboundNumbers?.map((num: any) => ({
+        // Transform backend data to frontend format - backend returns data directly
+        const transformedNumbers: InboundNumber[] = data.data?.map((num: any) => ({
           id: num.id,
           number: num.phoneNumber,
           name: num.friendlyName || num.phoneNumber,

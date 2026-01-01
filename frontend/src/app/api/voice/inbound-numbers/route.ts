@@ -6,18 +6,26 @@ export async function GET(request: NextRequest) {
   try {
     console.log('📞 Proxying inbound numbers request to backend...');
 
+    // Get auth token from cookies
+    const authToken = request.cookies.get('auth-token')?.value;
+    
+    if (!authToken) {
+      console.log('🔒 No auth token found in cookies');
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const backendUrl = `${BACKEND_URL}/api/voice/inbound-numbers`;
     console.log('Backend URL:', backendUrl);
 
-    // Forward the request to the Railway backend
+    // Forward the request to the Railway backend with cookie-based auth
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        // Forward any authorization headers from the original request
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
-        }),
+        'Authorization': `Bearer ${authToken}`,
       },
     });
 

@@ -151,6 +151,7 @@ const ChannelsManagement: React.FC = () => {
     { id: 'extensions', name: 'Extensions', icon: PhoneIcon },
     { id: 'inbound_ivr', name: 'Inbound IVR', icon: PhoneArrowDownLeftIcon },
     { id: 'inbound_numbers', name: 'Inbound Numbers', icon: PhoneArrowDownLeftIcon },
+    { id: 'inbound_queues', name: 'Inbound Queues', icon: UsersIcon },
     { id: 'ring_groups', name: 'Ring Groups', icon: UsersIcon },
     { id: 'internal_numbers', name: 'Internal Numbers', icon: PhoneIcon },
     { id: 'voice_nodes', name: 'Voice Nodes', icon: CogIcon },
@@ -284,6 +285,8 @@ const ChannelsManagement: React.FC = () => {
         return <InboundIVRManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'inbound_numbers':
         return <InboundNumbersManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
+      case 'inbound_queues':
+        return <InboundQueuesManager />;
       case 'ring_groups':
         return <ConnexRingGroupsManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'internal_numbers':
@@ -765,6 +768,7 @@ import {
   InternalNumbersManager 
 } from './AdditionalVoiceManagers';
 import { ConnexRingGroupsManager } from './ConnexRingGroups';
+import InboundQueuesManager from './InboundQueuesManager';
 
 // Placeholder components for remaining voice tabs
 const VoiceNodesManager = ({ config, onUpdate }: { config: VoiceConfiguration; onUpdate: (config: VoiceConfiguration) => void }) => (

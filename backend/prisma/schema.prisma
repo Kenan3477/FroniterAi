@@ -12,16 +12,83 @@ model InboundNumber {
   id           String   @id @default(cuid())
   phoneNumber  String   @unique // The actual phone number (e.g., "+442046343130")
   displayName  String // Human-readable name (e.g., "UK Local - London")
+  description  String? // Custom description for the number
   country      String // Country code (e.g., "GB", "US")
   region       String? // Region/city (e.g., "London", "New York")
   numberType   String   @default("LOCAL") // LOCAL, TOLL_FREE, MOBILE
   provider     String   @default("TWILIO") // TWILIO, PLIVO, etc.
   isActive     Boolean  @default(true)
   capabilities String? // JSON string of capabilities (SMS, VOICE, MMS)
+  
+  // Audio file configurations for different call conditions
+  greetingAudioUrl        String? // Main greeting audio file
+  noAnswerAudioUrl        String? // Audio played when call is not answered
+  outOfHoursAudioUrl      String? // Audio played when calling outside business hours
+  busyAudioUrl           String? // Audio played when all agents are busy
+  voicemailAudioUrl      String? // Audio played before voicemail prompt
+  
+  // Business hours configuration
+  businessHoursStart     String? @default("09:00") // Format: "HH:MM"
+  businessHoursEnd       String? @default("17:00") // Format: "HH:MM"
+  businessDays          String? @default("Monday,Tuesday,Wednesday,Thursday,Friday") // Comma-separated days
+  timezone              String? @default("Europe/London") // Timezone for business hours
+  
+  // Queue Routing Configuration
+  routeToQueueId         String? // ID of the inbound queue to route calls to
+  routeToQueue           InboundQueue? @relation(fields: [routeToQueueId], references: [id])
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@map("inbound_numbers")
+}
+
+// Inbound Queue Management for Call Routing and Distribution
+model InboundQueue {
+  id           String   @id @default(cuid())
+  name         String   @unique // Queue name (e.g., "Customer Service", "Sales", "Support")
+  displayName  String // Human-readable name for UI
+  description  String? // Queue description
+  isActive     Boolean  @default(true)
+  
+  // Agent Assignment (JSON array of agent IDs/extensions)
+  assignedAgents String? // JSON string of assigned agent IDs/extensions
+  
+  // Business Hours Configuration
+  businessHoursEnabled Boolean @default(true)
+  businessHoursStart   String? @default("09:00") // Format: "HH:MM"
+  businessHoursEnd     String? @default("17:00") // Format: "HH:MM"
+  businessDays         String? @default("Monday,Tuesday,Wednesday,Thursday,Friday") // Comma-separated days
+  timezone             String? @default("Europe/London") // Timezone for business hours
+  
+  // Overflow and Out-of-Hours Handling
+  maxQueueSize         Int?     @default(50) // Maximum number of callers in queue
+  overflowAction       String   @default("voicemail") // voicemail, hangup, transfer, announcement
+  overflowDestination  String? // Where to route overflow calls (queue ID, extension, etc.)
+  outOfHoursAction     String   @default("voicemail") // What happens outside business hours
+  outOfHoursDestination String? // Where to route out-of-hours calls
+  
+  // Audio Configuration
+  holdMusicUrl         String? // Hold music/announcements while waiting
+  welcomeMessageUrl    String? // Welcome message when entering queue
+  estimatedWaitUrl     String? // Estimated wait time announcement
+  
+  // Queue Behavior
+  ringStrategy         String   @default("round_robin") // round_robin, longest_idle, random, sequential
+  callTimeout          Int      @default(30) // Seconds before moving to next agent
+  maxWaitTime          Int      @default(300) // Maximum wait time in seconds before overflow
+  
+  // Priority and Routing
+  priority             Int      @default(1) // Queue priority (1-10, higher = more urgent)
+  skillTags            String? // JSON array of required skills (for future skill-based routing)
+  
+  // Relationships
+  inboundNumbers       InboundNumber[] // Numbers that route to this queue
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("inbound_queues")
 }
 
 model DataList {
