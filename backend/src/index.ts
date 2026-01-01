@@ -54,8 +54,8 @@ import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue m
 // import analyticsRoutes from './routes/analytics'; // DISABLED - schema conflicts
 // import webhookRoutes from './routes/webhooks'; // Temporarily disabled - fixing schema issues
 
-// Import Omnivox-AI Flows routes - TEMPORARILY DISABLED DUE TO SCHEMA CONFLICTS
-// import flowRoutes from './routes/flows'; // DISABLED - User model conflicts
+// Import Omnivox-AI Flows routes - ENABLED
+import flowRoutes from './routes/flows'; // ENABLED - User model conflict fixed
 // import flowVersionRoutes from './routes/flowVersions'; // DISABLED - dependent on flows
 // import nodeTypeRoutes from './routes/nodeTypes';
 // import flowExecutionRoutes from './routes/flowExecution';
@@ -176,8 +176,8 @@ class App {
     this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
     this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
 
-    // Omnivox-AI Flows API routes - TEMPORARILY DISABLED DUE TO SCHEMA CONFLICTS
-    // this.app.use('/api/flows', flowRoutes); // DISABLED - User model conflicts
+    // Omnivox-AI Flows API routes - ENABLED
+    this.app.use('/api/flows', flowRoutes); // ENABLED - User model conflict fixed
     // this.app.use('/api/flows/:flowId/versions', flowVersionRoutes); // DISABLED - dependent on flows
     // this.app.use('/api/flow-node-types', nodeTypeRoutes);
     // this.app.use('/api/flow-execution', flowExecutionRoutes);

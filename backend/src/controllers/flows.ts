@@ -22,7 +22,7 @@ const updateFlowSchema = z.object({
 });
 
 // Mock current user - in real app this would come from auth
-const CURRENT_USER_ID = 'demo-user-kennex-flows';
+const CURRENT_USER_ID = 1;
 
 /**
  * GET /api/flows
