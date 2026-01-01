@@ -140,26 +140,15 @@ export const createFlow = async (req: Request, res: Response) => {
   try {
     const validatedData = createFlowSchema.parse(req.body);
 
-    // Get or create user
-    let user = await prisma.user.findUnique({
-      where: { email: 'admin@kennex.ai' }
-    });
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          name: 'Kennex Admin',
-          email: 'admin@kennex.ai',
-        }
-      });
-    }
+    // Use the current user ID directly (in real app this would come from auth)
+    const userId = CURRENT_USER_ID;
 
     const flow = await prisma.flow.create({
       data: {
         name: validatedData.name,
         description: validatedData.description,
         status: 'INACTIVE',
-        createdByUserId: user.id,
+        createdByUserId: userId,
         versions: {
           create: {
             versionNumber: 1,
