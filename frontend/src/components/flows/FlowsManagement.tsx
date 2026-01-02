@@ -190,10 +190,18 @@ function CreateFlowWizard({ onBack, onFlowCreated }: { onBack: () => void; onFlo
   };
 
   const handleCreate = async () => {
-    // TODO: API call to create flow
-    console.log('Creating flow:', formData);
-    // After creation, redirect to flow builder
-    onFlowCreated(formData.flowName);
+    try {
+      const newFlow = await flowsAPI.createFlow({
+        name: formData.flowName,
+        description: formData.description
+      });
+      console.log('Flow created successfully:', newFlow);
+      // After creation, redirect to flow builder
+      onFlowCreated(formData.flowName);
+    } catch (error) {
+      console.error('Error creating flow:', error);
+      alert('Failed to create flow. Please try again.');
+    }
   };
 
   return (
