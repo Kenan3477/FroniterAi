@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
+import { getNodeType, NodeCategory } from '../types/flowNodeTypes';
 
 const prisma = new PrismaClient();
 
@@ -286,31 +287,49 @@ export class FlowExecutionEngine extends EventEmitter {
     error?: string;
   }> {
     const config = typeof node.config === 'string' ? JSON.parse(node.config) : (node.config || {});
+    const nodeType = getNodeType(node.type);
 
-    switch (node.type) {
-      case 'inbound':
-        return this.executeInboundNode(node, context, config);
-      
-      case 'condition':
-        return this.executeConditionNode(node, context, config);
-      
-      case 'action':
-        return this.executeActionNode(node, context, config);
-      
-      case 'routing':
+    if (!nodeType) {
+      console.warn(`⚠️ Unknown node type: ${node.type}`);
+      return {
+        success: true,
+        output: { nodeType: node.type, processed: true }
+      };
+    }
+
+    console.log(`🔧 Executing ${nodeType.name} node (${node.id})`);
+
+    // Route to appropriate execution method based on category
+    switch (nodeType.category) {
+      case NodeCategory.ROUTING:
         return this.executeRoutingNode(node, context, config);
       
-      case 'ivr':
+      case NodeCategory.MEDIA:
+        return this.executeMediaNode(node, context, config);
+      
+      case NodeCategory.CONDITION:
+        return this.executeConditionNode(node, context, config);
+      
+      case NodeCategory.IVR:
         return this.executeIVRNode(node, context, config);
       
-      case 'transfer':
-        return this.executeTransferNode(node, context, config);
+      case NodeCategory.QUEUE:
+        return this.executeQueueNode(node, context, config);
+      
+      case NodeCategory.DATA:
+        return this.executeDataNode(node, context, config);
+      
+      case NodeCategory.WORKFLOW:
+        return this.executeWorkflowNode(node, context, config);
+      
+      case NodeCategory.INTEGRATION:
+        return this.executeIntegrationNode(node, context, config);
       
       default:
-        console.warn(`⚠️ Unknown node type: ${node.type}`);
+        console.warn(`⚠️ Unhandled node category: ${nodeType.category}`);
         return {
           success: true,
-          output: { nodeType: node.type, processed: true }
+          output: { category: nodeType.category, processed: true }
         };
     }
   }
@@ -347,39 +366,6 @@ export class FlowExecutionEngine extends EventEmitter {
   }
 
   /**
-   * Handle condition node (time-based, caller-based, etc.)
-   */
-  private async executeConditionNode(
-    node: FlowNode, 
-    context: FlowExecutionContext, 
-    config: any
-  ): Promise<{ success: boolean; output?: any; error?: string; }> {
-    console.log('🤔 Evaluating condition node');
-
-    const conditions = config.conditions || [];
-    let conditionMet = false;
-    let matchedCondition = null;
-
-    for (const condition of conditions) {
-      const result = this.evaluateCondition(condition, context);
-      if (result) {
-        conditionMet = true;
-        matchedCondition = condition;
-        break;
-      }
-    }
-
-    const output = {
-      conditionMet,
-      matchedCondition,
-      evaluatedAt: new Date(),
-      currentHour: context.currentTime.getHours()
-    };
-
-    return { success: true, output };
-  }
-
-  /**
    * Handle action nodes (Flash OOH, recordings, etc.)
    */
   private async executeActionNode(
@@ -407,28 +393,6 @@ export class FlowExecutionEngine extends EventEmitter {
           output: { action: actionType, executed: true }
         };
     }
-  }
-
-  /**
-   * Handle routing nodes
-   */
-  private async executeRoutingNode(
-    node: FlowNode, 
-    context: FlowExecutionContext, 
-    config: any
-  ): Promise<{ success: boolean; output?: any; error?: string; }> {
-    console.log('🎯 Executing routing node');
-
-    const routingType = config.routingType || 'queue';
-
-    return {
-      success: true,
-      output: {
-        routingType,
-        destination: config.destination,
-        routed: true
-      }
-    };
   }
 
   /**
@@ -772,6 +736,570 @@ export class FlowExecutionEngine extends EventEmitter {
         priority: 1 // Default priority
       }))
       .sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
+  }
+
+  // =============================================================================
+  // ENHANCED NODE EXECUTION METHODS
+  // =============================================================================
+
+  /**
+   * Execute media nodes (audio playback, text-to-speech)
+   */
+  private async executeMediaNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('🎵 Executing media node');
+
+    switch (node.type) {
+      case 'audio_playback':
+        return this.executeAudioPlayback(config, context);
+      
+      case 'text_to_speech':
+        return this.executeTextToSpeech(config, context);
+      
+      default:
+        return { success: true, output: { mediaType: node.type, executed: true } };
+    }
+  }
+
+  /**
+   * Execute queue management nodes
+   */
+  private async executeQueueNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('👥 Executing queue node');
+
+    switch (node.type) {
+      case 'queue_transfer':
+        return this.executeQueueTransfer(config, context);
+      
+      default:
+        return { success: true, output: { queueType: node.type, executed: true } };
+    }
+  }
+
+  /**
+   * Execute data collection nodes
+   */
+  private async executeDataNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('📊 Executing data node');
+
+    switch (node.type) {
+      case 'collect_input':
+        return this.executeCollectInput(config, context);
+      
+      default:
+        return { success: true, output: { dataType: node.type, executed: true } };
+    }
+  }
+
+  /**
+   * Execute workflow control nodes
+   */
+  private async executeWorkflowNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('🔄 Executing workflow node');
+
+    switch (node.type) {
+      case 'hangup':
+        return this.executeHangup(config, context);
+      
+      default:
+        return { success: true, output: { workflowType: node.type, executed: true } };
+    }
+  }
+
+  /**
+   * Execute integration nodes (future use)
+   */
+  private async executeIntegrationNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('🔌 Executing integration node');
+    
+    return { success: true, output: { integrationType: node.type, executed: true } };
+  }
+
+  // =============================================================================
+  // ENHANCED NODE IMPLEMENTATIONS
+  // =============================================================================
+
+  /**
+   * Execute audio playback from uploaded files
+   */
+  private async executeAudioPlayback(config: any, context: FlowExecutionContext) {
+    console.log('🎵 Playing audio file:', config.audioFileId);
+
+    try {
+      // TODO: Integrate with actual audio playback system
+      // For now, simulate audio playback
+      const duration = 5000; // Simulate 5 second audio
+      
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing
+
+      return {
+        success: true,
+        output: {
+          audioFileId: config.audioFileId,
+          duration: duration,
+          volume: config.volume || 100,
+          completed: true
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Audio playback failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Execute text-to-speech
+   */
+  private async executeTextToSpeech(config: any, context: FlowExecutionContext) {
+    console.log('🗣️ Converting text to speech:', config.text?.substring(0, 50) + '...');
+
+    try {
+      // TODO: Integrate with actual TTS system (e.g., Twilio, AWS Polly)
+      const estimatedDuration = (config.text?.length || 0) * 100; // 100ms per character estimate
+
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing
+
+      return {
+        success: true,
+        output: {
+          text: config.text,
+          voice: config.voice || 'alice',
+          speed: config.speed || 1.0,
+          language: config.language || 'en-GB',
+          estimatedDuration: estimatedDuration,
+          completed: true
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `TTS failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Execute queue transfer
+   */
+  private async executeQueueTransfer(config: any, context: FlowExecutionContext) {
+    console.log('👥 Transferring to queue:', config.queueId);
+
+    try {
+      // Check if queue exists and is available
+      const queue = await prisma.inboundQueue.findUnique({
+        where: { id: config.queueId }
+      });
+
+      if (!queue) {
+        return {
+          success: false,
+          error: 'Queue not found'
+        };
+      }
+
+      if (!queue.isActive) {
+        return {
+          success: false,
+          error: 'Queue is not active'
+        };
+      }
+
+      // For now, simulate available agents (TODO: integrate with actual agent management)
+      const simulatedAvailableAgents = Math.floor(Math.random() * 3) + 1;
+
+      if (simulatedAvailableAgents === 0) {
+        return {
+          success: false,
+          error: 'No agents available',
+          output: { waitlistPosition: await this.getQueueWaitlistPosition(config.queueId) }
+        };
+      }
+
+      // Simulate queue entry
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      return {
+        success: true,
+        output: {
+          queueId: config.queueId,
+          queueName: queue.name,
+          priority: config.priority || 3,
+          estimatedWaitTime: this.calculateEstimatedWaitTime(queue),
+          availableAgents: simulatedAvailableAgents,
+          transferred: true
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Queue transfer failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Execute input collection (digits, speech)
+   */
+  private async executeCollectInput(config: any, context: FlowExecutionContext) {
+    console.log('⌨️ Collecting input:', config.inputType);
+
+    try {
+      // TODO: Integrate with actual input collection system
+      // For now, simulate input collection
+      
+      // Simulate user input based on type
+      let simulatedInput = '';
+      if (config.inputType === 'digits') {
+        simulatedInput = '12345'.substring(0, config.maxLength || 5);
+      } else if (config.inputType === 'speech') {
+        simulatedInput = 'customer service';
+      }
+
+      // Validate input length
+      if (simulatedInput.length < (config.minLength || 1)) {
+        return {
+          success: false,
+          error: 'Input too short',
+          output: { collected: simulatedInput, valid: false }
+        };
+      }
+
+      // Store in context variables
+      if (config.variableName) {
+        context.variables[config.variableName] = simulatedInput;
+      }
+
+      return {
+        success: true,
+        output: {
+          inputType: config.inputType,
+          collected: simulatedInput,
+          variableName: config.variableName,
+          valid: true
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Input collection failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Execute call hangup
+   */
+  private async executeHangup(config: any, context: FlowExecutionContext) {
+    console.log('📞 Ending call with disposition:', config.callDisposition);
+
+    try {
+      // Play farewell message if configured
+      if (config.farewellMessage) {
+        console.log('💬 Playing farewell message:', config.farewellMessage);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate message playback
+      }
+
+      // Set call disposition
+      const disposition = config.callDisposition || 'completed';
+      
+      // TODO: Integrate with actual call termination system
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      return {
+        success: true,
+        output: {
+          callDisposition: disposition,
+          farewellMessage: config.farewellMessage,
+          callEnded: true,
+          endTime: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Call hangup failed: ${error}`
+      };
+    }
+  }
+
+  // =============================================================================
+  // ENHANCED ROUTING METHODS
+  // =============================================================================
+
+  /**
+   * Enhanced routing node execution with external transfer support
+   */
+  private async executeRoutingNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('🎯 Executing enhanced routing node');
+
+    switch (node.type) {
+      case 'external_transfer':
+        return this.executeExternalTransfer(config, context);
+      
+      default:
+        // Fall back to original routing logic
+        return { success: true, output: { routingType: node.type, executed: true } };
+    }
+  }
+
+  /**
+   * Execute external transfer to phone number
+   */
+  private async executeExternalTransfer(config: any, context: FlowExecutionContext) {
+    console.log('📞 External transfer to:', config.phoneNumber);
+
+    try {
+      // Validate phone number format
+      if (!config.phoneNumber || !/^\+[1-9]\d{1,14}$/.test(config.phoneNumber)) {
+        return {
+          success: false,
+          error: 'Invalid phone number format'
+        };
+      }
+
+      // TODO: Integrate with actual transfer system (Twilio, etc.)
+      // For now, simulate transfer attempt
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate ring time
+
+      // Simulate transfer outcome (randomized for demo)
+      const outcomes = ['connected', 'busy', 'no_answer', 'failed'];
+      const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+
+      return {
+        success: outcome === 'connected',
+        output: {
+          phoneNumber: config.phoneNumber,
+          transferType: config.transferType || 'blind',
+          outcome: outcome,
+          ringDuration: 2000,
+          callerIdOverride: config.callerIdOverride
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `External transfer failed: ${error}`
+      };
+    }
+  }
+
+  // =============================================================================
+  // ENHANCED CONDITION METHODS  
+  // =============================================================================
+
+  /**
+   * Enhanced condition node with business hours and caller data support
+   */
+  private async executeConditionNode(
+    node: FlowNode, 
+    context: FlowExecutionContext, 
+    config: any
+  ): Promise<{ success: boolean; output?: any; error?: string; }> {
+    console.log('🔍 Executing enhanced condition node');
+
+    switch (node.type) {
+      case 'business_hours':
+        return this.executeBusinessHoursCheck(config, context);
+      
+      case 'caller_condition':
+        return this.executeCallerCondition(config, context);
+      
+      default:
+        // Fall back to original condition logic for unknown condition types
+        const conditions = config.conditions || [];
+        let conditionMet = false;
+        let matchedCondition = null;
+
+        for (const condition of conditions) {
+          const result = this.evaluateCondition(condition, context);
+          if (result) {
+            conditionMet = true;
+            matchedCondition = condition;
+            break;
+          }
+        }
+
+        return {
+          success: true,
+          output: {
+            conditionMet,
+            matchedCondition,
+            evaluatedAt: new Date()
+          }
+        };
+    }
+  }
+
+  /**
+   * Check business hours
+   */
+  private async executeBusinessHoursCheck(config: any, context: FlowExecutionContext) {
+    console.log('🕒 Checking business hours');
+
+    try {
+      const now = new Date();
+      const timezone = config.timezone || 'Europe/London';
+      
+      // Get current time in business timezone
+      const businessTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+      const currentDay = businessTime.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone });
+      const currentTime = businessTime.toTimeString().slice(0, 5); // HH:MM format
+
+      // Check if current day is a business day
+      const businessDays = config.businessDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      if (!businessDays.includes(currentDay)) {
+        return {
+          success: true,
+          output: {
+            isOpen: false,
+            reason: 'closed_day',
+            currentDay: currentDay,
+            currentTime: currentTime,
+            timezone: timezone
+          }
+        };
+      }
+
+      // Check if current time is within business hours
+      const openTime = config.openTime || '09:00';
+      const closeTime = config.closeTime || '17:00';
+      
+      const isOpen = currentTime >= openTime && currentTime <= closeTime;
+
+      // Check for holidays
+      const holidays = config.holidays || [];
+      const currentDate = businessTime.toISOString().slice(0, 10); // YYYY-MM-DD
+      const isHoliday = holidays.includes(currentDate);
+
+      return {
+        success: true,
+        output: {
+          isOpen: isOpen && !isHoliday,
+          reason: isHoliday ? 'holiday' : isOpen ? 'open' : 'closed_hours',
+          currentDay: currentDay,
+          currentTime: currentTime,
+          openTime: openTime,
+          closeTime: closeTime,
+          timezone: timezone,
+          isHoliday: isHoliday
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Business hours check failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Check caller-specific conditions
+   */
+  private async executeCallerCondition(config: any, context: FlowExecutionContext) {
+    console.log('👤 Checking caller condition:', config.conditionType);
+
+    try {
+      const conditionType = config.conditionType;
+      const operator = config.operator;
+      const value = config.value;
+      const valueList = config.valueList || [];
+
+      let testValue = '';
+      
+      // Get the value to test based on condition type
+      switch (conditionType) {
+        case 'phone_number':
+          testValue = context.phoneNumber;
+          break;
+        case 'country_code':
+          testValue = context.phoneNumber.substring(0, 3); // First 3 chars as country code
+          break;
+        case 'vip_status':
+          // TODO: Look up VIP status from customer database
+          testValue = 'STANDARD'; // Default for now
+          break;
+        case 'call_history':
+          // TODO: Look up call history from database
+          testValue = '0'; // Default for now
+          break;
+        default:
+          testValue = '';
+      }
+
+      // Evaluate condition based on operator
+      let conditionMet = false;
+      switch (operator) {
+        case 'equals':
+          conditionMet = testValue === value;
+          break;
+        case 'contains':
+          conditionMet = testValue.includes(value);
+          break;
+        case 'starts_with':
+          conditionMet = testValue.startsWith(value);
+          break;
+        case 'in_list':
+          conditionMet = valueList.includes(testValue);
+          break;
+        default:
+          conditionMet = false;
+      }
+
+      return {
+        success: true,
+        output: {
+          conditionType: conditionType,
+          operator: operator,
+          testValue: testValue,
+          expectedValue: value,
+          conditionMet: conditionMet
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Caller condition check failed: ${error}`
+      };
+    }
+  }
+
+  // =============================================================================
+  // HELPER METHODS
+  // =============================================================================
+
+  private async getQueueWaitlistPosition(queueId: string): Promise<number> {
+    // TODO: Implement actual queue position calculation
+    return Math.floor(Math.random() * 5) + 1;
+  }
+
+  private calculateEstimatedWaitTime(queue: any): number {
+    // TODO: Calculate based on historical data and current queue load
+    return Math.floor(Math.random() * 300) + 60; // Random 1-5 minutes
   }
 }
 
