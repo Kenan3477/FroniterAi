@@ -38,6 +38,15 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       where: {
         isActive: true
       },
+      include: {
+        assignedFlow: {
+          select: {
+            id: true,
+            name: true,
+            status: true
+          }
+        }
+      } as any,
       orderBy: [
         { country: 'asc' },
         { numberType: 'asc' },
@@ -66,6 +75,8 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       businessHoursEnd: number.businessHoursEnd,
       businessDays: number.businessDays,
       timezone: number.timezone,
+      assignedFlowId: number.assignedFlowId,
+      assignedFlow: number.assignedFlow,
       createdAt: number.createdAt,
       updatedAt: number.updatedAt
     }));
@@ -151,7 +162,7 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
 });
 
 // PUT /api/voice/inbound-numbers/:id - Update an inbound number configuration
-router.put('/inbound-numbers/:id', async (req: Request, res: Response) => {
+router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
@@ -166,11 +177,25 @@ router.put('/inbound-numbers/:id', async (req: Request, res: Response) => {
       businessHoursEnd,
       businessDays,
       timezone,
-      isActive
+      isActive,
+      assignedFlowId
     } = req.body;
 
+    // Validate flow exists if assignedFlowId is provided
+    if (assignedFlowId) {
+      const flow = await prisma.flow.findUnique({
+        where: { id: assignedFlowId }
+      });
+      if (!flow) {
+        return res.status(400).json({
+          success: false,
+          error: 'Assigned flow not found'
+        });
+      }
+    }
+
     // Update the inbound number in the database
-    const updatedNumber = await prisma.inboundNumber.update({
+    const updatedNumber: any = await prisma.inboundNumber.update({
       where: { id },
       data: {
         displayName,
@@ -185,8 +210,18 @@ router.put('/inbound-numbers/:id', async (req: Request, res: Response) => {
         businessDays,
         timezone,
         isActive,
+        assignedFlowId: assignedFlowId || null,
         updatedAt: new Date()
-      }
+      } as any,
+      include: {
+        assignedFlow: assignedFlowId ? {
+          select: {
+            id: true,
+            name: true,
+            status: true
+          }
+        } : false
+      } as any
     });
 
     // Transform response
@@ -210,6 +245,8 @@ router.put('/inbound-numbers/:id', async (req: Request, res: Response) => {
       businessHoursEnd: updatedNumber.businessHoursEnd,
       businessDays: updatedNumber.businessDays,
       timezone: updatedNumber.timezone,
+      assignedFlowId: updatedNumber.assignedFlowId,
+      assignedFlow: updatedNumber.assignedFlow,
       createdAt: updatedNumber.createdAt,
       updatedAt: updatedNumber.updatedAt
     };

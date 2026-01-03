@@ -66,6 +66,14 @@ export interface InboundNumber {
   lookupSearchFilter: string; // 'All Lists'
   assignedToDefaultList: boolean;
   
+  // Flow Assignment Configuration
+  assignedFlowId?: string | null; // ID of the assigned flow
+  assignedFlow?: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  
   // Audio file configurations for different call conditions
   audioFiles: {
     greeting?: AudioFileConfig; // Main greeting when call is answered
@@ -296,6 +304,8 @@ export const InboundNumbersManager: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingNumber, setEditingNumber] = useState<InboundNumber | null>(null);
+  const [availableFlows, setAvailableFlows] = useState<any[]>([]);
+  const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null);
 
   // Fetch real inbound numbers from backend API
   useEffect(() => {
@@ -341,6 +351,9 @@ export const InboundNumbersManager: React.FC<{
           assignedToDefaultList: true,
           type: 'voice',
           status: num.status === 'active',
+          // Flow Assignment
+          assignedFlowId: num.assignedFlowId,
+          assignedFlow: num.assignedFlow,
           // Initialize with default audio file configurations
           audioFiles: {
             greeting: {
@@ -401,9 +414,46 @@ export const InboundNumbersManager: React.FC<{
     fetchInboundNumbers();
   }, [config.inboundNumbers]);
 
+  // Fetch available flows for assignment
+  useEffect(() => {
+    const fetchFlows = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        if (!token) {
+          console.warn('⚠️ No auth token available for fetching flows');
+          return;
+        }
+
+        const response = await fetch('/api/flows', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const flowData = await response.json();
+          console.log('🌊 Fetched flows for assignment:', flowData);
+          setAvailableFlows(flowData.data || []);
+        } else {
+          console.error('❌ Failed to fetch flows:', response.status, response.statusText);
+          const errorData = await response.text();
+          console.error('Error details:', errorData);
+        }
+      } catch (err) {
+        console.error('❌ Error fetching flows for assignment:', err);
+        // Flows are optional for basic inbound number functionality
+      }
+    };
+
+    fetchFlows();
+  }, []);
+
   const handleSave = async (number: InboundNumber) => {
     try {
-      setLoading(true);
+      setUpdatingNumberId(number.id);
       const token = localStorage.getItem('authToken');
       
       if (!token) {
@@ -411,12 +461,11 @@ export const InboundNumbersManager: React.FC<{
         return;
       }
 
-      // Prepare data for backend API
       const updateData = {
-        phoneNumber: number.number,
-        friendlyName: number.displayName,
+        displayName: number.displayName,
         description: number.description,
-        status: number.status ? 'active' : 'inactive'
+        isActive: number.status,
+        assignedFlowId: number.assignedFlowId || null
       };
 
       const response = await fetch(`/api/voice/inbound-numbers/${number.id}`, {
@@ -432,26 +481,41 @@ export const InboundNumbersManager: React.FC<{
         throw new Error(`Failed to update inbound number: ${response.statusText}`);
       }
 
-      // Update local state
-      let updatedNumbers;
-      if (editingNumber) {
-        updatedNumbers = numbers.map(num => 
-          num.id === number.id ? number : num
-        );
-      } else {
-        updatedNumbers = [...numbers, { ...number, id: Date.now().toString() }];
-      }
+      const result = await response.json();
+      console.log('✅ Inbound number updated successfully:', result);
+
+      // Update the local number with the backend response data
+      const backendUpdatedNumber = result.data;
+      const mergedNumber = {
+        ...number,
+        assignedFlowId: backendUpdatedNumber.assignedFlowId,
+        assignedFlow: backendUpdatedNumber.assignedFlow,
+        // Update other fields from backend if needed
+        displayName: backendUpdatedNumber.displayName,
+        description: backendUpdatedNumber.description,
+        status: backendUpdatedNumber.isActive
+      };
+
+      // Update local state with the merged data
+      const updatedNumbers = numbers.map(num => 
+        num.id === number.id ? mergedNumber : num
+      );
       
       setNumbers(updatedNumbers);
       onUpdate({ ...config, inboundNumbers: updatedNumbers });
       setShowAddForm(false);
       setEditingNumber(null);
       
+      // Show success message if flow was assigned
+      if (backendUpdatedNumber.assignedFlowId && backendUpdatedNumber.assignedFlow) {
+        console.log(`🌊 Flow "${backendUpdatedNumber.assignedFlow.name}" successfully assigned to number ${number.number}`);
+      }
+      
     } catch (err: any) {
       console.error('❌ Error saving inbound number:', err);
       alert(`Failed to save: ${err.message}`);
     } finally {
-      setLoading(false);
+      setUpdatingNumberId(null);
     }
   };
 
@@ -622,6 +686,9 @@ export const InboundNumbersManager: React.FC<{
                 Type
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Assigned Flow
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -643,6 +710,41 @@ export const InboundNumbersManager: React.FC<{
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {getTypeIcon(number.type)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={number.assignedFlowId || ''}
+                      onChange={async (e) => {
+                        const flowId = e.target.value || undefined;
+                        const updatedNumber = { ...number, assignedFlowId: flowId };
+                        console.log(`🔄 Assigning flow "${availableFlows.find(f => f.id === flowId)?.name || 'No Flow'}" to number ${number.number}`);
+                        await handleSave(updatedNumber);
+                      }}
+                      disabled={updatingNumberId === number.id}
+                      className={`text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        updatingNumberId === number.id ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <option value="">No Flow</option>
+                      {availableFlows.map(flow => (
+                        <option key={flow.id} value={flow.id}>
+                          {flow.name} ({flow.status})
+                        </option>
+                      ))}
+                    </select>
+                    {updatingNumberId === number.id && (
+                      <div className="inline-flex items-center text-xs text-blue-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                        Saving...
+                      </div>
+                    )}
+                    {number.assignedFlow && updatingNumberId !== number.id && (
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                        ✓ {number.assignedFlow.status}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button

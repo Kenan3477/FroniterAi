@@ -27,7 +27,16 @@ import { flowsAPI, Flow } from '../../services/api';
 
 // Custom Node Components with Handles
 const EventTriggerNode = ({ data }: { data: any }) => (
-  <div className="px-4 py-3 bg-slate-500 text-white rounded-lg shadow-lg border-2 border-slate-600 min-w-[140px] relative">
+  <div className="px-4 py-3 bg-slate-500 tex        { id: 'hangup', icon: '📵', name: 'End Call', type: 'hangup', description: 'Gracefully terminate call' }
+      ]
+    }
+  ];
+
+  // Drag and drop functionality
+  const onDragStart = (event: DragEvent, nodeData: any) => {
+    event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
+    event.dataTransfer.effectAllowed = 'move';
+  };hadow-lg border-2 border-slate-600 min-w-[140px] relative">
     <Handle
       type="source"
       position={Position.Bottom}
@@ -109,18 +118,54 @@ interface FlowBuilderProps {
 }
 
 // Node Configuration Panel Component
-function NodeConfigPanel({ node, onClose, onUpdate }: { 
+function NodeConfigPanel({ node, onClose, onUpdate, flowId, allNodes, onNodeSelect }: { 
   node: Node; 
   onClose: () => void; 
-  onUpdate: (node: Node) => void; 
+  onUpdate: (node: Node) => void;
+  flowId: string | null;
+  allNodes: Node[];
+  onNodeSelect: (node: Node) => void;
 }) {
   const [nodeData, setNodeData] = useState(node.data || {});
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const updateNodeData = (newData: any) => {
+  const updateNodeData = async (newData: any) => {
     const updatedData = { ...nodeData, ...newData };
     setNodeData(updatedData);
     onUpdate({ ...node, data: updatedData });
+
+    // Auto-save to backend if flowId is available
+    if (flowId) {
+      setSaveStatus('saving');
+      
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Debounce the save operation
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await flowsAPI.updateFlowNode(flowId, 'draft', node.id, {
+            config: updatedData,
+          });
+          setSaveStatus('saved');
+        } catch (error) {
+          console.error('Failed to save node configuration:', error);
+          setSaveStatus('error');
+        }
+      }, 1000);
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const renderConfigFields = () => {
     if (node.type === 'eventTrigger') {
@@ -435,10 +480,55 @@ function NodeConfigPanel({ node, onClose, onUpdate }: {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
+      {/* Header with Node Selector */}
       <div className="p-4 border-b border-gray-200">
+        {/* Node Selector Dropdown */}
+        <div className="mb-3">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Select Node to Configure
+          </label>
+          <select
+            value={node.id}
+            onChange={(e) => {
+              const selectedNode = allNodes.find(n => n.id === e.target.value);
+              if (selectedNode) onNodeSelect(selectedNode);
+            }}
+            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+          >
+            {allNodes.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.data.icon || '📄'} {n.data.label || n.type || 'Unnamed Node'}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-medium text-gray-900">Configure Node</h3>
+          <div className="flex items-center space-x-2">
+            <h3 className="font-medium text-gray-900">Configure Node</h3>
+            {flowId && (
+              <div className="flex items-center space-x-1 text-xs">
+                {saveStatus === 'saved' && (
+                  <>
+                    <Cloud size={12} className="text-green-500" />
+                    <span className="text-green-500">Saved</span>
+                  </>
+                )}
+                {saveStatus === 'saving' && (
+                  <>
+                    <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-gray-500">Saving...</span>
+                  </>
+                )}
+                {saveStatus === 'error' && (
+                  <>
+                    <CloudOff size={12} className="text-red-500" />
+                    <span className="text-red-500">Error</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -464,6 +554,42 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
   const [currentFlowId, setCurrentFlowId] = useState<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSaveRef = useRef<Date>(new Date());
+
+  // Validation state
+  const [validationStatus, setValidationStatus] = useState<'unvalidated' | 'validating' | 'valid' | 'invalid'>('unvalidated');
+  const [validationResults, setValidationResults] = useState<{
+    errors: Array<{ code: string; message: string; severity: 'ERROR' | 'WARNING'; nodeId?: string }>;
+    warnings: Array<{ code: string; message: string; nodeId?: string }>;
+    summary?: {
+      totalNodes: number;
+      totalEdges: number;
+      entryNodes: number;
+      exitNodes: number;
+      errorCount: number;
+      warningCount: number;
+    };
+  } | null>(null);
+
+  // Simulation state
+  const [simulationStatus, setSimulationStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+  const [simulationResults, setSimulationResults] = useState<{
+    executionPath: Array<{
+      nodeId: string;
+      nodeType: string;
+      nodeLabel: string;
+      action: string;
+      result: string;
+      duration: number;
+      nextNodeId?: string;
+    }>;
+    summary: {
+      totalSteps: number;
+      totalDuration: number;
+      finalOutcome: string;
+      successful: boolean;
+    };
+  } | null>(null);
+  const [selectedScenario, setSelectedScenario] = useState('default');
 
   // React Flow state
   const initialNodes: Node[] = [
@@ -639,6 +765,120 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
     }
   }, [currentFlowId, nodes, edges, flowName]);
 
+  // Validate flow function
+  const validateFlowDesign = useCallback(async () => {
+    if (!currentFlowId) {
+      console.warn('Cannot validate flow: No flow ID');
+      return;
+    }
+
+    setValidationStatus('validating');
+
+    try {
+      const result = await flowsAPI.validateFlow(currentFlowId);
+      
+      setValidationResults({
+        errors: result.errors,
+        warnings: result.warnings,
+        summary: result.summary
+      });
+
+      setValidationStatus(result.isValid ? 'valid' : 'invalid');
+      
+      console.log('Flow validation completed:', {
+        isValid: result.isValid,
+        errorCount: result.errors.length,
+        warningCount: result.warnings.length
+      });
+
+    } catch (error) {
+      console.error('Flow validation failed:', error);
+      setValidationStatus('invalid');
+      setValidationResults({
+        errors: [{
+          code: 'VALIDATION_ERROR',
+          message: 'Failed to validate flow. Please try again.',
+          severity: 'ERROR'
+        }],
+        warnings: []
+      });
+    }
+  }, [currentFlowId]);
+
+  // Auto-validate when flow structure changes
+  useEffect(() => {
+    if (!currentFlowId || nodes.length === 0) return;
+
+    // Reset validation status when flow changes
+    setValidationStatus('unvalidated');
+    setValidationResults(null);
+
+    // Debounced validation (5 seconds after changes)
+    const validationTimeout = setTimeout(() => {
+      validateFlowDesign();
+    }, 5000);
+
+    return () => clearTimeout(validationTimeout);
+  }, [nodes, edges, validateFlowDesign]);
+
+  // Simulate flow execution
+  const simulateFlowExecution = useCallback(async (scenario: string = 'default') => {
+    if (!currentFlowId) {
+      console.warn('Cannot simulate flow: No flow ID');
+      return;
+    }
+
+    setSimulationStatus('running');
+    setSimulationResults(null);
+
+    try {
+      const mockData = {
+        callerNumber: '+442012345678',
+        calledNumber: '+442046343130',
+        ivrSelection: '1',
+        userInput: 'John Smith'
+      };
+
+      const result = await flowsAPI.simulateFlow(currentFlowId, {
+        scenario,
+        mockData
+      });
+
+      setSimulationResults({
+        executionPath: result.executionPath,
+        summary: result.summary
+      });
+
+      setSimulationStatus('completed');
+      
+      console.log('Flow simulation completed:', {
+        steps: result.executionPath.length,
+        duration: result.summary.totalDuration,
+        outcome: result.summary.finalOutcome
+      });
+
+    } catch (error) {
+      console.error('Flow simulation failed:', error);
+      setSimulationStatus('error');
+      setSimulationResults({
+        executionPath: [{
+          nodeId: 'error',
+          nodeType: 'error',
+          nodeLabel: 'Simulation Error',
+          action: 'Simulation failed',
+          result: 'Failed to simulate flow. Please try again.',
+          duration: 0
+        }],
+        summary: {
+          totalSteps: 1,
+          totalDuration: 0,
+          finalOutcome: 'Simulation failed',
+          successful: false
+        }
+      });
+    }
+  }, [currentFlowId]);
+
   // Debounced auto-save when nodes or edges change
   useEffect(() => {
     if (!currentFlowId) return;
@@ -696,65 +936,45 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
     setSelectedNode(null); // Deselect node when clicking on empty canvas
   }, []);
 
-  // Node palette data
+  // Node palette data - Professional Call Center Flow Nodes
   const nodeCategories = [
     {
-      id: 'event-triggers',
-      title: 'Event Triggers',
+      id: 'routing',
+      title: 'Call Routing',
       nodes: [
-        { id: 'phone', icon: '📞', name: 'Phone Call', type: 'eventTrigger' },
-        { id: 'apple', icon: '🍎', name: 'Apple Messages', type: 'eventTrigger' },
-        { id: 'whatsapp', icon: '💬', name: 'WhatsApp', type: 'eventTrigger' },
-        { id: 'sms', icon: '💬', name: 'SMS', type: 'eventTrigger' },
-        { id: 'email', icon: '📧', name: 'Email', type: 'eventTrigger' },
-        { id: 'webhook', icon: '🔗', name: 'Webhook', type: 'eventTrigger' },
-        { id: 'schedule', icon: '⏰', name: 'Schedule', type: 'eventTrigger' },
-        { id: 'form', icon: '📝', name: 'Form', type: 'eventTrigger' },
+        { id: 'external_transfer', icon: '📞', name: 'External Transfer', type: 'external_transfer', description: 'Transfer to external DDI/phone number' },
+        { id: 'queue_transfer', icon: '�', name: 'Queue Transfer', type: 'queue_transfer', description: 'Route to internal agent queue' }
       ]
     },
     {
-      id: 'bulk-automations',
-      title: 'Bulk Automations',
+      id: 'media',
+      title: 'Audio & Media',
       nodes: [
-        { id: 'bulk-sms', icon: '👥', name: 'Bulk SMS', type: 'action' },
-        { id: 'bulk-email', icon: '📧', name: 'Bulk Email', type: 'action' },
+        { id: 'audio_playback', icon: '�', name: 'Play Audio', type: 'audio_playback', description: 'Play uploaded audio file' },
+        { id: 'text_to_speech', icon: '�️', name: 'Text to Speech', type: 'text_to_speech', description: 'Convert text to speech' }
       ]
     },
     {
-      id: 'conditionals',
-      title: 'Conditionals',
+      id: 'conditions',
+      title: 'Conditions & Logic',
       nodes: [
-        { id: 'if-then', icon: '🔀', name: 'If/Then', type: 'conditional' },
-        { id: 'switch', icon: '🔄', name: 'Switch', type: 'conditional' },
-        { id: 'filter', icon: '🔍', name: 'Filter', type: 'conditional' },
-        { id: 'compare', icon: '⚖️', name: 'Compare', type: 'conditional' },
-        { id: 'time-condition', icon: '⏰', name: 'Time', type: 'conditional' },
+        { id: 'business_hours', icon: '�', name: 'Business Hours', type: 'business_hours', description: 'Route based on time and date' },
+        { id: 'caller_condition', icon: '👤', name: 'Caller Check', type: 'caller_condition', description: 'Route based on caller data' }
       ]
     },
     {
-      id: 'hive-ai',
-      title: 'HIVE AI',
+      id: 'ivr',
+      title: 'Interactive Voice',
       nodes: [
-        { id: 'ai-chat', icon: '🤖', name: 'AI Chat', type: 'ai' },
-        { id: 'ai-classify', icon: '🧠', name: 'Classify', type: 'ai' },
-        { id: 'ai-sentiment', icon: '😊', name: 'Sentiment', type: 'ai' },
-        { id: 'ai-translate', icon: '🌐', name: 'Translate', type: 'ai' },
-        { id: 'ai-summarize', icon: '📝', name: 'Summarize', type: 'ai' },
+        { id: 'ivr_menu', icon: '🔢', name: 'IVR Menu', type: 'ivr_menu', description: 'Interactive menu options' },
+        { id: 'collect_input', icon: '⌨️', name: 'Collect Input', type: 'collect_input', description: 'Gather digits or speech' }
       ]
     },
     {
-      id: 'actions',
-      title: 'Actions',
+      id: 'workflow',
+      title: 'Flow Control',
       nodes: [
-        { id: 'send-sms', icon: '📱', name: 'Send SMS', type: 'action' },
-        { id: 'play-audio', icon: '🔊', name: 'Play Audio', type: 'action' },
-        { id: 'transfer', icon: '📞', name: 'Transfer', type: 'action' },
-        { id: 'record', icon: '📹', name: 'Record', type: 'action' },
-        { id: 'voicemail', icon: '📞', name: 'Voicemail', type: 'action' },
-        { id: 'hang-up', icon: '📞', name: 'Hang Up', type: 'action' },
-        { id: 'call-api', icon: '🔌', name: 'Call API', type: 'action' },
-        { id: 'send-email', icon: '📧', name: 'Send Email', type: 'action' },
-        { id: 'update-crm', icon: '📊', name: 'Update CRM', type: 'action' },
+        { id: 'hangup', icon: '�', name: 'End Call', type: 'hangup', description: 'Gracefully terminate call' }
       ]
     }
   ];
@@ -845,6 +1065,88 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
                   </>
                 )}
               </div>
+
+              {/* Validation Status */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={validateFlowDesign}
+                  className="flex items-center space-x-1 px-2 py-1 rounded text-xs bg-slate-500 hover:bg-slate-400 transition-colors"
+                  title="Validate flow design"
+                  disabled={validationStatus === 'validating'}
+                >
+                  <Settings size={12} />
+                  <span>Validate</span>
+                </button>
+
+                <button
+                  onClick={() => simulateFlowExecution(selectedScenario)}
+                  className="flex items-center space-x-1 px-2 py-1 rounded text-xs bg-blue-500 hover:bg-blue-400 transition-colors"
+                  title="Test flow execution"
+                  disabled={simulationStatus === 'running'}
+                >
+                  <GitBranch size={12} />
+                  <span>Test</span>
+                </button>
+                
+                <div className="flex items-center space-x-1 text-xs">
+                  {validationStatus === 'unvalidated' && (
+                    <>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                      <span className="text-slate-200">Not validated</span>
+                    </>
+                  )}
+                  {validationStatus === 'validating' && (
+                    <>
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="text-slate-200">Validating...</span>
+                    </>
+                  )}
+                  {validationStatus === 'valid' && (
+                    <>
+                      <div className="w-2 h-2 bg-green-400 rounded-full" />
+                      <span className="text-green-300">Valid</span>
+                    </>
+                  )}
+                  {validationStatus === 'invalid' && (
+                    <>
+                      <div className="w-2 h-2 bg-red-400 rounded-full" />
+                      <span className="text-red-300">
+                        {validationResults?.errors.length || 0} errors
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Simulation Status */}
+                <div className="flex items-center space-x-1 text-xs">
+                  {simulationStatus === 'idle' && (
+                    <>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                      <span className="text-slate-200">Not tested</span>
+                    </>
+                  )}
+                  {simulationStatus === 'running' && (
+                    <>
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="text-slate-200">Testing...</span>
+                    </>
+                  )}
+                  {simulationStatus === 'completed' && (
+                    <>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                      <span className="text-blue-300">
+                        {simulationResults?.summary.totalSteps || 0} steps
+                      </span>
+                    </>
+                  )}
+                  {simulationStatus === 'error' && (
+                    <>
+                      <div className="w-2 h-2 bg-red-400 rounded-full" />
+                      <span className="text-red-300">Test failed</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <h2 className="text-lg font-medium">{flowName}</h2>
@@ -873,6 +1175,9 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
                 setNodes((nds) => nds.map((n) => n.id === updatedNode.id ? updatedNode : n));
                 setSelectedNode(updatedNode);
               }}
+              flowId={currentFlowId}
+              allNodes={nodes}
+              onNodeSelect={(node) => setSelectedNode(node)}
             />
           ) : (
             /* Node Palette */
@@ -892,25 +1197,160 @@ function FlowBuilderContent({ onBack, flowName = "Flash Inbound" }: FlowBuilderP
               </button>
               
               {selectedNodeCategory === category.id && (
-                <div className="grid grid-cols-4 gap-2 p-4 bg-gray-50">
+                <div className="grid grid-cols-2 gap-2 p-4 bg-gray-50">
                   {category.nodes.map((node) => (
                     <div
                       key={node.id}
-                      className="flex flex-col items-center p-2 bg-white border border-gray-200 rounded-lg cursor-grab hover:border-slate-300 hover:shadow-sm transition-all"
+                      className="flex flex-col items-center p-3 bg-white border border-gray-200 rounded-lg cursor-grab hover:border-slate-300 hover:shadow-md transition-all"
                       draggable
                       onDragStart={(event) => onDragStart(event, node)}
-                      title={`Drag to add ${node.name}`}
+                      title={`${node.name}: ${node.description || 'Drag to add to flow'}`}
                     >
-                      <div className="text-2xl mb-1">{node.icon}</div>
-                      <div className="text-xs text-gray-600 text-center leading-tight">
+                      <div className="text-2xl mb-2">{node.icon}</div>
+                      <div className="text-xs text-gray-700 text-center font-medium leading-tight">
                         {node.name}
                       </div>
+                      {node.description && (
+                        <div className="text-xs text-gray-500 text-center mt-1 leading-tight">
+                          {node.description}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ))}
+            
+            {/* Validation Results Panel */}
+            {validationResults && (validationResults.errors.length > 0 || validationResults.warnings.length > 0) && (
+              <div className="border-t border-gray-200 mt-4">
+                <div className="px-4 py-3">
+                  <h3 className="font-medium text-gray-900 mb-2">Validation Results</h3>
+                  
+                  {validationResults.errors.length > 0 && (
+                    <div className="mb-3">
+                      <h4 className="text-sm font-medium text-red-700 mb-1">
+                        Errors ({validationResults.errors.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {validationResults.errors.map((error, index) => (
+                          <div
+                            key={index}
+                            className="p-2 bg-red-50 border border-red-200 rounded-md cursor-pointer hover:bg-red-100 transition-colors"
+                            onClick={() => {
+                              if (error.nodeId) {
+                                const node = nodes.find(n => n.id === error.nodeId);
+                                if (node) setSelectedNode(node);
+                              }
+                            }}
+                            title={error.nodeId ? "Click to select node" : undefined}
+                          >
+                            <div className="text-xs font-medium text-red-800">{error.code}</div>
+                            <div className="text-xs text-red-700">{error.message}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {validationResults.warnings.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-yellow-700 mb-1">
+                        Warnings ({validationResults.warnings.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {validationResults.warnings.map((warning, index) => (
+                          <div
+                            key={index}
+                            className="p-2 bg-yellow-50 border border-yellow-200 rounded-md cursor-pointer hover:bg-yellow-100 transition-colors"
+                            onClick={() => {
+                              if (warning.nodeId) {
+                                const node = nodes.find(n => n.id === warning.nodeId);
+                                if (node) setSelectedNode(node);
+                              }
+                            }}
+                            title={warning.nodeId ? "Click to select node" : undefined}
+                          >
+                            <div className="text-xs font-medium text-yellow-800">{warning.code}</div>
+                            <div className="text-xs text-yellow-700">{warning.message}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {validationResults.summary && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">
+                        Flow Summary: {validationResults.summary.totalNodes} nodes, {validationResults.summary.totalEdges} connections
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Simulation Results Panel */}
+            {simulationResults && simulationResults.executionPath.length > 0 && (
+              <div className="border-t border-gray-200 mt-4">
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-gray-900">Test Results</h3>
+                    <select
+                      value={selectedScenario}
+                      onChange={(e) => setSelectedScenario(e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="default">Normal Hours</option>
+                      <option value="out_of_hours">Out of Hours</option>
+                      <option value="busy_queue">Busy Queue</option>
+                      <option value="weekend">Weekend</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span>Execution Path ({simulationResults.summary.totalSteps} steps)</span>
+                      <span>{simulationResults.summary.totalDuration}ms</span>
+                    </div>
+                    
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {simulationResults.executionPath.map((step, index) => (
+                        <div
+                          key={index}
+                          className="p-2 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => {
+                            const node = nodes.find(n => n.id === step.nodeId);
+                            if (node) setSelectedNode(node);
+                          }}
+                          title="Click to select node"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-medium text-blue-800">
+                              {index + 1}. {step.nodeLabel || step.nodeType}
+                            </div>
+                            <div className="text-xs text-blue-600">
+                              {step.duration}ms
+                            </div>
+                          </div>
+                          <div className="text-xs text-blue-700">
+                            {step.action}: {step.result}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="text-xs text-gray-500">
+                      Outcome: {simulationResults.summary.finalOutcome}
+                      {simulationResults.summary.successful ? ' ✓' : ' ⚠️'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           )}
         </div>
