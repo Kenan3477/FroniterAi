@@ -34,6 +34,7 @@ interface InboundNumber {
 router.get('/inbound-numbers', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('📞 Fetching inbound numbers from database...');
+    console.log('🎯 Expected: Only +442046343130 (real Twilio number)');
     
     // Fetch active inbound numbers from database
     const inboundNumbers = await prisma.inboundNumber.findMany({
