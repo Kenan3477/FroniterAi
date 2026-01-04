@@ -69,11 +69,11 @@ import dialerRoutes from './routes/dialer'; // NEW: Twilio dialer routes
 import dialQueueRoutes from './routes/dialQueue'; // NEW: Dial queue system
 import eventTestRoutes from './routes/eventTest'; // NEW: Event system testing
 
-// Phase 3: Advanced Features (Enhancement) Routes - TEMPORARILY DISABLED
-// import flowVersioningRoutes from './routes/flowVersioning'; // NEW: Flow versioning and rollback system
-// import flowMonitoringRoutes from './routes/flowMonitoring'; // NEW: Real-time flow monitoring dashboard
-// import flowOptimizationRoutes from './routes/flowOptimization'; // NEW: AI-powered flow optimization
-// import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tenant flow management
+// Phase 3: Advanced Features (Enhancement) Routes - RE-ENABLED
+import flowVersioningRoutes from './routes/flowVersioning'; // NEW: Flow versioning and rollback system
+import flowMonitoringRoutes from './routes/flowMonitoring'; // NEW: Real-time flow monitoring dashboard
+import flowOptimizationRoutes from './routes/flowOptimization'; // NEW: AI-powered flow optimization
+import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tenant flow management
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -188,11 +188,11 @@ class App {
     // this.app.use('/api/flow-node-types', nodeTypeRoutes);
     // this.app.use('/api/flow-execution', flowExecutionRoutes);
 
-    // Phase 3: Advanced Features (Enhancement) Routes - TEMPORARILY DISABLED
-    // this.app.use('/api/flow-versioning', flowVersioningRoutes); // Flow versioning and rollback system
-    // this.app.use('/api/flow-monitoring', flowMonitoringRoutes); // Real-time flow monitoring dashboard
-    // this.app.use('/api/flow-optimization', flowOptimizationRoutes); // AI-powered flow optimization
-    // this.app.use('/api/multi-tenant', multiTenantFlowRoutes); // Multi-tenant flow management
+    // Phase 3: Advanced Features (Enhancement) Routes - RE-ENABLED
+    this.app.use('/api/flow-versioning', flowVersioningRoutes); // Flow versioning and rollback system
+    this.app.use('/api/flow-monitoring', flowMonitoringRoutes); // Real-time flow monitoring dashboard
+    this.app.use('/api/flow-optimization', flowOptimizationRoutes); // AI-powered flow optimization
+    this.app.use('/api/multi-tenant', multiTenantFlowRoutes); // Multi-tenant flow management
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES
     // this.app.use('/api/dialler/agents', diallerAgentRoutes); // Disabled - missing services
