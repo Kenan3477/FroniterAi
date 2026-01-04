@@ -250,7 +250,8 @@ export class MultiTenantFlowService {
         name: validatedData.name,
         description: validatedData.description || 'Flow created from template',
         status: 'INACTIVE',
-        createdByUserId: userId
+        createdByUserId: userId,
+        organizationId: validatedData.organizationId
       }
     });
 

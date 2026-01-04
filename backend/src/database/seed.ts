@@ -21,6 +21,22 @@ async function main() {
 
   console.log('✅ Created demo user:', demoUser.name);
 
+  // Create demo organization
+  const demoOrg = await prisma.organization.upsert({
+    where: { name: 'omnivox-ai' },
+    update: {},
+    create: {
+      name: 'omnivox-ai',
+      displayName: 'Omnivox AI',
+      description: 'Demo organization for Omnivox AI platform',
+      industry: 'Technology',
+      size: 'STARTUP',
+      timezone: 'Europe/London'
+    }
+  });
+
+  console.log('✅ Created demo organization:', demoOrg.name);
+
   // Define node type definitions for Omnivox AI Flows
   const nodeTypeDefinitions = [
     // EVENT TRIGGERS
@@ -291,6 +307,7 @@ async function main() {
       description: 'Demo inbound call flow for customer service',
       status: 'ACTIVE',
       createdByUserId: demoUser.id,
+      organizationId: demoOrg.id,
       versions: {
         create: {
           versionNumber: 1,
