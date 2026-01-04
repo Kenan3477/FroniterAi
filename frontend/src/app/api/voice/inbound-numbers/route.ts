@@ -31,6 +31,20 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       console.error(`❌ Backend response not ok: ${response.status} ${response.statusText}`);
+      
+      if (response.status === 401) {
+        console.error('🔑 Authentication failed - token may be expired');
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Authentication expired', 
+            message: 'Your session has expired. Please log out and log back in.',
+            shouldRefreshAuth: true
+          },
+          { status: 401 }
+        );
+      }
+      
       throw new Error(`Backend responded with ${response.status}: ${response.statusText}`);
     }
 
