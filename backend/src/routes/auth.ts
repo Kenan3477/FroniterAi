@@ -82,15 +82,11 @@ router.post('/login', async (req, res) => {
     console.log('🔍 Password comparison result:', isPasswordValid);
     
     // Additional debug: test with known working password
+    // Additional debug: test with known working password
     if (!isPasswordValid && user.email === 'Kennen_02@icloud.com') {
       console.log('🔍 Testing with demo password for debug...');
-      const testDemoPassword = await bcrypt.compare('OmnivoxAgent2025!', user.password);
-      console.log('🔍 Demo password test result:', testDemoPassword);
-      
-      // Test with the exact password that works with username
-      console.log('🔍 Testing password that works with username...');
-      const testWorkingPassword = await bcrypt.compare('Kenzo3477!', user.password);
-      console.log('🔍 Working password test result:', testWorkingPassword);
+      // REMOVED: Hardcoded password tests for security
+      console.log('🔍 Hardcoded password tests disabled for security');
     }
     
     if (!isPasswordValid) {

@@ -70,8 +70,8 @@ router.post('/welcome', validateTwilioSignature, (req: Request, res: Response) =
   res.send(twiml);
 });
 
-// Basic webhooks endpoint
-router.post('/', (req, res) => {
+// Basic webhooks endpoint - SECURED
+router.post('/', validateTwilioSignature, (req, res) => {
   console.log('📨 Generic webhook received:', req.body);
   res.json({
     success: true,

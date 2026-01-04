@@ -35,23 +35,15 @@ router.post('/create-users', async (req: Request, res: Response) => {
         return res.json({
           success: true,
           message: 'Admin user activated successfully',
-          admin: { email: updatedAdmin.email, isActive: updatedAdmin.isActive },
-          credentials: {
-            admin: { email: 'admin@omnivox-ai.com', password: 'OmnivoxAdmin2025!' },
-            agent: { email: 'agent@omnivox-ai.com', password: 'OmnivoxAgent2025!' },
-            supervisor: { email: 'supervisor@omnivox-ai.com', password: 'OmnivoxSupervisor2025!' }
-          }
+          admin: { email: updatedAdmin.email, isActive: updatedAdmin.isActive }
+          // SECURITY: Credentials removed from API response
         });
       }
 
       return res.json({
         success: true,
-        message: 'Users already exist',
-        credentials: {
-          admin: { email: 'admin@omnivox-ai.com', password: 'OmnivoxAdmin2025!' },
-          agent: { email: 'agent@omnivox-ai.com', password: 'OmnivoxAgent2025!' },
-          supervisor: { email: 'supervisor@omnivox-ai.com', password: 'OmnivoxSupervisor2025!' }
-        }
+        message: 'Users already exist'
+        // SECURITY: Credentials removed from API response
       });
     }
 

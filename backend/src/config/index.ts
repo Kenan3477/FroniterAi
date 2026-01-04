@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// Security validation - ensure required secrets are present
+const requiredSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const missingSecrets = requiredSecrets.filter(secret => !process.env[secret]);
+
+if (missingSecrets.length > 0) {
+  throw new Error(`SECURITY ERROR: Missing required environment variables: ${missingSecrets.join(', ')}`);
+}
+
 interface Config {
   server: {
     port: number;
@@ -57,9 +65,9 @@ const config: Config = {
     url: process.env.REDIS_URL || 'redis://localhost:6379',
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key',
+    secret: process.env.JWT_SECRET!,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+    refreshSecret: process.env.JWT_REFRESH_SECRET!,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
   frontend: {
