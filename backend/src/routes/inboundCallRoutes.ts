@@ -8,6 +8,7 @@
  */
 
 import { Router } from 'express';
+import twilio from 'twilio';
 import {
   handleInboundWebhook,
   answerInboundCall,
@@ -17,43 +18,37 @@ import {
 
 const router = Router();
 
-// Twilio webhook validation middleware (reuse from existing system)
+// SECURE Twilio webhook validation middleware
 const validateTwilioWebhook = (req: any, res: any, next: any) => {
-  // TEMPORARILY DISABLED for testing - signature validation causing issues
-  // TODO: Fix signature validation for Railway production environment
-  console.log('🔍 Inbound webhook called from:', req.ip, 'User-Agent:', req.get('User-Agent'));
-  return next();
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.error('🚨 SECURITY: TWILIO_AUTH_TOKEN not configured');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  const twilioSignature = req.headers['x-twilio-signature'] as string;
+  if (!twilioSignature) {
+    console.error('🚨 SECURITY: Webhook request missing Twilio signature');
+    console.log('Request details:', { ip: req.ip, userAgent: req.get('User-Agent'), headers: req.headers });
+    return res.status(401).json({ error: 'Unauthorized - Missing signature' });
+  }
+
+  const requestUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const isValid = twilio.validateRequest(authToken, twilioSignature, requestUrl, req.body);
   
-  // For development, skip validation
-  if (process.env.NODE_ENV !== 'production') {
-    return next();
+  if (!isValid) {
+    console.error('� SECURITY: Invalid Twilio webhook signature');
+    console.log('Request details:', { ip: req.ip, userAgent: req.get('User-Agent'), url: requestUrl });
+    return res.status(401).json({ error: 'Unauthorized - Invalid signature' });
   }
   
-  const twilioSignature = req.get('X-Twilio-Signature');
-  const url = `${process.env.BACKEND_URL}${req.originalUrl}`;
-  
-  // Only validate in production
-  if (process.env.NODE_ENV === 'production' && process.env.TWILIO_AUTH_TOKEN) {
-    const twilio = require('twilio');
-    const isValid = twilio.validateRequest(
-      process.env.TWILIO_AUTH_TOKEN!,
-      twilioSignature || '',
-      url,
-      req.body
-    );
-    
-    if (!isValid) {
-      console.warn('⚠️ Invalid Twilio webhook signature for inbound call');
-      return res.status(403).send('Invalid signature');
-    }
-  }
-  
+  console.log('✅ Twilio webhook signature validated');
   next();
 };
 
 /**
  * POST /api/calls/webhook/inbound-call
- * Main webhook endpoint for Twilio inbound calls
+ * Main webhook endpoint for Twilio inbound calls - SECURED
  * This replaces the basic /api/webhooks/voice endpoint for enhanced functionality
  */
 router.post('/webhook/inbound-call', validateTwilioWebhook, handleInboundWebhook);

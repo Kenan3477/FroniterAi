@@ -1,11 +1,16 @@
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 
-// Environment configuration
-export const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
-export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key';
+// Environment configuration - SECURE: No fallback secrets
+export const JWT_SECRET = process.env.JWT_SECRET;
+export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 export const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
+// Security validation
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  throw new Error('SECURITY ERROR: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+}
 
 // Password utilities
 export const hashPassword = async (password: string): Promise<string> => {

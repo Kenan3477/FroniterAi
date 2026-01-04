@@ -35,25 +35,19 @@ export function middleware(request: NextRequest) {
         userRole = demoUser === 'admin' ? 'ADMIN' : 'AGENT';
         console.log('🔍 Middleware - Demo token detected, role:', userRole);
       } else {
-        // Handle real JWT tokens from Railway backend
+        // Handle real JWT tokens from Railway backend - SECURE VERSION
         try {
-          const JWT_SECRET = process.env.JWT_SECRET || 'omnivox-ai-fallback-secret-key-change-in-production';
+          const JWT_SECRET = process.env.JWT_SECRET;
+          if (!JWT_SECRET) {
+            console.error('🚨 SECURITY: JWT_SECRET environment variable is required');
+            return NextResponse.redirect(new URL('/login?error=config', request.url));
+          }
           const decoded = jwt.verify(token.value, JWT_SECRET) as any;
           userRole = decoded.role || 'AGENT';
-          console.log('🔍 Middleware - JWT token decoded, role:', userRole);
+          console.log('🔍 Middleware - JWT token verified, role:', userRole);
         } catch (jwtError) {
-          console.log('🔍 Middleware - JWT decode failed, trying direct token parsing...');
-          // Fallback: Try to parse JWT without verification (for development)
-          try {
-            const parts = token.value.split('.');
-            if (parts.length === 3) {
-              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-              userRole = payload.role || 'AGENT';
-              console.log('🔍 Middleware - Fallback JWT parsing, role:', userRole);
-            }
-          } catch (parseError) {
-            console.log('🔍 Middleware - All token parsing failed, defaulting to AGENT');
-          }
+          console.log('🔍 Middleware - JWT verification failed, redirecting to login');
+          return NextResponse.redirect(new URL('/login?error=invalid-token', request.url));
         }
       }
 

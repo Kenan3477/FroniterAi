@@ -1,10 +1,36 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
+import twilio from 'twilio';
 
 const router = Router();
 
-// Voice webhook handler for incoming calls - REDIRECTED TO NEW INBOUND CALL SYSTEM
-router.post('/voice', (req: Request, res: Response) => {
+// Twilio webhook signature validation middleware
+const validateTwilioSignature = (req: Request, res: Response, next: any) => {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.error('🚨 SECURITY: TWILIO_AUTH_TOKEN not configured');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  const twilioSignature = req.headers['x-twilio-signature'] as string;
+  if (!twilioSignature) {
+    console.error('🚨 SECURITY: Webhook request missing Twilio signature');
+    return res.status(401).json({ error: 'Unauthorized - Missing signature' });
+  }
+
+  const requestUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const isValid = twilio.validateRequest(authToken, twilioSignature, requestUrl, req.body);
+  
+  if (!isValid) {
+    console.error('🚨 SECURITY: Invalid Twilio webhook signature');
+    return res.status(401).json({ error: 'Unauthorized - Invalid signature' });
+  }
+  
+  next();
+};
+
+// Voice webhook handler for incoming calls - SECURED WITH TWILIO SIGNATURE VERIFICATION
+router.post('/voice', validateTwilioSignature, (req: Request, res: Response) => {
   console.log('📞 Legacy voice webhook - redirecting to new inbound call system:', req.body);
   
   // Redirect to new inbound call handling system
@@ -17,8 +43,8 @@ router.post('/voice', (req: Request, res: Response) => {
   res.send(twiml);
 });
 
-// Status webhook handler for call status updates
-router.post('/status', (req: Request, res: Response) => {
+// Status webhook handler for call status updates - SECURED
+router.post('/status', validateTwilioSignature, (req: Request, res: Response) => {
   console.log('📊 Call status webhook:', req.body);
   
   const { CallSid, CallStatus, CallDuration, From, To } = req.body;
@@ -29,8 +55,8 @@ router.post('/status', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
-// Welcome route for inbound calls
-router.post('/welcome', (req: Request, res: Response) => {
+// Welcome route for inbound calls - SECURED
+router.post('/welcome', validateTwilioSignature, (req: Request, res: Response) => {
   console.log('🎤 Welcome webhook called:', req.body);
   
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>

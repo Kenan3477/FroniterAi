@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc && npx prisma generate",
-    "start": "npx prisma db push --accept-data-loss --skip-generate && npx tsx prisma/seed.ts && node dist/index.js",
+    "start": "npx prisma db push --accept-data-loss --skip-generate && node dist/index.js",
     "start:prod": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",

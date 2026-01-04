@@ -5,78 +5,13 @@ import jwt from 'jsonwebtoken';
 import { authRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'omnivox-ai-fallback-secret-key-change-in-production';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'omnivox-ai-refresh-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-// TEMPORARY DEBUG ENDPOINT - Remove after fixing bcrypt issue
-router.post('/debug-user-hash', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    console.log('🔍 Debug endpoint called for:', email);
-    
-    const user = await prisma.user.findFirst({
-      where: {
-        email: email.toLowerCase()
-      }
-    });
-    
-    if (!user) {
-      return res.json({
-        success: false,
-        message: 'User not found',
-        email: email
-      });
-    }
-    
-    console.log('🔍 Found user:', {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      hasPasswordField: !!user.password,
-      passwordLength: user.password?.length || 0,
-      passwordPrefix: user.password?.substring(0, 10) || 'N/A'
-    });
-    
-    // Test password comparison
-    const isValid = await bcrypt.compare(password, user.password);
-    
-    // Test with different password variations
-    const testResults = {
-      original: await bcrypt.compare(password, user.password),
-      trimmed: await bcrypt.compare(password.trim(), user.password),
-      normalized: await bcrypt.compare(password.normalize(), user.password)
-    };
-    
-    // Create a fresh hash of the input password for comparison
-    const freshHash = await bcrypt.hash(password, 12);
-    const freshVerify = await bcrypt.compare(password, freshHash);
-    
-    return res.json({
-      success: true,
-      debug: {
-        userId: user.id,
-        inputPassword: password,
-        inputPasswordType: typeof password,
-        inputPasswordLength: password.length,
-        storedHashLength: user.password.length,
-        storedHashPrefix: user.password.substring(0, 20),
-        passwordComparison: isValid,
-        testResults,
-        freshHashWorks: freshVerify,
-        freshHash: freshHash.substring(0, 20) + '...'
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+// Security check - fail fast if no secrets provided
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  throw new Error('SECURITY ERROR: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+}
 
 // Production authentication with database lookup and security features
 router.post('/login', async (req, res) => {
