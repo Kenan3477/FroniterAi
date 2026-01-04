@@ -307,7 +307,7 @@ async function main() {
       description: 'Demo inbound call flow for customer service',
       status: 'ACTIVE',
       createdByUserId: demoUser.id,
-      organizationId: demoOrg.id,
+      // organizationId: demoOrg.id, // Temporarily commented out for deployment
       versions: {
         create: {
           versionNumber: 1,
