@@ -6,7 +6,7 @@ async function verifyRailwayInbound() {
         console.log('======================================');
         
         // Get auth token via login
-        const authResponse = await fetch('https://omnivox-backend-production.up.railway.app/api/auth/login', {
+        const authResponse = await fetch('https://froniterai-production.up.railway.app/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ async function verifyRailwayInbound() {
         console.log('✅ Got Railway auth token');
         
         // Test the inbound numbers endpoint
-        const numbersResponse = await fetch('https://omnivox-backend-production.up.railway.app/api/voice/inbound-numbers', {
+        const numbersResponse = await fetch('https://froniterai-production.up.railway.app/api/voice/inbound-numbers', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,

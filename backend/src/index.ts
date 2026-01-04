@@ -48,6 +48,7 @@ import inboundCallRoutes from './routes/inboundCallRoutes'; // PRODUCTION: Inbou
 import routingRoutes from './routes/routingRoutes'; // Inbound call routing system
 import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
 import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue management system
+import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -175,6 +176,7 @@ class App {
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
+    this.app.use('/api/admin/cleanup', cleanupRoutes); // ADMIN: Emergency data cleanup endpoints
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
