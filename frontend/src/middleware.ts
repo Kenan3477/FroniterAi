@@ -42,11 +42,14 @@ export function middleware(request: NextRequest) {
             console.error('🚨 SECURITY: JWT_SECRET environment variable is required');
             return NextResponse.redirect(new URL('/login?error=config', request.url));
           }
+          console.log('🔍 Middleware - Attempting JWT verification with secret length:', JWT_SECRET.length);
+          console.log('🔍 Middleware - Token preview:', token.value.substring(0, 50) + '...');
           const decoded = jwt.verify(token.value, JWT_SECRET) as any;
           userRole = decoded.role || 'AGENT';
-          console.log('🔍 Middleware - JWT token verified, role:', userRole);
+          console.log('🔍 Middleware - JWT token verified successfully, role:', userRole);
         } catch (jwtError) {
-          console.log('🔍 Middleware - JWT verification failed, redirecting to login');
+          console.log('🔍 Middleware - JWT verification failed:', jwtError instanceof Error ? jwtError.message : jwtError);
+          console.log('🔍 Middleware - Token that failed:', token.value.substring(0, 100) + '...');
           return NextResponse.redirect(new URL('/login?error=invalid-token', request.url));
         }
       }
