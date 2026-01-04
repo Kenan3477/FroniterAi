@@ -89,53 +89,14 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
   } catch (error) {
     console.error('Error fetching inbound numbers:', error);
     
-    // Fallback to hardcoded numbers if database query fails
+    // Fallback to only the real Twilio number if database query fails
     const fallbackNumbers: InboundNumber[] = [
       {
-        id: 'fallback-1',
+        id: 'uk-local-london',
         phoneNumber: '+442046343130',
         displayName: 'UK Local - London',
         country: 'GB',
         region: 'London',
-        numberType: 'LOCAL',
-        provider: 'TWILIO',
-        capabilities: ['VOICE', 'SMS'],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 'fallback-2', 
-        phoneNumber: '+15551234567',
-        displayName: 'US Toll-Free',
-        country: 'US',
-        region: 'National',
-        numberType: 'TOLL_FREE',
-        provider: 'TWILIO',
-        capabilities: ['VOICE', 'SMS'],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 'fallback-3',
-        phoneNumber: '+447700900123', 
-        displayName: 'UK Mobile',
-        country: 'GB',
-        region: 'National',
-        numberType: 'MOBILE',
-        provider: 'TWILIO',
-        capabilities: ['VOICE', 'SMS', 'MMS'],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 'fallback-4',
-        phoneNumber: '+14155552456',
-        displayName: 'US Local - San Francisco',
-        country: 'US',
-        region: 'San Francisco', 
         numberType: 'LOCAL',
         provider: 'TWILIO',
         capabilities: ['VOICE', 'SMS'],
