@@ -33,6 +33,8 @@ interface InboundNumber {
 // GET /api/voice/inbound-numbers - Get available inbound numbers for CLI selection
 router.get('/inbound-numbers', authenticate, async (req: Request, res: Response) => {
   try {
+    console.log('📞 Fetching inbound numbers from database...');
+    
     // Fetch active inbound numbers from database
     const inboundNumbers = await prisma.inboundNumber.findMany({
       where: {
@@ -53,6 +55,9 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
         { phoneNumber: 'asc' }
       ]
     });
+
+    console.log(`📊 Database returned ${inboundNumbers.length} inbound numbers`);
+    inboundNumbers.forEach((num: any) => console.log(`   - ${num.phoneNumber} (${num.displayName})`));
 
     // Parse capabilities field (stored as JSON string) and transform for response
     const transformedNumbers = inboundNumbers.map((number: any) => ({
