@@ -540,7 +540,7 @@ model Flow {
   description     String
   status          String        @default("INACTIVE")
   createdByUserId Int
-  organizationId  String        // Multi-tenant support
+  organizationId  String?       // Multi-tenant support - optional for backward compatibility
   visibility      String        @default("PRIVATE") // PRIVATE, ORG_PUBLIC, GLOBAL_PUBLIC
   isTemplate      Boolean       @default(false) // Whether this flow is a reusable template
   templateSource  String?       // ID of the template this flow was created from
@@ -549,7 +549,7 @@ model Flow {
   
   versions        FlowVersion[]
   createdBy       User          @relation(fields: [createdByUserId], references: [id])
-  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignedNumbers InboundNumber[] // Inbound numbers using this flow
   permissions     FlowPermission[]
   shares          FlowShare[]
