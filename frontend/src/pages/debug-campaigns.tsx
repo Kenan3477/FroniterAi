@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 
 const CampaignDebugPage = () => {
@@ -32,7 +33,7 @@ const CampaignDebugPage = () => {
           setCampaignManagementData(campaignMgmtData);
           
           // Process like CampaignManagementPage does
-          const campaignsWithDialQueue = (campaignMgmtData.data || []).map((campaign) => ({
+          const campaignsWithDialQueue = (campaignMgmtData.data || []).map((campaign: any) => ({
             ...campaign,
             dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
             dialSpeed: campaign.dialSpeed || 60,

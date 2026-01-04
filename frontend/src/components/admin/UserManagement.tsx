@@ -266,7 +266,7 @@ export default function UserManagement() {
         console.log('🔍 UserManagement - Available campaigns from API:', availableCampaignsData);
         console.log('🔍 UserManagement - Available campaigns data length:', availableCampaignsData.data?.length || 0);
         console.log('🔍 UserManagement - Available campaign details:', 
-          (availableCampaignsData.data || []).map((c, i) => ({
+          (availableCampaignsData.data || []).map((c: any, i: number) => ({
             index: i + 1,
             id: c.id,
             name: c.name,
@@ -275,7 +275,7 @@ export default function UserManagement() {
           }))
         );
         console.log('🔍 UserManagement - Available campaign names with status:', 
-          availableCampaignsData.data?.map(c => `"${c.name}" (${c.status})`) || []
+          availableCampaignsData.data?.map((c: any) => `"${c.name}" (${c.status})`) || []
         );
         setAvailableCampaigns(availableCampaignsData.data || []);
       }

@@ -1,5 +1,7 @@
 import express from 'express';
 import { Request, Response } from 'express';
+import { prisma } from '../database';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -24,138 +26,123 @@ interface Contact {
   updatedAt: Date;
 }
 
-// Mock contact data (in production this would be database queries)
-let mockContacts: Contact[] = [
-  {
-    contactId: 'contact_001',
-    listId: 'list_001',
-    firstName: 'John',
-    lastName: 'Smith',
-    phone: '+447700123456',
-    email: 'john.smith@example.com',
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: { company: 'Acme Corp', industry: 'Technology' },
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_002',
-    listId: 'list_001',
-    firstName: 'Jane',
-    lastName: 'Doe',
-    phone: '+447700654321',
-    email: 'jane.doe@example.com',
-    status: 'NoAnswer',
-    attemptCount: 1,
-    maxAttempts: 5,
-    locked: false,
-    lastAttemptAt: new Date(Date.now() - 60000),
-    nextRetryAt: new Date(Date.now() + 300000),
-    customFields: { company: 'Beta Solutions', industry: 'Finance' },
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_003',
-    listId: 'list_002',
-    firstName: 'Bob',
-    lastName: 'Johnson',
-    phone: '+447700987654',
-    email: 'bob.johnson@example.com',
-    status: 'NotAttempted',
-    attemptCount: 0,
-    maxAttempts: 3,
-    locked: false,
-    customFields: { company: 'Gamma Industries', industry: 'Manufacturing' },
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_004',
-    listId: 'list_001',
-    firstName: 'Alice',
-    lastName: 'Williams',
-    phone: '+447700456789',
-    email: 'alice.williams@example.com',
-    status: 'Answered',
-    attemptCount: 1,
-    maxAttempts: 3,
-    locked: false,
-    lastAttemptAt: new Date(Date.now() - 3600000), // 1 hour ago
-    customFields: { company: 'Delta Corp', industry: 'Healthcare' },
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    contactId: 'contact_005',
-    listId: 'list_002',
-    firstName: 'Charlie',
-    lastName: 'Brown',
-    phone: '+447700321654',
-    email: 'charlie.brown@example.com',
-    status: 'RetryEligible',
-    attemptCount: 2,
-    maxAttempts: 4,
-    locked: false,
-    lastAttemptAt: new Date(Date.now() - 1800000), // 30 min ago
-    nextRetryAt: new Date(Date.now() + 600000), // 10 min from now
-    customFields: { company: 'Epsilon Ltd', industry: 'Retail' },
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  }
-];
-
-// Campaign to list mappings (mock data)
-const campaignListMappings: Record<string, string[]> = {
-  'campaign_001': ['list_001', 'list_002'],
-  'campaign_002': ['list_003'],
-  'campaign_test': ['list_001'] // For testing
-};
-
 // Get contacts
 // GET /api/contacts?campaignId=xxx&status=xxx&limit=xxx
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const { campaignId, status, limit, page } = req.query;
-    let filteredContacts = [...mockContacts];
-
-    // Filter by campaign if provided
-    if (campaignId) {
-      const campaignLists = campaignListMappings[campaignId as string] || [];
-      filteredContacts = filteredContacts.filter(contact => 
-        campaignLists.includes(contact.listId)
-      );
+    const { campaignId, status, limit, page, search } = req.query;
+    
+    // Build where clause for filtering
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search as string, mode: 'insensitive' } },
+        { lastName: { contains: search as string, mode: 'insensitive' } },
+        { phone: { contains: search as string } },
+        { email: { contains: search as string, mode: 'insensitive' } },
+        { company: { contains: search as string, mode: 'insensitive' } }
+      ];
     }
 
-    // Filter by status if provided
-    if (status) {
-      filteredContacts = filteredContacts.filter(contact => 
-        contact.status === status
-      );
+    // Filter by campaign through data list relationships
+    if (campaignId) {
+      // Get data lists associated with the campaign
+      const campaign = await prisma.campaign.findUnique({
+        where: { campaignId: campaignId as string },
+        include: {
+          // Note: This assumes campaign-datalist relationship exists
+          // If not implemented yet, we'll need to create it
+        }
+      });
+      
+      // For now, get all contacts if campaign filter is applied
+      // This will be enhanced when campaign-datalist relationships are implemented
     }
 
     // Pagination
     const pageNumber = parseInt(page as string) || 1;
-    const limitNumber = parseInt(limit as string) || 50;
-    const offset = (pageNumber - 1) * limitNumber;
-    const paginatedContacts = filteredContacts.slice(offset, offset + limitNumber);
+    const limitNumber = Math.min(parseInt(limit as string) || 50, 1000); // Cap at 1000
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Fetch contacts from database
+    const [contacts, totalCount] = await Promise.all([
+      prisma.contact.findMany({
+        where,
+        skip,
+        take: limitNumber,
+        orderBy: {
+          updatedAt: 'desc'
+        },
+        include: {
+          list: {
+            select: {
+              listId: true,
+              name: true
+            }
+          }
+        }
+      }),
+      prisma.contact.count({ where })
+    ]);
+
+    // Transform database records to match interface
+    const transformedContacts = contacts.map(contact => ({
+      contactId: contact.contactId,
+      listId: contact.listId,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      phone: contact.phone,
+      email: contact.email || undefined,
+      status: contact.status,
+      attemptCount: contact.attemptCount,
+      maxAttempts: contact.maxAttempts,
+      locked: contact.locked,
+      lockedBy: contact.lockedBy || undefined,
+      lockedAt: contact.lockedAt || undefined,
+      lastAttemptAt: contact.lastAttempt || undefined,
+      nextRetryAt: contact.nextAttempt || undefined,
+      customFields: {
+        company: contact.company,
+        jobTitle: contact.jobTitle,
+        industry: contact.industry,
+        address: contact.address,
+        city: contact.city,
+        state: contact.state,
+        zipCode: contact.zipCode,
+        country: contact.country,
+        notes: contact.notes,
+        tags: contact.tags,
+        leadSource: contact.leadSource,
+        leadScore: contact.leadScore,
+        custom1: contact.custom1,
+        custom2: contact.custom2,
+        custom3: contact.custom3,
+        custom4: contact.custom4,
+        custom5: contact.custom5
+      },
+      createdAt: contact.createdAt,
+      updatedAt: contact.updatedAt
+    }));
 
     res.json({
       success: true,
       data: {
-        contacts: paginatedContacts,
+        contacts: transformedContacts,
         pagination: {
           page: pageNumber,
           limit: limitNumber,
-          total: filteredContacts.length,
-          totalPages: Math.ceil(filteredContacts.length / limitNumber)
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limitNumber)
         },
         filters: {
           campaignId: campaignId || null,
-          status: status || null
+          status: status || null,
+          search: search || null
         }
       }
     });
@@ -169,13 +156,136 @@ router.get('/', (req: Request, res: Response) => {
   }
 });
 
+// Get contact statistics
+// GET /api/contacts/stats
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.query;
+
+    // Build where clause for filtering
+    let where: any = {};
+
+    // Filter by campaign through data list relationships
+    if (campaignId) {
+      // Get data lists associated with the campaign
+      const campaign = await prisma.campaign.findUnique({
+        where: { campaignId: campaignId as string }
+      });
+      
+      if (campaign) {
+        // For now, get all contacts since campaign-datalist relationship needs implementation
+        // This will be enhanced when campaign-datalist relationships are implemented
+      }
+    }
+
+    // Get status counts using database aggregation
+    const [
+      totalCount,
+      statusCounts,
+      lockedCount,
+      dialableCount
+    ] = await Promise.all([
+      // Total contacts
+      prisma.contact.count({ where }),
+      
+      // Status breakdown
+      prisma.contact.groupBy({
+        by: ['status'],
+        where,
+        _count: {
+          contactId: true
+        }
+      }),
+      
+      // Locked contacts
+      prisma.contact.count({
+        where: {
+          ...where,
+          locked: true
+        }
+      }),
+      
+      // Dialable contacts (not locked, not maxed out, retry time passed)
+      prisma.contact.count({
+        where: {
+          ...where,
+          locked: false,
+          status: {
+            notIn: ['MaxAttempts', 'DoNotCall', 'Invalid']
+          },
+          AND: [
+            {
+              OR: [
+                {
+                  nextAttempt: null
+                },
+                {
+                  nextAttempt: {
+                    lte: new Date()
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      })
+    ]);
+
+    // Transform status counts to expected format
+    const statusCountMap = statusCounts.reduce((acc, item) => {
+      acc[item.status] = item._count.contactId;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const stats = {
+      total: totalCount,
+      byStatus: {
+        NotAttempted: statusCountMap['NotAttempted'] || 0,
+        Answered: statusCountMap['Answered'] || 0,
+        NoAnswer: statusCountMap['NoAnswer'] || 0,
+        Busy: statusCountMap['Busy'] || 0,
+        Voicemail: statusCountMap['Voicemail'] || 0,
+        RetryEligible: statusCountMap['RetryEligible'] || 0,
+        MaxAttempts: statusCountMap['MaxAttempts'] || 0,
+        DoNotCall: statusCountMap['DoNotCall'] || 0,
+        Invalid: statusCountMap['Invalid'] || 0
+      },
+      dialable: dialableCount,
+      locked: lockedCount,
+      campaignId: campaignId || null
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    console.error('Error getting contact stats:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error getting contact stats' }
+    });
+  }
+});
+
 // Get specific contact by ID
 // GET /api/contacts/:contactId
-router.get('/:contactId', (req: Request, res: Response) => {
+router.get('/:contactId', async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
 
-    const contact = mockContacts.find(c => c.contactId === contactId);
+    const contact = await prisma.contact.findUnique({
+      where: { contactId },
+      include: {
+        list: {
+          select: {
+            listId: true,
+            name: true
+          }
+        }
+      }
+    });
 
     if (!contact) {
       return res.status(404).json({
@@ -184,10 +294,49 @@ router.get('/:contactId', (req: Request, res: Response) => {
       });
     }
 
+    // Transform database record to match interface
+    const transformedContact = {
+      contactId: contact.contactId,
+      listId: contact.listId,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      phone: contact.phone,
+      email: contact.email || undefined,
+      status: contact.status,
+      attemptCount: contact.attemptCount,
+      maxAttempts: contact.maxAttempts,
+      locked: contact.locked,
+      lockedBy: contact.lockedBy || undefined,
+      lockedAt: contact.lockedAt || undefined,
+      lastAttemptAt: contact.lastAttempt || undefined,
+      nextRetryAt: contact.nextAttempt || undefined,
+      customFields: {
+        company: contact.company,
+        jobTitle: contact.jobTitle,
+        industry: contact.industry,
+        address: contact.address,
+        city: contact.city,
+        state: contact.state,
+        zipCode: contact.zipCode,
+        country: contact.country,
+        notes: contact.notes,
+        tags: contact.tags,
+        leadSource: contact.leadSource,
+        leadScore: contact.leadScore,
+        custom1: contact.custom1,
+        custom2: contact.custom2,
+        custom3: contact.custom3,
+        custom4: contact.custom4,
+        custom5: contact.custom5
+      },
+      createdAt: contact.createdAt,
+      updatedAt: contact.updatedAt
+    };
+
     res.json({
       success: true,
       data: {
-        contact
+        contact: transformedContact
       }
     });
 
@@ -202,12 +351,14 @@ router.get('/:contactId', (req: Request, res: Response) => {
 
 // Update contact status
 // PUT /api/contacts/:contactId/status
-router.put('/:contactId/status', (req: Request, res: Response) => {
+router.put('/:contactId/status', async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
     const { status, notes, outcome } = req.body;
 
-    const contact = mockContacts.find(c => c.contactId === contactId);
+    const contact = await prisma.contact.findUnique({
+      where: { contactId }
+    });
 
     if (!contact) {
       return res.status(404).json({
@@ -216,31 +367,89 @@ router.put('/:contactId/status', (req: Request, res: Response) => {
       });
     }
 
-    // Update contact status
-    contact.status = status;
-    contact.lastAttemptAt = new Date();
-    contact.attemptCount += 1;
-    contact.updatedAt = new Date();
+    const updateData: any = {
+      status,
+      lastAttempt: new Date(),
+      attemptCount: contact.attemptCount + 1,
+      updatedAt: new Date()
+    };
+
+    // Update notes if provided
+    if (notes) {
+      updateData.notes = notes;
+    }
 
     // Set retry time based on status
-    if (status === 'NoAnswer' && contact.attemptCount < contact.maxAttempts) {
-      contact.status = 'RetryEligible';
-      contact.nextRetryAt = new Date(Date.now() + 300000); // 5 minutes
-    } else if (status === 'Busy' && contact.attemptCount < contact.maxAttempts) {
-      contact.nextRetryAt = new Date(Date.now() + 180000); // 3 minutes
-    } else if (contact.attemptCount >= contact.maxAttempts) {
-      contact.status = 'MaxAttempts';
+    if (status === 'NoAnswer' && contact.attemptCount + 1 < contact.maxAttempts) {
+      updateData.status = 'RetryEligible';
+      updateData.nextAttempt = new Date(Date.now() + 300000); // 5 minutes
+    } else if (status === 'Busy' && contact.attemptCount + 1 < contact.maxAttempts) {
+      updateData.nextAttempt = new Date(Date.now() + 180000); // 3 minutes
+    } else if (contact.attemptCount + 1 >= contact.maxAttempts) {
+      updateData.status = 'MaxAttempts';
     }
 
     // Unlock contact
-    contact.locked = false;
-    contact.lockedBy = undefined;
-    contact.lockedAt = undefined;
+    updateData.locked = false;
+    updateData.lockedBy = null;
+    updateData.lockedAt = null;
+
+    const updatedContact = await prisma.contact.update({
+      where: { contactId },
+      data: updateData,
+      include: {
+        list: {
+          select: {
+            listId: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    // Transform database record to match interface
+    const transformedContact = {
+      contactId: updatedContact.contactId,
+      listId: updatedContact.listId,
+      firstName: updatedContact.firstName,
+      lastName: updatedContact.lastName,
+      phone: updatedContact.phone,
+      email: updatedContact.email || undefined,
+      status: updatedContact.status,
+      attemptCount: updatedContact.attemptCount,
+      maxAttempts: updatedContact.maxAttempts,
+      locked: updatedContact.locked,
+      lockedBy: updatedContact.lockedBy || undefined,
+      lockedAt: updatedContact.lockedAt || undefined,
+      lastAttemptAt: updatedContact.lastAttempt || undefined,
+      nextRetryAt: updatedContact.nextAttempt || undefined,
+      customFields: {
+        company: updatedContact.company,
+        jobTitle: updatedContact.jobTitle,
+        industry: updatedContact.industry,
+        address: updatedContact.address,
+        city: updatedContact.city,
+        state: updatedContact.state,
+        zipCode: updatedContact.zipCode,
+        country: updatedContact.country,
+        notes: updatedContact.notes,
+        tags: updatedContact.tags,
+        leadSource: updatedContact.leadSource,
+        leadScore: updatedContact.leadScore,
+        custom1: updatedContact.custom1,
+        custom2: updatedContact.custom2,
+        custom3: updatedContact.custom3,
+        custom4: updatedContact.custom4,
+        custom5: updatedContact.custom5
+      },
+      createdAt: updatedContact.createdAt,
+      updatedAt: updatedContact.updatedAt
+    };
 
     res.json({
       success: true,
       data: {
-        contact,
+        contact: transformedContact,
         message: `Contact status updated to ${status}`
       }
     });
@@ -256,7 +465,7 @@ router.put('/:contactId/status', (req: Request, res: Response) => {
 
 // Create new contact
 // POST /api/contacts
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { firstName, lastName, phone, email, listId, customFields } = req.body;
 
@@ -267,28 +476,114 @@ router.post('/', (req: Request, res: Response) => {
       });
     }
 
-    const newContact: Contact = {
-      contactId: `contact_${Date.now()}`,
+    // Verify list exists
+    const list = await prisma.dataList.findUnique({
+      where: { listId }
+    });
+
+    if (!list) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid listId - data list does not exist' }
+      });
+    }
+
+    const contactData = {
+      contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       listId,
       firstName,
       lastName,
+      fullName: `${firstName} ${lastName}`,
       phone,
-      email,
-      customFields: customFields || {},
+      email: email || null,
       status: 'NotAttempted',
       attemptCount: 0,
       maxAttempts: 3,
       locked: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      company: customFields?.company || null,
+      jobTitle: customFields?.jobTitle || null,
+      industry: customFields?.industry || null,
+      address: customFields?.address || null,
+      city: customFields?.city || null,
+      state: customFields?.state || null,
+      zipCode: customFields?.zipCode || null,
+      country: customFields?.country || null,
+      notes: customFields?.notes || null,
+      tags: customFields?.tags || null,
+      leadSource: customFields?.leadSource || null,
+      leadScore: customFields?.leadScore || 0,
+      custom1: customFields?.custom1 || null,
+      custom2: customFields?.custom2 || null,
+      custom3: customFields?.custom3 || null,
+      custom4: customFields?.custom4 || null,
+      custom5: customFields?.custom5 || null
     };
 
-    mockContacts.push(newContact);
+    const newContact = await prisma.contact.create({
+      data: contactData,
+      include: {
+        list: {
+          select: {
+            listId: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    // Update list total contacts count
+    await prisma.dataList.update({
+      where: { listId },
+      data: {
+        totalContacts: {
+          increment: 1
+        }
+      }
+    });
+
+    // Transform database record to match interface
+    const transformedContact = {
+      contactId: newContact.contactId,
+      listId: newContact.listId,
+      firstName: newContact.firstName,
+      lastName: newContact.lastName,
+      phone: newContact.phone,
+      email: newContact.email || undefined,
+      status: newContact.status,
+      attemptCount: newContact.attemptCount,
+      maxAttempts: newContact.maxAttempts,
+      locked: newContact.locked,
+      lockedBy: newContact.lockedBy || undefined,
+      lockedAt: newContact.lockedAt || undefined,
+      lastAttemptAt: newContact.lastAttempt || undefined,
+      nextRetryAt: newContact.nextAttempt || undefined,
+      customFields: {
+        company: newContact.company,
+        jobTitle: newContact.jobTitle,
+        industry: newContact.industry,
+        address: newContact.address,
+        city: newContact.city,
+        state: newContact.state,
+        zipCode: newContact.zipCode,
+        country: newContact.country,
+        notes: newContact.notes,
+        tags: newContact.tags,
+        leadSource: newContact.leadSource,
+        leadScore: newContact.leadScore,
+        custom1: newContact.custom1,
+        custom2: newContact.custom2,
+        custom3: newContact.custom3,
+        custom4: newContact.custom4,
+        custom5: newContact.custom5
+      },
+      createdAt: newContact.createdAt,
+      updatedAt: newContact.updatedAt
+    };
 
     res.status(201).json({
       success: true,
       data: {
-        contact: newContact,
+        contact: transformedContact,
         message: 'Contact created successfully'
       }
     });
@@ -298,60 +593,6 @@ router.post('/', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: { message: 'Internal server error creating contact' }
-    });
-  }
-});
-
-// Get contact statistics
-// GET /api/contacts/stats
-router.get('/stats', (req: Request, res: Response) => {
-  try {
-    const { campaignId } = req.query;
-    let contactsToAnalyze = [...mockContacts];
-
-    // Filter by campaign if provided
-    if (campaignId) {
-      const campaignLists = campaignListMappings[campaignId as string] || [];
-      contactsToAnalyze = contactsToAnalyze.filter(contact => 
-        campaignLists.includes(contact.listId)
-      );
-    }
-
-    const stats = {
-      total: contactsToAnalyze.length,
-      byStatus: {
-        NotAttempted: contactsToAnalyze.filter(c => c.status === 'NotAttempted').length,
-        Answered: contactsToAnalyze.filter(c => c.status === 'Answered').length,
-        NoAnswer: contactsToAnalyze.filter(c => c.status === 'NoAnswer').length,
-        Busy: contactsToAnalyze.filter(c => c.status === 'Busy').length,
-        Voicemail: contactsToAnalyze.filter(c => c.status === 'Voicemail').length,
-        RetryEligible: contactsToAnalyze.filter(c => c.status === 'RetryEligible').length,
-        MaxAttempts: contactsToAnalyze.filter(c => c.status === 'MaxAttempts').length,
-        DoNotCall: contactsToAnalyze.filter(c => c.status === 'DoNotCall').length,
-        Invalid: contactsToAnalyze.filter(c => c.status === 'Invalid').length
-      },
-      dialable: contactsToAnalyze.filter(c => 
-        !c.locked && 
-        c.status !== 'MaxAttempts' && 
-        c.status !== 'DoNotCall' &&
-        c.status !== 'Invalid' &&
-        c.attemptCount < c.maxAttempts &&
-        (!c.nextRetryAt || c.nextRetryAt <= new Date())
-      ).length,
-      locked: contactsToAnalyze.filter(c => c.locked).length,
-      campaignId: campaignId || null
-    };
-
-    res.json({
-      success: true,
-      data: stats
-    });
-
-  } catch (error) {
-    console.error('Error getting contact stats:', error);
-    res.status(500).json({
-      success: false,
-      error: { message: 'Internal server error getting contact stats' }
     });
   }
 });

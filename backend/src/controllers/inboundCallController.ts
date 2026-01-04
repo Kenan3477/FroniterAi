@@ -17,6 +17,7 @@ import { eventManager } from '../services/eventManager';
 // import { callEvents } from '../utils/eventHelpers';
 import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
+import { FlowExecutionEngine } from '../services/flowExecutionEngine';
 
 // Inbound call interface
 export interface InboundCall {
@@ -113,26 +114,35 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // Check if agents are available for immediate connection
-    const availableAgents = callerInfo.routing.availableAgents;
+    // Check for assigned flow first
+    const assignedFlow = await checkForAssignedFlow(To);
     let twiml: string;
     
-    // TEMPORARY: Always use direct agent ring for testing
-    // TODO: Remove this override after agent availability is working
-    console.log('🧪 TESTING MODE: Always routing to direct agent ring');
-    twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
-    console.log('✅ Inbound call routed to direct agent ring (testing mode)');
-    
-    // Original logic (temporarily disabled):
-    // if (availableAgents.length > 0) {
-    //   // Agents available - generate TwiML to ring them directly
-    //   twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
-    //   console.log('✅ Inbound call routed to available agents:', availableAgents.length);
-    // } else {
-    //   // No agents available - send to queue/flow
-    //   twiml = generateQueueTwiML();
-    //   console.log('✅ Inbound call sent to queue (no available agents)');
-    // }
+    if (assignedFlow) {
+      console.log(`🌊 Flow assigned to inbound number ${To}: ${assignedFlow.name}`);
+      twiml = await executeAssignedFlow(assignedFlow.id, inboundCall, inboundCallId);
+      console.log('✅ Inbound call routed through assigned flow');
+    } else {
+      // Fallback to original agent/queue routing
+      const availableAgents = callerInfo.routing.availableAgents;
+      
+      // TEMPORARY: Always use direct agent ring for testing
+      // TODO: Remove this override after agent availability is working
+      console.log('🧪 TESTING MODE: Always routing to direct agent ring');
+      twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
+      console.log('✅ Inbound call routed to direct agent ring (testing mode)');
+      
+      // Original logic (temporarily disabled):
+      // if (availableAgents.length > 0) {
+      //   // Agents available - generate TwiML to ring them directly
+      //   twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
+      //   console.log('✅ Inbound call routed to available agents:', availableAgents.length);
+      // } else {
+      //   // No agents available - send to queue/flow
+      //   twiml = generateQueueTwiML();
+      //   console.log('✅ Inbound call sent to queue (no available agents)');
+      // }
+    }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
     
@@ -653,4 +663,216 @@ async function getInboundCallDetails(callId: string): Promise<any> {
     console.error('❌ Error getting inbound call details:', error);
     return null;
   }
+}
+
+/**
+ * Check if a flow is assigned to the given inbound number
+ */
+async function checkForAssignedFlow(phoneNumber: string): Promise<{ id: string; name: string } | null> {
+  try {
+    const inboundNumber: any = await prisma.inboundNumber.findUnique({
+      where: { phoneNumber },
+      include: {
+        assignedFlow: {
+          select: {
+            id: true,
+            name: true,
+            status: true
+          }
+        }
+      } as any
+    });
+
+    if (inboundNumber?.assignedFlow && inboundNumber.assignedFlow.status === 'ACTIVE') {
+      return {
+        id: inboundNumber.assignedFlow.id,
+        name: inboundNumber.assignedFlow.name
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('❌ Error checking for assigned flow:', error);
+    return null;
+  }
+}
+
+/**
+ * Execute assigned flow for inbound call and return TwiML
+ */
+async function executeAssignedFlow(flowId: string, inboundCall: InboundCall, inboundCallId: string): Promise<string> {
+  const startTime = Date.now();
+  
+  try {
+    console.log(`🌊 Starting flow execution: ${flowId} for call ${inboundCallId}`);
+    
+    const flowEngine = new FlowExecutionEngine();
+    
+    const context = {
+      callId: inboundCallId,
+      phoneNumber: inboundCall.callerNumber,
+      caller: {
+        phoneNumber: inboundCall.callerNumber,
+        name: inboundCall.callerName || 'Unknown',
+        id: inboundCall.contactId
+      },
+      variables: {
+        callerNumber: inboundCall.callerNumber,
+        callerName: inboundCall.callerName,
+        contactId: inboundCall.contactId,
+        source: 'inbound'
+      },
+      currentTime: new Date(),
+      metadata: {
+        source: 'inbound',
+        phoneNumber: inboundCall.callerNumber,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    const result: any = await flowEngine.executeFlow(flowId, context);
+    const executionTime = Date.now() - startTime;
+    
+    if (result.success && result.twiml) {
+      console.log(`✅ Flow execution completed successfully in ${executionTime}ms: ${flowId}`);
+      await logFlowExecution(flowId, inboundCallId, 'success', executionTime);
+      return result.twiml;
+    } else {
+      console.error(`❌ Flow execution failed: ${result.error} (${executionTime}ms)`);
+      await logFlowExecution(flowId, inboundCallId, 'failed', executionTime, result.error);
+      
+      // Try to get fallback flow or return basic greeting
+      return await getFallbackTwiML(inboundCall, 'flow_execution_failed');
+    }
+  } catch (error: any) {
+    const executionTime = Date.now() - startTime;
+    console.error(`❌ Error executing assigned flow (${executionTime}ms):`, error);
+    await logFlowExecution(flowId, inboundCallId, 'error', executionTime, error.message);
+    
+    // Return fallback TwiML
+    return await getFallbackTwiML(inboundCall, 'flow_execution_error');
+  }
+}
+
+/**
+ * Generate basic greeting TwiML as fallback
+ */
+function generateBasicGreetingTwiML(): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Thank you for calling. Please wait while we connect you to an available agent.');
+  twiml.dial().queue('default');
+  return twiml.toString();
+}
+
+/**
+ * Log flow execution for monitoring and debugging
+ */
+async function logFlowExecution(
+  flowId: string, 
+  callId: string, 
+  status: 'success' | 'failed' | 'error', 
+  executionTime: number, 
+  errorMessage?: string
+): Promise<void> {
+  try {
+    // Get the active flow version for logging
+    const flow = await prisma.flow.findUnique({
+      where: { id: flowId },
+      include: {
+        versions: {
+          where: { isActive: true },
+          take: 1
+        }
+      }
+    });
+
+    if (flow && flow.versions.length > 0) {
+      // Store execution log in database
+      await prisma.flowRun.create({
+        data: {
+          id: uuidv4(),
+          flowVersionId: flow.versions[0].id,
+          externalReference: callId,
+          status: status.toUpperCase() as any,
+          context: JSON.stringify({ 
+            callId, 
+            source: 'inbound', 
+            flowId,
+            executionTime,
+            error: errorMessage 
+          }),
+          startedAt: new Date(Date.now() - executionTime),
+          finishedAt: status === 'success' ? new Date() : null
+        }
+      });
+    }
+
+    // Emit event for monitoring
+    eventManager.emit('flow.execution.completed', {
+      flowId,
+      callId,
+      status,
+      executionTime,
+      error: errorMessage
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to log flow execution:', error);
+    // Don't throw - logging failure shouldn't break call flow
+  }
+}
+
+/**
+ * Get fallback TwiML with multiple strategies
+ */
+async function getFallbackTwiML(inboundCall: InboundCall, reason: string): Promise<string> {
+  try {
+    console.log(`🔄 Generating fallback TwiML for reason: ${reason}`);
+    
+    // Strategy 1: Check for system default flow
+    const defaultFlow = await prisma.flow.findFirst({
+      where: {
+        name: 'System Default Flow',
+        status: 'ACTIVE'
+      }
+    });
+    
+    if (defaultFlow) {
+      console.log('📋 Using system default flow as fallback');
+      // Try to execute default flow
+      try {
+        return await executeAssignedFlow(defaultFlow.id, inboundCall, inboundCall.id);
+      } catch (error) {
+        console.warn('⚠️ Default flow also failed, using basic greeting');
+      }
+    }
+    
+    // Strategy 2: Generate context-aware greeting based on caller info
+    if (inboundCall.callerName && inboundCall.callerName !== 'Unknown') {
+      return generatePersonalizedGreetingTwiML(inboundCall.callerName);
+    }
+    
+    // Strategy 3: Basic greeting
+    return generateBasicGreetingTwiML();
+    
+  } catch (error) {
+    console.error('❌ Error generating fallback TwiML:', error);
+    return generateBasicGreetingTwiML();
+  }
+}
+
+/**
+ * Generate personalized greeting TwiML
+ */
+function generatePersonalizedGreetingTwiML(callerName: string): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, `Hello ${callerName}. Thank you for calling. Please wait while we connect you to an available agent.`);
+  twiml.dial().queue('default');
+  return twiml.toString();
 }

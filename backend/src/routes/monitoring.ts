@@ -4,6 +4,7 @@ import { healthCheckHandler, healthSummaryHandler } from '../middleware/healthCh
 import { getErrorStatsHandler, getRecentErrorsHandler } from '../utils/logging';
 import { MetricsCollector } from '../utils/metrics';
 import { createSimpleMonitoringDashboard } from '../utils/monitoringIntegration';
+import * as flowMonitoringController from '../controllers/flowMonitoring.js';
 
 const router = express.Router();
 
@@ -294,5 +295,25 @@ router.get('/realtime', async (req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * Flow Monitoring Endpoints
+ * Advanced flow monitoring, analytics, and performance tracking
+ */
+
+// Real-time flow monitoring endpoints
+router.get('/flows/status', flowMonitoringController.getRealTimeStatus);
+router.get('/flows/dashboard', flowMonitoringController.getMonitoringDashboard);
+router.get('/flows/performance', flowMonitoringController.getPerformanceMetrics);
+
+// Flow-specific monitoring endpoints
+router.get('/flows/:flowId/metrics', flowMonitoringController.getFlowMetrics);
+router.get('/flows/:flowId/errors', flowMonitoringController.getFlowErrors);
+
+// Detailed debugging endpoints
+router.get('/flows/executions/:runId/timeline', flowMonitoringController.getFlowExecutionTimeline);
+
+// Data export endpoints
+router.get('/flows/export', flowMonitoringController.exportMonitoringData);
 
 export default router;

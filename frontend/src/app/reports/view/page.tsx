@@ -39,9 +39,9 @@ export default function ReportViewPage() {
     }
   });
 
-  const reportType = searchParams.get('type');
-  const category = searchParams.get('category');
-  const subcategory = searchParams.get('subcategory');
+  const reportType = searchParams?.get('type') || '';
+  const category = searchParams?.get('category') || '';
+  const subcategory = searchParams?.get('subcategory') || '';
 
   const reportTitles: { [key: string]: string } = {
     'combined_outcome_horizontal': 'Combined Outcome Report (Horizontal)',

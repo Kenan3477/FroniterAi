@@ -114,8 +114,13 @@ export interface FlowVersion {
 export interface FlowNode {
   id: string;
   type: string;
-  position: { x: number; y: number };
-  data: any;
+  label?: string;
+  category?: string;
+  config?: any;
+  position?: { x: number; y: number };
+  data?: any; // For ReactFlow compatibility
+  x?: number;
+  y?: number;
 }
 
 export interface FlowEdge {
@@ -143,7 +148,7 @@ class APIClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002',
+      baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -359,8 +364,9 @@ class APIClient {
   }
 
   async updateFlowNode(flowId: string, versionId: string, nodeId: string, nodeData: Partial<FlowNode>): Promise<FlowNode> {
-    const response = await this.client.put(`/api/flows/${flowId}/versions/${versionId}/nodes/${nodeId}`, nodeData);
-    return response.data;
+    // Use the new simplified route that doesn't require versionId
+    const response = await this.client.put(`/api/flows/${flowId}/nodes/${nodeId}`, nodeData);
+    return response.data.node;
   }
 
   async deleteFlowNode(flowId: string, versionId: string, nodeId: string): Promise<void> {
@@ -374,6 +380,53 @@ class APIClient {
 
   async deleteFlowEdge(flowId: string, versionId: string, edgeId: string): Promise<void> {
     await this.client.delete(`/api/flows/${flowId}/versions/${versionId}/edges/${edgeId}`);
+  }
+
+  async validateFlow(flowId: string, options?: { skipWarnings?: boolean }): Promise<{
+    isValid: boolean;
+    hasWarnings: boolean;
+    errors: Array<{ code: string; message: string; severity: 'ERROR' | 'WARNING'; nodeId?: string }>;
+    warnings: Array<{ code: string; message: string; nodeId?: string }>;
+    validatedAt: string;
+    summary: {
+      totalNodes: number;
+      totalEdges: number;
+      entryNodes: number;
+      exitNodes: number;
+      errorCount: number;
+      warningCount: number;
+    };
+  }> {
+    const response = await this.client.post(`/api/flows/${flowId}/validate`, options || {});
+    return response.data;
+  }
+
+  async simulateFlow(flowId: string, options?: { 
+    scenario?: string; 
+    mockData?: any; 
+  }): Promise<{
+    simulationId: string;
+    scenario: string;
+    mockContext: any;
+    executionPath: Array<{
+      nodeId: string;
+      nodeType: string;
+      nodeLabel: string;
+      action: string;
+      result: string;
+      duration: number;
+      nextNodeId?: string;
+    }>;
+    summary: {
+      totalSteps: number;
+      totalDuration: number;
+      finalOutcome: string;
+      successful: boolean;
+    };
+    simulatedAt: string;
+  }> {
+    const response = await this.client.post(`/api/flows/${flowId}/simulate`, options || {});
+    return response.data;
   }
 }
 
@@ -427,4 +480,8 @@ export const flowsAPI = {
     apiClient.createFlowEdge(flowId, versionId, edgeData),
   deleteFlowEdge: (flowId: string, versionId: string, edgeId: string) => 
     apiClient.deleteFlowEdge(flowId, versionId, edgeId),
+  validateFlow: (flowId: string, options?: { skipWarnings?: boolean }) => 
+    apiClient.validateFlow(flowId, options),
+  simulateFlow: (flowId: string, options?: { scenario?: string; mockData?: any }) => 
+    apiClient.simulateFlow(flowId, options),
 };

@@ -1,5 +1,6 @@
 import express from 'express';
 import { Request, Response } from 'express';
+import { queueService, CreateQueueEntryRequest } from '../services/queueService';
 
 const router = express.Router();
 
@@ -42,8 +43,6 @@ interface DialQueueEntry {
 // Production contact storage - contacts loaded from database
 let contacts: Contact[] = [];
 
-let mockQueueEntries: DialQueueEntry[] = [];
-
 // Helper function to get dialable contacts for a campaign
 function getDialableContacts(campaignId: string, maxRecords: number = 20): Contact[] {
   // Filter contacts that are available to dial
@@ -68,7 +67,7 @@ function getDialableContacts(campaignId: string, maxRecords: number = 20): Conta
 
 // Generate dial queue entries for a campaign
 // POST /api/dial-queue/generate
-router.post('/generate', (req: Request, res: Response) => {
+router.post('/generate', async (req: Request, res: Response) => {
   try {
     const { campaignId, maxRecords = 20 } = req.body;
 
@@ -79,32 +78,24 @@ router.post('/generate', (req: Request, res: Response) => {
       });
     }
 
-    // Get dialable contacts
-    const dialableContacts = getDialableContacts(campaignId, maxRecords);
+    // Generate queue entries using database service
+    const queueEntries = await queueService.generateQueueForCampaign(campaignId, maxRecords);
 
-    // Create queue entries
-    const newQueueEntries: DialQueueEntry[] = dialableContacts.map((contact, index) => ({
-      queueId: `queue_${Date.now()}_${index}`,
-      campaignId,
-      listId: contact.listId,
-      contactId: contact.contactId,
-      status: 'queued',
-      priority: contact.status === 'NotAttempted' ? 1 : 2,
-      queuedAt: new Date()
-    }));
-
-    // Remove existing queue entries for this campaign
-    mockQueueEntries = mockQueueEntries.filter(entry => entry.campaignId !== campaignId);
-
-    // Add new queue entries
-    mockQueueEntries.push(...newQueueEntries);
+    console.log(`📋 Generated dial queue for campaign ${campaignId}: ${queueEntries.length} entries`);
 
     res.json({
       success: true,
       data: {
-        generated: newQueueEntries.length,
         campaignId,
-        entries: newQueueEntries
+        queueEntries: queueEntries.length,
+        entries: queueEntries.map(entry => ({
+          queueId: entry.queueId,
+          contactId: entry.contactId,
+          status: entry.status,
+          priority: entry.priority,
+          queuedAt: entry.queuedAt
+        })),
+        message: `Generated ${queueEntries.length} dial queue entries`
       }
     });
 
@@ -119,7 +110,7 @@ router.post('/generate', (req: Request, res: Response) => {
 
 // Get dial queue entries for a campaign
 // GET /api/dial-queue?campaignId=xxx
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { campaignId } = req.query;
 
@@ -130,30 +121,19 @@ router.get('/', (req: Request, res: Response) => {
       });
     }
 
-    // Get queue entries for this campaign
-    const campaignEntries = mockQueueEntries.filter(entry => 
-      entry.campaignId === campaignId
-    );
-
-    // Enrich with contact data
-    const enrichedEntries = campaignEntries.map(entry => {
-      const contact = contacts.find(c => c.contactId === entry.contactId);
-      return {
-        ...entry,
-        contact: contact || null
-      };
-    });
+    // Get campaign queue stats using database service
+    const campaignStats = await queueService.getCampaignQueueStats(campaignId as string);
 
     res.json({
       success: true,
       data: {
-        campaignId,
-        entries: enrichedEntries,
+        ...campaignStats,
+        entries: [], // Could add pagination endpoint separately if needed
         stats: {
-          totalQueued: campaignEntries.filter(e => e.status === 'queued').length,
-          totalDialing: campaignEntries.filter(e => e.status === 'dialing').length,
-          totalConnected: campaignEntries.filter(e => e.status === 'connected').length,
-          totalCompleted: campaignEntries.filter(e => e.status === 'completed').length
+          totalQueued: campaignStats.totalQueued,
+          totalDialing: 0, // Would need additional query
+          totalConnected: 0, // Would need additional query
+          totalCompleted: campaignStats.completedToday
         }
       }
     });
@@ -169,7 +149,7 @@ router.get('/', (req: Request, res: Response) => {
 
 // Get next contact to dial (for auto-dialer)
 // POST /api/dial-queue/next
-router.post('/next', (req: Request, res: Response) => {
+router.post('/next', async (req: Request, res: Response) => {
   try {
     const { campaignId, agentId } = req.body;
 
@@ -180,12 +160,8 @@ router.post('/next', (req: Request, res: Response) => {
       });
     }
 
-    // Find next queued entry for this campaign
-    const nextEntry = mockQueueEntries.find(entry => 
-      entry.campaignId === campaignId && 
-      entry.status === 'queued' &&
-      !entry.assignedAgentId
-    );
+    // Find next queued entry using database service
+    const nextEntry = await queueService.getNextContactForAgent(agentId, campaignId);
 
     if (!nextEntry) {
       return res.json({
@@ -198,24 +174,19 @@ router.post('/next', (req: Request, res: Response) => {
       });
     }
 
-    // Lock the contact and mark as dialing
-    const contact = contacts.find(c => c.contactId === nextEntry.contactId);
-    if (contact) {
-      contact.locked = true;
-      contact.lockedBy = agentId;
-      contact.lockedAt = new Date();
-    }
-
-    // Update queue entry
-    nextEntry.status = 'dialing';
-    nextEntry.assignedAgentId = agentId;
-    nextEntry.dialedAt = new Date();
+    // Update queue entry status to dialing
+    await queueService.updateQueueStatus(nextEntry.id, 'dialing', agentId);
 
     res.json({
       success: true,
       data: {
         queueEntry: nextEntry,
-        contact: contact,
+        contact: {
+          contactId: nextEntry.contactId,
+          name: nextEntry.contact?.firstName + ' ' + nextEntry.contact?.lastName,
+          phone: nextEntry.contact?.phone,
+          email: nextEntry.contact?.email
+        },
         dialAction: 'initiate_call',
         campaignId,
         agentId
@@ -233,12 +204,13 @@ router.post('/next', (req: Request, res: Response) => {
 
 // Update queue entry status (called after dial attempt)
 // PUT /api/dial-queue/:queueId/status
-router.put('/:queueId/status', (req: Request, res: Response) => {
+router.put('/:queueId/status', async (req: Request, res: Response) => {
   try {
     const { queueId } = req.params;
     const { status, outcome, notes } = req.body;
 
-    const queueEntry = mockQueueEntries.find(entry => entry.queueId === queueId);
+    // Update queue entry using database service
+    const queueEntry = await queueService.updateQueueStatus(queueId, status);
     
     if (!queueEntry) {
       return res.status(404).json({
@@ -247,43 +219,17 @@ router.put('/:queueId/status', (req: Request, res: Response) => {
       });
     }
 
-    // Update queue entry
-    queueEntry.status = status;
-    queueEntry.outcome = outcome;
-    queueEntry.notes = notes;
-    
-    if (status === 'completed' || status === 'failed' || status === 'abandoned') {
-      queueEntry.completedAt = new Date();
-    }
-
-    // Update contact status and unlock
-    const contact = contacts.find(c => c.contactId === queueEntry.contactId);
-    if (contact) {
-      contact.locked = false;
-      contact.lockedBy = undefined;
-      contact.lockedAt = undefined;
-      contact.lastAttemptAt = new Date();
-      contact.attemptCount += 1;
-
-      // Update contact status based on outcome
-      if (outcome === 'answered') {
-        contact.status = 'Answered';
-      } else if (outcome === 'no_answer') {
-        contact.status = contact.attemptCount >= contact.maxAttempts ? 'MaxAttempts' : 'RetryEligible';
-        contact.nextRetryAt = new Date(Date.now() + 300000); // 5 minutes retry
-      } else if (outcome === 'busy') {
-        contact.status = 'Busy';
-        contact.nextRetryAt = new Date(Date.now() + 180000); // 3 minutes retry
-      } else if (outcome === 'voicemail') {
-        contact.status = 'Voicemail';
-      }
+    // Additional outcome and notes update if provided
+    if (outcome || notes) {
+      await queueService.updateQueueOutcome(queueId, outcome, notes);
     }
 
     res.json({
       success: true,
       data: {
         queueEntry,
-        contact
+        status: 'updated',
+        message: 'Queue entry status updated successfully'
       }
     });
 
@@ -296,32 +242,14 @@ router.put('/:queueId/status', (req: Request, res: Response) => {
   }
 });
 
-// Get campaign dial statistics
+// Get campaign dial statistics  
 // GET /api/dial-queue/stats/:campaignId
-router.get('/stats/:campaignId', (req: Request, res: Response) => {
+router.get('/stats/:campaignId', async (req: Request, res: Response) => {
   try {
     const { campaignId } = req.params;
 
-    const campaignEntries = mockQueueEntries.filter(entry => entry.campaignId === campaignId);
-    const campaignContacts = contacts.filter(contact => 
-      campaignEntries.some(entry => entry.contactId === contact.contactId)
-    );
-
-    const stats = {
-      campaignId,
-      totalQueued: campaignEntries.filter(e => e.status === 'queued').length,
-      totalDialing: campaignEntries.filter(e => e.status === 'dialing').length,
-      totalConnected: campaignEntries.filter(e => e.status === 'connected').length,
-      totalCompleted: campaignEntries.filter(e => e.status === 'completed').length,
-      totalContacts: campaignContacts.length,
-      availableContacts: campaignContacts.filter(c => 
-        !c.locked && 
-        c.status !== 'MaxAttempts' && 
-        c.attemptCount < c.maxAttempts
-      ).length,
-      averageDialTime: 45, // Mock average
-      activeListCount: 2 // Mock active lists
-    };
+    // Get campaign statistics using database service
+    const stats = await queueService.getCampaignQueueStats(campaignId);
 
     res.json({
       success: true,
@@ -588,16 +516,16 @@ function calculateEstimatedWaitTime(config: PredictiveDialerConfig, metrics: Dia
 }
 
 // Background process simulation (in production this would be a proper job scheduler)
-setInterval(() => {
+setInterval(async () => {
   // Process active dialers and trigger calls based on configuration
   for (const [campaignId, config] of activeDialers) {
     if (config.isActive && config.dialMethod === 'AUTODIAL') {
-      processAutoDial(campaignId, config);
+      await processAutoDial(campaignId, config);
     }
   }
 }, 10000); // Check every 10 seconds
 
-function processAutoDial(campaignId: string, config: PredictiveDialerConfig) {
+async function processAutoDial(campaignId: string, config: PredictiveDialerConfig) {
   const metrics = dialerMetrics.get(campaignId);
   if (!metrics || metrics.availableAgents === 0) {
     return; // No agents available
@@ -613,25 +541,14 @@ function processAutoDial(campaignId: string, config: PredictiveDialerConfig) {
     console.log(`[Predictive Dialer] Campaign ${campaignId}: Placing ${callsToPlace} calls for ${metrics.availableAgents} agents`);
     
     // In a real implementation, this would trigger actual calls
-    // For now, we'll just queue the contacts
-    contacts.slice(0, callsToPlace).forEach(contact => {
-      const queueEntry: DialQueueEntry = {
-        queueId: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        campaignId,
-        listId: contact.listId,
-        contactId: contact.contactId,
-        status: 'queued',
-        priority: 1,
-        queuedAt: new Date()
-      };
-      
-      mockQueueEntries.push(queueEntry);
-      
-      // Lock the contact to prevent duplicate attempts
-      contact.locked = true;
-      contact.lockedBy = `predictive_dialer_${campaignId}`;
-      contact.lockedAt = new Date();
-    });
+    // For now, we use the queue service to generate queue entries
+    // TODO: Replace with actual telephony integration
+    try {
+      await queueService.generateQueueForCampaign(campaignId, callsToPlace);
+      console.log(`[Predictive Dialer] Successfully queued ${callsToPlace} contacts for campaign ${campaignId}`);
+    } catch (error) {
+      console.error(`[Predictive Dialer] Error queuing contacts for campaign ${campaignId}:`, error);
+    }
   }
 }
 

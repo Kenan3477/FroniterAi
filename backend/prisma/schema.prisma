@@ -37,6 +37,10 @@ model InboundNumber {
   routeToQueueId         String? // ID of the inbound queue to route calls to
   routeToQueue           InboundQueue? @relation(fields: [routeToQueueId], references: [id])
   
+  // Flow Routing Configuration  
+  assignedFlowId         String? // ID of the flow to execute for incoming calls
+  assignedFlow           Flow? @relation(fields: [assignedFlowId], references: [id])
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -487,6 +491,14 @@ model User {
   emailVerifications    EmailVerification[] // Email verification tokens
   campaignAssignments   UserCampaignAssignment[] @relation("UserCampaignAssignments")
   assignedCampaigns     UserCampaignAssignment[] @relation("CampaignAssigner")
+  approvedFlowVersions  FlowVersion[]       @relation("FlowVersionApprover")
+  performedRollbacks    FlowVersionRollback[]
+  
+  // Multi-tenant flow management relations
+  createdTemplates      FlowTemplate[]      @relation("FlowTemplateCreator")
+  flowPermissions       FlowPermission[]    @relation("FlowPermissionUser")
+  grantedPermissions    FlowPermission[]    @relation("FlowPermissionGranter")
+  sharedFlows           FlowShare[]         @relation("FlowSharedBy")
 
   @@map("users")
 }
@@ -528,26 +540,46 @@ model Flow {
   description     String
   status          String        @default("INACTIVE")
   createdByUserId Int
+  organizationId  String        // Multi-tenant support
+  visibility      String        @default("PRIVATE") // PRIVATE, ORG_PUBLIC, GLOBAL_PUBLIC
+  isTemplate      Boolean       @default(false) // Whether this flow is a reusable template
+  templateSource  String?       // ID of the template this flow was created from
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  
   versions        FlowVersion[]
   createdBy       User          @relation(fields: [createdByUserId], references: [id])
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedNumbers InboundNumber[] // Inbound numbers using this flow
+  permissions     FlowPermission[]
+  shares          FlowShare[]
 
+  @@index([organizationId])
+  @@index([organizationId, visibility])
   @@map("flows")
 }
 
 model FlowVersion {
-  id            String     @id @default(cuid())
-  flowId        String
-  versionNumber Int
-  isActive      Boolean    @default(false)
-  isDraft       Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  publishedAt   DateTime?
-  edges         FlowEdge[]
-  nodes         FlowNode[]
-  runs          FlowRun[]
-  flow          Flow       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id               String               @id @default(cuid())
+  flowId           String
+  versionNumber    Int
+  isActive         Boolean              @default(false)
+  isDraft          Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  rollbackReason   String?
+  changeLog        String?              // JSON string describing changes
+  approvedBy       Int?                 // User who approved this version
+  approvedAt       DateTime?
+  performance      String?              // JSON string with performance metrics
+  edges            FlowEdge[]
+  nodes            FlowNode[]
+  runs             FlowRun[]
+  rollbacks        FlowVersionRollback[] @relation("RolledBackFrom")
+  rolledBackTo     FlowVersionRollback[] @relation("RolledBackTo")
+  flow             Flow                 @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  approver         User?                @relation("FlowVersionApprover", fields: [approvedBy], references: [id])
 
   @@unique([flowId, versionNumber])
   @@map("flow_versions")
@@ -623,6 +655,22 @@ model FlowRunStep {
   @@map("flow_run_steps")
 }
 
+model FlowVersionRollback {
+  id                String      @id @default(cuid())
+  fromVersionId     String      // Version being rolled back from
+  toVersionId       String      // Version being rolled back to
+  reason            String      // Reason for rollback
+  performedBy       Int         // User who performed rollback
+  performedAt       DateTime    @default(now())
+  impactAnalysis    String?     // JSON string with rollback impact analysis
+  
+  fromVersion       FlowVersion @relation("RolledBackFrom", fields: [fromVersionId], references: [id])
+  toVersion         FlowVersion @relation("RolledBackTo", fields: [toVersionId], references: [id])
+  performer         User        @relation(fields: [performedBy], references: [id])
+
+  @@map("flow_version_rollbacks")
+}
+
 model Organization {
   id          String    @id @default(cuid())
   name        String    @unique
@@ -634,6 +682,13 @@ model Organization {
   timezone    String    @default("UTC")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  
+  // Multi-tenant flow management
+  flows       Flow[]
+  flowTemplates FlowTemplate[]
+  sharedFlows FlowShare[] @relation("FlowSharedWithOrg")
+  analytics   OrganizationAnalytics[] @relation("OrganizationAnalytics")
+  
   channels    Channel[]
 
   @@map("organizations")
@@ -1186,17 +1241,117 @@ model EmailVerification {
   tokenHash  String // Hashed version for database lookup
   expiresAt  DateTime // Token expiration time
   verifiedAt DateTime? // When verification was completed
-  ipAddress  String? // IP address when token was created
-  userAgent  String? // User agent when token was created
-  attempts   Int       @default(0) // Number of verification attempts
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
+  @@unique([tokenHash])
   @@index([userId])
   @@index([email])
   @@index([expiresAt])
   @@map("email_verifications")
+}
+
+// MULTI-TENANT FLOW MANAGEMENT MODELS
+
+model FlowTemplate {
+  id              String        @id @default(cuid())
+  name            String
+  description     String
+  category        String?       // Category for organization (e.g., "Lead Generation", "Support")
+  tags            String?       // JSON array of tags for filtering
+  organizationId  String
+  createdByUserId Int
+  isPublic        Boolean       @default(false) // Whether this template can be shared across orgs
+  usageCount      Int           @default(0) // How many times this template has been used
+  rating          Float?        // Average rating from users
+  templateData    String        // JSON string with flow structure
+  previewImage    String?       // URL to preview image
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy       User          @relation("FlowTemplateCreator", fields: [createdByUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([category])
+  @@index([isPublic])
+  @@map("flow_templates")
+}
+
+model FlowPermission {
+  id              String        @id @default(cuid())
+  flowId          String
+  userId          Int
+  permissionType  String        // VIEW, EDIT, EXECUTE, ADMIN
+  grantedByUserId Int
+  grantedAt       DateTime      @default(now())
+  expiresAt       DateTime?
+  
+  flow            Flow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  user            User          @relation("FlowPermissionUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy       User          @relation("FlowPermissionGranter", fields: [grantedByUserId], references: [id])
+
+  @@unique([flowId, userId, permissionType])
+  @@index([flowId])
+  @@index([userId])
+  @@map("flow_permissions")
+}
+
+model FlowShare {
+  id                String        @id @default(cuid())
+  flowId            String
+  sharedWithOrgId   String
+  sharedByUserId    Int
+  accessType        String        // VIEW_ONLY, COPY_ALLOWED, COLLABORATIVE
+  permissions       String?       // JSON string with specific permissions
+  sharedAt          DateTime      @default(now())
+  expiresAt         DateTime?
+  isActive          Boolean       @default(true)
+  
+  flow              Flow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  sharedWithOrg     Organization  @relation("FlowSharedWithOrg", fields: [sharedWithOrgId], references: [id], onDelete: Cascade)
+  sharedBy          User          @relation("FlowSharedBy", fields: [sharedByUserId], references: [id])
+
+  @@unique([flowId, sharedWithOrgId])
+  @@index([flowId])
+  @@index([sharedWithOrgId])
+  @@index([sharedByUserId])
+  @@map("flow_shares")
+}
+
+model OrganizationAnalytics {
+  id                    String        @id @default(cuid())
+  organizationId        String
+  period                String        // DAILY, WEEKLY, MONTHLY
+  periodStart           DateTime
+  periodEnd             DateTime
+  
+  // Flow usage metrics
+  totalFlows            Int           @default(0)
+  activeFlows           Int           @default(0)
+  totalExecutions       Int           @default(0)
+  successfulExecutions  Int           @default(0)
+  failedExecutions      Int           @default(0)
+  
+  // Performance metrics
+  avgExecutionTime      Float?
+  avgSuccessRate        Float?
+  totalResourceUsage    Float?
+  
+  // User engagement metrics
+  activeUsers           Int           @default(0)
+  newFlowsCreated       Int           @default(0)
+  templatesUsed         Int           @default(0)
+  
+  createdAt             DateTime      @default(now())
+  
+  organization          Organization  @relation("OrganizationAnalytics", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, period, periodStart])
+  @@index([organizationId])
+  @@index([period])
+  @@index([periodStart])
+  @@map("organization_analytics")
 }

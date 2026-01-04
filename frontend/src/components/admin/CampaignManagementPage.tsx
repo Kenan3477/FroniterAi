@@ -122,6 +122,9 @@ interface ManagementCampaign {
   queuePosition?: number; // Position in dial queue
   predictiveDialingEnabled: boolean;
   maxConcurrentCalls: number;
+  maxCallsPerAgent?: number; // Maximum calls per agent for this campaign
+  abandonRateThreshold?: number; // Abandon rate threshold for predictive dialing
+  pacingMultiplier?: number; // Pacing multiplier for predictive dialing
   assignedDataListIds?: string[]; // Data list IDs assigned to this campaign
   template?: {
     id: string;
@@ -1621,7 +1624,7 @@ const CampaignManagementPage: React.FC = () => {
                               {getTypeIcon(campaign.type)}
                               <span className="text-xs">{campaign.type}</span>
                             </div>
-                            <Badge className={getStatusColor(campaign.status)} className="text-xs h-5">
+                            <Badge className={`${getStatusColor(campaign.status)} text-xs h-5`}>
                               {campaign.status}
                             </Badge>
                           </div>
@@ -1702,7 +1705,7 @@ const CampaignManagementPage: React.FC = () => {
                         {/* CLI Info Row - Very compact */}
                         <div className="mt-2 text-xs text-gray-500 flex justify-between">
                           <span>CLI: {campaign.outboundNumber || '+442046343130'}</span>
-                          <Badge className={getCategoryColor(campaign.category)} className="text-xs h-4">
+                          <Badge className={`${getCategoryColor(campaign.category)} text-xs h-4`}>
                             {campaign.category}
                           </Badge>
                         </div>
