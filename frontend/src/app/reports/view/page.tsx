@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
+import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
   ArrowLeftIcon,
   CalendarIcon,
@@ -205,40 +206,45 @@ export default function ReportViewPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <CalendarIcon className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Date Range:</span>
-              <input
-                type="date"
-                value={filters.dateRange.from}
-                onChange={(e) => setFilters(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, from: e.target.value }
-                }))}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
-              />
-              <span className="text-gray-500">to</span>
-              <input
-                type="date"
-                value={filters.dateRange.to}
-                onChange={(e) => setFilters(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, to: e.target.value }
-                }))}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
-              />
+        {/* Filters - Only show for non-call-records views */}
+        {!(category === 'voice' && subcategory === 'call') && (
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <CalendarIcon className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Date Range:</span>
+                <input
+                  type="date"
+                  value={filters.dateRange.from}
+                  onChange={(e) => setFilters(prev => ({
+                    ...prev,
+                    dateRange: { ...prev.dateRange, from: e.target.value }
+                  }))}
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={filters.dateRange.to}
+                  onChange={(e) => setFilters(prev => ({
+                    ...prev,
+                    dateRange: { ...prev.dateRange, to: e.target.value }
+                  }))}
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                />
+              </div>
+              <button className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">
+                <FunnelIcon className="h-4 w-4 mr-1" />
+                More Filters
+              </button>
             </div>
-            <button className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">
-              <FunnelIcon className="h-4 w-4 mr-1" />
-              More Filters
-            </button>
           </div>
-        </div>
+        )}
 
-        {loading ? (
+        {/* Main Content */}
+        {category === 'voice' && subcategory === 'call' ? (
+          <CallRecordsView />
+        ) : loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
             <p className="mt-2 text-gray-600">Loading report data...</p>

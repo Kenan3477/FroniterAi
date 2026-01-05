@@ -31,6 +31,7 @@ import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after 
 import userRoutes from './routes/users'; // RE-ENABLED - stats endpoint for admin dashboard
 import userManagementRoutes from './routes/userManagement'; // Enterprise user management system
 import callRecordsRoutes from './routes/callRecords'; // Production call records service
+import recordingRoutes from './routes/recordingRoutes'; // Call recording download and streaming
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
@@ -161,6 +162,7 @@ class App {
     this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
+    this.app.use('/api/recordings', recordingRoutes); // Call recording download and streaming
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts

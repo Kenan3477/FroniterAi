@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../database/index';
+import { processCallRecordings } from './recordingService';
 
 export interface CreateCallRecordRequest {
   callId: string;
@@ -60,15 +61,15 @@ export async function startCall(data: CreateCallRecordRequest) {
 }
 
 /**
- * Update call record with outcome
+ * Update call record with outcome and process recordings
  */
-export async function endCall(callId: string, data: UpdateCallRecordRequest) {
+export async function endCall(callId: string, data: UpdateCallRecordRequest, twilioCallSid?: string) {
   const endTime = new Date();
   
   // Calculate duration if not provided
   const callRecord = await prisma.callRecord.findUnique({
     where: { callId: callId }, // Fixed: Use callId instead of id
-    select: { startTime: true }
+    select: { id: true, startTime: true }
   });
 
   if (!callRecord) {
@@ -91,6 +92,17 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest) {
   });
 
   console.log(`✅ Call ended: ${callId} - Duration: ${duration}s - Outcome: ${data.outcome}`);
+
+  // Process recordings asynchronously if we have the Twilio call SID
+  if (twilioCallSid) {
+    console.log(`📼 Processing recordings for Twilio call: ${twilioCallSid}`);
+    // Don't await this - let it process in the background
+    processCallRecordings(twilioCallSid, callRecord.id).catch(error => {
+      console.error(`❌ Error processing recordings for call ${callId}:`, error);
+    });
+  } else {
+    console.log(`⚠️ No Twilio call SID provided for call ${callId}, skipping recording processing`);
+  }
 
   return {
     callId: updatedRecord.callId, // Fixed: Use callId

@@ -324,80 +324,110 @@ export const InboundNumbersManager: React.FC<{
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.code === 'SESSION_EXPIRED' || errorData.shouldRefreshAuth) {
+              setError('Your session has expired. Please log out and log back in to continue.');
+              // Optionally redirect to login page
+              console.log('🔑 Session expired, user needs to re-authenticate');
+              return;
+            }
+          }
           throw new Error(`Failed to fetch inbound numbers: ${response.statusText}`);
         }
 
         const data = await response.json();
         console.log('📞 Fetched inbound numbers:', data);
+        console.log('📞 Raw data structure check:');
+        console.log('📞 - typeof data:', typeof data);
+        console.log('📞 - Array.isArray(data):', Array.isArray(data));
+        console.log('📞 - data.data exists:', !!data.data);
+        console.log('📞 - data.data is array:', Array.isArray(data.data));
         
-        // Transform backend data to frontend format - backend returns data directly
-        const transformedNumbers: InboundNumber[] = data.data?.map((num: any) => ({
-          id: num.id,
-          number: num.phoneNumber,
-          name: num.friendlyName || num.phoneNumber,
-          description: num.description || `Inbound number ${num.phoneNumber}`,
-          carrierInboundNumber: num.phoneNumber,
-          displayName: num.friendlyName || num.phoneNumber,
-          autoRejectAnonymous: true,
-          createContactOnAnonymous: true,
-          integration: 'None',
-          countryCode: 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
-          businessHours: '24 Hours',
-          outOfHoursAction: 'Hangup',
-          dayClosedAction: 'Hangup',
-          routeTo: 'Hangup',
-          recordCalls: true,
-          lookupSearchFilter: 'All Lists',
-          assignedToDefaultList: true,
-          type: 'voice',
-          status: num.status === 'active',
-          // Flow Assignment
-          assignedFlowId: num.assignedFlowId,
-          assignedFlow: num.assignedFlow,
-          // Initialize with default audio file configurations
-          audioFiles: {
-            greeting: {
-              filename: 'default-greeting.mp3',
-              displayName: 'Default Greeting',
-              fileType: 'mp3',
-              description: 'Default system greeting',
-              loop: false,
-              volume: 80
-            },
-            notAnswered: {
-              filename: 'call-not-answered.mp3',
-              displayName: 'Call Not Answered Message',
-              fileType: 'mp3',
-              description: 'Played when call is not answered',
-              loop: false,
-              volume: 80
-            },
-            outOfHours: {
-              filename: 'out-of-hours.mp3',
-              displayName: 'Out of Hours Message',
-              fileType: 'mp3',
-              description: 'Played during out of business hours',
-              loop: false,
-              volume: 80
-            },
-            busy: {
-              filename: 'agents-busy.mp3',
-              displayName: 'All Agents Busy',
-              fileType: 'mp3',
-              description: 'Played when all agents are busy',
-              loop: false,
-              volume: 80
-            },
-            queue: {
-              filename: 'hold-music.mp3',
-              displayName: 'Queue Hold Music',
-              fileType: 'mp3',
-              description: 'Music played while caller is in queue',
-              loop: true,
-              volume: 60
+        // For debugging - let's see what the exact response structure is
+        if (data.data) {
+          console.log('📞 data.data:', data.data);
+          console.log('📞 data.data length:', data.data.length);
+        }
+        
+        // Transform backend data to frontend format - handle both direct array and wrapped data
+        const numbersArray = Array.isArray(data) ? data : (data.data || []);
+        console.log('📞 Numbers array after extraction:', numbersArray);
+        console.log('📞 Numbers array length:', numbersArray.length);
+        
+        const transformedNumbers: InboundNumber[] = numbersArray.map((num: any) => {
+          console.log('📞 Processing number:', num);
+          return {
+            id: num.id,
+            number: num.phoneNumber,
+            name: num.displayName || num.phoneNumber,
+            description: num.description || `Inbound number ${num.phoneNumber}`,
+            carrierInboundNumber: num.phoneNumber,
+            displayName: num.displayName || num.phoneNumber,
+            autoRejectAnonymous: true,
+            createContactOnAnonymous: true,
+            integration: 'None',
+            countryCode: 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
+            businessHours: '24 Hours',
+            outOfHoursAction: 'Hangup',
+            dayClosedAction: 'Hangup',
+            routeTo: 'Hangup',
+            recordCalls: true,
+            lookupSearchFilter: 'All Lists',
+            assignedToDefaultList: true,
+            type: 'voice',
+            status: num.isActive !== false, // Backend uses isActive, default to true
+            // Flow Assignment
+            assignedFlowId: num.assignedFlowId,
+            assignedFlow: num.assignedFlow,
+            // Initialize with default audio file configurations
+            audioFiles: {
+              greeting: {
+                filename: 'default-greeting.mp3',
+                displayName: 'Default Greeting',
+                fileType: 'mp3',
+                description: 'Default system greeting',
+                loop: false,
+                volume: 80
+              },
+              notAnswered: {
+                filename: 'call-not-answered.mp3',
+                displayName: 'Call Not Answered Message',
+                fileType: 'mp3',
+                description: 'Played when call is not answered',
+                loop: false,
+                volume: 80
+              },
+              outOfHours: {
+                filename: 'out-of-hours.mp3',
+                displayName: 'Out of Hours Message',
+                fileType: 'mp3',
+                description: 'Played during out of business hours',
+                loop: false,
+                volume: 80
+              },
+              busy: {
+                filename: 'agents-busy.mp3',
+                displayName: 'All Agents Busy',
+                fileType: 'mp3',
+                description: 'Played when all agents are busy',
+                loop: false,
+                volume: 80
+              },
+              queue: {
+                filename: 'hold-music.mp3',
+                displayName: 'Queue Hold Music',
+                fileType: 'mp3',
+                description: 'Music played while caller is in queue',
+                loop: true,
+                volume: 60
+              }
             }
-          }
-        })) || [];
+          };
+        });
+        
+        console.log('📞 Transformed numbers:', transformedNumbers);
+        console.log('📞 Transformed numbers length:', transformedNumbers.length);
 
         setNumbers(transformedNumbers);
         
@@ -418,25 +448,18 @@ export const InboundNumbersManager: React.FC<{
   useEffect(() => {
     const fetchFlows = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        
-        if (!token) {
-          console.warn('⚠️ No auth token available for fetching flows');
-          return;
-        }
-
         const response = await fetch('/api/flows', {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include' // Include cookies for authentication
         });
 
         if (response.ok) {
           const flowData = await response.json();
           console.log('🌊 Fetched flows for assignment:', flowData);
-          setAvailableFlows(flowData.data || []);
+          setAvailableFlows(Array.isArray(flowData) ? flowData : flowData.data || []);
         } else {
           console.error('❌ Failed to fetch flows:', response.status, response.statusText);
           const errorData = await response.text();
@@ -454,12 +477,9 @@ export const InboundNumbersManager: React.FC<{
   const handleSave = async (number: InboundNumber) => {
     try {
       setUpdatingNumberId(number.id);
-      const token = localStorage.getItem('authToken');
-      
-      if (!token) {
-        alert('Authentication required');
-        return;
-      }
+
+      console.log('🔧 Saving inbound number with ID:', number.id);
+      console.log('🔧 Number details:', number);
 
       const updateData = {
         displayName: number.displayName,
@@ -468,12 +488,14 @@ export const InboundNumbersManager: React.FC<{
         assignedFlowId: number.assignedFlowId || null
       };
 
+      console.log('🔧 Update data:', updateData);
+
       const response = await fetch(`/api/voice/inbound-numbers/${number.id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(updateData)
       });
 
@@ -522,19 +544,13 @@ export const InboundNumbersManager: React.FC<{
   const handleDelete = async (id: string) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
-      if (!token) {
-        alert('Authentication required');
-        return;
-      }
 
       const response = await fetch(`/api/voice/inbound-numbers/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -559,19 +575,13 @@ export const InboundNumbersManager: React.FC<{
       const number = numbers.find(num => num.id === id);
       if (!number) return;
 
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        alert('Authentication required');
-        return;
-      }
-
       const newStatus = !number.status;
       const response = await fetch(`/api/voice/inbound-numbers/${id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           phoneNumber: number.number,
           friendlyName: number.displayName,

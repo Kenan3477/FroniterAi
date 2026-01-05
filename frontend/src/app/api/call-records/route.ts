@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_U
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('📞 Proxying inbound numbers request to backend...');
+    console.log('📞 Proxying call records request to backend...');
 
     // Get auth token from cookies
     const authToken = request.cookies.get('auth-token')?.value;
@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const backendUrl = `${BACKEND_URL}/api/voice/inbound-numbers`;
+    // Extract query parameters for filtering
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    
+    const backendUrl = `${BACKEND_URL}/api/call-records/search${queryString ? `?${queryString}` : ''}`;
     console.log('Backend URL:', backendUrl);
 
     // Forward the request to the Railway backend with cookie-based auth
@@ -37,42 +41,40 @@ export async function GET(request: NextRequest) {
         const errorData = await response.text();
         console.error('🔑 Backend error details:', errorData);
         
-        // Check if it's a token expiry issue
-        if (errorData.includes('Invalid token') || errorData.includes('INVALID_TOKEN')) {
-          return NextResponse.json(
-            { 
-              success: false, 
-              error: 'Session expired', 
-              message: 'Your session has expired. Please log out and log back in.',
-              shouldRefreshAuth: true,
-              code: 'SESSION_EXPIRED'
-            },
-            { status: 401 }
-          );
-        }
-        
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Authentication expired', 
+            error: 'Session expired', 
             message: 'Your session has expired. Please log out and log back in.',
-            shouldRefreshAuth: true
+            shouldRefreshAuth: true,
+            code: 'SESSION_EXPIRED'
           },
           { status: 401 }
         );
       }
       
-      throw new Error(`Backend responded with ${response.status}: ${response.statusText}`);
+      // Return the backend error response
+      const errorText = await response.text();
+      console.error('❌ Backend error details:', errorText);
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Backend error: ${response.statusText}`,
+          details: errorText
+        },
+        { status: response.status }
+      );
     }
 
     const data = await response.json();
-    console.log('✅ Successfully fetched inbound numbers from backend');
+    console.log('✅ Successfully fetched call records from backend');
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('❌ Error proxying inbound numbers request:', error);
+    console.error('❌ Error proxying call records request:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch inbound numbers', details: error instanceof Error ? error.message : 'Unknown error' },
+      { success: false, error: 'Failed to fetch call records', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

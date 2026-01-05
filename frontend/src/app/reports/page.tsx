@@ -606,6 +606,26 @@ export default function ReportsPage() {
               renderReportGrid(voiceDataReports, 'Voice Data Reports')
             )}
 
+            {selectedCategory === 'voice' && selectedSubcategory === 'call' && (
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Call Records</h2>
+                  <p className="text-gray-600">Comprehensive call history and recordings</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Navigate to detailed call records view:
+                  </p>
+                  <a
+                    href="/reports/view?category=voice&subcategory=call"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+                  >
+                    View Call Records
+                  </a>
+                </div>
+              </div>
+            )}
+
             {selectedCategory === 'users' && !selectedSubcategory && (
               renderReportGrid(
                 reportCategories.find(cat => cat.id === 'users')?.subcategories || [],
