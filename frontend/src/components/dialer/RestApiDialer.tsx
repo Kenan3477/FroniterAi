@@ -17,7 +17,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [currentCall, setCurrentCall] = useState<any>(null);
   const [microphoneStream, setMicrophoneStream] = useState<MediaStream | null>(null);
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
-  const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, startTime: Date} | null>(null);
+  const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, conferenceId?: string, startTime: Date} | null>(null);
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -380,7 +380,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     try {
       console.log('📞 Making REST API call to:', phoneNumber);
       
-      // Make REST API call through backend - SIMPLE DIRECT CALLING
+      // Make REST API call through backend - CONFERENCE APPROACH
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
         headers: { 
@@ -395,22 +395,31 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       const result = await response.json();
       
       if (result.success) {
+        console.log('✅ Conference call initiated:', result);
+        
         setLastCallResult({
           success: true,
           callSid: result.callSid,
+          conferenceId: result.conferenceId,
           status: result.status,
-          method: 'REST API',
+          method: 'Conference REST API',
           message: result.message
         });
         
-        // Track the active REST API call
+        // Track the active REST API call with conference info
         setActiveRestApiCall({
           callSid: result.callSid,
+          conferenceId: result.conferenceId,
           startTime: new Date()
         });
         
+        // Wait 2 seconds then auto-join the agent to the conference
+        console.log('⏳ Customer call initiated, joining agent to conference in 2 seconds...');
+        setTimeout(async () => {
+          await joinAgentToConference(result.conferenceId);
+        }, 2000);
+        
         onCallInitiated?.(result);
-        console.log('✅ REST API call initiated:', result);
       } else {
         throw new Error(result.error || 'Failed to make call');
       }
@@ -423,6 +432,74 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // New function to join agent to conference via WebRTC
+  const joinAgentToConference = async (conferenceId: string) => {
+    try {
+      console.log('👤 Joining agent to conference:', conferenceId);
+      
+      if (!device || !isDeviceReady) {
+        throw new Error('WebRTC device not ready');
+      }
+
+      // Ensure we have microphone permission
+      if (!microphonePermissionGranted || !microphoneStream) {
+        console.log('🎤 Requesting microphone for conference call...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 48000
+          }
+        });
+        setMicrophoneStream(stream);
+        setMicrophonePermissionGranted(true);
+      }
+
+      // Make WebRTC call to join conference
+      const call = await device.connect({
+        params: {
+          conference: conferenceId
+        }
+      });
+
+      console.log('✅ Agent joined conference successfully');
+      setCurrentCall(call);
+
+      // Set up call event handlers
+      call.on('accept', () => {
+        console.log('✅ Agent conference call accepted - two way audio active');
+        
+        // Update Redux state
+        dispatch(startCall({
+          phoneNumber: phoneNumber,
+          callSid: activeRestApiCall?.callSid || '',
+          callType: 'outbound',
+          customerInfo: {
+            firstName: 'Customer',
+            lastName: '',
+            phone: phoneNumber,
+            id: `customer-${Date.now()}`
+          }
+        }));
+        
+        dispatch(answerCall());
+        console.log('📱 Redux state updated - agent joined conference');
+      });
+      
+      call.on('disconnect', () => {
+        console.log('📱 Agent disconnected from conference');
+        setCurrentCall(null);
+        setActiveRestApiCall(null);
+        dispatch(endCall());
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error joining conference:', error);
+      alert(`Failed to join conference: ${error?.message || 'Unknown error'}`);
     }
   };
 

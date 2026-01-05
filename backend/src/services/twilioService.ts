@@ -281,13 +281,20 @@ export const generateCustomerToAgentTwiML = (): string => {
 export const generateAgentTwiML = (conference: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  twiml.say('Connecting you to the customer. Please wait.');
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Connecting you to the customer. Please wait.');
   
   // Connect agent to conference
-  const dial = twiml.dial();
+  const dial = twiml.dial({
+    record: 'do-not-record' // Customer side already recording
+  });
+  
   dial.conference({
-    startConferenceOnEnter: true,
-    endConferenceOnExit: true
+    startConferenceOnEnter: true, // Agent starts the conference
+    endConferenceOnExit: true, // End conference when agent leaves
+    beep: 'false' // No beep sounds
   }, conference);
 
   return twiml.toString();
@@ -299,14 +306,29 @@ export const generateAgentTwiML = (conference: string): string => {
 export const generateCustomerTwiML = (conference: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  twiml.say('Please hold while we connect you to an agent.');
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Please hold while we connect you to an agent.');
   
-  // Connect customer to conference
-  const dial = twiml.dial();
+  // Connect customer to conference with recording
+  const dial = twiml.dial({
+    timeout: 60,
+    record: 'record-from-answer-dual' // Record both sides from when call is answered
+  });
+  
   dial.conference({
-    startConferenceOnEnter: false,
-    endConferenceOnExit: false
+    startConferenceOnEnter: false, // Wait for agent
+    endConferenceOnExit: true, // End conference when customer leaves
+    waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient',
+    maxParticipants: 2
   }, conference);
+
+  // If conference fails, apologize
+  twiml.say({
+    voice: 'alice', 
+    language: 'en-GB'
+  }, 'Sorry, no agents are available. Please try again later.');
 
   return twiml.toString();
 };

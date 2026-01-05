@@ -255,35 +255,36 @@ export const generateTwiML = async (req: Request, res: Response) => {
       callId,
       agentId,
       query: req.query,
-      body: req.body,
-      headers: req.headers
+      body: req.body
     });
 
-    // Check if this is a conference connection request (for inbound calls)
+    // Check if this is a conference connection request (for agent joining)
     if (conference) {
-      console.log('🎯 Conference connection request detected for:', conference);
+      console.log('🎯 Agent joining conference:', conference);
       
-      // Generate TwiML to join the conference
+      // Generate TwiML to join the conference as agent
       const twiml = twilioService.generateAgentTwiML(conference as string);
       
-      console.log('✅ Conference TwiML generated successfully for agent');
+      console.log('✅ Agent conference TwiML generated');
       res.type('text/xml');
       res.send(twiml);
       return;
     }
 
-    // Standard outbound call handling
-    if (!To) {
-      console.error('❌ Missing To parameter');
-      return res.type('text/xml').send('<Response><Say>Missing phone number</Say></Response>');
+    // For WebRTC outbound calls, connect agent directly to conference
+    if (To) {
+      // This shouldn't happen in conference mode, but handle gracefully
+      console.log('⚠️  Direct WebRTC call detected - redirecting to conference mode');
+      const conferenceId = `conf-webrtc-${Date.now()}`;
+      const twiml = twilioService.generateAgentTwiML(conferenceId);
+      
+      res.type('text/xml');
+      res.send(twiml);
+      return;
     }
 
-    // Generate TwiML to dial the customer
-    const twiml = twilioService.generateCallTwiML(To as string, From as string || process.env.TWILIO_PHONE_NUMBER!);
-
-    console.log('✅ Outbound TwiML generated successfully:', twiml);
-    res.type('text/xml');
-    res.send(twiml);
+    console.error('❌ Missing required parameters');
+    res.type('text/xml').send('<Response><Say>Missing parameters</Say></Response>');
   } catch (error) {
     console.error('❌ Error generating TwiML:', error);
     res.type('text/xml');
@@ -391,7 +392,7 @@ export const generateCustomerTwiML = async (req: Request, res: Response) => {
 
 /**
  * POST /api/calls/status
- * Handle Twilio status callbacks
+ * Handle Twilio status callbacks for call state tracking
  */
 export const handleStatusCallback = async (req: Request, res: Response) => {
   try {
@@ -401,16 +402,60 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
       CallDuration,
       From,
       To,
+      Direction,
+      ConferenceSid
     } = req.body;
 
-    console.log(`Call status update: ${CallSid} - ${CallStatus}`);
+    console.log(`📞 Call status update: ${CallSid} - ${CallStatus}`, {
+      From,
+      To,
+      Direction,
+      Duration: CallDuration,
+      Conference: ConferenceSid
+    });
 
-    // Update call status in database if needed
-    // await prisma.interaction.update({...});
+    // Handle call completion
+    if (CallStatus === 'completed') {
+      console.log(`✅ Call completed: ${CallSid} - Duration: ${CallDuration}s`);
+      
+      // Find call record by Twilio SID and update it
+      try {
+        const callRecord = await prisma.callRecord.findFirst({
+          where: { recording: CallSid }
+        });
+
+        if (callRecord) {
+          await prisma.callRecord.update({
+            where: { id: callRecord.id },
+            data: {
+              endTime: new Date(),
+              duration: parseInt(CallDuration) || 0,
+              outcome: 'completed'
+            }
+          });
+
+          console.log(`📝 Call record updated: ${callRecord.callId}`);
+
+          // Process recordings asynchronously
+          if (CallSid) {
+            console.log(`📼 Triggering recording processing for call: ${CallSid}`);
+            // Import here to avoid circular dependency
+            const { processCallRecordings } = require('../services/recordingService');
+            processCallRecordings(CallSid, callRecord.id).catch((error: any) => {
+              console.error('❌ Error processing recordings:', error);
+            });
+          }
+        } else {
+          console.warn(`⚠️  No call record found for Twilio SID: ${CallSid}`);
+        }
+      } catch (dbError) {
+        console.error('❌ Error updating call record:', dbError);
+      }
+    }
 
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Error handling status callback:', error);
+    console.error('❌ Error handling status callback:', error);
     res.status(500).send('Error');
   }
 };
@@ -426,16 +471,50 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
       RecordingSid,
       RecordingUrl,
       RecordingDuration,
+      RecordingStatus
     } = req.body;
 
-    console.log(`Recording available: ${RecordingSid} for call ${CallSid}`);
+    console.log(`📼 Recording status update: ${RecordingSid} - ${RecordingStatus}`, {
+      CallSid,
+      Duration: RecordingDuration,
+      Url: RecordingUrl
+    });
 
-    // Save recording info to database if needed
-    // await prisma.interaction.update({...});
+    // Handle recording completion
+    if (RecordingStatus === 'completed') {
+      console.log(`✅ Recording completed: ${RecordingSid} for call: ${CallSid}`);
+      
+      // Find and update call record with recording info
+      try {
+        const callRecord = await prisma.callRecord.findFirst({
+          where: { recording: CallSid }
+        });
+
+        if (callRecord) {
+          // Update with recording SID for later download
+          await prisma.callRecord.update({
+            where: { id: callRecord.id },
+            data: {
+              recording: RecordingSid // Store recording SID instead of call SID
+            }
+          });
+
+          console.log(`📝 Call record updated with recording: ${RecordingSid}`);
+
+          // Process recording download asynchronously
+          const { processCallRecordings } = require('../services/recordingService');
+          processCallRecordings(CallSid, callRecord.id).catch((error: any) => {
+            console.error('❌ Error downloading recording:', error);
+          });
+        }
+      } catch (dbError) {
+        console.error('❌ Error updating recording info:', dbError);
+      }
+    }
 
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Error handling recording callback:', error);
+    console.error('❌ Error handling recording callback:', error);
     res.status(500).send('Error');
   }
 };
@@ -467,25 +546,57 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // Call the customer DIRECTLY with TwiML that connects them to the WebRTC agent
-    // This eliminates the webhook delay and connects customer directly to browser
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
-    
-    // Call the customer directly
-    const callResult = await twilioClient.calls.create({
-      to: formattedTo, // Use formatted number
-      from: fromNumber,
-      url: twimlUrl,
-      method: 'POST'
+    // Generate unique conference name for this call
+    const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('🎯 Creating conference call:', conferenceId);
+
+    // Start call record in database
+    const callRecord = await prisma.callRecord.create({
+      data: {
+        callId: conferenceId,
+        agentId: 'current-agent', // TODO: Get actual agent ID from auth
+        contactId: `contact-${Date.now()}`, // TODO: Get or create actual contact
+        campaignId: 'manual-dial', // Manual dial campaign
+        phoneNumber: formattedTo,
+        dialedNumber: formattedTo,
+        callType: 'outbound',
+        startTime: new Date()
+      }
     });
 
-    console.log('✅ Customer call initiated directly:', callResult.sid);
+    // Call the customer and connect them to the conference
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer?conference=${conferenceId}`;
+    
+    const callResult = await twilioClient.calls.create({
+      to: formattedTo,
+      from: fromNumber,
+      url: twimlUrl,
+      method: 'POST',
+      statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
+      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+      statusCallbackMethod: 'POST',
+      record: true, // Enable recording
+      recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-status`,
+      recordingStatusCallbackMethod: 'POST'
+    });
+
+    console.log('✅ Customer call initiated - Conference:', conferenceId);
+    console.log('✅ Twilio Call SID:', callResult.sid);
+
+    // Update call record with Twilio call SID
+    await prisma.callRecord.update({
+      where: { callId: conferenceId },
+      data: { 
+        recording: callResult.sid // Store Twilio SID for recording lookup
+      }
+    });
 
     res.json({
       success: true,
       callSid: callResult.sid,
+      conferenceId: conferenceId,
       status: callResult.status,
-      message: 'Customer call initiated - will connect to agent browser'
+      message: 'Conference call initiated - Connect agent to join'
     });
 
   } catch (error: any) {
