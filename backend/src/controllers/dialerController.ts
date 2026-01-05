@@ -13,6 +13,29 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 
 const prisma = new PrismaClient();
 
+// Phone number formatting utility
+const formatPhoneNumber = (phoneNumber: string): string => {
+  // Remove all non-digit characters
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Handle UK numbers
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    // UK number starting with 0, convert to +44
+    cleaned = '44' + cleaned.substring(1);
+  } else if (cleaned.startsWith('44') && cleaned.length === 12) {
+    // Already in UK format without +
+    // Keep as is
+  } else if (cleaned.startsWith('1') && cleaned.length === 11) {
+    // US/Canada number, keep as is
+  } else if (cleaned.length === 10 && !cleaned.startsWith('0')) {
+    // Assume US number without country code
+    cleaned = '1' + cleaned;
+  }
+  
+  // Add + prefix if not present
+  return '+' + cleaned;
+};
+
 // Validation schemas  
 const endCallSchema = z.object({
   callSid: z.string().min(1, 'Call SID required'),
@@ -426,7 +449,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
     const { to } = req.body;
     
-    console.log('📞 Making REST API call - calling customer directly:', { to });
+    console.log('📞 Making REST API call - original number:', { to });
 
     if (!to) {
       return res.status(400).json({
@@ -434,6 +457,10 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         error: 'Customer phone number (to) is required'
       });
     }
+
+    // Format phone number to international format
+    const formattedTo = formatPhoneNumber(to);
+    console.log('📞 Formatted phone number:', { original: to, formatted: formattedTo });
 
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
     if (!fromNumber) {
@@ -446,7 +473,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     // Call the customer directly
     const callResult = await twilioClient.calls.create({
-      to: to, // Call customer directly
+      to: formattedTo, // Use formatted number
       from: fromNumber,
       url: twimlUrl,
       method: 'POST'
