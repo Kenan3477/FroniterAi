@@ -128,6 +128,80 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
   }
 });
 
+// POST /api/voice/inbound-numbers - Create a new inbound number (for seeding)
+router.post('/inbound-numbers', authenticate, async (req: Request, res: Response) => {
+  try {
+    console.log('📞 Creating new inbound number...');
+    
+    const {
+      phoneNumber,
+      displayName,
+      description,
+      country = 'GB',
+      region,
+      numberType = 'LOCAL',
+      provider = 'TWILIO',
+      capabilities = ['VOICE', 'SMS'],
+      isActive = true
+    } = req.body;
+
+    if (!phoneNumber || !displayName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number and display name are required'
+      });
+    }
+
+    const newInboundNumber = await prisma.inboundNumber.create({
+      data: {
+        phoneNumber,
+        displayName,
+        description,
+        country,
+        region,
+        numberType,
+        provider,
+        capabilities: JSON.stringify(capabilities),
+        isActive
+      }
+    });
+
+    console.log(`✅ Created inbound number: ${phoneNumber} (${displayName})`);
+
+    res.json({
+      success: true,
+      data: {
+        id: newInboundNumber.id,
+        phoneNumber: newInboundNumber.phoneNumber,
+        displayName: newInboundNumber.displayName,
+        description: newInboundNumber.description,
+        country: newInboundNumber.country,
+        region: newInboundNumber.region,
+        numberType: newInboundNumber.numberType,
+        provider: newInboundNumber.provider,
+        capabilities: newInboundNumber.capabilities ? JSON.parse(newInboundNumber.capabilities) : [],
+        isActive: newInboundNumber.isActive,
+        createdAt: newInboundNumber.createdAt,
+        updatedAt: newInboundNumber.updatedAt
+      }
+    });
+
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        error: 'Inbound number already exists'
+      });
+    }
+    
+    console.error('Error creating inbound number:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create inbound number'
+    });
+  }
+});
+
 // PUT /api/voice/inbound-numbers/:id - Update an inbound number configuration
 router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Response) => {
   try {
