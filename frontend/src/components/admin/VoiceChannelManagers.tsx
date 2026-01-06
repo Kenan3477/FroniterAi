@@ -495,7 +495,26 @@ export const InboundNumbersManager: React.FC<{
         displayName: number.displayName,
         description: number.description,
         isActive: number.status,
-        assignedFlowId: number.assignedFlowId || null
+        assignedFlowId: number.assignedFlowId || null,
+        // Add new routing and configuration fields
+        businessHours: number.businessHours,
+        outOfHoursAction: number.outOfHoursAction,
+        routeTo: number.routeTo,
+        voicemailAudioFile: number.voicemailAudioFile,
+        businessHoursVoicemailFile: number.businessHoursVoicemailFile,
+        outOfHoursAudioFile: number.outOfHoursAudioFile,
+        outOfHoursTransferNumber: number.outOfHoursTransferNumber,
+        selectedFlowId: number.selectedFlowId,
+        selectedQueueId: number.selectedQueueId,
+        selectedRingGroupId: number.selectedRingGroupId,
+        selectedExtension: number.selectedExtension,
+        autoRejectAnonymous: number.autoRejectAnonymous,
+        createContactOnAnonymous: number.createContactOnAnonymous,
+        integration: number.integration,
+        countryCode: number.countryCode,
+        recordCalls: number.recordCalls,
+        lookupSearchFilter: number.lookupSearchFilter,
+        assignedToDefaultList: number.assignedToDefaultList
       };
 
       console.log('🔧 Update data:', updateData);
@@ -1101,12 +1120,24 @@ const ConnexInboundNumberForm: React.FC<{
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                       placeholder="Select audio file for voicemail greeting..."
                     />
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFormData({...formData, voicemailAudioFile: file.name});
+                          alert(`Audio file "${file.name}" selected. Full upload functionality coming soon.`);
+                        }
+                      }}
+                      className="hidden"
+                      id="out-of-hours-voicemail-upload"
+                    />
                     <button
                       type="button"
                       className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                       onClick={() => {
-                        // TODO: Implement audio file upload/selection
-                        alert('Audio file upload coming soon!');
+                        document.getElementById('out-of-hours-voicemail-upload')?.click();
                       }}
                     >
                       <CloudArrowUpIcon className="h-4 w-4" />
@@ -1325,12 +1356,24 @@ const ConnexInboundNumberForm: React.FC<{
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                     placeholder="Select audio file for business hours voicemail..."
                   />
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData({...formData, businessHoursVoicemailFile: file.name});
+                        alert(`Audio file "${file.name}" selected. Full upload functionality coming soon.`);
+                      }
+                    }}
+                    className="hidden"
+                    id="business-hours-voicemail-upload"
+                  />
                   <button
                     type="button"
                     className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                     onClick={() => {
-                      // TODO: Implement audio file upload/selection
-                      alert('Audio file upload coming soon!');
+                      document.getElementById('business-hours-voicemail-upload')?.click();
                     }}
                   >
                     <CloudArrowUpIcon className="h-4 w-4" />

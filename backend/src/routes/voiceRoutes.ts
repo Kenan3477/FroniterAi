@@ -228,13 +228,37 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       businessDays,
       timezone,
       isActive,
-      assignedFlowId
+      assignedFlowId,
+      // New configuration fields
+      businessHours,
+      outOfHoursAction,
+      routeTo,
+      voicemailAudioFile,
+      businessHoursVoicemailFile,
+      outOfHoursAudioFile,
+      outOfHoursTransferNumber,
+      selectedFlowId,
+      selectedQueueId,
+      selectedRingGroupId,
+      selectedExtension,
+      autoRejectAnonymous,
+      createContactOnAnonymous,
+      integration,
+      countryCode,
+      recordCalls,
+      lookupSearchFilter,
+      assignedToDefaultList
     } = req.body;
 
+    console.log('🔧 PUT /inbound-numbers/:id - Received fields:', {
+      id, displayName, outOfHoursAction, routeTo, voicemailAudioFile, businessHoursVoicemailFile
+    });
+
     // Validate flow exists if assignedFlowId is provided
-    if (assignedFlowId) {
+    const finalFlowId = assignedFlowId || selectedFlowId;
+    if (finalFlowId) {
       const flow = await prisma.flow.findUnique({
-        where: { id: assignedFlowId }
+        where: { id: finalFlowId }
       });
       if (!flow) {
         return res.status(400).json({
@@ -244,27 +268,50 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       }
     }
 
+    // Map new fields to existing database fields where possible
+    const updateData: any = {
+      displayName,
+      description,
+      greetingAudioUrl,
+      noAnswerAudioUrl,
+      outOfHoursAudioUrl: outOfHoursAudioFile || outOfHoursAudioUrl, // Map new field to existing
+      busyAudioUrl,
+      voicemailAudioUrl: voicemailAudioFile || businessHoursVoicemailFile || voicemailAudioUrl, // Map voicemail files
+      businessHoursStart,
+      businessHoursEnd,
+      businessDays,
+      timezone,
+      isActive,
+      assignedFlowId: finalFlowId || null,
+      updatedAt: new Date()
+    };
+
+    // Store complex routing configuration as JSON in description or create a new field
+    // For now, we'll append routing config to description
+    if (routeTo || outOfHoursAction) {
+      const routingConfig = {
+        routeTo,
+        outOfHoursAction,
+        selectedFlowId,
+        selectedQueueId,
+        selectedRingGroupId,
+        selectedExtension,
+        businessHours
+      };
+      
+      // Store routing config separately or append to description
+      const baseDescription = description || `Inbound number configuration`;
+      updateData.description = `${baseDescription} | Routing: ${JSON.stringify(routingConfig)}`;
+    }
+
+    console.log('🔧 Updating database with:', updateData);
+
     // Update the inbound number in the database
     const updatedNumber: any = await prisma.inboundNumber.update({
       where: { id },
-      data: {
-        displayName,
-        description,
-        greetingAudioUrl,
-        noAnswerAudioUrl,
-        outOfHoursAudioUrl,
-        busyAudioUrl,
-        voicemailAudioUrl,
-        businessHoursStart,
-        businessHoursEnd,
-        businessDays,
-        timezone,
-        isActive,
-        assignedFlowId: assignedFlowId || null,
-        updatedAt: new Date()
-      } as any,
+      data: updateData,
       include: {
-        assignedFlow: assignedFlowId ? {
+        assignedFlow: finalFlowId ? {
           select: {
             id: true,
             name: true,
@@ -273,6 +320,8 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
         } : false
       } as any
     });
+
+    console.log('✅ Database updated successfully');
 
     // Transform response
     const transformedNumber = {
