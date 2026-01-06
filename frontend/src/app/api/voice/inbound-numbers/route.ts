@@ -95,3 +95,84 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('📞 === INBOUND NUMBERS POST API CALLED ===');
+    console.log('📞 Creating new inbound number via backend...');
+
+    // Get auth token from cookies
+    const authToken = request.cookies.get('auth-token')?.value;
+    console.log('🔒 Auth token exists:', !!authToken);
+    
+    if (!authToken) {
+      console.log('🔒 ❌ No auth token found in cookies');
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get the request body
+    const body = await request.json();
+    console.log('📦 Request body:', body);
+
+    const backendUrl = `${BACKEND_URL}/api/voice/inbound-numbers`;
+    console.log('📡 Backend URL:', backendUrl);
+    console.log('📡 Making POST request to backend...');
+
+    // Forward the request to the Railway backend with cookie-based auth
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    console.log('📡 Backend response status:', response.status);
+
+    if (!response.ok) {
+      console.error(`❌ Backend response not ok: ${response.status} ${response.statusText}`);
+      
+      if (response.status === 401) {
+        console.error('🔑 Authentication failed - token may be expired');
+        const errorData = await response.text();
+        console.error('🔑 Backend error details:', errorData);
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Authentication expired', 
+            message: 'Your session has expired. Please log out and log back in.',
+            shouldRefreshAuth: true
+          },
+          { status: 401 }
+        );
+      }
+      
+      throw new Error(`Backend responded with ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Successfully created inbound number via backend');
+    console.log('📦 Backend response data:', JSON.stringify(data, null, 2));
+    
+    if (data.success && data.data) {
+      console.log('🎉 Inbound number created successfully:');
+      console.log(`   📞 Number: ${data.data.phoneNumber}`);
+      console.log(`   🏷️  Name: ${data.data.displayName}`);
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('❌ === INBOUND NUMBERS POST ERROR ===');
+    console.error('❌ Error creating inbound number:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack');
+    return NextResponse.json(
+      { success: false, error: 'Failed to create inbound number', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
