@@ -33,10 +33,19 @@ interface InboundNumber {
 // GET /api/voice/inbound-numbers - Get available inbound numbers for CLI selection
 router.get('/inbound-numbers', authenticate, async (req: Request, res: Response) => {
   try {
+    console.log('📞 === INBOUND NUMBERS GET ROUTE DEBUG ===');
     console.log('📞 Fetching inbound numbers from database...');
     console.log('🎯 Expected: Only +442046343130 (real Twilio number)');
     
-    // Fetch active inbound numbers from database
+    // First, check ALL inbound numbers without filtering
+    const allNumbers = await prisma.inboundNumber.findMany();
+    console.log(`🔍 TOTAL numbers in database: ${allNumbers.length}`);
+    allNumbers.forEach((num: any, index: number) => {
+      console.log(`   ${index + 1}. Phone: ${num.phoneNumber}, Active: ${num.isActive}, ID: ${num.id}`);
+    });
+    
+    // Now fetch active inbound numbers from database
+    console.log('🔍 Now filtering for isActive: true...');
     const inboundNumbers = await prisma.inboundNumber.findMany({
       where: {
         isActive: true
