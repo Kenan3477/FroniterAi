@@ -59,12 +59,22 @@ export interface InboundNumber {
   integration: string; // 'None' or integration name
   countryCode: string; // 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)'
   businessHours: string; // '24 Hours'
-  outOfHoursAction: string; // 'Hangup'
-  dayClosedAction: string; // 'Hangup'
-  routeTo: string; // 'Hangup'
+  outOfHoursAction: string; // 'Hangup', 'Voicemail', 'Transfer', 'Announcement'
+  dayClosedAction: string; // 'Hangup' (deprecated - same as outOfHoursAction)
+  routeTo: string; // 'Flow', 'Queue', 'RingGroup', 'Extension', 'IVR', 'Voicemail'
   recordCalls: boolean;
   lookupSearchFilter: string; // 'All Lists'
   assignedToDefaultList: boolean;
+  
+  // New routing and audio configuration fields
+  voicemailAudioFile?: string; // Audio file for voicemail greeting
+  outOfHoursAudioFile?: string; // Audio file for out of hours announcement
+  outOfHoursTransferNumber?: string; // Phone number for out of hours transfer
+  businessHoursVoicemailFile?: string; // Audio file for business hours voicemail
+  selectedFlowId?: string; // Selected flow ID for routing
+  selectedQueueId?: string; // Selected queue ID for routing
+  selectedRingGroupId?: string; // Selected ring group ID for routing
+  selectedExtension?: string; // Selected extension for routing
   
   // Flow Assignment Configuration
   assignedFlowId?: string | null; // ID of the assigned flow
@@ -810,6 +820,7 @@ export const InboundNumbersManager: React.FC<{
             setShowAddForm(false);
             setEditingNumber(null);
           }}
+          flows={availableFlows}
         />
       )}
     </div>
@@ -821,7 +832,8 @@ const ConnexInboundNumberForm: React.FC<{
   number?: InboundNumber | null;
   onSave: (number: InboundNumber) => void;
   onCancel: () => void;
-}> = ({ number, onSave, onCancel }) => {
+  flows?: any[];
+}> = ({ number, onSave, onCancel, flows = [] }) => {
   const [formData, setFormData] = useState<Partial<InboundNumber>>({
     number: number?.number || '',
     carrierInboundNumber: number?.carrierInboundNumber || '',
@@ -834,12 +846,21 @@ const ConnexInboundNumberForm: React.FC<{
     businessHours: number?.businessHours || '24 Hours',
     outOfHoursAction: number?.outOfHoursAction || 'Hangup',
     dayClosedAction: number?.dayClosedAction || 'Hangup',
-    routeTo: number?.routeTo || 'Hangup',
+    routeTo: number?.routeTo || '',
     recordCalls: number?.recordCalls !== false,
     lookupSearchFilter: number?.lookupSearchFilter || 'All Lists',
     assignedToDefaultList: number?.assignedToDefaultList !== false,
     type: number?.type || 'both',
-    status: number?.status !== false
+    status: number?.status !== false,
+    // New fields for enhanced routing
+    voicemailAudioFile: number?.voicemailAudioFile || '',
+    outOfHoursAudioFile: number?.outOfHoursAudioFile || '',
+    outOfHoursTransferNumber: number?.outOfHoursTransferNumber || '',
+    businessHoursVoicemailFile: number?.businessHoursVoicemailFile || '',
+    selectedFlowId: number?.selectedFlowId || '',
+    selectedQueueId: number?.selectedQueueId || '',
+    selectedRingGroupId: number?.selectedRingGroupId || '',
+    selectedExtension: number?.selectedExtension || ''
   });
 
   const [isDualtoneValid, setIsDualtoneValid] = useState(false);
@@ -1067,30 +1088,239 @@ const ConnexInboundNumberForm: React.FC<{
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">If Day Closed</label>
-              <select
-                value={formData.dayClosedAction}
-                onChange={(e) => setFormData({...formData, dayClosedAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-              >
-                <option value="Hangup">Hangup</option>
-                <option value="Voicemail">Voicemail</option>
-                <option value="Transfer">Transfer</option>
-              </select>
+          {/* Out of Hours / Day Closed Configuration */}
+          <div className="space-y-4 bg-amber-50 p-4 rounded-lg border border-amber-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900">Out of Hours Configuration</h4>
+              <span className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded">Weekends & After Hours</span>
             </div>
+            <p className="text-sm text-gray-600">Configure what happens when calls arrive outside business hours (including weekends, holidays, and closed days)</p>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  When Out of Hours (Evenings, Weekends, Holidays)
+                </label>
+                <select
+                  value={formData.outOfHoursAction}
+                  onChange={(e) => setFormData({...formData, outOfHoursAction: e.target.value})}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                  <option value="Hangup">Hangup Call</option>
+                  <option value="Voicemail">Take Voicemail</option>
+                  <option value="Transfer">Transfer to Another Number</option>
+                  <option value="Announcement">Play Announcement & Hangup</option>
+                </select>
+              </div>
+
+              {/* Show voicemail audio file selection when Voicemail is selected */}
+              {formData.outOfHoursAction === 'Voicemail' && (
+                <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MicrophoneIcon className="h-4 w-4 inline mr-1" />
+                    Voicemail Greeting Audio File
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={formData.voicemailAudioFile || 'Default: "Please leave a message after the tone"'}
+                      onChange={(e) => setFormData({...formData, voicemailAudioFile: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      placeholder="Select audio file for voicemail greeting..."
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      onClick={() => {
+                        // TODO: Implement audio file upload/selection
+                        alert('Audio file upload coming soon!');
+                      }}
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Upload MP3/WAV file or use default system greeting</p>
+                </div>
+              )}
+
+              {/* Show announcement audio file selection when Announcement is selected */}
+              {formData.outOfHoursAction === 'Announcement' && (
+                <div className="bg-green-50 p-4 rounded border border-green-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
+                    Out of Hours Announcement Audio File
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={formData.outOfHoursAudioFile || 'Default: "We are currently closed. Please call back during business hours"'}
+                      onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      placeholder="Select audio file for out of hours message..."
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      onClick={() => {
+                        // TODO: Implement audio file upload/selection
+                        alert('Audio file upload coming soon!');
+                      }}
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Message played before hanging up</p>
+                </div>
+              )}
+
+              {/* Show transfer number input when Transfer is selected */}
+              {formData.outOfHoursAction === 'Transfer' && (
+                <div className="bg-purple-50 p-4 rounded border border-purple-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transfer Destination Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.outOfHoursTransferNumber || ''}
+                    onChange={(e) => setFormData({...formData, outOfHoursTransferNumber: e.target.value})}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="Enter phone number (e.g., +442012345678)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Calls will be transferred to this number when out of hours</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Within Hours Routing */}
+          <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900">Business Hours Routing</h4>
+              <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded">Active During Open Hours</span>
+            </div>
+            <p className="text-sm text-gray-600">Configure where calls are routed when received during your business hours</p>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700">Route To</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Within Business Hours - Route To
+              </label>
               <select
                 value={formData.routeTo}
                 onChange={(e) => setFormData({...formData, routeTo: e.target.value})}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
+                <option value="">Select routing destination...</option>
+                <option value="Flow">Flow (Follow configured call flow)</option>
+                <option value="Queue">Queue (Join call queue)</option>
+                <option value="RingGroup">Ring Group (Ring multiple agents)</option>
+                <option value="Extension">Extension (Direct to specific agent)</option>
+                <option value="IVR">IVR Menu (Interactive voice response)</option>
+                <option value="Voicemail">Voicemail (Take message)</option>
+              </select>
+            </div>
+
+            {/* Show specific configuration based on routing choice */}
+            {formData.routeTo === 'Flow' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Flow</label>
+                <select
+                  value={formData.selectedFlowId || ''}
+                  onChange={(e) => setFormData({...formData, selectedFlowId: e.target.value})}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                  <option value="">Choose a flow...</option>
+                  {flows.map((flow: any) => (
+                    <option key={flow.id} value={flow.id}>{flow.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {formData.routeTo === 'Queue' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Queue</label>
+                <select
+                  value={formData.selectedQueueId || ''}
+                  onChange={(e) => setFormData({...formData, selectedQueueId: e.target.value})}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                  <option value="">Choose a queue...</option>
+                  <option value="sales">Sales Queue</option>
+                  <option value="support">Support Queue</option>
+                  <option value="general">General Queue</option>
+                </select>
+              </div>
+            )}
+
+            {formData.routeTo === 'RingGroup' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Ring Group</label>
+                <select
+                  value={formData.selectedRingGroupId || ''}
+                  onChange={(e) => setFormData({...formData, selectedRingGroupId: e.target.value})}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                  <option value="">Choose a ring group...</option>
+                  <option value="sales-team">Sales Team</option>
+                  <option value="support-team">Support Team</option>
+                  <option value="management">Management</option>
+                </select>
+              </div>
+            )}
+
+            {formData.routeTo === 'Extension' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Extension</label>
+                <input
+                  type="text"
+                  value={formData.selectedExtension || ''}
+                  onChange={(e) => setFormData({...formData, selectedExtension: e.target.value})}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="Enter extension number (e.g., 101)"
+                />
+              </div>
+            )}
+
+            {formData.routeTo === 'Voicemail' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <MicrophoneIcon className="h-4 w-4 inline mr-1" />
+                  Business Hours Voicemail Greeting
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={formData.businessHoursVoicemailFile || 'Default: "Please leave a message and we will return your call"'}
+                    onChange={(e) => setFormData({...formData, businessHoursVoicemailFile: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="Select audio file for business hours voicemail..."
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    onClick={() => {
+                      // TODO: Implement audio file upload/selection
+                      alert('Audio file upload coming soon!');
+                    }}
+                  >
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4" style={{display: 'none'}}>
+            {/* Hidden old fields for backward compatibility */}
+            <div>
+              <select
+                value={formData.dayClosedAction}
+                onChange={(e) => setFormData({...formData, dayClosedAction: e.target.value})}
+                style={{display: 'none'}}
+              >
                 <option value="Hangup">Hangup</option>
-                <option value="Queue">Queue</option>
-                <option value="Extension">Extension</option>
-                <option value="IVR">IVR</option>
+                <option value="Voicemail">Voicemail</option>
+                <option value="Transfer">Transfer</option>
               </select>
             </div>
           </div>
