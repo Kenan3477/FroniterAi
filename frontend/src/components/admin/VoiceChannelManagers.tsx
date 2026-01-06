@@ -1127,7 +1127,7 @@ const ConnexInboundNumberForm: React.FC<{
                         const file = e.target.files?.[0];
                         if (file) {
                           setFormData({...formData, voicemailAudioFile: file.name});
-                          alert(`Audio file "${file.name}" selected. Full upload functionality coming soon.`);
+                          console.log('Out-of-hours voicemail audio file selected:', file.name);
                         }
                       }}
                       className="hidden"
@@ -1189,16 +1189,21 @@ const ConnexInboundNumberForm: React.FC<{
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                       placeholder="Select audio file for voicemail greeting..."
                     />
-                    <button
-                      type="button"
-                      className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                      onClick={() => {
-                        // TODO: Implement audio file upload/selection
-                        alert('Audio file upload coming soon!');
-                      }}
-                    >
+                    <label className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-flex items-center">
                       <CloudArrowUpIcon className="h-4 w-4" />
-                    </button>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData({...formData, voicemailAudioFile: file.name});
+                            console.log('Voicemail audio file selected:', file.name);
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Upload MP3/WAV file or use default system greeting</p>
                 </div>
@@ -1219,16 +1224,21 @@ const ConnexInboundNumberForm: React.FC<{
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                       placeholder="Select audio file for out of hours message..."
                     />
-                    <button
-                      type="button"
-                      className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                      onClick={() => {
-                        // TODO: Implement audio file upload/selection
-                        alert('Audio file upload coming soon!');
-                      }}
-                    >
+                    <label className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer inline-flex items-center">
                       <CloudArrowUpIcon className="h-4 w-4" />
-                    </button>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData({...formData, outOfHoursAudioFile: file.name});
+                            console.log('Out of hours audio file selected:', file.name);
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Message played before hanging up</p>
                 </div>
@@ -1363,7 +1373,7 @@ const ConnexInboundNumberForm: React.FC<{
                       const file = e.target.files?.[0];
                       if (file) {
                         setFormData({...formData, businessHoursVoicemailFile: file.name});
-                        alert(`Audio file "${file.name}" selected. Full upload functionality coming soon.`);
+                        console.log('Business hours voicemail audio file selected:', file.name);
                       }
                     }}
                     className="hidden"
