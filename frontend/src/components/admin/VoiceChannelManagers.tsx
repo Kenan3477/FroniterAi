@@ -1085,6 +1085,36 @@ const ConnexInboundNumberForm: React.FC<{
                 <option value="Voicemail">Voicemail</option>
                 <option value="Transfer">Transfer</option>
               </select>
+              
+              {/* Show voicemail audio file selection when Voicemail is selected */}
+              {formData.outOfHoursAction === 'Voicemail' && (
+                <div className="mt-3 bg-blue-50 p-3 rounded border border-blue-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MicrophoneIcon className="h-4 w-4 inline mr-1" />
+                    Voicemail Greeting Audio File
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={formData.voicemailAudioFile || 'Default: "Please leave a message after the tone"'}
+                      onChange={(e) => setFormData({...formData, voicemailAudioFile: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      placeholder="Select audio file for voicemail greeting..."
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      onClick={() => {
+                        // TODO: Implement audio file upload/selection
+                        alert('Audio file upload coming soon!');
+                      }}
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Upload MP3/WAV file or use default system greeting</p>
+                </div>
+              )}
             </div>
           </div>
 
