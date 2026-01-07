@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
+import { DashboardAnalytics } from '@/components/reports/DashboardAnalytics';
+import { ReportBuilder } from '@/components/reports/ReportBuilder';
+import { ReportTemplates } from '@/components/reports/ReportTemplates';
+import { ScheduledReports } from '@/components/reports/ScheduledReports';
 import { 
   ChartBarIcon, 
   UsersIcon, 
@@ -650,44 +654,28 @@ export default function ReportsPage() {
       {/* Dashboard Tab */}
       {activeMainTab === 'dashboard' && (
         <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6">Analytics Dashboard</h2>
-          <div className="text-gray-500">
-            <p>Dashboard functionality: NOT IMPLEMENTED</p>
-            <p className="text-sm mt-2">Advanced analytics dashboard will be implemented when real reporting backend is integrated.</p>
-          </div>
+          <DashboardAnalytics />
         </div>
       )}
 
       {/* Report Builder Tab */}
       {activeMainTab === 'builder' && (
         <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6">Custom Report Builder</h2>
-          <div className="text-gray-500">
-            <p>Report builder functionality: NOT IMPLEMENTED</p>
-            <p className="text-sm mt-2">Custom report creation tools will be implemented when advanced reporting requirements are defined.</p>
-          </div>
+          <ReportBuilder />
         </div>
       )}
 
       {/* Templates Tab */}
       {activeMainTab === 'templates' && (
         <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6">Report Templates</h2>
-          <div className="text-gray-500">
-            <p>Template system: NOT IMPLEMENTED</p>
-            <p className="text-sm mt-2">Pre-built report templates will be available when report engine is implemented.</p>
-          </div>
+          <ReportTemplates />
         </div>
       )}
 
       {/* Scheduled Reports Tab */}
       {activeMainTab === 'scheduled' && (
         <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6">Scheduled Reports</h2>
-          <div className="text-gray-500">
-            <p>Scheduled reporting: NOT IMPLEMENTED</p>
-            <p className="text-sm mt-2">Automated report scheduling will be implemented when email/notification system is integrated.</p>
-          </div>
+          <ScheduledReports />
         </div>
       )}
 

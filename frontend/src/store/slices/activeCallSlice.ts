@@ -18,6 +18,7 @@ export interface ActiveCallState {
   callStartTime: Date | null;
   callDuration: number;
   callStatus: 'ringing' | 'connected' | 'ended';
+  isOnHold: boolean;
 }
 
 const initialState: ActiveCallState = {
@@ -28,7 +29,8 @@ const initialState: ActiveCallState = {
   customerInfo: null,
   callStartTime: null,
   callDuration: 0,
-  callStatus: 'ended'
+  callStatus: 'ended',
+  isOnHold: false
 };
 
 const activeCallSlice = createSlice({
@@ -65,6 +67,9 @@ const activeCallSlice = createSlice({
       state.callStatus = 'ended';
       // Don't clear immediately to allow disposition card to access data
     },
+    holdCall: (state, action: PayloadAction<boolean>) => {
+      state.isOnHold = action.payload;
+    },
     clearCall: (state) => {
       return initialState;
     }
@@ -77,6 +82,7 @@ export const {
   updateCallDuration,
   updateCustomerInfo,
   endCall,
+  holdCall,
   clearCall
 } = activeCallSlice.actions;
 

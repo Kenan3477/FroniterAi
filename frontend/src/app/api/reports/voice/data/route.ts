@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getKPISummary, 
-  getHourlyBreakdown, 
-  getOutcomeDistribution, 
-  getAgentPerformance 
-} from '@/services/simpleKpiService';
+import { kpiApi } from '@/services/kpiApi';
 
 /**
  * POST /api/reports/voice/data
- * Get voice/call data reports with various breakdowns
+ * Get voice/call data reports with various breakdowns using real database-driven KPI service
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,72 +11,65 @@ export async function POST(request: NextRequest) {
 
     console.log(`📊 Generating ${reportType} report with filters:`, filters);
 
-    // Parse date filters
-    const startDate = filters.startDate ? new Date(filters.startDate) : undefined;
-    const endDate = filters.endDate ? new Date(filters.endDate) : undefined;
-
-    const filterParams = {
-      startDate,
-      endDate,
-      campaignId: filters.campaignId,
-      agentId: filters.agentId,
-      listId: filters.listId
-    };
+    // Parse date filters with defaults
+    const startDate = filters.startDate ? new Date(filters.startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
 
     let reportData;
 
     switch (reportType) {
       case 'combined_outcome_horizontal':
-        reportData = await getOutcomeDistribution(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate, 
-          endDate
+      case 'outcome_combined_vertical':
+      case 'penetration':
+        // Get outcome distribution data
+        reportData = await kpiApi.getOutcomeDistribution(
+          startDate,
+          endDate,
+          filters.campaignId,
+          filters.agentId
         );
         break;
         
       case 'hour_breakdown':
-        reportData = await getHourlyBreakdown(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate
-        );
-        break;
-        
-      case 'outcome_combined_vertical':
-        reportData = await getOutcomeDistribution(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate, 
-          endDate
-        );
-        break;
-        
-      case 'penetration':
-        reportData = await getOutcomeDistribution(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate, 
-          endDate
+        // Get hourly performance data
+        reportData = await kpiApi.getHourlyPerformance(
+          startDate,
+          endDate,
+          filters.campaignId,
+          filters.agentId
         );
         break;
         
       case 'source_summary':
-        reportData = await getKPISummary(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate, 
-          endDate
+      case 'summary_combined':
+        // Get KPI summary data
+        reportData = await kpiApi.getKPISummary(
+          startDate,
+          endDate,
+          filters.campaignId,
+          filters.agentId
         );
         break;
-        
-      case 'summary_combined':
-        reportData = await getKPISummary(
-          filters.campaignId, 
-          filters.agentId, 
-          startDate, 
-          endDate
+
+      case 'agent_performance':
+        // Get agent performance rankings
+        reportData = await kpiApi.getAgentPerformance(
+          startDate,
+          endDate,
+          filters.campaignId
         );
+        break;
+
+      case 'campaign_metrics':
+        // Get campaign-specific metrics
+        if (!filters.campaignId) {
+          return NextResponse.json(
+            { error: 'Campaign ID is required for campaign metrics report' },
+            { status: 400 }
+          );
+        }
+        const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) || 7;
+        reportData = await kpiApi.getCampaignMetrics(filters.campaignId, days);
         break;
         
       default:
@@ -95,7 +83,13 @@ export async function POST(request: NextRequest) {
       success: true,
       reportType,
       data: reportData,
-      filters: filterParams
+      filters: {
+        startDate,
+        endDate,
+        campaignId: filters.campaignId,
+        agentId: filters.agentId,
+        listId: filters.listId
+      }
     });
 
   } catch (error) {
@@ -103,75 +97,13 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: 'Failed to generate report',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        reportType: request.body ? 'unknown' : 'invalid_request'
       },
       { status: 500 }
     );
   }
-}
-
-/**
- * Combined Outcome Horizontal Report
- * Shows disposition outcomes across campaigns/agents horizontally
- */
-async function getCombinedOutcomeHorizontal(filters: any) {
-  const kpiSummary = await getKPISummary(filters);
-  
-  return {
-    title: 'Combined Outcome Horizontal',
-    summary: {
-      totalCalls: kpiSummary.totalCalls,
-      successRate: kpiSummary.conversionRate,
-      contactRate: kpiSummary.contactRate,
-      averageDuration: kpiSummary.averageCallDuration
-    },
-    dispositions: Object.entries(kpiSummary.dispositionBreakdown).map(([disposition, count]) => ({
-      disposition,
-      count: count as number,
-      percentage: kpiSummary.totalCalls > 0 ? Math.round(((count as number) / kpiSummary.totalCalls) * 100) : 0
-    })).sort((a, b) => b.count - a.count),
-    campaigns: Object.entries(kpiSummary.campaignBreakdown).map(([campaign, data]) => ({
-      campaign,
-      count: data.calls,
-      percentage: kpiSummary.totalCalls > 0 ? Math.round((data.calls / kpiSummary.totalCalls) * 100) : 0
-    })),
-    agents: Object.entries(kpiSummary.agentBreakdown).map(([agent, data]) => ({
-      agent,
-      count: data.calls,
-      percentage: kpiSummary.totalCalls > 0 ? Math.round((data.calls / kpiSummary.totalCalls) * 100) : 0
-    }))
-  };
-}
-
-/**
- * Source Summary Report
- * Shows performance by data list/source
- */
-async function getSourceSummary(filters: any) {
-  const kpiSummary = await getKPISummary(filters);
-  
-  return {
-    title: 'Source Summary',
-    summary: {
-      totalCalls: kpiSummary.totalCalls,
-      totalDuration: kpiSummary.totalCalls * kpiSummary.averageCallDuration,
-      averageDuration: kpiSummary.averageCallDuration
-    },
-    categories: {
-      positive: kpiSummary.categoryBreakdown.positive || 0,
-      neutral: kpiSummary.categoryBreakdown.neutral || 0,
-      negative: kpiSummary.categoryBreakdown.negative || 0
-    },
-    topDispositions: Object.entries(kpiSummary.dispositionBreakdown)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 10)
-      .map(([disposition, count]) => ({
-        disposition,
-        count,
-        percentage: kpiSummary.totalCalls > 0 ? Math.round((count / kpiSummary.totalCalls) * 100) : 0
-      }))
-  };
 }
 
 /**
@@ -232,6 +164,18 @@ export async function GET() {
       id: 'summary_combined',
       name: 'Summary Combined',
       description: 'Overall KPI summary',
+      category: 'data'
+    },
+    {
+      id: 'agent_performance',
+      name: 'Agent Performance',
+      description: 'Agent performance rankings and metrics',
+      category: 'data'
+    },
+    {
+      id: 'campaign_metrics',
+      name: 'Campaign Metrics',
+      description: 'Campaign-specific performance metrics',
       category: 'data'
     },
     {

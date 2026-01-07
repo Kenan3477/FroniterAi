@@ -84,7 +84,8 @@ router.get('/', async (req: Request, res: Response) => {
               listId: true,
               name: true
             }
-          }
+          },
+          leadScore: true
         }
       }),
       prisma.contact.count({ where })
@@ -118,7 +119,7 @@ router.get('/', async (req: Request, res: Response) => {
         notes: contact.notes,
         tags: contact.tags,
         leadSource: contact.leadSource,
-        leadScore: contact.leadScore,
+        leadScore: contact.leadScore?.score || null,
         custom1: contact.custom1,
         custom2: contact.custom2,
         custom3: contact.custom3,
@@ -283,7 +284,8 @@ router.get('/:contactId', async (req: Request, res: Response) => {
             listId: true,
             name: true
           }
-        }
+        },
+        leadScore: true
       }
     });
 
@@ -322,7 +324,7 @@ router.get('/:contactId', async (req: Request, res: Response) => {
         notes: contact.notes,
         tags: contact.tags,
         leadSource: contact.leadSource,
-        leadScore: contact.leadScore,
+        leadScore: contact.leadScore?.score || null,
         custom1: contact.custom1,
         custom2: contact.custom2,
         custom3: contact.custom3,
@@ -403,7 +405,8 @@ router.put('/:contactId/status', async (req: Request, res: Response) => {
             listId: true,
             name: true
           }
-        }
+        },
+        leadScore: true
       }
     });
 
@@ -435,7 +438,7 @@ router.put('/:contactId/status', async (req: Request, res: Response) => {
         notes: updatedContact.notes,
         tags: updatedContact.tags,
         leadSource: updatedContact.leadSource,
-        leadScore: updatedContact.leadScore,
+        leadScore: updatedContact.leadScore?.score || null,
         custom1: updatedContact.custom1,
         custom2: updatedContact.custom2,
         custom3: updatedContact.custom3,
@@ -511,7 +514,6 @@ router.post('/', async (req: Request, res: Response) => {
       notes: customFields?.notes || null,
       tags: customFields?.tags || null,
       leadSource: customFields?.leadSource || null,
-      leadScore: customFields?.leadScore || 0,
       custom1: customFields?.custom1 || null,
       custom2: customFields?.custom2 || null,
       custom3: customFields?.custom3 || null,
@@ -527,7 +529,8 @@ router.post('/', async (req: Request, res: Response) => {
             listId: true,
             name: true
           }
-        }
+        },
+        leadScore: true
       }
     });
 
@@ -569,7 +572,7 @@ router.post('/', async (req: Request, res: Response) => {
         notes: newContact.notes,
         tags: newContact.tags,
         leadSource: newContact.leadSource,
-        leadScore: newContact.leadScore,
+        leadScore: newContact.leadScore?.score || null,
         custom1: newContact.custom1,
         custom2: newContact.custom2,
         custom3: newContact.custom3,

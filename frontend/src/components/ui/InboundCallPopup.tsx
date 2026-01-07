@@ -163,10 +163,42 @@ export default function InboundCallPopup() {
   };
 
   // Handle transferring a call
-  const handleTransferCall = (call: InboundCall, transferType: 'queue' | 'agent') => {
+  const handleTransferCall = async (call: InboundCall, transferType: 'queue' | 'agent') => {
     console.log('📞 Transferring call from global popup:', call.id, transferType);
-    // TODO: Implement transfer functionality
-    alert(`Transfer to ${transferType} - Feature coming soon!`);
+    
+    try {
+      const agentId = localStorage.getItem('agentId') || 'current-agent';
+      const targetId = transferType === 'queue' ? 'general' : 'available-agent';
+      
+      const response = await fetch('/api/calls/inbound-transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callId: call.id,
+          transferType,
+          targetId,
+          agentId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Call transferred successfully from popup');
+        // Remove call from popup since it's been transferred
+        setInboundCalls(prev => prev.filter(c => c.id !== call.id));
+      } else {
+        console.error('❌ Transfer failed:', result.error);
+        alert(`❌ Transfer failed: ${result.error || 'Unknown error'}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error transferring call:', error);
+      alert('❌ Error transferring call. Please try again.');
+    }
   };
 
   // Don't render if no calls

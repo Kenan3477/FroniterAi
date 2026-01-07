@@ -19,6 +19,9 @@ router.post('/call-rest-api', dialerController.makeRestApiCall);
 // End active call
 router.post('/end', dialerController.endCall);
 
+// Hold/unhold call
+router.post('/hold', dialerController.holdCall);
+
 // TwiML generation endpoints (called by Twilio) - support both GET and POST
 // MUST be before /:callSid route to avoid being caught by wildcard
 router.get('/twiml', dialerController.generateTwiML);

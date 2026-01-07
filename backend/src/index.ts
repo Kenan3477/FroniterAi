@@ -50,6 +50,7 @@ import routingRoutes from './routes/routingRoutes'; // Inbound call routing syst
 import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
 import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue management system
 import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoints
+import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -66,7 +67,6 @@ import flowRoutes from './routes/flows'; // ENABLED - User model conflict fixed
 // import diallerAgentRoutes from './routes/diallerAgents'; // Disabled - missing services
 // import diallerCampaignRoutes from './routes/diallerCampaigns'; // Disabled - schema issues  
 // import diallerCallRoutes from './routes/diallerCalls'; // Disabled - missing services
-import kpiRoutes from './routes/kpi'; // Re-enabled with basic implementation
 import dialerRoutes from './routes/dialer'; // NEW: Twilio dialer routes
 import dialQueueRoutes from './routes/dialQueue'; // NEW: Dial queue system
 import eventTestRoutes from './routes/eventTest'; // NEW: Event system testing
@@ -76,6 +76,10 @@ import flowVersioningRoutes from './routes/flowVersioning'; // NEW: Flow version
 import flowMonitoringRoutes from './routes/flowMonitoring'; // NEW: Real-time flow monitoring dashboard
 import flowOptimizationRoutes from './routes/flowOptimization'; // NEW: AI-powered flow optimization
 import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tenant flow management
+
+// Phase 3: Advanced AI Dialler Features - NEW
+import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-time sentiment analysis and coaching
+import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -197,6 +201,10 @@ class App {
     this.app.use('/api/flow-monitoring', flowMonitoringRoutes); // Real-time flow monitoring dashboard
     this.app.use('/api/flow-optimization', flowOptimizationRoutes); // AI-powered flow optimization
     this.app.use('/api/multi-tenant', multiTenantFlowRoutes); // Multi-tenant flow management
+
+    // Phase 3: Advanced AI Dialler Features - NEW
+    this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
+    this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES
     // this.app.use('/api/dialler/agents', diallerAgentRoutes); // Disabled - missing services

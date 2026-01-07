@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { recordCallOutcome } from '@/services/callOutcomeService';
-import { recordCallKPI } from '@/services/kpiTrackingService';
+import { kpiApi } from '@/services/kpiApi';
 
 /**
  * POST /api/agents/call-outcome
@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
       return 'neutral';
     };
 
-    // Record KPI data
+    // Record KPI data using the new kpiApi service
     const callDate = new Date();
-    await recordCallKPI({
+    await kpiApi.recordCallKPI({
       campaignId,
       agentId,
       contactId,
@@ -59,9 +59,6 @@ export async function POST(request: NextRequest) {
       disposition: outcome,
       dispositionCategory: getDispositionCategory(outcome),
       callDuration: duration || 0,
-      callDate,
-      hourOfDay: callDate.getHours(),
-      dayOfWeek: callDate.getDay(),
       outcome,
       notes
     });

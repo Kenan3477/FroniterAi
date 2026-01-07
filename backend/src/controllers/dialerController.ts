@@ -177,6 +177,88 @@ export const endCall = async (req: Request, res: Response) => {
 };
 
 /**
+ * POST /api/calls/hold
+ * Put a call on hold or resume from hold
+ */
+export const holdCall = async (req: Request, res: Response) => {
+  try {
+    const holdSchema = z.object({
+      callId: z.string().min(1, 'Call ID required'),
+      action: z.enum(['hold', 'unhold'], { 
+        errorMap: () => ({ message: 'Action must be "hold" or "unhold"' })
+      })
+    });
+
+    const { callId, action } = holdSchema.parse(req.body);
+    
+    console.log(`📞 ${action === 'hold' ? 'Holding' : 'Resuming'} call ${callId}`);
+
+    // Use Twilio to modify the call with hold music or resume
+    try {
+      if (action === 'hold') {
+        // Put call on hold with hold music
+        await twilioClient.calls(callId).update({
+          twiml: `
+            <Response>
+              <Say>Please hold while we transfer your call.</Say>
+              <Play loop="0">http://com.twilio.music.ambient.mp3</Play>
+            </Response>
+          `
+        });
+      } else {
+        // Resume call by removing hold music
+        await twilioClient.calls(callId).update({
+          twiml: `
+            <Response>
+              <Say>Thank you for holding. Connecting you now.</Say>
+              <Dial>
+                <Conference>agent-customer-conference-${callId}</Conference>
+              </Dial>
+            </Response>
+          `
+        });
+      }
+
+      const result = {
+        callId,
+        action,
+        status: action === 'hold' ? 'on-hold' : 'connected',
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`✅ Call ${callId} successfully ${action === 'hold' ? 'placed on hold' : 'resumed'}`);
+
+      res.json({
+        success: true,
+        message: `Call ${action === 'hold' ? 'placed on hold' : 'resumed'} successfully`,
+        data: result
+      });
+
+    } catch (twilioError: any) {
+      console.error(`❌ Twilio error during ${action}:`, twilioError);
+      res.status(500).json({
+        success: false,
+        error: `Failed to ${action} call: ${twilioError.message}`
+      });
+    }
+
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
+    console.error(`❌ Error with ${req.body.action || 'hold'} operation:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to process hold request'
+    });
+  }
+};
+
+/**
  * GET /api/calls/:callSid
  * Get call details
  */

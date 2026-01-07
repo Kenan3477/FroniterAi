@@ -140,7 +140,6 @@ model Contact {
   notes             String?
   tags              String?
   leadSource        String?
-  leadScore         Int              @default(0)
   deliveryDate      DateTime? // From delivery_date in Excel
   ageRange          String? // From age_range in Excel
   residentialStatus String? // From residential_status in Excel
@@ -170,6 +169,7 @@ model Contact {
   tasks             Task[]
   workItems         WorkItem[]
   callKPIs          CallKPI[]
+  leadScore         LeadScore? // AI-generated lead scoring
 
   @@map("contacts")
 }
@@ -228,6 +228,7 @@ model Campaign {
   workItems            WorkItem[]
   callKPIs             CallKPI[]
   userAssignments      UserCampaignAssignment[]  @relation("CampaignUserAssignments")
+  alerts               Alert[] // Alerts related to this campaign
 
   @@map("campaigns")
 }
@@ -257,6 +258,9 @@ model Agent {
   tasks               Task[]
   workItems           WorkItem[]
   callKPIs            CallKPI[]
+  callAnalyses        CallAnalysis[] // Sentiment analysis for agent's calls
+  alerts              Alert[] // Alerts related to this agent
+  qualityMonitoring   QualityMonitoring[] // Quality monitoring records
 
   @@map("agents")
 }
@@ -304,6 +308,7 @@ model Disposition {
   createdAt            DateTime              @default(now())
   callRecords          CallRecord[]
   campaignDispositions CampaignDisposition[]
+  dispositionTracking  DispositionTracking[] // Phase 3: AI tracking
 
   @@map("dispositions")
 }
@@ -367,6 +372,15 @@ model CallRecord {
   contact       Contact      @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
   campaign      Campaign     @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
   recordingFile Recording? // One-to-one relation
+  analysis      CallAnalysis? // Sentiment analysis for this call
+  alerts        Alert[] // Alerts related to this call
+  qualityMonitoring QualityMonitoring[] // Quality monitoring for this call
+  
+  // Phase 3: AI Dialler Relations
+  sentimentAnalysis SentimentAnalysis[]
+  aiRecommendations AiRecommendation[]
+  dispositionTracking DispositionTracking[]
+  automationTriggers AutomationTrigger[]
 
   @@map("call_records")
 }
@@ -1354,4 +1368,338 @@ model OrganizationAnalytics {
   @@index([period])
   @@index([periodStart])
   @@map("organization_analytics")
+}
+
+// SENTIMENT ANALYSIS & AI MODELS
+
+model CallAnalysis {
+  id                        String   @id @default(cuid())
+  callId                    String   @unique
+  agentId                   String?
+  
+  // Sentiment Analysis Results
+  sentimentScore            Float    // -1 to 1 scale
+  sentiment                 String   // POSITIVE, NEUTRAL, NEGATIVE
+  confidence                Float    // 0 to 1 confidence score
+  emotions                  String?  // JSON string of emotion scores
+  urgency                   String?  // LOW, MEDIUM, HIGH
+  keywords                  String?  // JSON array of detected keywords
+  
+  // Call Quality Metrics
+  qualityScore              Int?     // 1-10 quality rating
+  currentMood               String?  // ESCALATING, IMPROVING, STABLE
+  riskLevel                 String?  // LOW, MEDIUM, HIGH, CRITICAL
+  
+  // AI Recommendations
+  coachingRecommendations   String?  // JSON array of coaching suggestions
+  nextBestActions           String?  // JSON array of next best actions
+  complianceFlags           String?  // JSON array of compliance issues
+  
+  // Metadata
+  analyzedAt                DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  // Relations
+  call                      CallRecord? @relation(fields: [callId], references: [callId])
+  agent                     Agent?      @relation(fields: [agentId], references: [id])
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([sentiment])
+  @@index([riskLevel])
+  @@index([analyzedAt])
+  @@map("call_analysis")
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  type        String   // CALL_QUALITY_CRITICAL, COMPLIANCE_VIOLATION, etc.
+  severity    String   // LOW, MEDIUM, HIGH, CRITICAL
+  title       String
+  message     String
+  
+  // Context
+  callId      String?
+  agentId     String?
+  campaignId  String?
+  
+  // Metadata
+  metadata    String?  // JSON string with additional context
+  acknowledged Boolean  @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  call        CallRecord? @relation(fields: [callId], references: [callId])
+  agent       Agent?      @relation(fields: [agentId], references: [id])
+  campaign    Campaign?   @relation(fields: [campaignId], references: [campaignId])
+
+  @@index([type])
+  @@index([severity])
+  @@index([callId])
+  @@index([agentId])
+  @@index([acknowledged])
+  @@index([createdAt])
+  @@map("alerts")
+}
+
+model QualityMonitoring {
+  id                    String   @id @default(cuid())
+  callId                String
+  agentId               String
+  monitoredBy           String?  // Supervisor ID
+  
+  // Quality Scores (1-10 scale)
+  overallQuality        Int
+  communicationSkills   Int?
+  productKnowledge      Int?
+  processAdherence      Int?
+  customerSatisfaction  Int?
+  complianceScore       Int?
+  
+  // Detailed Analysis
+  strengths             String?  // JSON array of identified strengths
+  improvementAreas      String?  // JSON array of improvement areas
+  coachingNotes         String?  // Supervisor coaching notes
+  
+  // Automated Analysis
+  scriptAdherence       Float?   // 0-1 score for script following
+  sentimentProgression  String?  // JSON timeline of sentiment changes
+  complianceViolations  String?  // JSON array of compliance issues
+  
+  // Action Items
+  followUpRequired      Boolean  @default(false)
+  coachingScheduled     Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  call                  CallRecord @relation(fields: [callId], references: [callId])
+  agent                 Agent      @relation(fields: [agentId], references: [id])
+
+  @@unique([callId])
+  @@index([agentId])
+  @@index([overallQuality])
+  @@index([monitoredBy])
+  @@index([createdAt])
+  @@map("quality_monitoring")
+}
+
+// Phase 3: AI Dialler Models
+
+// Real-time Sentiment Analysis
+model SentimentAnalysis {
+  id                    String    @id @default(cuid())
+  callId                String
+  agentId               String
+  timestamp             DateTime
+  sentiment             String    // positive, negative, neutral
+  confidence            Float
+  transcript            String?   // Transcript excerpt for this analysis
+  emotions              String?   // JSON of emotion scores {joy, anger, fear, etc}
+  intent                String?   // Detected customer intent
+  keywords              String?   // JSON array of detected keywords
+  
+  createdAt             DateTime  @default(now())
+  
+  // Relations
+  callRecord            CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([timestamp])
+  @@index([sentiment])
+  @@map("sentiment_analysis")
+}
+
+// Coaching Suggestions
+model CoachingSuggestion {
+  id                    String    @id @default(cuid())
+  callId                String
+  agentId               String
+  type                  String    // objection_handling, empathy, closing, product_knowledge, tone_adjustment
+  message               String
+  priority              String    // low, medium, high, urgent
+  timestamp             DateTime
+  acknowledged          Boolean   @default(false)
+  acknowledgedAt        DateTime?
+  
+  createdAt             DateTime  @default(now())
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([priority])
+  @@index([acknowledged])
+  @@map("coaching_suggestions")
+}
+
+// Quality Scores
+model QualityScore {
+  id                    String    @id @default(cuid())
+  callId                String    @unique
+  agentId               String
+  overallScore          Float
+  communicationScore    Float
+  empathyScore          Float
+  complianceScore       Float
+  effectivenessScore    Float
+  
+  createdAt             DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([overallScore])
+  @@map("quality_scores")
+}
+
+// Lead Scores  
+model LeadScore {
+  id                    String    @id @default(cuid())
+  contactId             String    @unique
+  score                 Float
+  confidence            Float
+  priority              String    // low, medium, high, urgent
+  factors               String?   // JSON of scoring factors
+  nextBestAction        String?
+  estimatedRevenue      Float?
+  conversionProbability Float?
+  timeToContact         Int?      // Optimal hours to wait
+  preferredChannel      String?   // voice, sms, email
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relations
+  contact               Contact   @relation(fields: [contactId], references: [contactId])
+
+  @@index([contactId])
+  @@index([score])
+  @@index([priority])
+  @@map("lead_scores")
+}
+
+// Compliance Alerts
+model ComplianceAlert {
+  id                    String    @id @default(cuid())
+  callId                String
+  agentId               String
+  alertType             String    // regulatory, company_policy, script_deviation
+  severity              String    // low, medium, high, critical
+  description           String
+  context               String?
+  suggestion            String?
+  requiresAction        Boolean   @default(false)
+  resolvedAt            DateTime?
+  resolvedBy            String?
+  
+  createdAt             DateTime  @default(now())
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([severity])
+  @@index([requiresAction])
+  @@map("compliance_alerts")
+}
+
+// AI Recommendation Tracking
+model AiRecommendation {
+  id                    String    @id @default(cuid())
+  callId                String
+  agentId               String
+  type                  String    // DISPOSITION, NEXT_ACTION, COACHING
+  recommendation        String    // JSON of recommendation data
+  confidence            Float
+  status                String    @default("PENDING") // PENDING, ACCEPTED, OVERRIDDEN, IGNORED
+  appliedAt             DateTime?
+  appliedBy             String?
+  feedbackReceived      Boolean   @default(false)
+  feedbackScore         Float?
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relations
+  callRecord            CallRecord @relation(fields: [callId], references: [callId])
+  feedback              AiFeedback[]
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("ai_recommendations")
+}
+
+// AI Feedback for Accuracy Tracking
+model AiFeedback {
+  id                    String    @id @default(cuid())
+  recommendationId      String
+  agentId               String
+  correct               Boolean
+  actualOutcome         String?
+  feedback              String?
+  
+  createdAt             DateTime  @default(now())
+  
+  // Relations
+  recommendation        AiRecommendation @relation(fields: [recommendationId], references: [id])
+
+  @@index([recommendationId])
+  @@index([agentId])
+  @@index([correct])
+  @@index([createdAt])
+  @@map("ai_feedback")
+}
+
+// Disposition Tracking for Analytics
+model DispositionTracking {
+  id                    String    @id @default(cuid())
+  callId                String
+  dispositionId         String
+  agentId               String
+  timestamp             DateTime
+  method                String    // AGENT_MANUAL, AI_ASSISTED, AI_AUTO
+  confidence            Float?
+  notes                 String?
+  
+  createdAt             DateTime  @default(now())
+  
+  // Relations
+  callRecord            CallRecord @relation(fields: [callId], references: [callId])
+  disposition           Disposition @relation(fields: [dispositionId], references: [id])
+
+  @@index([callId])
+  @@index([dispositionId])
+  @@index([agentId])
+  @@index([timestamp])
+  @@index([method])
+  @@map("disposition_tracking")
+}
+
+// Automation Triggers for Next-Best-Actions
+model AutomationTrigger {
+  id                    String    @id @default(cuid())
+  callId                String
+  triggerType           String    // SCHEDULE, CAMPAIGN, SUPPRESSION, ESCALATION
+  triggerData           String    // JSON configuration
+  status                String    @default("PENDING") // PENDING, COMPLETED, FAILED
+  scheduledFor          DateTime
+  executedAt            DateTime?
+  createdBy             String
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relations
+  callRecord            CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([callId])
+  @@index([triggerType])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([createdAt])
+  @@map("automation_triggers")
 }

@@ -1,0 +1,895 @@
+/**
+ * Quality & Compliance Monitoring Service
+ * Phase 3: Advanced AI Dialler Implementation
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export interface QualityAssessment {
+  callId: string;
+  agentId: string;
+  overallScore: number;
+  categories: {
+    communication: number;
+    productKnowledge: number;
+    compliance: number;
+    customerService: number;
+    salesTechnique: number;
+  };
+  strengths: string[];
+  improvementAreas: string[];
+  complianceIssues: ComplianceIssue[];
+  coachingRecommendations: string[];
+  confidence: number;
+}
+
+export interface ComplianceIssue {
+  type: 'regulatory' | 'company_policy' | 'script_deviation' | 'data_protection' | 'consent';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  timestamp: Date;
+  context: string;
+  suggestion: string;
+  requiresAction: boolean;
+}
+
+export interface QualityMetrics {
+  agentId: string;
+  period: {
+    from: Date;
+    to: Date;
+  };
+  callsAnalyzed: number;
+  averageQualityScore: number;
+  scoreDistribution: {
+    excellent: number; // 9-10
+    good: number;      // 7-8.9
+    fair: number;      // 5-6.9
+    poor: number;      // <5
+  };
+  categoryScores: {
+    communication: number;
+    productKnowledge: number;
+    compliance: number;
+    customerService: number;
+    salesTechnique: number;
+  };
+  complianceStats: {
+    totalIssues: number;
+    criticalIssues: number;
+    resolvedIssues: number;
+    averageResolutionTime: number; // hours
+  };
+  improvementTrends: 'improving' | 'stable' | 'declining';
+  coachingPriority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+export class QualityMonitoringService {
+  
+  /**
+   * Analyze call quality using AI-powered assessment
+   */
+  async analyzeCallQuality(
+    callId: string,
+    transcript?: string,
+    recordingUrl?: string
+  ): Promise<QualityAssessment> {
+    try {
+      // Get call details
+      const callRecord = await prisma.callRecord.findUnique({
+        where: { callId },
+        include: {
+          agent: true,
+          campaign: true
+        }
+      });
+      
+      if (!callRecord || !callRecord.agentId) {
+        throw new Error('Call record or agent not found');
+      }
+      
+      // Perform AI analysis
+      const analysisResults = await this.performAIAnalysis({
+        callId,
+        agentId: callRecord.agentId,
+        transcript: transcript || callRecord.notes || '',
+        duration: callRecord.duration || 0,
+        outcome: callRecord.dispositionId,
+        campaignType: callRecord.campaign?.dialMethod || 'manual'
+      });
+      
+      // Store quality assessment
+      await this.storeQualityAssessment(callId, analysisResults);
+      
+      // Check for compliance issues requiring immediate action
+      await this.processComplianceIssues(callId, analysisResults.complianceIssues);
+      
+      return analysisResults;
+      
+    } catch (error) {
+      console.error('Quality analysis error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get quality metrics for agent over specified period
+   */
+  async getAgentQualityMetrics(
+    agentId: string,
+    dateFrom: Date,
+    dateTo: Date
+  ): Promise<QualityMetrics> {
+    try {
+      // Get quality assessments for period
+      const qualityRecords = await prisma.qualityMonitoring.findMany({
+        where: {
+          agentId,
+          createdAt: {
+            gte: dateFrom,
+            lte: dateTo
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      if (qualityRecords.length === 0) {
+        return this.getEmptyMetrics(agentId, dateFrom, dateTo);
+      }
+      
+      // Calculate metrics from quality records
+      const metrics = this.calculateMetricsFromRecords(qualityRecords);
+      
+      // Add compliance statistics
+      const complianceStats = await this.getComplianceStats(agentId, dateFrom, dateTo);
+      
+      // Calculate improvement trends
+      const improvementTrends = this.calculateTrends(qualityRecords);
+      
+      // Determine coaching priority
+      const coachingPriority = this.determineCoachingPriority(metrics, complianceStats);
+      
+      return {
+        agentId,
+        period: { from: dateFrom, to: dateTo },
+        callsAnalyzed: qualityRecords.length,
+        averageQualityScore: metrics.averageQualityScore || 0,
+        scoreDistribution: metrics.scoreDistribution || {
+          excellent: 0, good: 0, fair: 0, poor: 0
+        },
+        categoryScores: metrics.categoryScores || {
+          communication: 0, productKnowledge: 0, compliance: 0, 
+          customerService: 0, salesTechnique: 0
+        },
+        complianceStats,
+        improvementTrends,
+        coachingPriority
+      };
+      
+    } catch (error) {
+      console.error('Error getting agent quality metrics:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Monitor real-time compliance during active call
+   */
+  async monitorLiveCompliance(
+    callId: string,
+    partialTranscript: string
+  ): Promise<Array<ComplianceIssue>> {
+    try {
+      const complianceIssues: ComplianceIssue[] = [];
+      
+      // Real-time compliance checks
+      const checks = [
+        this.checkConsentCompliance(partialTranscript),
+        this.checkRegulatoryCompliance(partialTranscript),
+        this.checkDataProtectionCompliance(partialTranscript),
+        this.checkScriptCompliance(partialTranscript),
+        this.checkCompanyPolicyCompliance(partialTranscript)
+      ];
+      
+      // Run all checks
+      const results = await Promise.all(checks);
+      results.forEach(issues => complianceIssues.push(...issues));
+      
+      // Store critical issues immediately
+      const criticalIssues = complianceIssues.filter(issue => 
+        issue.severity === 'critical' || issue.requiresAction
+      );
+      
+      if (criticalIssues.length > 0) {
+        await this.alertCriticalCompliance(callId, criticalIssues);
+      }
+      
+      return complianceIssues;
+      
+    } catch (error) {
+      console.error('Live compliance monitoring error:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Generate coaching recommendations based on quality patterns
+   */
+  async generateCoachingRecommendations(
+    agentId: string,
+    recentAssessments: number = 10
+  ): Promise<Array<{
+    area: string;
+    priority: 'low' | 'medium' | 'high';
+    recommendation: string;
+    resources: string[];
+    targetImprovement: number;
+  }>> {
+    try {
+      // Get recent quality assessments
+      const assessments = await prisma.qualityMonitoring.findMany({
+        where: { agentId },
+        orderBy: { createdAt: 'desc' },
+        take: recentAssessments
+      });
+      
+      if (assessments.length === 0) {
+        return [];
+      }
+      
+      // Analyze performance patterns
+      const patterns = this.analyzePerformancePatterns(assessments);
+      
+      // Generate targeted recommendations
+      const recommendations = this.generateTargetedRecommendations(patterns);
+      
+      return recommendations;
+      
+    } catch (error) {
+      console.error('Error generating coaching recommendations:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Get quality monitoring dashboard data
+   */
+  async getQualityDashboard(
+    supervisorScope: { agentIds?: string[]; campaignIds?: string[] },
+    period: { from: Date; to: Date }
+  ): Promise<{
+    overview: any;
+    agentPerformance: any[];
+    complianceAlerts: any[];
+    qualityTrends: any[];
+    coachingQueue: any[];
+  }> {
+    try {
+      // Build where clause based on supervisor scope
+      const whereClause: any = {
+        createdAt: {
+          gte: period.from,
+          lte: period.to
+        }
+      };
+      
+      if (supervisorScope.agentIds?.length) {
+        whereClause.agentId = { in: supervisorScope.agentIds };
+      }
+      
+      // Get quality data
+      const qualityRecords = await prisma.qualityMonitoring.findMany({
+        where: whereClause,
+        include: {
+          agent: true,
+          call: true
+        }
+      });
+      
+      // Calculate overview metrics
+      const overview = this.calculateOverviewMetrics(qualityRecords);
+      
+      // Agent performance breakdown
+      const agentPerformance = this.calculateAgentPerformance(qualityRecords);
+      
+      // Get compliance alerts
+      const complianceAlerts = await this.getComplianceAlerts(supervisorScope, period);
+      
+      // Calculate quality trends
+      const qualityTrends = this.calculateQualityTrends(qualityRecords);
+      
+      // Generate coaching queue
+      const coachingQueue = await this.generateCoachingQueue(supervisorScope);
+      
+      return {
+        overview,
+        agentPerformance,
+        complianceAlerts,
+        qualityTrends,
+        coachingQueue
+      };
+      
+    } catch (error) {
+      console.error('Error getting quality dashboard:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Private Helper Methods
+   */
+  
+  /**
+   * Perform AI-powered quality analysis
+   */
+  private async performAIAnalysis(params: {
+    callId: string;
+    agentId: string;
+    transcript: string;
+    duration: number;
+    outcome: string | null;
+    campaignType: string;
+  }): Promise<QualityAssessment> {
+    
+    // AI Analysis Scoring (simplified implementation)
+    const scores = {
+      communication: this.scoreCommunication(params.transcript),
+      productKnowledge: this.scoreProductKnowledge(params.transcript),
+      compliance: await this.scoreCompliance(params.transcript),
+      customerService: this.scoreCustomerService(params.transcript),
+      salesTechnique: this.scoreSalesTechnique(params.transcript, params.outcome)
+    };
+    
+    const overallScore = Object.values(scores).reduce((sum, score) => sum + score, 0) / 5;
+    
+    // Identify strengths and improvement areas
+    const strengths = this.identifyStrengths(scores, params.transcript);
+    const improvementAreas = this.identifyImprovementAreas(scores, params.transcript);
+    
+    // Check compliance issues
+    const complianceIssues = await this.identifyComplianceIssues(params.transcript);
+    
+    // Generate coaching recommendations
+    const coachingRecommendations = this.generateCoachingFromAnalysis(
+      scores, 
+      improvementAreas, 
+      complianceIssues
+    );
+    
+    // Calculate confidence based on data quality
+    const confidence = this.calculateAnalysisConfidence(params);
+    
+    return {
+      callId: params.callId,
+      agentId: params.agentId,
+      overallScore: Math.round(overallScore * 10) / 10,
+      categories: scores,
+      strengths,
+      improvementAreas,
+      complianceIssues,
+      coachingRecommendations,
+      confidence
+    };
+  }
+  
+  /**
+   * Communication scoring
+   */
+  private scoreCommunication(transcript: string): number {
+    let score = 7.0; // Base score
+    
+    const length = transcript.length;
+    const words = transcript.split(/\s+/).length;
+    
+    // Check for positive communication indicators
+    const positiveIndicators = [
+      /\b(please|thank you|I appreciate|I understand)\b/gi,
+      /\b(absolutely|certainly|of course)\b/gi,
+      /\b(let me help|I'll be happy to)\b/gi
+    ];
+    
+    const positiveMatches = positiveIndicators.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (positiveMatches > 3) score += 1.0;
+    else if (positiveMatches > 1) score += 0.5;
+    
+    // Check for negative indicators
+    const negativeIndicators = [
+      /\b(um|uh|like|you know)\b/gi,
+      /\b(sorry, what|can you repeat)\b/gi
+    ];
+    
+    const negativeMatches = negativeIndicators.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (negativeMatches > 5) score -= 1.0;
+    else if (negativeMatches > 2) score -= 0.5;
+    
+    // Check for appropriate length and pace
+    if (words < 50 && length < 300) score -= 1.0; // Too short
+    if (words > 500) score -= 0.5; // Too verbose
+    
+    return Math.max(1, Math.min(10, score));
+  }
+  
+  /**
+   * Product knowledge scoring
+   */
+  private scoreProductKnowledge(transcript: string): number {
+    let score = 6.0; // Base score
+    
+    // Check for product-specific terminology
+    const productTerms = [
+      /\b(features?|benefits?|specifications?)\b/gi,
+      /\b(pricing|cost|investment|value)\b/gi,
+      /\b(integration|implementation|setup)\b/gi,
+      /\b(support|training|onboarding)\b/gi
+    ];
+    
+    const productMatches = productTerms.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (productMatches > 5) score += 2.0;
+    else if (productMatches > 2) score += 1.0;
+    else if (productMatches === 0) score -= 1.5;
+    
+    // Check for uncertainty indicators
+    const uncertaintyIndicators = [
+      /\b(I think|I believe|probably|maybe)\b/gi,
+      /\b(I'm not sure|let me check)\b/gi
+    ];
+    
+    const uncertaintyMatches = uncertaintyIndicators.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (uncertaintyMatches > 3) score -= 1.5;
+    
+    return Math.max(1, Math.min(10, score));
+  }
+  
+  /**
+   * Compliance scoring
+   */
+  private async scoreCompliance(transcript: string): Promise<number> {
+    let score = 8.0; // Base compliance score (assume compliant unless issues found)
+    
+    // Check for required disclosures
+    const requiredDisclosures = [
+      /\b(this call may be recorded|for quality purposes)\b/gi,
+      /\b(data protection|privacy policy)\b/gi
+    ];
+    
+    const disclosureMatches = requiredDisclosures.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (disclosureMatches === 0) score -= 2.0;
+    
+    // Check for compliance violations
+    const violations = [
+      /\b(guarantee|promised|100% sure)\b/gi,
+      /\b(must buy now|limited time only|act fast)\b/gi,
+      /\b(everyone's doing it|most people)\b/gi
+    ];
+    
+    const violationMatches = violations.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    score -= violationMatches * 1.5;
+    
+    return Math.max(1, Math.min(10, score));
+  }
+  
+  /**
+   * Customer service scoring
+   */
+  private scoreCustomerService(transcript: string): number {
+    let score = 7.0; // Base score
+    
+    // Check for empathy and active listening
+    const serviceIndicators = [
+      /\b(I understand|I hear what you're saying)\b/gi,
+      /\b(that makes sense|I can appreciate)\b/gi,
+      /\b(let me make sure I understand)\b/gi
+    ];
+    
+    const serviceMatches = serviceIndicators.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (serviceMatches > 2) score += 1.5;
+    else if (serviceMatches > 0) score += 0.5;
+    
+    // Check for interruption patterns
+    const interruptionIndicators = [
+      /\bbut\b/gi,
+      /\bhowever\b/gi
+    ];
+    
+    const interruptionCount = interruptionIndicators.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (interruptionCount > 5) score -= 1.0;
+    
+    return Math.max(1, Math.min(10, score));
+  }
+  
+  /**
+   * Sales technique scoring
+   */
+  private scoreSalesTechnique(transcript: string, outcome: string | null): number {
+    let score = 6.0; // Base score
+    
+    // Check for effective sales techniques
+    const salesTechniques = [
+      /\b(pain point|challenge|problem)\b/gi,
+      /\b(solution|solve|resolve)\b/gi,
+      /\b(benefit|value|return on investment)\b/gi,
+      /\b(what if|imagine|picture this)\b/gi
+    ];
+    
+    const techniqueMatches = salesTechniques.reduce((count, pattern) => 
+      count + (transcript.match(pattern) || []).length, 0
+    );
+    
+    if (techniqueMatches > 4) score += 2.0;
+    else if (techniqueMatches > 1) score += 1.0;
+    
+    // Adjust based on outcome
+    if (outcome === 'SALE') score += 2.0;
+    else if (outcome === 'HOT_LEAD') score += 1.5;
+    else if (outcome === 'WARM_LEAD') score += 0.5;
+    else if (outcome === 'NOT_INTERESTED') score -= 0.5;
+    
+    return Math.max(1, Math.min(10, score));
+  }
+  
+  /**
+   * Identify strengths from analysis
+   */
+  private identifyStrengths(scores: any, transcript: string): string[] {
+    const strengths: string[] = [];
+    
+    if (scores.communication >= 8) strengths.push('Excellent communication skills');
+    if (scores.productKnowledge >= 8) strengths.push('Strong product knowledge');
+    if (scores.compliance >= 9) strengths.push('Maintains high compliance standards');
+    if (scores.customerService >= 8) strengths.push('Outstanding customer service');
+    if (scores.salesTechnique >= 8) strengths.push('Effective sales techniques');
+    
+    // Additional contextual strengths
+    if (transcript.includes('thank you') && transcript.includes('appreciate')) {
+      strengths.push('Polite and professional demeanor');
+    }
+    
+    return strengths.length > 0 ? strengths : ['Shows potential for improvement'];
+  }
+  
+  /**
+   * Identify improvement areas
+   */
+  private identifyImprovementAreas(scores: any, transcript: string): string[] {
+    const areas: string[] = [];
+    
+    if (scores.communication < 7) areas.push('Communication clarity and confidence');
+    if (scores.productKnowledge < 7) areas.push('Product knowledge and technical details');
+    if (scores.compliance < 8) areas.push('Regulatory compliance and disclosure requirements');
+    if (scores.customerService < 7) areas.push('Customer empathy and active listening');
+    if (scores.salesTechnique < 6) areas.push('Sales methodology and closing techniques');
+    
+    return areas;
+  }
+  
+  /**
+   * Identify compliance issues
+   */
+  private async identifyComplianceIssues(transcript: string): Promise<ComplianceIssue[]> {
+    const issues: ComplianceIssue[] = [];
+    
+    // Check for regulatory violations
+    if (/\b(guarantee|promised)\b/gi.test(transcript)) {
+      issues.push({
+        type: 'regulatory',
+        severity: 'high',
+        description: 'Unauthorized guarantee language detected',
+        timestamp: new Date(),
+        context: 'Agent used language that implies guarantees',
+        suggestion: 'Use terms like "designed to" or "intended to" instead of guarantees',
+        requiresAction: true
+      });
+    }
+    
+    // Check for high-pressure tactics
+    if (/\b(must buy now|act fast|limited time)\b/gi.test(transcript)) {
+      issues.push({
+        type: 'company_policy',
+        severity: 'medium',
+        description: 'High-pressure sales tactics detected',
+        timestamp: new Date(),
+        context: 'Agent used time-pressure language',
+        suggestion: 'Focus on value proposition rather than urgency',
+        requiresAction: false
+      });
+    }
+    
+    return issues;
+  }
+  
+  /**
+   * Generate coaching recommendations from analysis
+   */
+  private generateCoachingFromAnalysis(
+    scores: any, 
+    improvementAreas: string[], 
+    complianceIssues: ComplianceIssue[]
+  ): string[] {
+    const recommendations: string[] = [];
+    
+    if (scores.communication < 7) {
+      recommendations.push('Practice active listening and clear articulation techniques');
+    }
+    
+    if (scores.productKnowledge < 7) {
+      recommendations.push('Review product training materials and competitive differentiators');
+    }
+    
+    if (complianceIssues.some(issue => issue.severity === 'high')) {
+      recommendations.push('Immediate compliance training required');
+    }
+    
+    if (scores.salesTechnique < 6) {
+      recommendations.push('Focus on consultative selling and needs discovery');
+    }
+    
+    return recommendations;
+  }
+  
+  /**
+   * Calculate analysis confidence
+   */
+  private calculateAnalysisConfidence(params: any): number {
+    let confidence = 0.5;
+    
+    // Transcript quality
+    if (params.transcript && params.transcript.length > 200) confidence += 0.2;
+    if (params.transcript && params.transcript.length > 500) confidence += 0.1;
+    
+    // Call duration
+    if (params.duration > 120) confidence += 0.1;
+    if (params.duration > 300) confidence += 0.1;
+    
+    // Outcome availability
+    if (params.outcome) confidence += 0.1;
+    
+    return Math.min(0.95, confidence);
+  }
+  
+  /**
+   * Store quality assessment in database
+   */
+  private async storeQualityAssessment(callId: string, assessment: QualityAssessment): Promise<void> {
+    try {
+      await prisma.qualityMonitoring.create({
+        data: {
+          callId,
+          agentId: assessment.agentId,
+          overallQuality: assessment.overallScore,
+          communicationSkills: assessment.categories.communication,
+          productKnowledge: assessment.categories.productKnowledge,
+          complianceScore: assessment.categories.compliance,
+          customerSatisfaction: assessment.categories.customerService,
+          // Note: salesTechnique doesn't have a direct mapping in the schema
+          strengths: JSON.stringify(assessment.strengths),
+          improvementAreas: JSON.stringify(assessment.improvementAreas),
+          complianceViolations: JSON.stringify(assessment.complianceIssues),
+          monitoredBy: 'SYSTEM'
+        }
+      });
+    } catch (error) {
+      console.error('Error storing quality assessment:', error);
+    }
+  }
+  
+  /**
+   * Process critical compliance issues
+   */
+  private async processComplianceIssues(callId: string, issues: ComplianceIssue[]): Promise<void> {
+    const criticalIssues = issues.filter(issue => 
+      issue.severity === 'critical' || issue.requiresAction
+    );
+    
+    if (criticalIssues.length > 0) {
+      // This would trigger immediate alerts, notifications, etc.
+      console.log(`Critical compliance issues detected for call ${callId}:`, criticalIssues);
+      
+      // Store compliance alerts
+      for (const issue of criticalIssues) {
+        await this.createComplianceAlert(callId, issue);
+      }
+    }
+  }
+  
+  /**
+   * Create compliance alert
+   */
+  private async createComplianceAlert(callId: string, issue: ComplianceIssue): Promise<void> {
+    try {
+      // This would create an alert record in the database
+      console.log(`Compliance alert created for call ${callId}:`, issue);
+    } catch (error) {
+      console.error('Error creating compliance alert:', error);
+    }
+  }
+  
+  /**
+   * Utility methods for metrics calculation
+   */
+  private getEmptyMetrics(agentId: string, from: Date, to: Date): QualityMetrics {
+    return {
+      agentId,
+      period: { from, to },
+      callsAnalyzed: 0,
+      averageQualityScore: 0,
+      scoreDistribution: { excellent: 0, good: 0, fair: 0, poor: 0 },
+      categoryScores: {
+        communication: 0,
+        productKnowledge: 0,
+        compliance: 0,
+        customerService: 0,
+        salesTechnique: 0
+      },
+      complianceStats: {
+        totalIssues: 0,
+        criticalIssues: 0,
+        resolvedIssues: 0,
+        averageResolutionTime: 0
+      },
+      improvementTrends: 'stable',
+      coachingPriority: 'low'
+    };
+  }
+  
+  /**
+   * Calculate metrics from quality records
+   */
+  private calculateMetricsFromRecords(records: any[]): Partial<QualityMetrics> {
+    if (records.length === 0) {
+      return {
+        averageQualityScore: 0,
+        scoreDistribution: {
+          excellent: 0,
+          good: 0,
+          fair: 0,
+          poor: 0
+        },
+        categoryScores: {
+          communication: 0,
+          productKnowledge: 0,
+          compliance: 0,
+          customerService: 0,
+          salesTechnique: 0
+        }
+      };
+    }
+
+    const scores = records.map(r => r.overallQuality);
+    const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    
+    const scoreDistribution = {
+      excellent: scores.filter(s => s >= 9).length,
+      good: scores.filter(s => s >= 7 && s < 9).length,
+      fair: scores.filter(s => s >= 5 && s < 7).length,
+      poor: scores.filter(s => s < 5).length
+    };
+    
+    const categoryScores = {
+      communication: records.reduce((sum, r) => sum + (r.communicationSkills || 0), 0) / records.length,
+      productKnowledge: records.reduce((sum, r) => sum + (r.productKnowledge || 0), 0) / records.length,
+      compliance: records.reduce((sum, r) => sum + (r.complianceScore || 0), 0) / records.length,
+      customerService: records.reduce((sum, r) => sum + (r.customerSatisfaction || 0), 0) / records.length,
+      salesTechnique: records.reduce((sum, r) => sum + (r.processAdherence || 0), 0) / records.length
+    };
+    
+    return {
+      averageQualityScore: Math.round(avgScore * 10) / 10,
+      scoreDistribution,
+      categoryScores
+    };
+  }
+  
+  private async getComplianceStats(agentId: string, from: Date, to: Date): Promise<any> {
+    // Placeholder for compliance statistics
+    return {
+      totalIssues: 0,
+      criticalIssues: 0,
+      resolvedIssues: 0,
+      averageResolutionTime: 0
+    };
+  }
+  
+  private calculateTrends(records: any[]): 'improving' | 'stable' | 'declining' {
+    if (records.length < 3) return 'stable';
+    
+    const recent = records.slice(0, Math.floor(records.length / 3));
+    const older = records.slice(-Math.floor(records.length / 3));
+    
+    const recentAvg = recent.reduce((sum, r) => sum + r.overallQuality, 0) / recent.length;
+    const olderAvg = older.reduce((sum, r) => sum + r.overallQuality, 0) / older.length;
+    
+    if (recentAvg > olderAvg + 0.5) return 'improving';
+    if (recentAvg < olderAvg - 0.5) return 'declining';
+    return 'stable';
+  }
+  
+  private determineCoachingPriority(metrics: any, complianceStats: any): 'low' | 'medium' | 'high' | 'urgent' {
+    if (complianceStats.criticalIssues > 0) return 'urgent';
+    if (metrics.averageQualityScore < 6) return 'high';
+    if (metrics.averageQualityScore < 7.5) return 'medium';
+    return 'low';
+  }
+  
+  // Additional helper methods would go here...
+  private analyzePerformancePatterns(assessments: any[]): any {
+    return { /* Analysis patterns */ };
+  }
+  
+  private generateTargetedRecommendations(patterns: any): any[] {
+    return [];
+  }
+  
+  private calculateOverviewMetrics(records: any[]): any {
+    return {};
+  }
+  
+  private calculateAgentPerformance(records: any[]): any[] {
+    return [];
+  }
+  
+  private async getComplianceAlerts(scope: any, period: any): Promise<any[]> {
+    return [];
+  }
+  
+  private calculateQualityTrends(records: any[]): any[] {
+    return [];
+  }
+  
+  private async generateCoachingQueue(scope: any): Promise<any[]> {
+    return [];
+  }
+  
+  private async alertCriticalCompliance(callId: string, issues: ComplianceIssue[]): Promise<void> {
+    console.log(`CRITICAL COMPLIANCE ALERT for call ${callId}:`, issues);
+  }
+  
+  // Real-time compliance check methods
+  private async checkConsentCompliance(transcript: string): Promise<ComplianceIssue[]> {
+    return [];
+  }
+  
+  private async checkRegulatoryCompliance(transcript: string): Promise<ComplianceIssue[]> {
+    return [];
+  }
+  
+  private async checkDataProtectionCompliance(transcript: string): Promise<ComplianceIssue[]> {
+    return [];
+  }
+  
+  private async checkScriptCompliance(transcript: string): Promise<ComplianceIssue[]> {
+    return [];
+  }
+  
+  private async checkCompanyPolicyCompliance(transcript: string): Promise<ComplianceIssue[]> {
+    return [];
+  }
+}
+
+export const qualityMonitoringService = new QualityMonitoringService();
+export default QualityMonitoringService;

@@ -5,8 +5,9 @@
 
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { endCall, clearCall } from '@/store/slices/activeCallSlice';
+import { endCall, clearCall, holdCall } from '@/store/slices/activeCallSlice';
 import { RootState } from '@/store';
+import { CallTransferModal } from '@/components/ui/CallTransferModal';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
@@ -44,6 +45,8 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   onSave
 }) => {
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   const dispatch = useDispatch();
   const activeCallState = useSelector((state: RootState) => state.activeCall);
 
@@ -123,13 +126,103 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   };
 
   const handleTransferCall = () => {
-    // TODO: Implement transfer functionality
-    alert('Transfer functionality coming soon!');
+    setShowTransferModal(true);
   };
 
-  const handleHoldCall = () => {
-    // TODO: Implement hold functionality
-    alert('Hold functionality coming soon!');
+  const handleTransferConfirm = async (transferType: 'queue' | 'agent' | 'external', targetId: string, targetName: string) => {
+    setIsTransferring(true);
+    
+    try {
+      const callId = activeCallState?.callSid || customerData.id;
+      const agentId = localStorage.getItem('agentId') || 'current-agent';
+      
+      console.log(`📞 Transferring call ${callId} to ${transferType}: ${targetId} (${targetName})`);
+      
+      const response = await fetch('/api/calls/inbound-transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callId,
+          transferType,
+          targetId,
+          agentId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Call transferred successfully:', result.data);
+        
+        // Notify user of successful transfer
+        alert(`✅ Call successfully transferred to ${targetName}`);
+        
+        // Close transfer modal
+        setShowTransferModal(false);
+        
+        // Update call state in Redux to reflect transfer
+        // In a real implementation, this might trigger a state change or call end
+        
+      } else {
+        console.error('❌ Transfer failed:', result.error);
+        alert(`❌ Transfer failed: ${result.error || 'Unknown error'}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error transferring call:', error);
+      alert('❌ Error transferring call. Please try again.');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleHoldCall = async () => {
+    try {
+      const callId = activeCallState?.callSid || customerData.id;
+      
+      if (!callId) {
+        alert('❌ No active call to put on hold');
+        return;
+      }
+      
+      console.log(`📞 Putting call ${callId} on hold`);
+      
+      // Check if call is already on hold
+      const isOnHold = activeCallState?.isOnHold;
+      
+      const response = await fetch('/api/calls/hold', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callId,
+          action: isOnHold ? 'unhold' : 'hold'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const action = isOnHold ? 'resumed' : 'placed on hold';
+        console.log(`✅ Call ${action} successfully`);
+        
+        // Update Redux state to reflect hold status
+        dispatch(holdCall(!isOnHold));
+        
+      } else {
+        console.error('❌ Hold operation failed:', result.error);
+        alert(`❌ Failed to ${isOnHold ? 'resume' : 'hold'} call: ${result.error || 'Unknown error'}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error with hold operation:', error);
+      alert('❌ Error with hold operation. Please try again.');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -326,10 +419,14 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={handleHoldCall}
-              className="flex items-center justify-center px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-md text-sm font-medium transition-colors"
+              className={`flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeCallState?.isOnHold
+                  ? 'bg-green-100 hover:bg-green-200 text-green-800'
+                  : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800'
+              }`}
             >
               <PauseIcon className="w-4 h-4 mr-1" />
-              Hold
+              {activeCallState?.isOnHold ? 'Resume' : 'Hold'}
             </button>
             <button
               onClick={handleTransferCall}
@@ -368,6 +465,15 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           )}
         </div>
       </div>
+      
+      {/* Transfer Modal */}
+      <CallTransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onTransfer={handleTransferConfirm}
+        callId={activeCallState?.callSid || customerData.id || ''}
+        isTransferring={isTransferring}
+      />
     </div>
   );
 };

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { MainLayout } from '@/components/layout';
+import { AgentManagement } from '@/components/AgentManagement';
 import { 
   MicrophoneIcon,
   PhoneIcon,
@@ -171,16 +172,36 @@ const AgentCoaching = () => {
 
           <div className="flex-1 overflow-y-auto">
             {agents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <UserIcon className="w-16 h-16 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Agents Connected</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Add agents to your system to start monitoring live calls and providing real-time coaching.
-                </p>
-                <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-md">
-                  Agent management system: NOT IMPLEMENTED
-                </div>
-              </div>
+              <AgentManagement 
+                className="h-full" 
+                onAgentSelect={(agent) => {
+                  // Convert agent to local format for compatibility
+                  const localAgent: Agent = {
+                    id: agent.id,
+                    name: agent.name,
+                    status: agent.status === 'online' ? 'available' : 
+                           agent.status === 'busy' ? 'on-call' :
+                           agent.status === 'break' ? 'busy' : 'offline',
+                    avatar: `/avatars/${agent.name.toLowerCase().replace(' ', '_')}.jpg`,
+                    currentCall: agent.currentCallId ? {
+                      contactName: 'Customer',
+                      contactPhone: '+1 (555) 123-4567',
+                      startTime: new Date(),
+                      callType: 'outbound' as const,
+                      script: 'Standard sales script',
+                      sentiment: 'neutral' as const,
+                      quality: 7
+                    } : undefined,
+                    stats: {
+                      callsToday: agent.totalCallsToday,
+                      avgCallTime: Math.round(agent.totalTalkTime / agent.totalCallsToday) || 0,
+                      conversionRate: 0.15,
+                      satisfaction: 4.2
+                    }
+                  };
+                  setSelectedAgent(localAgent);
+                }}
+              />
             ) : (
               agents.map((agent) => (
               <div
