@@ -23,7 +23,7 @@ import {
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://omnivox-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 // Types for sentiment analysis
 interface SentimentData {

@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://omnivox-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 interface Agent {
   id: string;
