@@ -271,7 +271,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
     // Map new fields to existing database fields where possible
     const updateData: any = {
       displayName,
-      description,
+      description: description || `Inbound number ${req.params.id}`,
       greetingAudioUrl,
       noAnswerAudioUrl,
       outOfHoursAudioUrl: outOfHoursAudioFile || outOfHoursAudioUrl, // Map new field to existing
@@ -285,24 +285,6 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       assignedFlowId: finalFlowId || null,
       updatedAt: new Date()
     };
-
-    // Store complex routing configuration as JSON in description or create a new field
-    // For now, we'll append routing config to description
-    if (routeTo || outOfHoursAction) {
-      const routingConfig = {
-        routeTo,
-        outOfHoursAction,
-        selectedFlowId,
-        selectedQueueId,
-        selectedRingGroupId,
-        selectedExtension,
-        businessHours
-      };
-      
-      // Store routing config separately or append to description
-      const baseDescription = description || `Inbound number configuration`;
-      updateData.description = `${baseDescription} | Routing: ${JSON.stringify(routingConfig)}`;
-    }
 
     console.log('🔧 Updating database with:', updateData);
 

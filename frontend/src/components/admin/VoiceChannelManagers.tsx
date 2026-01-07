@@ -367,11 +367,22 @@ export const InboundNumbersManager: React.FC<{
         
         const transformedNumbers: InboundNumber[] = numbersArray.map((num: any) => {
           console.log('📞 Processing number:', num);
+          
+          // Generate user-friendly description based on flow assignment
+          let description = `Inbound number ${num.phoneNumber}`;
+          if (num.assignedFlow) {
+            description = `Routed to Flow: "${num.assignedFlow.name}" (${num.assignedFlow.status})`;
+          } else if (num.assignedFlowId) {
+            description = `Assigned to Flow ID: ${num.assignedFlowId}`;
+          } else {
+            description = `No flow assigned - Default handling`;
+          }
+          
           return {
             id: num.id,
             number: num.phoneNumber,
             name: num.displayName || num.phoneNumber,
-            description: num.description || `Inbound number ${num.phoneNumber}`,
+            description: description,
             carrierInboundNumber: num.phoneNumber,
             displayName: num.displayName || num.phoneNumber,
             autoRejectAnonymous: true,
@@ -537,13 +548,24 @@ export const InboundNumbersManager: React.FC<{
 
       // Update the local number with the backend response data
       const backendUpdatedNumber = result.data;
+      
+      // Generate updated description based on flow assignment
+      let updatedDescription = `Inbound number ${number.number}`;
+      if (backendUpdatedNumber.assignedFlow) {
+        updatedDescription = `Routed to Flow: "${backendUpdatedNumber.assignedFlow.name}" (${backendUpdatedNumber.assignedFlow.status})`;
+      } else if (backendUpdatedNumber.assignedFlowId) {
+        updatedDescription = `Assigned to Flow ID: ${backendUpdatedNumber.assignedFlowId}`;
+      } else {
+        updatedDescription = `No flow assigned - Default handling`;
+      }
+      
       const mergedNumber = {
         ...number,
         assignedFlowId: backendUpdatedNumber.assignedFlowId,
         assignedFlow: backendUpdatedNumber.assignedFlow,
-        // Update other fields from backend if needed
+        // Update fields from backend
         displayName: backendUpdatedNumber.displayName,
-        description: backendUpdatedNumber.description,
+        description: updatedDescription, // Use our generated description instead of backend's
         status: backendUpdatedNumber.isActive
       };
 
