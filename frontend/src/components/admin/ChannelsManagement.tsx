@@ -135,7 +135,7 @@ interface IVROption {
 
 const ChannelsManagement: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<string>('voice');
-  const [selectedVoiceTab, setSelectedVoiceTab] = useState<string>('extensions');
+  const [selectedVoiceTab, setSelectedVoiceTab] = useState<string>('inbound_numbers');
   const [channels, setChannels] = useState<Channel[]>([]);
   const [voiceConfig, setVoiceConfig] = useState<VoiceConfiguration>({});
   const [loading, setLoading] = useState(true);
@@ -153,7 +153,6 @@ const ChannelsManagement: React.FC = () => {
   ];
 
   const voiceTabs = [
-    { id: 'extensions', name: 'Extensions', icon: PhoneIcon },
     { id: 'inbound_numbers', name: 'Inbound Numbers', icon: PhoneArrowDownLeftIcon },
     { id: 'inbound_queues', name: 'Inbound Queues', icon: UsersIcon },
     { id: 'ring_groups', name: 'Ring Groups', icon: UsersIcon },
@@ -376,8 +375,6 @@ const ChannelsManagement: React.FC = () => {
 
   const renderVoiceTabContent = () => {
     switch (selectedVoiceTab) {
-      case 'extensions':
-        return <ExtensionsManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'inbound_numbers':
         return <InboundNumbersManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'inbound_queues':
@@ -440,7 +437,7 @@ const ChannelsManagement: React.FC = () => {
                 onClick={() => {
                   setSelectedChannel(type.id);
                   if (type.id === 'voice') {
-                    setSelectedVoiceTab('extensions');
+                    setSelectedVoiceTab('inbound_numbers');
                   }
                 }}
                 className={`p-4 border-2 rounded-lg text-center transition-all ${
@@ -528,11 +525,7 @@ const ChannelsManagement: React.FC = () => {
   );
 };
 
-// Extensions Manager Component - Matching Connex Structure
-const ExtensionsManager: React.FC<{
-  config: VoiceConfiguration;
-  onUpdate: (config: VoiceConfiguration) => void;
-}> = ({ config, onUpdate }) => {
+// Enhanced Voice Channel Managers
   const [extensions, setExtensions] = useState<Extension[]>(config.extensions || []);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingExtension, setEditingExtension] = useState<Extension | null>(null);
