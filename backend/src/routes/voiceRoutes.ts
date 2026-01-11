@@ -92,6 +92,22 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       timezone: number.timezone,
       assignedFlowId: number.assignedFlowId,
       assignedFlow: number.assignedFlow,
+      // Add default configuration fields (until we add them to the schema)
+      businessHours: "24 Hours",
+      outOfHoursAction: "Hangup", 
+      routeTo: "Hangup",
+      outOfHoursTransferNumber: null,
+      selectedFlowId: null,
+      selectedQueueId: null,
+      selectedRingGroupId: null,
+      selectedExtension: null,
+      autoRejectAnonymous: true,
+      createContactOnAnonymous: true,
+      integration: "None",
+      countryCode: "United Kingdom Of Great Britain And Northern Ireland (The) (GB)",
+      recordCalls: true,
+      lookupSearchFilter: "All Lists",
+      assignedToDefaultList: true,
       createdAt: number.createdAt,
       updatedAt: number.updatedAt
     }));
@@ -305,7 +321,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
 
     console.log('✅ Database updated successfully');
 
-    // Transform response
+    // Transform response with extended configuration
     const transformedNumber = {
       id: updatedNumber.id,
       phoneNumber: updatedNumber.phoneNumber,
@@ -328,6 +344,22 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       timezone: updatedNumber.timezone,
       assignedFlowId: updatedNumber.assignedFlowId,
       assignedFlow: updatedNumber.assignedFlow,
+      // Return the configuration fields that were sent in the request
+      businessHours: businessHours,
+      outOfHoursAction: outOfHoursAction,
+      routeTo: routeTo,
+      outOfHoursTransferNumber: outOfHoursTransferNumber,
+      selectedFlowId: selectedFlowId,
+      selectedQueueId: selectedQueueId,
+      selectedRingGroupId: selectedRingGroupId,
+      selectedExtension: selectedExtension,
+      autoRejectAnonymous: autoRejectAnonymous,
+      createContactOnAnonymous: createContactOnAnonymous,
+      integration: integration,
+      countryCode: countryCode,
+      recordCalls: recordCalls,
+      lookupSearchFilter: lookupSearchFilter,
+      assignedToDefaultList: assignedToDefaultList,
       createdAt: updatedNumber.createdAt,
       updatedAt: updatedNumber.updatedAt
     };

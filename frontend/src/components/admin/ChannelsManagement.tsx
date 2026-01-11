@@ -95,10 +95,15 @@ interface AudioFile {
   id: string;
   name: string;
   filename: string;
+  originalName: string;
   duration: number;
   size: number;
-  type: 'greeting' | 'hold_music' | 'announcement' | 'other';
+  format: string;
+  type: 'greeting' | 'hold_music' | 'announcement' | 'ivr_prompt' | 'voicemail' | 'other';
   uploadedAt: string;
+  uploadedBy: string;
+  description?: string;
+  tags: string[];
 }
 
 interface InboundConference {
@@ -149,7 +154,6 @@ const ChannelsManagement: React.FC = () => {
 
   const voiceTabs = [
     { id: 'extensions', name: 'Extensions', icon: PhoneIcon },
-    { id: 'inbound_ivr', name: 'Inbound IVR', icon: PhoneArrowDownLeftIcon },
     { id: 'inbound_numbers', name: 'Inbound Numbers', icon: PhoneArrowDownLeftIcon },
     { id: 'inbound_queues', name: 'Inbound Queues', icon: UsersIcon },
     { id: 'ring_groups', name: 'Ring Groups', icon: UsersIcon },
@@ -204,36 +208,127 @@ const ChannelsManagement: React.FC = () => {
 
   const loadVoiceConfiguration = async () => {
     try {
-      const stored = localStorage.getItem('omnivox_voice_config');
-      if (stored) {
-        setVoiceConfig(JSON.parse(stored));
-      } else {
-        // Default voice configuration
-        const defaultConfig: VoiceConfiguration = {
-      extensions: [
+      // Default audio files that should always be available
+      const defaultAudioFiles = [
         {
-          id: '1',
-          extension: 'MWolozinsky',
-          displayName: 'Morris Wolozinsky',
-          type: 'Web Phone',
-          voicemailEmail: 'support@connexone.co.uk',
-          ringTimeSec: 10,
-          regServer: 'web_1',
-          dropAction: 'Hangup',
-          status: true
+          id: 'welcome-greeting',
+          name: 'Welcome Greeting',
+          filename: 'welcome-greeting.mp3',
+          originalName: 'welcome-greeting.mp3',
+          duration: 15,
+          size: 240000,
+          format: 'mp3',
+          type: 'greeting' as const,
+          uploadedAt: '2024-01-01T00:00:00Z',
+          uploadedBy: 'System',
+          description: 'Main welcome greeting for customers',
+          tags: ['welcome', 'greeting', 'main']
         },
         {
-          id: '2',
-          extension: 'Hannah',
-          displayName: 'Hannah',
-          type: 'Web Phone',
-          voicemailEmail: 'test@test.com',
-          ringTimeSec: 10,
-          regServer: 'web_1',
-          dropAction: 'Hangup',
-          status: true
+          id: 'closed-message',
+          name: 'We Are Closed',
+          filename: 'closed-message.wav',
+          originalName: 'closed-message.wav',
+          duration: 12,
+          size: 192000,
+          format: 'wav',
+          type: 'announcement' as const,
+          uploadedAt: '2024-01-01T00:00:00Z',
+          uploadedBy: 'System',
+          description: 'Out of hours closure message',
+          tags: ['closed', 'hours', 'announcement']
+        },
+        {
+          id: 'voicemail-greeting',
+          name: 'Standard Voicemail',
+          filename: 'voicemail-greeting.mp3',
+          originalName: 'voicemail-greeting.mp3',
+          duration: 8,
+          size: 128000,
+          format: 'mp3',
+          type: 'voicemail' as const,
+          uploadedAt: '2024-01-01T00:00:00Z',
+          uploadedBy: 'System',
+          description: 'Standard voicemail greeting message',
+          tags: ['voicemail', 'greeting']
+        },
+        {
+          id: 'hold-music',
+          name: 'Hold Music - Jazz',
+          filename: 'hold-music-jazz.mp3',
+          originalName: 'hold-music-jazz.mp3',
+          duration: 180,
+          size: 2880000,
+          format: 'mp3',
+          type: 'hold_music' as const,
+          uploadedAt: '2024-01-01T00:00:00Z',
+          uploadedBy: 'System',
+          description: 'Background music for call holding',
+          tags: ['hold', 'music', 'jazz']
+        },
+        {
+          id: 'inbound-ivr',
+          name: 'Inbound IVR',
+          filename: 'inbound-ivr.mp3',
+          originalName: 'inbound-ivr.mp3',
+          duration: 25,
+          size: 400000,
+          format: 'mp3',
+          type: 'ivr_prompt' as const,
+          uploadedAt: '2025-01-11T00:00:00Z',
+          uploadedBy: 'User',
+          description: 'Custom IVR prompt for inbound calls',
+          tags: ['ivr', 'inbound', 'prompt']
         }
-      ],
+      ];
+
+      const stored = localStorage.getItem('omnivox_voice_config');
+      if (stored) {
+        const existingConfig = JSON.parse(stored);
+        
+        // Merge default audio files with existing ones
+        // Keep existing files but ensure defaults are always present
+        const existingFileIds = new Set(existingConfig.audioFiles?.map((f: any) => f.id) || []);
+        const mergedAudioFiles = [
+          ...(existingConfig.audioFiles || []),
+          ...defaultAudioFiles.filter(defaultFile => !existingFileIds.has(defaultFile.id))
+        ];
+
+        const updatedConfig = {
+          ...existingConfig,
+          audioFiles: mergedAudioFiles
+        };
+
+        setVoiceConfig(updatedConfig);
+        // Save the updated config back to localStorage to persist the defaults
+        localStorage.setItem('omnivox_voice_config', JSON.stringify(updatedConfig));
+      } else {
+        // Default voice configuration for first-time users
+        const defaultConfig: VoiceConfiguration = {
+          extensions: [
+            {
+              id: '1',
+              extension: 'MWolozinsky',
+              displayName: 'Morris Wolozinsky',
+              type: 'Web Phone',
+              voicemailEmail: 'support@connexone.co.uk',
+              ringTimeSec: 10,
+              regServer: 'web_1',
+              dropAction: 'Hangup',
+              status: true
+            },
+            {
+              id: '2',
+              extension: 'Hannah',
+              displayName: 'Hannah',
+              type: 'Web Phone',
+              voicemailEmail: 'test@test.com',
+              ringTimeSec: 10,
+              regServer: 'web_1',
+              dropAction: 'Hangup',
+              status: true
+            }
+          ],
           inboundNumbers: [
             {
               id: '1',
@@ -253,9 +348,11 @@ const ChannelsManagement: React.FC = () => {
               timeout: 30,
               voicemail: true
             }
-          ]
+          ],
+          audioFiles: defaultAudioFiles
         };
         setVoiceConfig(defaultConfig);
+        localStorage.setItem('omnivox_voice_config', JSON.stringify(defaultConfig));
       }
     } catch (error) {
       console.error('Failed to load voice configuration:', error);
@@ -281,8 +378,6 @@ const ChannelsManagement: React.FC = () => {
     switch (selectedVoiceTab) {
       case 'extensions':
         return <ExtensionsManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
-      case 'inbound_ivr':
-        return <InboundIVRManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'inbound_numbers':
         return <InboundNumbersManager config={voiceConfig} onUpdate={saveVoiceConfiguration} />;
       case 'inbound_queues':
@@ -760,9 +855,8 @@ const ConnexExtensionForm: React.FC<{
 
 // Enhanced Voice Channel Managers
 import { 
-  InboundIVRManager, 
   InboundNumbersManager, 
-  AudioFilesManager 
+  AudioFilesManager
 } from './VoiceChannelManagers';
 import { 
   InternalNumbersManager 

@@ -3,7 +3,7 @@
  * Complete implementation of all voice channel sub-modules matching Connex functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   PhoneIcon,
   PhoneArrowDownLeftIcon,
@@ -17,32 +17,12 @@ import {
   PauseIcon,
   SpeakerWaveIcon,
   CloudArrowUpIcon,
-  DocumentIcon
+  DocumentIcon,
+  XMarkIcon,
+  StopIcon
 } from '@heroicons/react/24/outline';
 
 // Enhanced Interface Definitions
-export interface InboundIVR {
-  id: string;
-  name: string;
-  description: string;
-  greeting: string;
-  timeout: number;
-  retries: number;
-  options: IVROption[];
-  defaultAction: 'hangup' | 'voicemail' | 'transfer';
-  defaultDestination?: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-}
-
-export interface IVROption {
-  digit: string;
-  action: 'transfer' | 'queue' | 'voicemail' | 'announcement' | 'sub_menu';
-  destination: string;
-  description: string;
-  enabled: boolean;
-}
-
 export interface InboundNumber {
   id: string;
   number: string; // The phone number (+443301222251)
@@ -71,6 +51,7 @@ export interface InboundNumber {
   outOfHoursAudioFile?: string; // Audio file for out of hours announcement
   outOfHoursTransferNumber?: string; // Phone number for out of hours transfer
   businessHoursVoicemailFile?: string; // Audio file for business hours voicemail
+  businessHoursAudioFile?: string; // Audio file for business hours greeting
   selectedFlowId?: string; // Selected flow ID for routing
   selectedQueueId?: string; // Selected queue ID for routing
   selectedRingGroupId?: string; // Selected ring group ID for routing
@@ -187,123 +168,6 @@ export interface InboundConference {
   enabled: boolean;
 }
 
-// Enhanced Inbound IVR Manager
-export const InboundIVRManager: React.FC<{
-  config: any;
-  onUpdate: (config: any) => void;
-}> = ({ config, onUpdate }) => {
-  const [ivrList, setIvrList] = useState<InboundIVR[]>(config.inboundIVR || []);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingIVR, setEditingIVR] = useState<InboundIVR | null>(null);
-
-  const handleSave = (ivr: InboundIVR) => {
-    let updatedList;
-    if (editingIVR) {
-      updatedList = ivrList.map(item => item.id === ivr.id ? ivr : item);
-    } else {
-      updatedList = [...ivrList, { ...ivr, id: Date.now().toString(), createdAt: new Date().toISOString() }];
-    }
-    
-    setIvrList(updatedList);
-    onUpdate({ ...config, inboundIVR: updatedList });
-    setShowAddForm(false);
-    setEditingIVR(null);
-  };
-
-  const handleDelete = (id: string) => {
-    const updatedList = ivrList.filter(item => item.id !== id);
-    setIvrList(updatedList);
-    onUpdate({ ...config, inboundIVR: updatedList });
-  };
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">Inbound IVR Menus</h3>
-          <p className="text-sm text-gray-500">Configure Interactive Voice Response systems for call routing</p>
-        </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
-        >
-          <PlusIcon className="h-4 w-4 inline mr-2" />
-          Create IVR Menu
-        </button>
-      </div>
-
-      {ivrList.length === 0 ? (
-        <div className="text-center py-12">
-          <PhoneArrowDownLeftIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No IVR Menus</h3>
-          <p className="text-gray-500">Create your first IVR menu to handle incoming calls</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ivrList.map(ivr => (
-            <div key={ivr.id} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900">{ivr.name}</h4>
-                  <p className="text-sm text-gray-500">{ivr.description}</p>
-                </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  ivr.status === 'active'
-                    ? 'bg-green-100 text-slate-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {ivr.status}
-                </span>
-              </div>
-              
-              <div className="space-y-2 mb-4">
-                <div className="text-sm text-gray-600">
-                  <strong>Options:</strong> {ivr.options.length}
-                </div>
-                <div className="text-sm text-gray-600">
-                  <strong>Timeout:</strong> {ivr.timeout}s
-                </div>
-                <div className="text-sm text-gray-600">
-                  <strong>Retries:</strong> {ivr.retries}
-                </div>
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setEditingIVR(ivr);
-                    setShowAddForm(true);
-                  }}
-                  className="text-slate-600 hover:text-slate-900"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(ivr.id)}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showAddForm && (
-        <IVRForm
-          ivr={editingIVR}
-          onSave={handleSave}
-          onCancel={() => {
-            setShowAddForm(false);
-            setEditingIVR(null);
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
 // Enhanced Inbound Numbers Manager - Matching Connex Structure
 export const InboundNumbersManager: React.FC<{
   config: any;
@@ -316,6 +180,18 @@ export const InboundNumbersManager: React.FC<{
   const [editingNumber, setEditingNumber] = useState<InboundNumber | null>(null);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null);
+
+  // Get available audio files from config
+  const getAvailableAudioFiles = (): AudioFile[] => {
+    return config.audioFiles || [];
+  };
+
+  // Filter audio files by type for specific use cases
+  const getAudioFilesByType = (type: string): AudioFile[] => {
+    const audioFiles = getAvailableAudioFiles();
+    if (type === 'all') return audioFiles;
+    return audioFiles.filter(file => file.type === type);
+  };
 
   // Fetch real inbound numbers from backend API
   useEffect(() => {
@@ -385,65 +261,31 @@ export const InboundNumbersManager: React.FC<{
             description: description,
             carrierInboundNumber: num.phoneNumber,
             displayName: num.displayName || num.phoneNumber,
-            autoRejectAnonymous: true,
-            createContactOnAnonymous: true,
-            integration: 'None',
-            countryCode: 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
-            businessHours: '24 Hours',
-            outOfHoursAction: 'Hangup',
-            dayClosedAction: 'Hangup',
-            routeTo: 'Hangup',
-            recordCalls: true,
-            lookupSearchFilter: 'All Lists',
-            assignedToDefaultList: true,
+            autoRejectAnonymous: num.autoRejectAnonymous ?? true,
+            createContactOnAnonymous: num.createContactOnAnonymous ?? true,
+            integration: num.integration || 'None',
+            countryCode: num.countryCode || 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
+            businessHours: num.businessHours || '24 Hours',
+            outOfHoursAction: num.outOfHoursAction || 'Hangup',
+            dayClosedAction: num.dayClosedAction || 'Hangup',
+            routeTo: num.routeTo || 'Hangup',
+            recordCalls: num.recordCalls ?? true,
+            lookupSearchFilter: num.lookupSearchFilter || 'All Lists',
+            assignedToDefaultList: num.assignedToDefaultList ?? true,
+            // Audio file configurations from backend (using backend field names)
+            outOfHoursAudioFile: num.outOfHoursAudioUrl,
+            businessHoursVoicemailFile: num.voicemailAudioUrl,
+            voicemailAudioFile: num.voicemailAudioUrl,
+            outOfHoursTransferNumber: num.outOfHoursTransferNumber,
+            selectedFlowId: num.selectedFlowId,
+            selectedQueueId: num.selectedQueueId,
+            selectedRingGroupId: num.selectedRingGroupId,
+            selectedExtension: num.selectedExtension,
             type: 'voice',
             status: num.isActive !== false, // Backend uses isActive, default to true
             // Flow Assignment
             assignedFlowId: num.assignedFlowId,
             assignedFlow: num.assignedFlow,
-            // Initialize with default audio file configurations
-            audioFiles: {
-              greeting: {
-                filename: 'default-greeting.mp3',
-                displayName: 'Default Greeting',
-                fileType: 'mp3',
-                description: 'Default system greeting',
-                loop: false,
-                volume: 80
-              },
-              notAnswered: {
-                filename: 'call-not-answered.mp3',
-                displayName: 'Call Not Answered Message',
-                fileType: 'mp3',
-                description: 'Played when call is not answered',
-                loop: false,
-                volume: 80
-              },
-              outOfHours: {
-                filename: 'out-of-hours.mp3',
-                displayName: 'Out of Hours Message',
-                fileType: 'mp3',
-                description: 'Played during out of business hours',
-                loop: false,
-                volume: 80
-              },
-              busy: {
-                filename: 'agents-busy.mp3',
-                displayName: 'All Agents Busy',
-                fileType: 'mp3',
-                description: 'Played when all agents are busy',
-                loop: false,
-                volume: 80
-              },
-              queue: {
-                filename: 'hold-music.mp3',
-                displayName: 'Queue Hold Music',
-                fileType: 'mp3',
-                description: 'Music played while caller is in queue',
-                loop: true,
-                volume: 60
-              }
-            }
           };
         });
         
@@ -515,7 +357,7 @@ export const InboundNumbersManager: React.FC<{
         businessHoursVoicemailFile: number.businessHoursVoicemailFile,
         outOfHoursAudioFile: number.outOfHoursAudioFile,
         outOfHoursTransferNumber: number.outOfHoursTransferNumber,
-        selectedFlowId: number.selectedFlowId,
+        selectedFlowId: number.selectedFlowId || '',
         selectedQueueId: number.selectedQueueId,
         selectedRingGroupId: number.selectedRingGroupId,
         selectedExtension: number.selectedExtension,
@@ -528,7 +370,12 @@ export const InboundNumbersManager: React.FC<{
         assignedToDefaultList: number.assignedToDefaultList
       };
 
-      console.log('🔧 Update data:', updateData);
+      console.log('🔧 Update data being sent to backend:', {
+        id: number.id,
+        assignedFlowId: updateData.assignedFlowId,
+        selectedFlowId: updateData.selectedFlowId,
+        description: updateData.description
+      });
 
       const response = await fetch(`/api/voice/inbound-numbers/${number.id}`, {
         method: 'PUT',
@@ -777,9 +624,18 @@ export const InboundNumbersManager: React.FC<{
                     <select
                       value={number.assignedFlowId || ''}
                       onChange={async (e) => {
-                        const flowId = e.target.value || undefined;
-                        const updatedNumber = { ...number, assignedFlowId: flowId };
-                        console.log(`🔄 Assigning flow "${availableFlows.find(f => f.id === flowId)?.name || 'No Flow'}" to number ${number.number}`);
+                        const flowId = e.target.value || null;
+                        console.log(`🔄 Flow assignment change: "${availableFlows.find(f => f.id === flowId)?.name || 'No Flow'}" (ID: ${flowId}) for number ${number.number}`);
+                        
+                        // Create a clean update with only the flow assignment
+                        const updatedNumber = { 
+                          ...number, 
+                          assignedFlowId: flowId,
+                          // Clear any conflicting fields
+                          selectedFlowId: undefined
+                        };
+                        
+                        console.log('� Updated number object:', { id: updatedNumber.id, assignedFlowId: updatedNumber.assignedFlowId, selectedFlowId: updatedNumber.selectedFlowId });
                         await handleSave(updatedNumber);
                       }}
                       disabled={updatingNumberId === number.id}
@@ -862,6 +718,7 @@ export const InboundNumbersManager: React.FC<{
             setEditingNumber(null);
           }}
           flows={availableFlows}
+          audioFiles={getAvailableAudioFiles()}
         />
       )}
     </div>
@@ -874,7 +731,8 @@ const ConnexInboundNumberForm: React.FC<{
   onSave: (number: InboundNumber) => void;
   onCancel: () => void;
   flows?: any[];
-}> = ({ number, onSave, onCancel, flows = [] }) => {
+  audioFiles?: AudioFile[];
+}> = ({ number, onSave, onCancel, flows = [], audioFiles = [] }) => {
   const [formData, setFormData] = useState<Partial<InboundNumber>>({
     number: number?.number || '',
     carrierInboundNumber: number?.carrierInboundNumber || '',
@@ -905,6 +763,12 @@ const ConnexInboundNumberForm: React.FC<{
   });
 
   const [isDualtoneValid, setIsDualtoneValid] = useState(false);
+
+  // Audio file utility functions
+  const getAudioFilesByType = (type: string): AudioFile[] => {
+    if (type === 'all') return audioFiles;
+    return audioFiles.filter((file: AudioFile) => file.type === type);
+  };
 
   // Simulate checking if the number is valid with Dualtone SIP provider
   const validateWithDualtone = async (phoneNumber: string) => {
@@ -1102,7 +966,14 @@ const ConnexInboundNumberForm: React.FC<{
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Business Hours Configuration */}
+          <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900">Business Hours</h4>
+              <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded">Operating Schedule</span>
+            </div>
+            <p className="text-sm text-gray-600">Define when your business is open to receive calls</p>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700">Business Hours</label>
               <select
@@ -1112,63 +983,28 @@ const ConnexInboundNumberForm: React.FC<{
               >
                 <option value="24 Hours">24 Hours</option>
                 <option value="9-5 Weekdays">9-5 Weekdays</option>
+                <option value="9-6 Weekdays">9-6 Weekdays</option>
+                <option value="8-5 Mon-Fri">8-5 Mon-Fri</option>
                 <option value="Custom">Custom</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">If Out Of Hours</label>
-              <select
-                value={formData.outOfHoursAction}
-                onChange={(e) => setFormData({...formData, outOfHoursAction: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-              >
-                <option value="Hangup">Hangup</option>
-                <option value="Voicemail">Voicemail</option>
-                <option value="Transfer">Transfer</option>
-              </select>
-              
-              {/* Show voicemail audio file selection when Voicemail is selected */}
-              {formData.outOfHoursAction === 'Voicemail' && (
-                <div className="mt-3 bg-blue-50 p-3 rounded border border-blue-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <MicrophoneIcon className="h-4 w-4 inline mr-1" />
-                    Voicemail Greeting Audio File
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={formData.voicemailAudioFile || 'Default: "Please leave a message after the tone"'}
-                      onChange={(e) => setFormData({...formData, voicemailAudioFile: e.target.value})}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="Select audio file for voicemail greeting..."
-                    />
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setFormData({...formData, voicemailAudioFile: file.name});
-                          console.log('Out-of-hours voicemail audio file selected:', file.name);
-                        }
-                      }}
-                      className="hidden"
-                      id="out-of-hours-voicemail-upload"
-                    />
-                    <button
-                      type="button"
-                      className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                      onClick={() => {
-                        document.getElementById('out-of-hours-voicemail-upload')?.click();
-                      }}
-                    >
-                      <CloudArrowUpIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Upload MP3/WAV file or use default system greeting</p>
+
+            {formData.businessHours === 'Custom' && (
+              <div className="bg-white p-4 rounded border border-blue-200">
+                <p className="text-sm font-medium text-gray-700 mb-3">Custom Business Hours</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                    <div key={day} className="flex items-center space-x-2">
+                      <input type="checkbox" id={day} defaultChecked={day !== 'Saturday' && day !== 'Sunday'} className="rounded" />
+                      <label htmlFor={day} className="w-20">{day}</label>
+                      <input type="time" defaultValue="09:00" className="px-2 py-1 border rounded text-xs" />
+                      <span>to</span>
+                      <input type="time" defaultValue="17:00" className="px-2 py-1 border rounded text-xs" />
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Out of Hours / Day Closed Configuration */}
@@ -1190,11 +1026,68 @@ const ConnexInboundNumberForm: React.FC<{
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
                   <option value="Hangup">Hangup Call</option>
+                  <option value="PlayAudio">Play Audio File</option>
                   <option value="Voicemail">Take Voicemail</option>
                   <option value="Transfer">Transfer to Another Number</option>
                   <option value="Announcement">Play Announcement & Hangup</option>
                 </select>
               </div>
+
+              {/* Show audio file selection when Play Audio File is selected */}
+              {formData.outOfHoursAction === 'PlayAudio' && (
+                <div className="bg-green-50 p-4 rounded border border-green-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
+                    Select Audio File to Play
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={formData.outOfHoursAudioFile || ''}
+                      onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="">Select audio file...</option>
+                      <option value="default-closed">Default: "We are currently closed"</option>
+                      {getAudioFilesByType('announcement').map(file => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('greeting').map(file => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('ivr_prompt').map(file => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('other').map(file => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                    </select>
+                    <label className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer inline-flex items-center">
+                      <CloudArrowUpIcon className="h-4 w-4" />
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData({...formData, outOfHoursAudioFile: file.name});
+                            console.log('Out of hours audio file selected:', file.name);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Audio file will play then call will end</p>
+                </div>
+              )}
 
               {/* Show voicemail audio file selection when Voicemail is selected */}
               {formData.outOfHoursAction === 'Voicemail' && (
@@ -1204,13 +1097,29 @@ const ConnexInboundNumberForm: React.FC<{
                     Voicemail Greeting Audio File
                   </label>
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={formData.voicemailAudioFile || 'Default: "Please leave a message after the tone"'}
+                    <select
+                      value={formData.voicemailAudioFile || ''}
                       onChange={(e) => setFormData({...formData, voicemailAudioFile: e.target.value})}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="Select audio file for voicemail greeting..."
-                    />
+                    >
+                      <option value="">Select voicemail greeting...</option>
+                      <option value="default-voicemail">Default: "Please leave a message after the tone"</option>
+                      {getAudioFilesByType('voicemail').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('greeting').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('other').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                    </select>
                     <label className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-flex items-center">
                       <CloudArrowUpIcon className="h-4 w-4" />
                       <input
@@ -1239,13 +1148,34 @@ const ConnexInboundNumberForm: React.FC<{
                     Out of Hours Announcement Audio File
                   </label>
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={formData.outOfHoursAudioFile || 'Default: "We are currently closed. Please call back during business hours"'}
+                    <select
+                      value={formData.outOfHoursAudioFile || ''}
                       onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="Select audio file for out of hours message..."
-                    />
+                    >
+                      <option value="">Select announcement...</option>
+                      <option value="default-closed">Default: "We are currently closed. Please call back during business hours"</option>
+                      {getAudioFilesByType('announcement').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('greeting').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('ivr_prompt').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                      {getAudioFilesByType('other').map((file: AudioFile) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                        </option>
+                      ))}
+                    </select>
                     <label className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer inline-flex items-center">
                       <CloudArrowUpIcon className="h-4 w-4" />
                       <input
@@ -1303,6 +1233,7 @@ const ConnexInboundNumberForm: React.FC<{
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
               >
                 <option value="">Select routing destination...</option>
+                <option value="PlayAudio">Play Audio File</option>
                 <option value="Flow">Flow (Follow configured call flow)</option>
                 <option value="Queue">Queue (Join call queue)</option>
                 <option value="RingGroup">Ring Group (Ring multiple agents)</option>
@@ -1311,6 +1242,61 @@ const ConnexInboundNumberForm: React.FC<{
                 <option value="Voicemail">Voicemail (Take message)</option>
               </select>
             </div>
+
+            {/* Show audio file selection when Play Audio File is selected */}
+            {formData.routeTo === 'PlayAudio' && (
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
+                  Select Audio File to Play
+                </label>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={formData.businessHoursAudioFile || ''}
+                    onChange={(e) => setFormData({...formData, businessHoursAudioFile: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">Select audio file...</option>
+                    {getAudioFilesByType('greeting').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                    {getAudioFilesByType('announcement').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                    {getAudioFilesByType('ivr_prompt').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                    {getAudioFilesByType('other').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                  </select>
+                  <label className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-flex items-center">
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFormData({...formData, businessHoursAudioFile: file.name});
+                          console.log('Business hours audio file selected:', file.name);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Audio file will play during business hours</p>
+              </div>
+            )}
 
             {/* Show specific configuration based on routing choice */}
             {formData.routeTo === 'Flow' && (
@@ -1381,13 +1367,29 @@ const ConnexInboundNumberForm: React.FC<{
                   Business Hours Voicemail Greeting
                 </label>
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={formData.businessHoursVoicemailFile || 'Default: "Please leave a message and we will return your call"'}
+                  <select
+                    value={formData.businessHoursVoicemailFile || ''}
                     onChange={(e) => setFormData({...formData, businessHoursVoicemailFile: e.target.value})}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Select audio file for business hours voicemail..."
-                  />
+                  >
+                    <option value="">Select business hours voicemail greeting...</option>
+                    <option value="default-business-voicemail">Default: "Please leave a message and we will return your call"</option>
+                    {getAudioFilesByType('voicemail').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                    {getAudioFilesByType('greeting').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                    {getAudioFilesByType('other').map((file: AudioFile) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name} ({file.format.toUpperCase()}, {Math.round(file.duration)}s)
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="file"
                     accept="audio/*"
@@ -1653,6 +1655,25 @@ export const AudioFilesManager: React.FC<{
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>(config.audioFiles || []);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [playingFile, setPlayingFile] = useState<string | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  
+  // Upload-related state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Recording-related state
+  const [recording, setRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  
+  // Edit/Delete-related state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingFile, setEditingFile] = useState<AudioFile | null>(null);
+  const [deletingFile, setDeletingFile] = useState<AudioFile | null>(null);
 
   const fileTypes = [
     { id: 'all', label: 'All Files' },
@@ -1667,6 +1688,193 @@ export const AudioFilesManager: React.FC<{
   const filteredFiles = selectedType === 'all' 
     ? audioFiles 
     : audioFiles.filter(file => file.type === selectedType);
+
+  // File upload handlers
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(files);
+  };
+
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    setUploading(true);
+    try {
+      // TODO: Implement actual file upload to backend
+      console.log('Uploading files:', selectedFiles);
+      
+      // Simulate upload - replace with actual API call
+      const newFiles = selectedFiles.map(file => ({
+        id: `temp_${Date.now()}_${Math.random()}`,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        filename: file.name,
+        originalName: file.name,
+        duration: 0, // Will be calculated by backend
+        size: file.size,
+        format: file.name.split('.').pop() || 'unknown',
+        type: 'other' as const,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: 'Current User',
+        description: '',
+        tags: []
+      }));
+
+      const updatedFiles = [...audioFiles, ...newFiles];
+      setAudioFiles(updatedFiles);
+      onUpdate({ ...config, audioFiles: updatedFiles });
+      setShowUploadModal(false);
+      setSelectedFiles([]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Recording handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event) => {
+        chunks.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        setRecordedBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setRecording(true);
+      setRecordingDuration(0);
+
+      // Start timer
+      const interval = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      // Stop timer when recording stops
+      recorder.onstop = () => {
+        clearInterval(interval);
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        setRecordedBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      setRecording(false);
+    }
+  };
+
+  const handleSaveRecording = async () => {
+    if (!recordedBlob) return;
+
+    try {
+      // TODO: Implement actual recording save to backend
+      console.log('Saving recording:', recordedBlob);
+      
+      const newFile = {
+        id: `recording_${Date.now()}_${Math.random()}`,
+        name: `Recording ${new Date().toLocaleString()}`,
+        filename: `recording_${Date.now()}.wav`,
+        originalName: `recording_${Date.now()}.wav`,
+        duration: recordingDuration,
+        size: recordedBlob.size,
+        format: 'wav',
+        type: 'other' as const,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: 'Current User',
+        description: '',
+        tags: []
+      };
+
+      const updatedFiles = [...audioFiles, newFile];
+      setAudioFiles(updatedFiles);
+      onUpdate({ ...config, audioFiles: updatedFiles });
+      setShowRecordModal(false);
+      setRecordedBlob(null);
+      setRecordingDuration(0);
+    } catch (error) {
+      console.error('Failed to save recording:', error);
+    }
+  };
+
+  const handleUploadClick = () => {
+    setShowUploadModal(true);
+  };
+
+  const handleRecordClick = () => {
+    setShowRecordModal(true);
+  };
+
+  // Edit/Delete handlers
+  const handleEditClick = (file: AudioFile) => {
+    setEditingFile(file);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteClick = (file: AudioFile) => {
+    setDeletingFile(file);
+    setShowDeleteModal(true);
+  };
+
+  const handleEditSave = (updatedFile: AudioFile) => {
+    const updatedFiles = audioFiles.map(file => 
+      file.id === updatedFile.id ? updatedFile : file
+    );
+    setAudioFiles(updatedFiles);
+    onUpdate({ ...config, audioFiles: updatedFiles });
+    setShowEditModal(false);
+    setEditingFile(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingFile) {
+      const updatedFiles = audioFiles.filter(file => file.id !== deletingFile.id);
+      setAudioFiles(updatedFiles);
+      onUpdate({ ...config, audioFiles: updatedFiles });
+      setShowDeleteModal(false);
+      setDeletingFile(null);
+    }
+  };
+
+  const handleFileUpload = (files: FileList) => {
+    // Handle file upload logic
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('audio/')) {
+        const newAudioFile: AudioFile = {
+          id: Date.now().toString() + Math.random(),
+          name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+          filename: file.name,
+          originalName: file.name,
+          format: file.type.split('/')[1] || 'unknown',
+          duration: 30, // Would be calculated from actual file
+          size: file.size,
+          type: 'other',
+          description: '',
+          tags: [],
+          uploadedBy: 'Current User',
+          uploadedAt: new Date().toISOString()
+        };
+        
+        const updatedFiles = [...audioFiles, newAudioFile];
+        setAudioFiles(updatedFiles);
+        onUpdate({ ...config, audioFiles: updatedFiles });
+      }
+    });
+    setShowUploadModal(false);
+  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -1690,11 +1898,17 @@ export const AudioFilesManager: React.FC<{
           <p className="text-sm text-gray-500">Manage greetings, hold music, and voice prompts</p>
         </div>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+          <button 
+            onClick={handleUploadClick}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
             <CloudArrowUpIcon className="h-4 w-4 inline mr-2" />
             Upload Files
           </button>
-          <button className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700">
+          <button 
+            onClick={handleRecordClick}
+            className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
+          >
             Record New
           </button>
         </div>
@@ -1787,10 +2001,16 @@ export const AudioFilesManager: React.FC<{
             </div>
 
             <div className="flex justify-end space-x-2 mt-4">
-              <button className="text-slate-600 hover:text-slate-900">
+              <button 
+                onClick={() => handleEditClick(file)}
+                className="text-slate-600 hover:text-slate-900"
+              >
                 <PencilIcon className="h-4 w-4" />
               </button>
-              <button className="text-red-600 hover:text-red-900">
+              <button 
+                onClick={() => handleDeleteClick(file)}
+                className="text-red-600 hover:text-red-900"
+              >
                 <TrashIcon className="h-4 w-4" />
               </button>
             </div>
@@ -1805,262 +2025,317 @@ export const AudioFilesManager: React.FC<{
           <p className="text-gray-500">Upload or record audio files for your voice system</p>
         </div>
       )}
-    </div>
-  );
-};
 
-// IVR Form Component
-const IVRForm: React.FC<{
-  ivr?: InboundIVR | null;
-  onSave: (ivr: InboundIVR) => void;
-  onCancel: () => void;
-}> = ({ ivr, onSave, onCancel }) => {
-  const [formData, setFormData] = useState<Partial<InboundIVR>>({
-    name: ivr?.name || '',
-    description: ivr?.description || '',
-    greeting: ivr?.greeting || '',
-    timeout: ivr?.timeout || 5,
-    retries: ivr?.retries || 3,
-    options: ivr?.options || [],
-    defaultAction: ivr?.defaultAction || 'hangup',
-    defaultDestination: ivr?.defaultDestination || '',
-    status: ivr?.status || 'active'
-  });
-
-  const [newOption, setNewOption] = useState<Partial<IVROption>>({
-    digit: '',
-    action: 'transfer',
-    destination: '',
-    description: '',
-    enabled: true
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      id: ivr?.id || '',
-      ...formData,
-      createdAt: ivr?.createdAt || new Date().toISOString()
-    } as InboundIVR);
-  };
-
-  const addOption = () => {
-    if (newOption.digit && newOption.destination) {
-      setFormData({
-        ...formData,
-        options: [...(formData.options || []), newOption as IVROption]
-      });
-      setNewOption({
-        digit: '',
-        action: 'transfer',
-        destination: '',
-        description: '',
-        enabled: true
-      });
-    }
-  };
-
-  const removeOption = (index: number) => {
-    const options = [...(formData.options || [])];
-    options.splice(index, 1);
-    setFormData({ ...formData, options });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          {ivr ? 'Edit IVR Menu' : 'Create IVR Menu'}
-        </h3>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Upload Audio File</h3>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-gray-400 hover:text-gray-600"
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                <XMarkIcon className="h-6 w-6" />
+              </button>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              rows={2}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Greeting Message</label>
-            <textarea
-              value={formData.greeting}
-              onChange={(e) => setFormData({...formData, greeting: e.target.value})}
-              rows={3}
-              placeholder="Welcome to our customer service. Please select from the following options..."
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Timeout (seconds)</label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <input
-                type="number"
-                min="1"
-                max="30"
-                value={formData.timeout}
-                onChange={(e) => setFormData({...formData, timeout: parseInt(e.target.value)})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".mp3,.wav,.m4a,.aac,.ogg,.flac"
+                className="hidden"
+                multiple
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Retries</label>
-              <input
-                type="number"
-                min="1"
-                max="5"
-                value={formData.retries}
-                onChange={(e) => setFormData({...formData, retries: parseInt(e.target.value)})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Default Action</label>
-              <select
-                value={formData.defaultAction}
-                onChange={(e) => setFormData({...formData, defaultAction: e.target.value as any})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+              <MicrophoneIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">Drag and drop audio files here, or</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-blue-600 hover:text-blue-800 font-medium"
               >
-                <option value="hangup">Hang Up</option>
-                <option value="voicemail">Voicemail</option>
-                <option value="transfer">Transfer</option>
-              </select>
-            </div>
-          </div>
-
-          {/* IVR Options */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Menu Options</label>
-            
-            {/* Add New Option */}
-            <div className="border border-gray-200 rounded-md p-4 mb-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Add New Option</h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Digit (1-9, *, #)"
-                    value={newOption.digit}
-                    onChange={(e) => setNewOption({...newOption, digit: e.target.value})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
-                    maxLength={1}
-                  />
-                </div>
-                <div>
-                  <select
-                    value={newOption.action}
-                    onChange={(e) => setNewOption({...newOption, action: e.target.value as any})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
-                  >
-                    <option value="transfer">Transfer</option>
-                    <option value="queue">Queue</option>
-                    <option value="voicemail">Voicemail</option>
-                    <option value="announcement">Announcement</option>
-                    <option value="sub_menu">Sub Menu</option>
-                  </select>
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Destination"
-                    value={newOption.destination}
-                    onChange={(e) => setNewOption({...newOption, destination: e.target.value})}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={addOption}
-                    className="w-full px-3 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-              <div className="mt-2">
-                <input
-                  type="text"
-                  placeholder="Description (e.g., 'Press 1 for Sales')"
-                  value={newOption.description}
-                  onChange={(e) => setNewOption({...newOption, description: e.target.value})}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
-                />
-              </div>
+                Browse files
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                Supports MP3, WAV, M4A, AAC, OGG, FLAC files
+              </p>
             </div>
 
-            {/* Existing Options */}
-            {formData.options && formData.options.length > 0 && (
-              <div className="space-y-2">
-                {formData.options.map((option, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">
-                        Press {option.digit} - {option.description || option.action}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {option.action} to {option.destination}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeOption(index)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
+            {selectedFiles.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Selected Files:</h4>
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded mb-2">
+                    <span className="text-sm truncate">{file.name}</span>
+                    <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                   </div>
                 ))}
               </div>
             )}
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={selectedFiles.length === 0 || uploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
           </div>
-          
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
-            >
-              {ivr ? 'Update' : 'Create'} IVR Menu
-            </button>
+        </div>
+      )}
+
+      {/* Record Modal */}
+      {showRecordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Record Audio</h3>
+              <button
+                onClick={() => setShowRecordModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="text-center py-8">
+              <div className={`w-24 h-24 mx-auto mb-4 rounded-full border-4 flex items-center justify-center ${recording ? 'bg-red-100 border-red-300 animate-pulse' : 'bg-gray-100 border-gray-300'}`}>
+                <MicrophoneIcon className={`h-12 w-12 ${recording ? 'text-red-600' : 'text-gray-500'}`} />
+              </div>
+
+              {recording && (
+                <div className="text-lg font-medium text-red-600 mb-2">
+                  Recording... {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                </div>
+              )}
+
+              {recordedBlob && !recording && (
+                <div className="mb-4">
+                  <p className="text-green-600 mb-2">Recording completed!</p>
+                  <audio controls className="w-full">
+                    <source src={URL.createObjectURL(recordedBlob)} type="audio/wav" />
+                  </audio>
+                </div>
+              )}
+
+              {!recording && !recordedBlob && (
+                <p className="text-gray-600 mb-4">Click to start recording</p>
+              )}
+            </div>
+
+            <div className="flex justify-center space-x-4 mb-6">
+              {!recording && !recordedBlob && (
+                <button
+                  onClick={startRecording}
+                  className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 flex items-center space-x-2"
+                >
+                  <MicrophoneIcon className="h-5 w-5" />
+                  <span>Start Recording</span>
+                </button>
+              )}
+
+              {recording && (
+                <button
+                  onClick={stopRecording}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <StopIcon className="h-5 w-5" />
+                  <span>Stop Recording</span>
+                </button>
+              )}
+
+              {recordedBlob && !recording && (
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      setRecordedBlob(null);
+                      setRecordingDuration(0);
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                  >
+                    Record Again
+                  </button>
+                  <button
+                    onClick={handleSaveRecording}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Save Recording
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowRecordModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingFile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Edit Audio File</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target as HTMLFormElement);
+              const updatedFile = {
+                ...editingFile,
+                name: formData.get('name') as string,
+                description: formData.get('description') as string,
+                type: formData.get('type') as any,
+                tags: (formData.get('tags') as string).split(',').map(tag => tag.trim()).filter(Boolean)
+              };
+              handleEditSave(updatedFile);
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    defaultValue={editingFile.name}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                    Type
+                  </label>
+                  <select
+                    id="type"
+                    name="type"
+                    defaultValue={editingFile.type}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {fileTypes.filter(type => type.id !== 'all').map(type => (
+                      <option key={type.id} value={type.id}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingFile.description}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    defaultValue={editingFile.tags.join(', ')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="tag1, tag2, tag3"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingFile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Delete Audio File</h3>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 mb-2">
+                Are you sure you want to delete this audio file?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="font-medium text-gray-900">{deletingFile.name}</p>
+                <p className="text-sm text-gray-500">{deletingFile.filename}</p>
+              </div>
+              <p className="text-red-600 text-sm mt-2">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
