@@ -33,6 +33,23 @@ model InboundNumber {
   businessDays          String? @default("Monday,Tuesday,Wednesday,Thursday,Friday") // Comma-separated days
   timezone              String? @default("Europe/London") // Timezone for business hours
   
+  // Extended configuration for UI form
+  businessHours         String? @default("24 Hours") // "24 Hours", "Business Hours Only", "Custom"
+  outOfHoursAction      String? @default("Hangup") // "Hangup", "PlayAudio", "Voicemail", "Transfer", "Announcement"
+  routeTo               String? @default("Hangup") // "Flow", "Queue", "RingGroup", "Extension", "IVR", "Voicemail", "Hangup"
+  outOfHoursTransferNumber String? // Phone number for out of hours transfer
+  selectedFlowId        String? // Selected flow ID for routing
+  selectedQueueId       String? // Selected queue ID for routing  
+  selectedRingGroupId   String? // Selected ring group ID for routing
+  selectedExtension     String? // Selected extension for routing
+  autoRejectAnonymous   Boolean? @default(true)
+  createContactOnAnonymous Boolean? @default(true)
+  integration           String? @default("None")
+  countryCode           String? @default("United Kingdom Of Great Britain And Northern Ireland (The) (GB)")
+  recordCalls           Boolean? @default(true)
+  lookupSearchFilter    String? @default("All Lists")
+  assignedToDefaultList Boolean? @default(true)
+  
   // Queue Routing Configuration
   routeToQueueId         String? // ID of the inbound queue to route calls to
   routeToQueue           InboundQueue? @relation(fields: [routeToQueueId], references: [id])

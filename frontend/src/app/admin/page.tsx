@@ -11,7 +11,6 @@ import AppsIntegrations from '@/components/admin/AppsIntegrations';
 import BusinessSettingsPage from '@/components/admin/BusinessSettingsPage';
 import CampaignManagementPage from '@/components/admin/CampaignManagementPage';
 import FlowsManagement from '@/components/flows/FlowsManagement';
-import TwilioConfigurationPage from '@/components/admin/TwilioConfiguration';
 import ChannelsManagement from '@/components/admin/ChannelsManagement';
 import ReportsSystem from '@/components/admin/ReportsSystem';
 import SystemOverview from '@/components/admin/SystemOverview';
@@ -555,8 +554,6 @@ export default function AdminPage() {
               <BusinessSettingsPage />
             ) : selectedSection === 'Campaigns' ? (
               <CampaignManagementPage />
-            ) : selectedSection === 'Twilio Configuration' ? (
-              <TwilioConfigurationPage />
             ) : selectedSection === 'Channels' ? (
               <div className="p-6">
                 <ChannelsManagement />

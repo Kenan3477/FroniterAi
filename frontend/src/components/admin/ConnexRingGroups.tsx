@@ -3,7 +3,7 @@
  * Complete multi-step wizard and form implementation
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UsersIcon,
   PlusIcon,
@@ -18,12 +18,15 @@ export interface ConnexRingGroup {
   displayName: string; // Display Name
   businessHours: string; // Business Hours
   outOfHoursAction: string; // If Out Of Hours
+  outOfHoursAudioFile?: string; // Audio file for out of hours
   dayClosedAction: string; // If Day Closed
+  dayClosedAudioFile?: string; // Audio file for day closed
   ringGroupType: string; // Ring Group Type
   extensions: string[]; // Array of extension names
   queues: string; // Queues
   ringTime: number; // Ring Time (sec)
   dropAction: string; // Drop Action
+  dropActionAudioFile?: string; // Audio file for drop action
   enabled: boolean;
   createdAt: string;
 }
@@ -197,18 +200,25 @@ const ConnexRingGroupWizard: React.FC<{
   availableExtensions: any[];
 }> = ({ onSave, onCancel, availableExtensions }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [audioFiles, setAudioFiles] = useState<string[]>([]);
+  const [audioFilesLoading, setAudioFilesLoading] = useState(false);
+  const [queues, setQueues] = useState<any[]>([]);
+  const [queuesLoading, setQueuesLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<ConnexRingGroup>>({
     name: '',
     description: '',
     displayName: '',
     businessHours: '9-5',
     outOfHoursAction: 'Hangup',
+    outOfHoursAudioFile: '',
     dayClosedAction: 'Hangup',
+    dayClosedAudioFile: '',
     ringGroupType: 'Ring In Order',
     extensions: [],
-    queues: 'AccountManagers',
+    queues: '',
     ringTime: 365,
     dropAction: 'Hangup',
+    dropActionAudioFile: '',
     enabled: true
   });
 
@@ -217,6 +227,72 @@ const ConnexRingGroupWizard: React.FC<{
     { number: 2, name: 'Settings', description: 'Configuration options' },
     { number: 3, name: 'Finish', description: 'Review and create' }
   ];
+
+  useEffect(() => {
+    fetchAudioFiles();
+    fetchQueues();
+  }, []);
+
+  const fetchAudioFiles = async () => {
+    try {
+      setAudioFilesLoading(true);
+      const response = await fetch('/api/admin/audio-files', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAudioFiles(data.data || []);
+        }
+      } else {
+        // Fallback to default audio files
+        setAudioFiles([
+          'welcome.wav',
+          'hold_music.mp3',
+          'closing_message.wav',
+          'queue_full.wav',
+          'transfer_message.wav'
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching audio files:', error);
+      // Fallback to default audio files
+      setAudioFiles([
+        'welcome.wav',
+        'hold_music.mp3',
+        'closing_message.wav',
+        'queue_full.wav',
+        'transfer_message.wav'
+      ]);
+    } finally {
+      setAudioFilesLoading(false);
+    }
+  };
+
+  const fetchQueues = async () => {
+    try {
+      setQueuesLoading(true);
+      const response = await fetch('/api/admin/inbound-queues', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setQueues(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching queues:', error);
+    } finally {
+      setQueuesLoading(false);
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -302,7 +378,31 @@ const ConnexRingGroupWizard: React.FC<{
                   <option value="Hangup">Hangup</option>
                   <option value="Voicemail">Voicemail</option>
                   <option value="Transfer">Transfer</option>
+                  <option value="Play Audio File">Play Audio File</option>
                 </select>
+                {formData.outOfHoursAction === 'Play Audio File' && (
+                  <div className="mt-2">
+                    <select
+                      value={formData.outOfHoursAudioFile || ''}
+                      onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                    >
+                      <option value="">Select audio file...</option>
+                      {audioFilesLoading ? (
+                        <option disabled>Loading audio files...</option>
+                      ) : (
+                        audioFiles.map((file) => (
+                          <option key={file} value={file}>
+                            {file}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select an audio file to play during out of hours
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -317,7 +417,31 @@ const ConnexRingGroupWizard: React.FC<{
                   <option value="Hangup">Hangup</option>
                   <option value="Voicemail">Voicemail</option>
                   <option value="Transfer">Transfer</option>
+                  <option value="Play Audio File">Play Audio File</option>
                 </select>
+                {formData.dayClosedAction === 'Play Audio File' && (
+                  <div className="mt-2">
+                    <select
+                      value={formData.dayClosedAudioFile || ''}
+                      onChange={(e) => setFormData({...formData, dayClosedAudioFile: e.target.value})}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                    >
+                      <option value="">Select audio file...</option>
+                      {audioFilesLoading ? (
+                        <option disabled>Loading audio files...</option>
+                      ) : (
+                        audioFiles.map((file) => (
+                          <option key={file} value={file}>
+                            {file}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select an audio file to play when day is closed
+                    </p>
+                  </div>
+                )}
               </div>
               
               <div>
@@ -371,7 +495,31 @@ const ConnexRingGroupWizard: React.FC<{
                   <option value="Hangup">Hangup</option>
                   <option value="Send To Queue">Send To Queue</option>
                   <option value="Voicemail">Voicemail</option>
+                  <option value="Play Audio File">Play Audio File</option>
                 </select>
+                {formData.dropAction === 'Play Audio File' && (
+                  <div className="mt-2">
+                    <select
+                      value={formData.dropActionAudioFile || ''}
+                      onChange={(e) => setFormData({...formData, dropActionAudioFile: e.target.value})}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                    >
+                      <option value="">Select audio file...</option>
+                      {audioFilesLoading ? (
+                        <option disabled>Loading audio files...</option>
+                      ) : (
+                        audioFiles.map((file) => (
+                          <option key={file} value={file}>
+                            {file}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select an audio file to play for drop action
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -503,22 +651,93 @@ const ConnexRingGroupForm: React.FC<{
   onCancel: () => void;
   availableExtensions: any[];
 }> = ({ group, onSave, onCancel, availableExtensions }) => {
+  const [audioFiles, setAudioFiles] = useState<string[]>([]);
+  const [audioFilesLoading, setAudioFilesLoading] = useState(false);
+  const [queues, setQueues] = useState<any[]>([]);
+  const [queuesLoading, setQueuesLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<ConnexRingGroup>>({
     name: group.name,
     description: group.description,
     displayName: group.displayName,
     businessHours: group.businessHours,
     outOfHoursAction: group.outOfHoursAction,
+    outOfHoursAudioFile: group.outOfHoursAudioFile || '',
     dayClosedAction: group.dayClosedAction,
+    dayClosedAudioFile: group.dayClosedAudioFile || '',
     ringGroupType: group.ringGroupType,
     extensions: group.extensions,
     queues: group.queues,
     ringTime: group.ringTime,
     dropAction: group.dropAction,
+    dropActionAudioFile: group.dropActionAudioFile || '',
     enabled: group.enabled
   });
 
   const [selectedExtensions, setSelectedExtensions] = useState<string[]>(group.extensions || []);
+
+  useEffect(() => {
+    fetchAudioFiles();
+    fetchQueues();
+  }, []);
+
+  const fetchAudioFiles = async () => {
+    try {
+      setAudioFilesLoading(true);
+      const response = await fetch('/api/admin/audio-files', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAudioFiles(data.data || []);
+        }
+      } else {
+        setAudioFiles([
+          'welcome.wav',
+          'hold_music.mp3',
+          'closing_message.wav',
+          'queue_full.wav',
+          'transfer_message.wav'
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching audio files:', error);
+      setAudioFiles([
+        'welcome.wav',
+        'hold_music.mp3',
+        'closing_message.wav',
+        'queue_full.wav',
+        'transfer_message.wav'
+      ]);
+    } finally {
+      setAudioFilesLoading(false);
+    }
+  };
+
+  const fetchQueues = async () => {
+    try {
+      setQueuesLoading(true);
+      const response = await fetch('/api/admin/inbound-queues', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setQueues(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching queues:', error);
+    } finally {
+      setQueuesLoading(false);
+    }
+  };
 
   const handleRemoveExtension = (extensionName: string) => {
     const updated = selectedExtensions.filter(ext => ext !== extensionName);
@@ -617,7 +836,31 @@ const ConnexRingGroupForm: React.FC<{
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
                 <option value="Transfer">Transfer</option>
+                <option value="Play Audio File">Play Audio File</option>
               </select>
+              {formData.outOfHoursAction === 'Play Audio File' && (
+                <div className="mt-2">
+                  <select
+                    value={formData.outOfHoursAudioFile || ''}
+                    onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  >
+                    <option value="">Select audio file...</option>
+                    {audioFilesLoading ? (
+                      <option disabled>Loading audio files...</option>
+                    ) : (
+                      audioFiles.map((file) => (
+                        <option key={file} value={file}>
+                          {file}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select an audio file to play during out of hours
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -632,7 +875,31 @@ const ConnexRingGroupForm: React.FC<{
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
                 <option value="Transfer">Transfer</option>
+                <option value="Play Audio File">Play Audio File</option>
               </select>
+              {formData.dayClosedAction === 'Play Audio File' && (
+                <div className="mt-2">
+                  <select
+                    value={formData.dayClosedAudioFile || ''}
+                    onChange={(e) => setFormData({...formData, dayClosedAudioFile: e.target.value})}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  >
+                    <option value="">Select audio file...</option>
+                    {audioFilesLoading ? (
+                      <option disabled>Loading audio files...</option>
+                    ) : (
+                      audioFiles.map((file) => (
+                        <option key={file} value={file}>
+                          {file}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select an audio file to play when day is closed
+                  </p>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Drop Action</label>
@@ -644,7 +911,31 @@ const ConnexRingGroupForm: React.FC<{
                 <option value="Send To Queue">Send To Queue</option>
                 <option value="Hangup">Hangup</option>
                 <option value="Voicemail">Voicemail</option>
+                <option value="Play Audio File">Play Audio File</option>
               </select>
+              {formData.dropAction === 'Play Audio File' && (
+                <div className="mt-2">
+                  <select
+                    value={formData.dropActionAudioFile || ''}
+                    onChange={(e) => setFormData({...formData, dropActionAudioFile: e.target.value})}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  >
+                    <option value="">Select audio file...</option>
+                    {audioFilesLoading ? (
+                      <option disabled>Loading audio files...</option>
+                    ) : (
+                      audioFiles.map((file) => (
+                        <option key={file} value={file}>
+                          {file}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select an audio file to play for drop action
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -655,9 +946,16 @@ const ConnexRingGroupForm: React.FC<{
               onChange={(e) => setFormData({...formData, queues: e.target.value})}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
             >
-              <option value="AccountManagers">AccountManagers</option>
-              <option value="Support">Support</option>
-              <option value="Sales">Sales</option>
+              <option value="">Select a queue...</option>
+              {queuesLoading ? (
+                <option disabled>Loading queues...</option>
+              ) : (
+                queues.map((queue) => (
+                  <option key={queue.id} value={queue.name}>
+                    {queue.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

@@ -39,12 +39,30 @@ export async function POST(request: NextRequest) {
       message: 'Logged out successfully'
     });
 
-    // Clear the auth-token cookie
+    // Clear the auth-token cookie with multiple attempts
     response.cookies.set('auth-token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 0, // This will delete the cookie
+      path: '/'
+    });
+
+    // Additional clearing with different attributes
+    response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/'
+    });
+
+    // Clear with expires date in the past
+    response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: new Date(0),
       path: '/'
     });
 
@@ -76,12 +94,30 @@ export async function POST(request: NextRequest) {
       { status: 200 } // Return 200 to ensure logout proceeds
     );
 
-    // Clear the main auth-token cookie
+    // Clear the main auth-token cookie with multiple attempts
     response.cookies.set('auth-token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 0,
+      path: '/'
+    });
+
+    // Additional clearing with different attributes
+    response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/'
+    });
+
+    // Clear with expires date in the past
+    response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: new Date(0),
       path: '/'
     });
 

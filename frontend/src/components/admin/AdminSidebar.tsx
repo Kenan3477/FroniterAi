@@ -87,11 +87,6 @@ const adminSections = [
     description: 'Configure service level agreements'
   },
   { 
-    name: 'Twilio Configuration', 
-    icon: PhoneIcon,
-    description: 'Configure Twilio SIP Domain settings and credentials'
-  },
-  { 
     name: 'User Management', 
     icon: UsersIcon,
     description: 'Manage user accounts and permissions'

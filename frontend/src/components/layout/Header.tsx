@@ -22,7 +22,9 @@ interface HeaderProps {
 export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [selectedQueue, setSelectedQueue] = useState('DAC (C)');
+  const [selectedQueue, setSelectedQueue] = useState('');
+  const [inboundQueues, setInboundQueues] = useState<any[]>([]);
+  const [isLoadingQueues, setIsLoadingQueues] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const { 
@@ -74,13 +76,39 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     }
   };
 
-  const inboundQueues = [
-    'DAC (C)',
-    'Customer Service',
-    'Sales',
-    'Support',
-    'General Inquiry'
-  ];
+  // Fetch inbound queues from backend
+  useEffect(() => {
+    const fetchInboundQueues = async () => {
+      try {
+        setIsLoadingQueues(true);
+        const response = await fetch('/api/voice/inbound-queues', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setInboundQueues(data.data);
+            // Auto-select first active queue if no queue is selected
+            if (!selectedQueue && data.data.length > 0) {
+              const activeQueue = data.data.find((q: any) => q.status === 'ACTIVE') || data.data[0];
+              setSelectedQueue(activeQueue.name);
+            }
+          }
+        } else {
+          console.error('Failed to fetch inbound queues');
+          setInboundQueues([]);
+        }
+      } catch (error) {
+        console.error('Error fetching inbound queues:', error);
+        setInboundQueues([]);
+      } finally {
+        setIsLoadingQueues(false);
+      }
+    };
+
+    fetchInboundQueues();
+  }, []);
 
   const userStatuses = [
     'Available',
@@ -139,14 +167,51 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           <select 
             value={selectedQueue}
             onChange={(e) => setSelectedQueue(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+            disabled={isLoadingQueues || inboundQueues.length === 0}
+            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 disabled:bg-gray-100 disabled:text-gray-500"
           >
-            {inboundQueues.map((queue) => (
-              <option key={queue} value={queue}>{queue}</option>
-            ))}
+            {isLoadingQueues ? (
+              <option value="">Loading queues...</option>
+            ) : inboundQueues.length === 0 ? (
+              <option value="">No queues available</option>
+            ) : (
+              <>
+                <option value="">Select a queue</option>
+                {inboundQueues.map((queue) => (
+                  <option key={queue.id} value={queue.name}>
+                    {queue.name} {queue.status === 'INACTIVE' ? '(Inactive)' : ''}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
-          <button className="p-1 text-gray-500 hover:text-gray-700">
-            <ArrowPathIcon className="h-4 w-4" />
+          <button 
+            className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            disabled={isLoadingQueues}
+            onClick={() => {
+              // Refresh queues
+              setIsLoadingQueues(true);
+              const fetchQueues = async () => {
+                try {
+                  const response = await fetch('/api/voice/inbound-queues', {
+                    credentials: 'include',
+                  });
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.data) {
+                      setInboundQueues(data.data);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error refreshing queues:', error);
+                } finally {
+                  setIsLoadingQueues(false);
+                }
+              };
+              fetchQueues();
+            }}
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${isLoadingQueues ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -287,11 +352,23 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       <select 
                         value={selectedQueue}
                         onChange={(e) => setSelectedQueue(e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                        disabled={isLoadingQueues || inboundQueues.length === 0}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 disabled:bg-gray-100 disabled:text-gray-500"
                       >
-                        {inboundQueues.map((queue) => (
-                          <option key={queue} value={queue}>{queue}</option>
-                        ))}
+                        {isLoadingQueues ? (
+                          <option value="">Loading queues...</option>
+                        ) : inboundQueues.length === 0 ? (
+                          <option value="">No queues available</option>
+                        ) : (
+                          <>
+                            <option value="">Select a queue</option>
+                            {inboundQueues.map((queue) => (
+                              <option key={queue.id} value={queue.name}>
+                                {queue.name} {queue.status === 'INACTIVE' ? '(Inactive)' : ''}
+                              </option>
+                            ))}
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>

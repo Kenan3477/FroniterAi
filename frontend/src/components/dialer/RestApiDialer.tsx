@@ -578,7 +578,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-gray-900">Phone Dialer</h3>
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Twilio REST API</span>
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
@@ -644,25 +643,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           ))}
         </div>
 
-        {/* WebRTC Status */}
-        {!isDeviceReady && (
-          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-xs text-blue-800">
-              🔄 Initializing browser audio for calls...
-            </p>
-          </div>
-        )}
-
         {(currentCall || activeRestApiCall) && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-800 font-medium">
-              📞 Call in progress - Two-way audio should be working
-              {activeRestApiCall && (
-                <span className="block text-xs mt-1">
-                  Call SID: {activeRestApiCall.callSid}
-                </span>
-              )}
-            </p>
+          <div className="mb-4">
             <button
               onClick={() => {
                 if (currentCall) {
@@ -735,13 +717,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           </div>
         )}
 
-        {/* Info */}
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-xs text-blue-800">
-            <span className="font-medium">How it works:</span> REST API calls the customer, then connects them to your browser. 
-            You'll hear the customer through your browser speakers and speak through your microphone.
-          </p>
-        </div>
         </div>
       )}
     </div>
