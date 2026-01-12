@@ -1,0 +1,9 @@
+[phases.build]
+cmd = "cd frontend && npm ci && npm run build"
+
+[phases.start]
+cmd = "cd frontend && npm start"
+
+[variables]
+NODE_ENV = "production"
+NEXT_PUBLIC_API_URL = "https://froniterai-production.up.railway.app"
