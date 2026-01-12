@@ -1,5 +1,4 @@
 {
-  "builder": "RAILPACK",
   "build": {
     "command": "npm run build"
   },
