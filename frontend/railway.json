@@ -1,0 +1,9 @@
+{
+  "builder": "RAILPACK",
+  "build": {
+    "command": "npm run build"
+  },
+  "deploy": {
+    "startCommand": "npm start"
+  }
+}
