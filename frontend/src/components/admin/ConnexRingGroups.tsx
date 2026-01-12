@@ -173,7 +173,8 @@ export const ConnexRingGroupsManager: React.FC<{
         <ConnexRingGroupWizard
           onSave={handleSave}
           onCancel={() => setShowCreateForm(false)}
-          availableExtensions={config.extensions || []}
+          availableExtensions={config.agents || []}
+          config={config}
         />
       )}
 
@@ -186,7 +187,8 @@ export const ConnexRingGroupsManager: React.FC<{
             setShowEditForm(false);
             setEditingGroup(null);
           }}
-          availableExtensions={config.extensions || []}
+          availableExtensions={config.agents || []}
+          config={config}
         />
       )}
     </div>
@@ -198,7 +200,8 @@ const ConnexRingGroupWizard: React.FC<{
   onSave: (group: ConnexRingGroup) => void;
   onCancel: () => void;
   availableExtensions: any[];
-}> = ({ onSave, onCancel, availableExtensions }) => {
+  config: any;
+}> = ({ onSave, onCancel, availableExtensions, config }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [audioFiles, setAudioFiles] = useState<string[]>([]);
   const [audioFilesLoading, setAudioFilesLoading] = useState(false);
@@ -231,22 +234,15 @@ const ConnexRingGroupWizard: React.FC<{
   useEffect(() => {
     fetchAudioFiles();
     fetchQueues();
-  }, []);
+  }, [config]);
 
   const fetchAudioFiles = async () => {
     try {
       setAudioFilesLoading(true);
-      const response = await fetch('/api/admin/audio-files', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAudioFiles(data.data || []);
-        }
+      
+      // Use audio files from configuration first
+      if (config.audioFiles && config.audioFiles.length > 0) {
+        setAudioFiles(config.audioFiles.map((file: any) => file.filename || file.name));
       } else {
         // Fallback to default audio files
         setAudioFiles([
@@ -275,20 +271,40 @@ const ConnexRingGroupWizard: React.FC<{
   const fetchQueues = async () => {
     try {
       setQueuesLoading(true);
-      const response = await fetch('/api/admin/inbound-queues', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          setQueues(data.data);
-        }
+      
+      // Use queues from configuration first
+      if (config.inboundQueues && config.inboundQueues.length > 0) {
+        setQueues(config.inboundQueues);
+      } else {
+        // Fallback to default queues
+        setQueues([
+          {
+            id: '1',
+            name: 'customer_support',
+            displayName: 'Customer Support',
+            description: 'Main customer support queue',
+            isActive: true
+          },
+          {
+            id: '2',
+            name: 'sales',
+            displayName: 'Sales Team', 
+            description: 'Sales inquiries queue',
+            isActive: true
+          }
+        ]);
       }
     } catch (error) {
       console.error('Error fetching queues:', error);
+      // Fallback to default queues on error
+      setQueues([
+        {
+          id: '1',
+          name: 'customer_support',
+          displayName: 'Customer Support',
+          isActive: true
+        }
+      ]);
     } finally {
       setQueuesLoading(false);
     }
@@ -464,14 +480,21 @@ const ConnexRingGroupWizard: React.FC<{
               <label className="block text-sm font-medium text-gray-700">Extensions</label>
               <select
                 multiple
+                value={formData.extensions}
+                onChange={(e) => {
+                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                  setFormData({...formData, extensions: selectedOptions});
+                }}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                size={6}
               >
-                {availableExtensions.map(ext => (
-                  <option key={ext.id} value={ext.displayName}>
-                    {ext.displayName}
+                {availableExtensions.map(agent => (
+                  <option key={agent.id} value={agent.displayName}>
+                    {agent.displayName} ({agent.extension})
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple extensions</p>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -650,7 +673,8 @@ const ConnexRingGroupForm: React.FC<{
   onSave: (group: ConnexRingGroup) => void;
   onCancel: () => void;
   availableExtensions: any[];
-}> = ({ group, onSave, onCancel, availableExtensions }) => {
+  config: any;
+}> = ({ group, onSave, onCancel, availableExtensions, config }) => {
   const [audioFiles, setAudioFiles] = useState<string[]>([]);
   const [audioFilesLoading, setAudioFilesLoading] = useState(false);
   const [queues, setQueues] = useState<any[]>([]);
@@ -678,22 +702,15 @@ const ConnexRingGroupForm: React.FC<{
   useEffect(() => {
     fetchAudioFiles();
     fetchQueues();
-  }, []);
+  }, [config]);
 
   const fetchAudioFiles = async () => {
     try {
       setAudioFilesLoading(true);
-      const response = await fetch('/api/admin/audio-files', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAudioFiles(data.data || []);
-        }
+      
+      // Use audio files from configuration first
+      if (config.audioFiles && config.audioFiles.length > 0) {
+        setAudioFiles(config.audioFiles.map((file: any) => file.filename || file.name));
       } else {
         setAudioFiles([
           'welcome.wav',
@@ -720,20 +737,40 @@ const ConnexRingGroupForm: React.FC<{
   const fetchQueues = async () => {
     try {
       setQueuesLoading(true);
-      const response = await fetch('/api/admin/inbound-queues', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          setQueues(data.data);
-        }
+      
+      // Use queues from configuration first
+      if (config.inboundQueues && config.inboundQueues.length > 0) {
+        setQueues(config.inboundQueues);
+      } else {
+        // Fallback to default queues
+        setQueues([
+          {
+            id: '1',
+            name: 'customer_support',
+            displayName: 'Customer Support',
+            description: 'Main customer support queue',
+            isActive: true
+          },
+          {
+            id: '2',
+            name: 'sales',
+            displayName: 'Sales Team', 
+            description: 'Sales inquiries queue',
+            isActive: true
+          }
+        ]);
       }
     } catch (error) {
       console.error('Error fetching queues:', error);
+      // Fallback to default queues on error
+      setQueues([
+        {
+          id: '1',
+          name: 'customer_support',
+          displayName: 'Customer Support',
+          isActive: true
+        }
+      ]);
     } finally {
       setQueuesLoading(false);
     }
@@ -952,7 +989,7 @@ const ConnexRingGroupForm: React.FC<{
               ) : (
                 queues.map((queue) => (
                   <option key={queue.id} value={queue.name}>
-                    {queue.name}
+                    {queue.displayName || queue.name}
                   </option>
                 ))
               )}
@@ -991,6 +1028,29 @@ const ConnexRingGroupForm: React.FC<{
                   </button>
                 </div>
               ))}
+              
+              {/* Add Extension Dropdown */}
+              <div className="mt-3">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value && !selectedExtensions.includes(e.target.value)) {
+                      const updated = [...selectedExtensions, e.target.value];
+                      setSelectedExtensions(updated);
+                      setFormData({...formData, extensions: updated});
+                    }
+                    e.target.value = ''; // Reset dropdown
+                  }}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                  <option value="">Add Extension...</option>
+                  {availableExtensions.filter(agent => !selectedExtensions.includes(agent.displayName)).map(agent => (
+                    <option key={agent.id} value={agent.displayName}>
+                      {agent.displayName} ({agent.extension})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

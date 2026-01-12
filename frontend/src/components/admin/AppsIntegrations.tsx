@@ -105,7 +105,11 @@ export default function AppsIntegrations() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [stats, setStats] = useState<IntegrationStats | null>(null);
+  const [stats, setStats] = useState<IntegrationStats | null>({
+    integrations: { total: 0, byCategory: {} },
+    connections: { total: 0, active: 0, inactive: 0, byStatus: {} },
+    webhooks: { total: 0, active: 0, inactive: 0 }
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -162,11 +166,65 @@ export default function AppsIntegrations() {
     try {
       const response = await fetch('/api/admin/integrations/stats');
       if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+        const responseData = await response.json();
+        // Handle both direct stats and wrapped response formats
+        const statsData = responseData.data || responseData;
+        
+        // Validate that we have the expected structure
+        if (statsData && typeof statsData === 'object') {
+          setStats({
+            integrations: statsData.integrations || { total: 0, byCategory: {} },
+            connections: statsData.connections || { total: 0, active: 0, inactive: 0, byStatus: {} },
+            webhooks: statsData.webhooks || { total: 0, active: 0, inactive: 0 }
+          });
+        } else {
+          // Fallback to default if structure is invalid
+          setStats({
+            integrations: { total: 0, byCategory: {} },
+            connections: { total: 0, active: 0, inactive: 0, byStatus: {} },
+            webhooks: { total: 0, active: 0, inactive: 0 }
+          });
+        }
+      } else {
+        // Provide default stats if API call fails
+        setStats({
+          integrations: {
+            total: 0,
+            byCategory: {}
+          },
+          connections: {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            byStatus: {}
+          },
+          webhooks: {
+            total: 0,
+            active: 0,
+            inactive: 0
+          }
+        });
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+      // Provide default stats on error
+      setStats({
+        integrations: {
+          total: 0,
+          byCategory: {}
+        },
+        connections: {
+          total: 0,
+          active: 0,
+          inactive: 0,
+          byStatus: {}
+        },
+        webhooks: {
+          total: 0,
+          active: 0,
+          inactive: 0
+        }
+      });
     }
   };
 
@@ -287,7 +345,7 @@ export default function AppsIntegrations() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Available Apps</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.integrations.total}</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.integrations?.total || 0}</dd>
                   </dl>
                 </div>
               </div>
@@ -303,7 +361,7 @@ export default function AppsIntegrations() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Connections</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.connections.total}</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.connections?.total || 0}</dd>
                   </dl>
                 </div>
               </div>
@@ -319,7 +377,7 @@ export default function AppsIntegrations() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Active</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.connections.active}</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.connections?.active || 0}</dd>
                   </dl>
                 </div>
               </div>
@@ -335,7 +393,7 @@ export default function AppsIntegrations() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Webhooks</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.webhooks.total}</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.webhooks?.total || 0}</dd>
                   </dl>
                 </div>
               </div>
@@ -351,7 +409,7 @@ export default function AppsIntegrations() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">CRM Apps</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.integrations.byCategory.CRM || 0}</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.integrations?.byCategory?.CRM || 0}</dd>
                   </dl>
                 </div>
               </div>
@@ -383,7 +441,7 @@ export default function AppsIntegrations() {
             } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}
           >
             <LinkIcon className="h-5 w-5 inline mr-2" />
-            My Connections ({stats?.connections.total || 0})
+            My Connections ({stats?.connections?.total || 0})
           </button>
           <button
             onClick={() => setViewMode('webhooks')}
@@ -394,7 +452,7 @@ export default function AppsIntegrations() {
             } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}
           >
             <BeakerIcon className="h-5 w-5 inline mr-2" />
-            Webhooks ({stats?.webhooks.total || 0})
+            Webhooks ({stats?.webhooks?.total || 0})
           </button>
         </nav>
       </div>
