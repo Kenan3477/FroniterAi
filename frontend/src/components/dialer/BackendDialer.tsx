@@ -38,6 +38,7 @@ interface CustomerInfo {
   state?: string;
   zipCode?: string;
   notes?: string;
+  campaignId?: string;
 }
 
 export const BackendDialer: React.FC<BackendDialerProps> = ({
@@ -185,10 +186,73 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
     }
   }, [activeCallSid, callStatus]);
 
+  // Handle disposition card close
+  const handleDispositionClose = useCallback(() => {
+    setIsDispositionCardOpen(false);
+    // Clear state after modal closes
+    setTimeout(() => {
+      setCustomerInfo(null);
+      setCallStatus('idle');
+    }, 100);
+  }, []);
+
   // Handle disposition submission
   const handleDispositionSubmit = useCallback(async (disposition: DispositionData) => {
-    // Save disposition data
+    // Save disposition data to backend
     try {
+      console.log('📋 Submitting call disposition:', disposition);
+      
+      // Save call outcome and disposition to backend
+      const dispositionResponse = await fetch('/api/agents/call-outcome', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callId: activeCallSid, // Use callSid as callId for now
+          contactId: customerInfo?.contactId || customerInfo?.id,
+          agentId: agentId,
+          campaignId: customerInfo?.campaignId || 'default',
+          outcome: disposition.outcome,
+          notes: disposition.notes,
+          duration: callDuration,
+          phoneNumber: customerInfo?.phoneNumber || customerInfo?.phone || dialedNumber,
+          followUpRequired: disposition.followUpRequired,
+          followUpDate: disposition.followUpDate
+        })
+      });
+
+      if (dispositionResponse.ok) {
+        console.log('✅ Call disposition saved successfully');
+        
+        // Also save customer info if provided
+        if (customerInfo) {
+          await fetch('/api/calls/save-call-data', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({
+              phoneNumber: customerInfo.phoneNumber || customerInfo.phone || dialedNumber,
+              customerInfo: {
+                ...customerInfo,
+                notes: disposition.notes
+              },
+              disposition: disposition.outcome,
+              callDuration: callDuration,
+              agentId: agentId,
+              campaignId: customerInfo.campaignId || 'default'
+            })
+          });
+        }
+      } else {
+        const error = await dispositionResponse.json();
+        console.error('❌ Failed to save disposition:', error);
+        alert(`Failed to save disposition: ${error.message}`);
+      }
+      
       // Update customer info with notes if provided
       if (disposition.notes && customerInfo) {
         setCustomerInfo({
@@ -205,8 +269,11 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
       setCallDuration(0);
       setCallStartTime(null);
       setDialedNumber('');
-      setCustomerInfo(null);
-      setCallStatus('idle');
+      // Don't clear customerInfo immediately - let the modal close first
+      setTimeout(() => {
+        setCustomerInfo(null);
+        setCallStatus('idle');
+      }, 100);
     } catch (err: any) {
       console.error('❌ Failed to save disposition:', err);
       alert(`Failed to save disposition: ${err.message}`);
@@ -366,7 +433,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
       {isDispositionCardOpen && customerInfo && (
         <DispositionCard
           isOpen={isDispositionCardOpen}
-          onClose={() => setIsDispositionCardOpen(false)}
+          onClose={handleDispositionClose}
           onSave={handleDispositionSubmit}
           customerInfo={{
             name: `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || 'Unknown',

@@ -151,12 +151,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log(`🔍 Campaign ${campaign.campaignId} detailed check:`);
                 console.log(`  - status: "${campaign.status}" (type: ${typeof campaign.status})`);
                 console.log(`  - isActive: ${campaign.isActive} (type: ${typeof campaign.isActive})`);
+                console.log(`  - name: "${campaign.name}"`);
                 console.log(`  - status === 'Active': ${campaign.status === 'Active'}`);
                 console.log(`  - isActive === true: ${campaign.isActive === true}`);
+                console.log(`  - name starts with [DELETED]: ${campaign.name?.startsWith('[DELETED]')}`);
                 
-                const isActive = campaign.status === 'Active' && campaign.isActive;
-                console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, passes filter=${isActive}`);
-                return isActive;
+                // Filter out deleted campaigns and require either Active status OR isActive
+                const isDeleted = campaign.name?.startsWith('[DELETED]');
+                const isActive = campaign.status === 'Active' || campaign.isActive === true;
+                const passes = !isDeleted && isActive;
+                
+                console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, deleted=${isDeleted}, passes filter=${passes}`);
+                return passes;
               })
               .map((campaign: any) => ({
                 campaignId: campaign.campaignId,

@@ -94,21 +94,26 @@ export const endCall = async (req: Request, res: Response) => {
   try {
     const validatedData = endCallSchema.parse(req.body);
 
+    console.log('🔚 Ending call with data:', validatedData);
+
     // End the call through Twilio
     const result = await twilioService.endCall(validatedData.callSid);
 
-    // Save call data and customer info to database
+    // Create call record and interaction
     if (validatedData.customerInfo) {
       try {
         const { customerInfo } = validatedData;
+        const callEndTime = new Date();
+        const callStartTime = new Date(callEndTime.getTime() - (validatedData.duration * 1000));
         
-        // Upsert contact
+        // First, upsert contact
+        let contact = null;
         if (customerInfo.phone || customerInfo.phoneNumber) {
           const phone = customerInfo.phone || customerInfo.phoneNumber;
           
-          await (prisma as any).Contact.upsert({
+          contact = await prisma.contact.upsert({
             where: { 
-              phone: phone 
+              contactId: customerInfo.contactId || `contact_${phone}_${Date.now()}`
             },
             update: {
               firstName: customerInfo.firstName || '',
@@ -119,7 +124,7 @@ export const endCall = async (req: Request, res: Response) => {
               updatedAt: new Date(),
             },
             create: {
-              contactId: `contact_${Date.now()}`,
+              contactId: customerInfo.contactId || `contact_${phone}_${Date.now()}`,
               listId: customerInfo.listId || 'default-list',
               firstName: customerInfo.firstName || '',
               lastName: customerInfo.lastName || '',
@@ -133,25 +138,61 @@ export const endCall = async (req: Request, res: Response) => {
           });
         }
 
-        // Create interaction record
-        await (prisma as any).Interaction.create({
+        // Create call record
+        const callRecord = await prisma.callRecord.create({
           data: {
-            interactionId: validatedData.callSid,
-            agentId: validatedData.customerInfo.agentId || 'unknown',
-            contactId: validatedData.customerInfo.contactId || `contact_${Date.now()}`,
-            channel: 'voice',
-            direction: 'outbound',
-            status: validatedData.status,
+            callId: validatedData.callSid,
+            contactId: contact?.contactId || customerInfo.contactId || `contact_${Date.now()}`,
+            campaignId: customerInfo.campaignId || 'default',
+            phoneNumber: customerInfo.phone || customerInfo.phoneNumber || '',
+            agentId: customerInfo.agentId || 'unknown',
+            callType: 'outbound',
+            startTime: callStartTime,
+            endTime: callEndTime,
             duration: validatedData.duration,
-            notes: validatedData.customerInfo.notes,
-            outcome: validatedData.disposition,
-            startedAt: new Date(Date.now() - validatedData.duration * 1000),
-            endedAt: new Date(),
+            outcome: validatedData.disposition || 'completed',
+            notes: customerInfo.notes,
           },
         });
+
+        console.log('✅ Call record created:', callRecord.callId);
+
+        // Create interaction record
+        const interaction = await prisma.interaction.create({
+          data: {
+            agentId: customerInfo.agentId || 'unknown',
+            contactId: contact?.contactId || customerInfo.contactId || `contact_${Date.now()}`,
+            campaignId: customerInfo.campaignId || 'default',
+            channel: 'voice',
+            outcome: validatedData.disposition || 'completed',
+            startedAt: callStartTime,
+            endedAt: callEndTime,
+            durationSeconds: validatedData.duration,
+            result: customerInfo.notes,
+          },
+        });
+
+        console.log('✅ Interaction record created:', interaction.id);
+
+        // Process call recordings asynchronously if we have a call SID
+        if (validatedData.callSid) {
+          console.log(`📼 Processing recordings for call: ${validatedData.callSid}`);
+          // Don't await this - let it process in the background
+          setTimeout(async () => {
+            try {
+              // Import recording service and process recordings
+              const { processCallRecordings } = require('../services/recordingService');
+              await processCallRecordings(validatedData.callSid, callRecord.callId);
+              console.log(`✅ Recording processing completed for call: ${validatedData.callSid}`);
+            } catch (recordingError) {
+              console.error(`❌ Error processing recordings for call ${validatedData.callSid}:`, recordingError);
+            }
+          }, 1000);
+        }
+
       } catch (dbError) {
-        console.error('Error saving call data to database:', dbError);
-        // Continue even if database save fails
+        console.error('❌ Error saving call data to database:', dbError);
+        // Continue even if database save fails - don't break the call ending flow
       }
     }
 

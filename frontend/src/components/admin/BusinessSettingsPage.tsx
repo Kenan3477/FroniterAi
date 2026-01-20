@@ -30,7 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Edit, Trash2, Building, Settings, Users, BarChart } from 'lucide-react';
+import { Plus, Edit, Trash2, Building, Settings, Users, BarChart, PhoneOff } from 'lucide-react';
+import DoNotCallManager from '@/components/admin/DoNotCallManager';
 
 interface Organization {
   id: string;
@@ -594,6 +595,7 @@ const BusinessSettingsPage: React.FC = () => {
                   <TabsList>
                     <TabsTrigger value="settings">Settings</TabsTrigger>
                     <TabsTrigger value="profiles">Profiles</TabsTrigger>
+                    <TabsTrigger value="dnc">Do Not Call</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="settings" className="space-y-4">
@@ -855,6 +857,13 @@ const BusinessSettingsPage: React.FC = () => {
                         No company profiles found
                       </div>
                     )}
+                  </TabsContent>
+
+                  <TabsContent value="dnc" className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-medium">Do Not Call Management</h3>
+                    </div>
+                    <DoNotCallManager />
                   </TabsContent>
                 </Tabs>
               </CardContent>

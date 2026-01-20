@@ -54,15 +54,7 @@ export default function CampaignSelector() {
     );
   }
 
-  if (availableCampaigns.length === 1) {
-    return (
-      <div className="flex items-center text-sm text-gray-700 bg-slate-50 px-3 py-2 rounded-md border border-slate-200">
-        <Target className="h-4 w-4 mr-2 text-slate-600" />
-        <span className="font-medium">{currentCampaign?.name || availableCampaigns[0]?.name}</span>
-      </div>
-    );
-  }
-
+  // Always show dropdown for user transparency, even with 1 campaign
   return (
     <div className="relative">
       <button

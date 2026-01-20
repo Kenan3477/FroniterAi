@@ -101,7 +101,17 @@ export const DialPadModal: React.FC<DialPadModalProps> = ({
     await lookupCustomerInfo(formattedNumber);
 
     // Call the onDial callback with number and customer info
-    onDial(formattedNumber, customerInfo);
+    // Use the latest customerInfo state or create a minimal one
+    const custInfo = customerInfo || {
+      phoneNumber: formattedNumber,
+      firstName: '',
+      lastName: '',
+      address: '',
+      email: '',
+      notes: ''
+    };
+    
+    onDial(formattedNumber, custInfo);
     
     // Keep modal open to show customer info
   };

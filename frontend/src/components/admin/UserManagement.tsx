@@ -277,7 +277,18 @@ export default function UserManagement() {
         console.log('🔍 UserManagement - Available campaign names with status:', 
           availableCampaignsData.data?.map((c: any) => `"${c.name}" (${c.status})`) || []
         );
-        setAvailableCampaigns(availableCampaignsData.data || []);
+        
+        // Filter out deleted campaigns (those with [DELETED] prefix)
+        const filteredCampaigns = (availableCampaignsData.data || []).filter((campaign: any) => {
+          const isDeleted = campaign.name?.startsWith('[DELETED]');
+          if (isDeleted) {
+            console.log(`🗑️ Filtering out deleted campaign from user assignment: ${campaign.name}`);
+          }
+          return !isDeleted;
+        });
+        
+        console.log('🔍 UserManagement - Filtered available campaigns (excluding deleted):', filteredCampaigns.length);
+        setAvailableCampaigns(filteredCampaigns);
       }
     } catch (error) {
       console.error('Failed to fetch campaign data:', error);

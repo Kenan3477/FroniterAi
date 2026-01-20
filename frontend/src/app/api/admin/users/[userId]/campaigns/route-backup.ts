@@ -1,23 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
+// Helper function to get authentication token
 function getAuthToken(request: NextRequest): string | null {
-  // Try to get from Authorization header first
+  // Try Authorization header first
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
+    console.log('🔑 Found Authorization header');
     return authHeader.substring(7);
   }
   
-  // Try to get from cookies
-  const cookies = request.headers.get('cookie');
-  if (cookies) {
-    const match = cookies.match(/auth_token=([^;]+)/);
-    if (match) {
-      return match[1];
+  // Try cookies from request headers (more reliable)
+  const cookieHeader = request.headers.get('cookie');
+  console.log('🍪 Raw cookie header:', cookieHeader);
+  
+  if (cookieHeader) {
+    // Parse both authToken and auth-token from cookie string  
+    const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/) || cookieHeader.match(/auth-token=([^;]+)/);
+    if (authTokenMatch && authTokenMatch[1]) {
+      console.log('✅ Found authToken in cookies');
+      return authTokenMatch[1];
     }
   }
   
+  // Fallback to Next.js cookies API - check both patterns
+  const cookieStore = cookies();
+  const authCookie = cookieStore.get('authToken') || cookieStore.get('auth-token');
+  console.log('🍪 Next.js cookie check:', { 
+    hasCookie: !!authCookie, 
+    cookieValue: authCookie?.value ? 'EXISTS' : 'NULL' 
+  });
+  
+  if (authCookie?.value) {
+    console.log('✅ Using Next.js cookie token for authentication');
+    return authCookie.value;
+  }
+  
+  console.log('❌ No authentication token found');
   return null;
 }
 
@@ -39,7 +60,6 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     const authToken = getAuthToken(request);
     console.log('🍪 Campaign endpoint auth token:', authToken ? 'EXISTS' : 'MISSING');
     
-    // Get all campaigns with their assigned agents
     const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
       method: 'GET',
       headers: {
@@ -59,26 +79,94 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
 
     const campaignData = await response.json();
     
-    // Get all available campaigns
+    // Now get the user info to find their agent record
+    const usersResponse = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+      }
+    });
+
+    if (!usersResponse.ok) {
+      console.error('Failed to get users list', usersResponse.status);
+      const errorText = await usersResponse.text();
+      console.error('Users response error:', errorText);
+      
+      // If we can't get user data, we'll just proceed with ID matching only
+      console.log('Proceeding with ID-only matching since user lookup failed');
+    }
+
+    let user = null;
+    if (usersResponse.ok) {
+      const usersData = await usersResponse.json();
+      console.log('Users data received:', !!usersData);
+      console.log('Users array length:', Array.isArray(usersData) ? usersData.length : (usersData.data?.length || 0));
+      
+      // Handle both direct array and wrapped response formats
+      const users = Array.isArray(usersData) ? usersData : (usersData.data || []);
+      user = users.find((u: any) => u.id.toString() === userId);
+
+      console.log(`Looking for user with ID ${userId}`);
+      console.log('Found user:', !!user);
+      if (user) {
+        console.log('User email:', user.email);
+      }
+    }
+
+    console.log(`🔍 Found user email: ${user.email} for user ID: ${userId}`);
+
+    // Get user's actual campaign assignments from backend (not campaign list filtering)
+    // Use the user ID as agentId to get assignments 
+    const agentCampaignsResponse = await fetch(`${BACKEND_URL}/api/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+      }
+    });
+
+    if (!agentCampaignsResponse.ok) {
+      console.error('Failed to get agent campaign assignments');
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    // Query backend for assignments using AgentCampaignAssignment table
+    // We'll get campaign details by their actual campaignId used in assignments
+    const assignedCampaignIds: string[] = [];
+
+    // Get all available campaigns to map IDs to campaign details
     const allCampaigns = campaignData.data || [];
     
-    // Filter campaigns where this user ID appears in assignedAgents
-    // Look for agent.id matching userId (as string)
+    // Filter campaigns where this user's agent record has an assignment
+    // The backend should return campaigns with assignedAgents populated properly
     const userAssignedCampaigns = allCampaigns.filter((campaign: any) => {
       console.log(`Checking campaign ${campaign.campaignId}:`);
-      console.log('  Assigned agents count:', campaign.assignedAgents?.length || 0);
+      console.log('  Assigned agents:', campaign.assignedAgents);
       
       const isAssigned = campaign.assignedAgents?.some((agent: any) => {
         const matchesId = agent.id === userId;
-        console.log(`  Agent ${agent.id}: matches=${matchesId}`);
-        return matchesId;
+        const matchesAgentId = agent.agentId === userId;
+        const matchesEmail = user?.email ? agent.email === user.email : false;
+        
+        console.log(`  Agent ${agent.id}:`, { matchesId, matchesAgentId, matchesEmail, userEmail: user?.email });
+        
+        return matchesId || matchesAgentId || matchesEmail;
       });
       
-      console.log(`  Campaign ${campaign.campaignId} assigned to user ${userId}: ${isAssigned}`);
+      console.log(`  Campaign ${campaign.campaignId} assigned: ${isAssigned}`);
+      
+      if (isAssigned) {
+        assignedCampaignIds.push(campaign.campaignId);
+      }
       return isAssigned;
     });
     
-    console.log(`✅ Found ${userAssignedCampaigns.length} campaigns assigned to user ID ${userId}`);
+    console.log(`✅ Found ${userAssignedCampaigns.length} campaigns assigned to user ${user?.email || `ID ${userId}`}`);
+    console.log(`📋 Assigned campaign IDs: ${assignedCampaignIds.join(', ')}`);
     
     return NextResponse.json({
       success: true,
@@ -139,21 +227,26 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
       return NextResponse.json({ 
         success: false, 
         message: 'Failed to get user information' 
-      }, { status: 500 });
+      }, { status: 400 });
     }
 
     const usersData = await usersResponse.json();
+    // Handle both direct array and wrapped response formats
     const users = Array.isArray(usersData) ? usersData : (usersData.data || []);
     const user = users.find((u: any) => u.id.toString() === userId);
 
-    if (!user) {
+    if (!user?.email) {
       return NextResponse.json({ 
         success: false, 
-        message: 'User not found' 
-      }, { status: 404 });
+        message: 'User not found or email missing' 
+      }, { status: 400 });
     }
 
-    const agentId = userId; // Use userId as agentId
+    console.log(`🔍 Found user: ${user.email} (ID: ${userId})`);
+
+    // Use user ID directly as agentId - backend will auto-create agent record if needed
+    const agentId = userId.toString();
+    
     console.log(`🔍 Using agentId: ${agentId} for user: ${user.email} (${user.name})`);
 
     // Backend will auto-create agent record from user data if needed

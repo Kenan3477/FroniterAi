@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "name": "omnivox-ai-frontend",
+  "framework": "nextjs",
+  "installCommand": "npm install --prefix frontend",
+  "buildCommand": "npm run build --prefix frontend",
+  "devCommand": "npm run dev --prefix frontend",
+  "outputDirectory": "frontend/.next",
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": "https://froniterai-production.up.railway.app",
+    "NEXT_PUBLIC_API_URL": "https://froniterai-production.up.railway.app"
+  }
+}

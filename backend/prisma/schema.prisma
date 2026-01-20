@@ -549,6 +549,21 @@ model UserCampaignAssignment {
   @@map("user_campaign_assignments")
 }
 
+// DNC (Do Not Call) Management Model
+model DncNumber {
+  id             Int      @id @default(autoincrement())
+  phoneNumber    String   @unique @db.VarChar(20) // Normalized number (e.g., "+1234567890")
+  originalFormat String   @db.VarChar(30) // Original format (e.g., "(123) 456-7890")
+  reason         String?  @db.Text // Reason for adding to DNC list
+  addedBy        String   @db.VarChar(255) // Who added this number
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([createdAt])
+  @@map("dnc_numbers")
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   token     String    @unique

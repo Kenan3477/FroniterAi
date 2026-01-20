@@ -193,7 +193,8 @@ export const CallRecordsView: React.FC = () => {
       }
 
       // Use the recording streaming endpoint for playback
-      const streamUrl = `https://froniterai-production.up.railway.app/api/recordings/${recordId}/stream`;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+      const streamUrl = `${backendUrl}/api/recordings/${recordId}/stream`;
       
       // Create audio element for playback
       const audioElement = new Audio(streamUrl);
@@ -496,7 +497,7 @@ export const CallRecordsView: React.FC = () => {
                         </span>
                       </button>
                       <a
-                        href={`https://froniterai-production.up.railway.app/api/recordings/${record.recordingFile.id}/download`}
+                        href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app'}/api/recordings/${record.recordingFile.id}/download`}
                         download
                         className="flex items-center text-gray-600 hover:text-gray-800"
                         title="Download recording"
@@ -664,7 +665,7 @@ export const CallRecordsView: React.FC = () => {
                       {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
                     </button>
                     <a
-                      href={`https://froniterai-production.up.railway.app/api/recordings/${selectedRecord.recordingFile.id}/download`}
+                      href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app'}/api/recordings/${selectedRecord.recordingFile.id}/download`}
                       download
                       className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                     >
