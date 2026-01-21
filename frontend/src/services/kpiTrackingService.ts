@@ -3,7 +3,7 @@
  * Handles all call disposition data storage and aggregation for reports
  */
 
-import { PrismaClient, CallKPI as PrismaCallKPI } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
