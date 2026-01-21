@@ -22,7 +22,7 @@ async function testAnalytics() {
     });
     
     console.log('\n📋 Recent Call Records:');
-    recentCalls.forEach((call: any, i) => {
+    recentCalls.forEach((call: any, i: number) => {
       console.log(`${i + 1}. ${call.contact?.firstName} ${call.contact?.lastName} (${call.contact?.phone})`);
       console.log(`   Agent: ${call.agent?.firstName} ${call.agent?.lastName}`);
       console.log(`   Campaign: ${call.campaign?.name}`);
