@@ -331,11 +331,11 @@ export async function getExportStats(options: ExportOptions) {
 
     return {
       totalContacts,
-      statusBreakdown: statusCounts.reduce((acc, item) => {
+      statusBreakdown: statusCounts.reduce((acc: any, item: any) => {
         acc[item.status] = item._count.status;
         return acc;
       }, {} as Record<string, number>),
-      outcomeBreakdown: outcomeCounts.reduce((acc, item) => {
+      outcomeBreakdown: outcomeCounts.reduce((acc: any, item: any) => {
         acc[item.lastOutcome || 'Unknown'] = item._count.lastOutcome;
         return acc;
       }, {} as Record<string, number>)
