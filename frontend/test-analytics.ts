@@ -22,7 +22,7 @@ async function testAnalytics() {
     });
     
     console.log('\n📋 Recent Call Records:');
-    recentCalls.forEach((call, i) => {
+    recentCalls.forEach((call: any, i) => {
       console.log(`${i + 1}. ${call.contact?.firstName} ${call.contact?.lastName} (${call.contact?.phone})`);
       console.log(`   Agent: ${call.agent?.firstName} ${call.agent?.lastName}`);
       console.log(`   Campaign: ${call.campaign?.name}`);
@@ -38,7 +38,7 @@ async function testAnalytics() {
     });
     
     console.log('📊 Call Outcomes Breakdown:');
-    callOutcomes.forEach(outcome => {
+    callOutcomes.forEach((outcome: any) => {
       console.log(`   ${outcome.outcome || 'Unknown'}: ${outcome._count.id} calls`);
     });
     
@@ -57,7 +57,7 @@ async function testAnalytics() {
     });
     
     console.log('\n📈 Disposition Usage:');
-    dispositionUsage.forEach(d => {
+    dispositionUsage.forEach((d: any) => {
       console.log(`   ${d.name} (${d.category}): ${d._count.callRecords} uses`);
     });
     
@@ -76,7 +76,7 @@ async function testAnalytics() {
     });
     
     console.log('\n👥 Agent Performance:');
-    agentStats.forEach(agent => {
+    agentStats.forEach((agent: any) => {
       console.log(`   ${agent.firstName} ${agent.lastName}: ${agent._count.callRecords} calls`);
     });
     
