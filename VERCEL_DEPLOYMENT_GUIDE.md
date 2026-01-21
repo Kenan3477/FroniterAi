@@ -6,14 +6,20 @@ This guide will help you deploy:
 - **Backend**: Already running on Railway (`https://froniterai-production.up.railway.app`)
 - **Frontend**: Deploy to Vercel with proper backend integration
 
-### ✅ Pre-Deployment Configuration Complete
+### ✅ Pre-Deployment Configuration Complete - LATEST FIXES APPLIED
 
-All necessary configuration files have been created:
-- ✅ `frontend/vercel.json` - Vercel deployment configuration
+All necessary configuration files have been created and fixed:
+- ✅ `frontend/vercel.json` - **FIXED**: Moved to correct location and cleaned up
 - ✅ `frontend/.env.production` - Production environment template
 - ✅ `frontend/next.config.js` - Updated with Railway backend URLs
 - ✅ Fixed all hardcoded URLs to use environment variables
 - ✅ All API routes properly configured to proxy to Railway backend
+
+**🔧 LATEST FIXES (Commit: d6de6c3)**
+- ✅ Moved `vercel.json` from root to `frontend/vercel.json` 
+- ✅ Fixed build path resolution issues
+- ✅ Clean JSON configuration without duplicate keys
+- ✅ Proper Next.js framework detection configured
 
 ---
 
