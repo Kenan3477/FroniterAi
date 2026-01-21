@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
@@ -28,7 +28,7 @@ interface KPIMetric {
   format?: 'number' | 'percentage' | 'duration' | 'currency';
 }
 
-export default function ReportViewPage() {
+function ReportViewPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -324,5 +324,13 @@ export default function ReportViewPage() {
         )}
       </div>
     </MainLayout>
+  );
+}
+
+export default function ReportViewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <ReportViewPageContent />
+    </Suspense>
   );
 }

@@ -7,9 +7,11 @@ export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 export const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
-// Security validation
-if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
-  throw new Error('SECURITY ERROR: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+// Security validation - only check during runtime, not build time
+function validateJWTSecrets() {
+  if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+    throw new Error('SECURITY ERROR: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+  }
 }
 
 // Password utilities
@@ -31,6 +33,7 @@ export interface JWTPayload {
 }
 
 export const generateAccessToken = (payload: JWTPayload): string => {
+  validateJWTSecrets();
   const secret = JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET is not defined');
@@ -44,6 +47,7 @@ export const generateAccessToken = (payload: JWTPayload): string => {
 };
 
 export const generateRefreshToken = (payload: JWTPayload): string => {
+  validateJWTSecrets();
   const secret = JWT_REFRESH_SECRET;
   if (!secret) {
     throw new Error('JWT_REFRESH_SECRET is not defined');
@@ -57,10 +61,12 @@ export const generateRefreshToken = (payload: JWTPayload): string => {
 };
 
 export const verifyAccessToken = (token: string): JWTPayload => {
+  validateJWTSecrets();
   return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
 };
 
 export const verifyRefreshToken = (token: string): JWTPayload => {
+  validateJWTSecrets();
   return jwt.verify(token, JWT_REFRESH_SECRET as string) as JWTPayload;
 };
 
