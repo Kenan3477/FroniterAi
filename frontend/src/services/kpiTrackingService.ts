@@ -116,7 +116,7 @@ export async function getKPISummary(filters: {
 
     // Calculate summary metrics
     const totalCalls = kpiRecords.length;
-    const totalDuration = kpiRecords.reduce((sum, record) => sum + record.callDuration, 0);
+    const totalDuration = kpiRecords.reduce((sum: number, record) => sum + record.callDuration, 0);
     const averageDuration = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
     
     const positiveCalls = kpiRecords.filter(r => r.dispositionCategory === 'positive').length;
