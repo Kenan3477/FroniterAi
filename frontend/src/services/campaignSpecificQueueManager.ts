@@ -168,7 +168,7 @@ export async function manageAllCampaignDialling() {
     console.log(`🎯 Managing dialling for ${activeCampaigns.length} active campaigns`);
     
     const results = await Promise.all(
-      activeCampaigns.map(campaign => manageCampaignDialling(campaign.campaignId))
+      activeCampaigns.map((campaign: any) => manageCampaignDialling(campaign.campaignId))
     );
     
     return results;
