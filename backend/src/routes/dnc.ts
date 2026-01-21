@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.js';
-import { PrismaClient } from '@prisma/client';
+import { authenticate } from '../middleware/auth.js';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -14,7 +14,7 @@ function normalizePhoneNumber(phoneNumber: string): string {
  * GET /api/admin/dnc
  * Get all DNC numbers with pagination and search
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const { page = 1, limit = 100, search = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -22,10 +22,10 @@ router.get('/', authenticateToken, async (req, res) => {
     const whereClause = search
       ? {
           OR: [
-            { phoneNumber: { contains: search as string, mode: 'insensitive' } },
-            { originalFormat: { contains: search as string, mode: 'insensitive' } },
-            { reason: { contains: search as string, mode: 'insensitive' } },
-            { addedBy: { contains: search as string, mode: 'insensitive' } }
+            { phoneNumber: { contains: search as string, mode: Prisma.QueryMode.insensitive } },
+            { originalFormat: { contains: search as string, mode: Prisma.QueryMode.insensitive } },
+            { reason: { contains: search as string, mode: Prisma.QueryMode.insensitive } },
+            { addedBy: { contains: search as string, mode: Prisma.QueryMode.insensitive } }
           ]
         }
       : {};
@@ -63,7 +63,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * POST /api/admin/dnc
  * Add number to DNC list
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { phoneNumber, reason, addedBy } = req.body;
     
@@ -130,7 +130,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * DELETE /api/admin/dnc/:id
  * Remove number from DNC list
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -168,7 +168,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * POST /api/admin/dnc/check
  * Check if number is on DNC list
  */
-router.post('/check', authenticateToken, async (req, res) => {
+router.post('/check', authenticate, async (req, res) => {
   try {
     const { phoneNumber } = req.body;
     
@@ -205,7 +205,7 @@ router.post('/check', authenticateToken, async (req, res) => {
  * POST /api/admin/dnc/bulk-import
  * Bulk import DNC numbers
  */
-router.post('/bulk-import', authenticateToken, async (req, res) => {
+router.post('/bulk-import', authenticate, async (req, res) => {
   try {
     const { numbers, reason, addedBy } = req.body;
     
@@ -283,7 +283,7 @@ router.post('/bulk-import', authenticateToken, async (req, res) => {
  * GET /api/admin/dnc/stats
  * Get DNC statistics
  */
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticate, async (req, res) => {
   try {
     const totalCount = await prisma.dncNumber.count();
     const todayCount = await prisma.dncNumber.count({
