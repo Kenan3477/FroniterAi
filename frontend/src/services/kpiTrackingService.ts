@@ -116,11 +116,11 @@ export async function getKPISummary(filters: {
 
     // Calculate summary metrics
     const totalCalls = kpiRecords.length;
-    const totalDuration = kpiRecords.reduce((sum: number, record) => sum + record.callDuration, 0);
+    const totalDuration = kpiRecords.reduce((sum: number, record: any) => sum + record.callDuration, 0);
     const averageDuration = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
     
-    const positiveCalls = kpiRecords.filter(r => r.dispositionCategory === 'positive').length;
-    const contactedCalls = kpiRecords.filter(r => 
+    const positiveCalls = kpiRecords.filter((r: any) => r.dispositionCategory === 'positive').length;
+    const contactedCalls = kpiRecords.filter((r: any) => 
       r.dispositionCategory === 'positive' || 
       ['answered', 'interested', 'callback'].includes(r.outcome.toLowerCase())
     ).length;
@@ -129,26 +129,26 @@ export async function getKPISummary(filters: {
     const contactRate = totalCalls > 0 ? Math.round((contactedCalls / totalCalls) * 100) : 0;
 
     // Disposition breakdown
-    const dispositionBreakdown = kpiRecords.reduce((acc, record) => {
+    const dispositionBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       acc[record.disposition] = (acc[record.disposition] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Category breakdown
-    const categoryBreakdown = kpiRecords.reduce((acc, record) => {
+    const categoryBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       acc[record.dispositionCategory] = (acc[record.dispositionCategory] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Hourly breakdown
-    const hourlyBreakdown = kpiRecords.reduce((acc, record) => {
+    const hourlyBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       const hour = `${record.hourOfDay.toString().padStart(2, '0')}:00`;
       acc[hour] = (acc[hour] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Daily breakdown  
-    const dailyBreakdown = kpiRecords.reduce((acc, record) => {
+    const dailyBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const dayName = days[record.dayOfWeek];
       acc[dayName] = (acc[dayName] || 0) + 1;
@@ -156,14 +156,14 @@ export async function getKPISummary(filters: {
     }, {} as Record<string, number>);
 
     // Campaign breakdown
-    const campaignBreakdown = kpiRecords.reduce((acc, record) => {
+    const campaignBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       const campaignName = record.campaign?.name || 'Unknown';
       acc[campaignName] = (acc[campaignName] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Agent breakdown
-    const agentBreakdown = kpiRecords.reduce((acc, record) => {
+    const agentBreakdown = kpiRecords.reduce((acc: any, record: any) => {
       const agentName = record.agent ? `${record.agent.firstName} ${record.agent.lastName}` : 'Unknown';
       acc[agentName] = (acc[agentName] || 0) + 1;
       return acc;
@@ -235,7 +235,7 @@ export async function getHourlyBreakdown(filters: {
       }
     });
 
-    return hourlyData.map(hour => ({
+    return hourlyData.map((hour: any) => ({
       hour: `${hour.hourOfDay.toString().padStart(2, '0')}:00`,
       totalCalls: hour._count.callId,
       avgDuration: Math.round(hour._avg.callDuration || 0)
@@ -280,9 +280,9 @@ export async function getOutcomePenetration(filters: {
       }
     });
 
-    const total = outcomeData.reduce((sum, item) => sum + item._count.callId, 0);
+    const total = outcomeData.reduce((sum: number, item: any) => sum + item._count.callId, 0);
 
-    return outcomeData.map(item => ({
+    return outcomeData.map((item: any) => ({
       disposition: item.disposition,
       category: item.dispositionCategory,
       count: item._count.callId,
@@ -330,7 +330,7 @@ export async function getAgentPerformance(filters: {
     });
 
     const agentPerformance = await Promise.all(
-      agentData.map(async (agent) => {
+      agentData.map(async (agent: any) => {
         const agentInfo = await prisma.agent.findUnique({
           where: { agentId: agent.agentId },
           select: { firstName: true, lastName: true }
