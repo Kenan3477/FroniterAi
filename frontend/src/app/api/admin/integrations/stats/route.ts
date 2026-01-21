@@ -66,8 +66,8 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
     // Format the response
     const stats = {
       integrations: {
-        total: integrationStats.reduce((sum, stat) => sum + stat.count, 0),
-        byStatus: integrationStats.reduce((acc, stat) => {
+        total: integrationStats.reduce((sum: number, stat: any) => sum + stat.count, 0),
+        byStatus: integrationStats.reduce((acc: any, stat: any) => {
           acc[stat.status] = stat.count;
           return acc;
         }, {})
@@ -77,7 +77,7 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
         active: webhookStats[0]?.activeWebhooks || 0
       },
       deliveries: {
-        last24Hours: deliveryStats.reduce((acc, stat) => {
+        last24Hours: deliveryStats.reduce((acc: any, stat: any) => {
           acc[stat.status] = stat.count;
           return acc;
         }, {})

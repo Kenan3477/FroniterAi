@@ -224,7 +224,7 @@ export class PredictiveDialingEngine {
     let weightedSum = currentValue * 0.3; // 30% weight for current value
     let totalWeight = 0.3;
 
-    historical.slice(-10).forEach((data, index) => {
+    historical.slice(-10).forEach((data: any, index: number) => {
       const weight = (index + 1) / 10 * 0.7; // Distribute 70% across historical data
       weightedSum += (data[metric] as number) * weight;
       totalWeight += weight;

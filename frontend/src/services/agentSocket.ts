@@ -337,7 +337,7 @@ export class AgentSocketService {
     if (!this.events[event]) return;
     
     if (callback) {
-      this.events[event] = this.events[event].filter(cb => cb !== callback);
+      this.events[event] = this.events[event].filter((cb: any) => cb !== callback);
     } else {
       delete this.events[event];
     }
@@ -345,7 +345,7 @@ export class AgentSocketService {
 
   private emit(event: string, data?: any) {
     if (this.events[event]) {
-      this.events[event].forEach(callback => callback(data));
+      this.events[event].forEach((callback: any) => callback(data));
     }
   }
 

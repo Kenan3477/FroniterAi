@@ -266,7 +266,7 @@ export class TwilioSipClient extends EventEmitter {
     console.log('🔌 Disconnecting from Twilio SIP...');
     
     // End all active calls
-    this.activeCalls.forEach(call => {
+    this.activeCalls.forEach((call: any) => {
       this.endCall(call.id);
     });
 
