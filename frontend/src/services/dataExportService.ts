@@ -252,7 +252,7 @@ export async function exportCallSummary(options: ExportOptions): Promise<Buffer>
       orderBy: { startTime: 'desc' }
     });
 
-    const summaryData = callRecords.map(call => ({
+    const summaryData = callRecords.map((call: any) => ({
       call_date: formatDateTime(call.startTime),
       call_duration: call.duration || 0,
       contact_name: `${call.contact.firstName} ${call.contact.lastName}`,
