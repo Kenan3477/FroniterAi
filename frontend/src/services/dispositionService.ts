@@ -85,9 +85,9 @@ export async function getDispositionsByCategory() {
     });
 
     return {
-      negative: dispositions.filter(d => d.category === 'negative'),
-      neutral: dispositions.filter(d => d.category === 'neutral'),
-      positive: dispositions.filter(d => d.category === 'positive')
+      negative: dispositions.filter((d: any) => d.category === 'negative'),
+      neutral: dispositions.filter((d: any) => d.category === 'neutral'),
+      positive: dispositions.filter((d: any) => d.category === 'positive')
     };
 
   } catch (error) {
@@ -115,12 +115,12 @@ export async function getCampaignDispositions(campaignId: string) {
     }
 
     // Group campaign dispositions by category
-    const dispositions = campaignDispositions.map(cd => cd.disposition);
+    const dispositions = campaignDispositions.map((cd: any) => cd.disposition);
     
     return {
-      negative: dispositions.filter(d => d.category === 'negative'),
-      neutral: dispositions.filter(d => d.category === 'neutral'),
-      positive: dispositions.filter(d => d.category === 'positive')
+      negative: dispositions.filter((d: any) => d.category === 'negative'),
+      neutral: dispositions.filter((d: any) => d.category === 'neutral'),
+      positive: dispositions.filter((d: any) => d.category === 'positive')
     };
 
   } catch (error) {
