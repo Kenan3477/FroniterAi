@@ -106,12 +106,12 @@ export async function exportContactData(options: ExportOptions): Promise<Buffer>
     console.log(`📊 Found ${contacts.length} contacts to export`);
 
     // Transform data for export
-    const exportData: ExportedContact[] = contacts.map(contact => {
+    const exportData: ExportedContact[] = contacts.map((contact: any) => {
       const callRecords = contact.callRecords || [];
       const firstCall = callRecords[0];
       const lastCall = callRecords[callRecords.length - 1];
       
-      const totalDuration = callRecords.reduce((sum, call) => sum + (call.duration || 0), 0);
+      const totalDuration = callRecords.reduce((sum: number, call: any) => sum + (call.duration || 0), 0);
       
       return {
         // Original data
