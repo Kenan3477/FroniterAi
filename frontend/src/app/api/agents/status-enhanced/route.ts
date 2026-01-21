@@ -447,7 +447,7 @@ async function setAgentAvailable(agentId: string, campaignId: string) {
         campaignId,
         queueDepth,
         hasImmediateCall: !!nextCall,
-        dataLists: campaignLists.map(list => ({
+        dataLists: campaignLists.map((list: any) => ({
           listId: list.listId,
           name: list.name,
           totalContacts: list.totalContacts,
