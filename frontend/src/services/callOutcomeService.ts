@@ -328,7 +328,7 @@ export async function getContactSummary(contactId: string) {
         successfulContacts,
         lastCallDuration: contact.callRecords[0]?.duration || 0,
         averageCallDuration: totalCalls > 0 
-          ? Math.round(contact.callRecords.reduce((sum, call) => sum + (call.duration || 0), 0) / totalCalls)
+          ? Math.round(contact.callRecords.reduce((sum: number, call) => sum + (call.duration || 0), 0) / totalCalls)
           : 0
       }
     };
