@@ -7,7 +7,9 @@ const nextConfig = {
   },
   output: 'standalone',
   experimental: {
-    outputFileTracingExcludes: ['**/.git/**'],
+    outputFileTracingExcludes: {
+      '/': ['**/.git/**'],
+    },
   },
   async rewrites() {
     return [

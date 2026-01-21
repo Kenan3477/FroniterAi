@@ -306,7 +306,7 @@ export async function getContactSummary(contactId: string) {
     }
 
     const totalCalls = contact.callRecords.length;
-    const successfulContacts = contact.callRecords.filter(call => 
+    const successfulContacts = contact.callRecords.filter((call: any) => 
       ['answered', 'interested', 'qualified'].includes(call.outcome || '')
     ).length;
 
