@@ -21,6 +21,7 @@ import {
   ListBulletIcon,
   ChartBarIcon,
   PhoneIcon,
+  PhoneXMarkIcon,
 } from '@heroicons/react/24/outline';
 
 interface AdminSidebarProps {
@@ -65,6 +66,11 @@ const adminSections = [
     name: 'Data Management', 
     icon: CircleStackIcon,
     description: 'Manage data sources and databases'
+  },
+  { 
+    name: 'Do Not Call (DNC)', 
+    icon: PhoneXMarkIcon,
+    description: 'Manage Do Not Call registry and compliance'
   },
   { 
     name: 'Flows', 

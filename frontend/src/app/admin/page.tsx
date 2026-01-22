@@ -10,6 +10,7 @@ import ApiManagement from '@/components/admin/ApiManagement';
 import AppsIntegrations from '@/components/admin/AppsIntegrations';
 import BusinessSettingsPage from '@/components/admin/BusinessSettingsPage';
 import CampaignManagementPage from '@/components/admin/CampaignManagementPage';
+import DoNotCallPage from '@/components/admin/DoNotCallPage';
 import FlowsManagement from '@/components/flows/FlowsManagement';
 import ChannelsManagement from '@/components/admin/ChannelsManagement';
 import ReportsSystem from '@/components/admin/ReportsSystem';
@@ -554,6 +555,8 @@ export default function AdminPage() {
               <BusinessSettingsPage />
             ) : selectedSection === 'Campaigns' ? (
               <CampaignManagementPage />
+            ) : selectedSection === 'Do Not Call (DNC)' ? (
+              <DoNotCallPage />
             ) : selectedSection === 'Channels' ? (
               <div className="p-6">
                 <ChannelsManagement />
@@ -575,15 +578,16 @@ export default function AdminPage() {
                   <div className="text-center">
                     <div className="text-6xl mb-4">
                       {selectedSection === 'User Management' && '👥'}
-                      {selectedSection === 'API' && '�'}
+                      {selectedSection === 'API' && '🔑'}
                       {selectedSection === 'Apps and Integrations' && '🔗'}
                       {selectedSection === 'Business Settings' && '🏢'}
                       {selectedSection === 'Campaigns' && '📢'}
+                      {selectedSection === 'Do Not Call (DNC)' && '🚫'}
                       {selectedSection === 'Channels' && '📡'}
                       {selectedSection === 'Flows' && '🔄'}
                       {selectedSection === 'Inbound Queues' && '📥'}
                       {selectedSection === 'SLAs' && '⏱️'}
-                      {selectedSection === 'Views' && '�️'}
+                      {selectedSection === 'Views' && '👁️'}
                       {selectedSection === 'Dialer Configuration' && '📞'}
                       {selectedSection === 'Reports & Analytics' && '📊'}
                       {selectedSection === 'Templates & Scripts' && '📄'}
@@ -603,6 +607,7 @@ export default function AdminPage() {
                       {selectedSection === 'Apps and Integrations' && 'Configure third-party applications and integrations'}
                       {selectedSection === 'Business Settings' && 'Configure general business settings and preferences'}
                       {selectedSection === 'Campaigns' && 'Create and manage marketing campaigns'}
+                      {selectedSection === 'Do Not Call (DNC)' && 'Manage Do Not Call registry and compliance settings'}
                       {selectedSection === 'Channels' && 'Configure communication channels and routing'}
                       {selectedSection === 'Flows' && 'Design and manage workflow automation'}
                       {selectedSection === 'Inbound Queues' && 'Manage incoming message queues and routing'}
