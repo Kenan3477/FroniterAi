@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Real system overview from backend - no more mock data!
 export async function GET() {
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
     console.log('📊 Fetching system overview from backend...');
     

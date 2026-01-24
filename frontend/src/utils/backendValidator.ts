@@ -11,7 +11,7 @@ class BackendConnectionValidator {
   private maxRetries: number = 5;
   
   constructor() {
-    this.backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    this.backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
   }
 
   async validateConnection(): Promise<boolean> {

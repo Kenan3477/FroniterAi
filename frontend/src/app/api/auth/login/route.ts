@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     console.log('🔐 Frontend API: Login attempt for:', loginIdentifier);
 
     // Connect to backend authentication instead of using demo credentials
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
     console.log('🔐 Attempting backend authentication for:', loginIdentifier);
     console.log('📡 Backend URL:', `${backendUrl}/api/auth/login`);

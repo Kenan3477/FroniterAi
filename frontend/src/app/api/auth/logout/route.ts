@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       console.log('🔑 Found auth token, notifying backend...');
       
       // Notify backend of logout (optional - for session cleanup)
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
       
       try {
         const backendResponse = await fetch(`${backendUrl}/api/auth/logout`, {

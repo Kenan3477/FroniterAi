@@ -148,7 +148,7 @@ class APIClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app',
+      baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

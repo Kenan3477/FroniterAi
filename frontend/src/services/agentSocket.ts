@@ -78,7 +78,7 @@ export class AgentSocketService {
 
   private setupSocket() {
     // Get the backend URL (Railway in production, localhost in development)
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
     console.log('🔌 Connecting to WebSocket at:', backendUrl);
     

@@ -40,7 +40,7 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
     // Step 1: Check DNC (Do Not Call) list first
     console.log('🔍 Checking DNC status for number:', params.to);
     
-    const dncCheckResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dnc/check`, {
+    const dncCheckResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/dnc/check`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
     // Step 2: Make actual API call to backend for call initiation
     console.log('📞 Initiating call via backend REST API');
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/calls/call-rest-api`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/calls/call-rest-api`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',

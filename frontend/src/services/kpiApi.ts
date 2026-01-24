@@ -3,7 +3,7 @@
  * Updated to use new comprehensive backend KPI endpoints
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 export interface KPISummary {
   totalCalls: number;

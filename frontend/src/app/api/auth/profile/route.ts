@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     console.log('🔑 Auth token found, optimizing for Railway backend...');
     
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
     // OPTIMIZED: Try fast JWT first, then Railway backend with timeout
     try {

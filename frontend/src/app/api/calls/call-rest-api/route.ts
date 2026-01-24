@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Use environment variable for backend URL - FIXED: No hardcoded URLs
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 export async function POST(request: NextRequest) {
   try {

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     console.log('📤 Answer call request body:', body);
 
     // Get backend URL
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     const endpoint = `${backendUrl}/api/calls/inbound-answer`;
 
     // Make request to backend with timeout
