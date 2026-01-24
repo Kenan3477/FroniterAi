@@ -462,11 +462,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Upload data to list with advanced wizard
   const handleUploadData = (list: DataList) => {
-    console.log(`📤 Opening advanced upload wizard for data list: ${list.name}`);
+    console.log(`📤 Opening advanced upload wizard for data list:`, list);
+    console.log(`📤 Current state:`, { isUploadWizardOpen, uploadTargetList });
     setUploadTargetList(list);
     setIsUploadWizardOpen(true);
     setUploadData(prev => ({ ...prev, step: 'fileUpload' }));
     setOpenDropdown(null);
+    console.log(`📤 After state update - wizard should be open now`);
   };
 
   // Handle file selection with advanced processing
@@ -825,6 +827,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                     </button>
                                     <button 
                                       onClick={() => {
+                                        console.log('🔍 Upload Data button clicked for list:', list);
                                         setOpenDropdown(null);
                                         handleUploadData(list);
                                       }}
@@ -937,14 +940,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       )}
 
       {/* Advanced Upload Wizard */}
-      {isUploadWizardOpen && uploadTargetList && (
+      {(() => {
+        console.log('🔍 Modal render check:', { isUploadWizardOpen, uploadTargetList: !!uploadTargetList });
+        return isUploadWizardOpen && uploadTargetList;
+      })() && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
             
             {/* Header with progress */}
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h2 className="text-xl font-semibold text-gray-900">
-                Advanced Upload Wizard - "{uploadTargetList.name}"
+                Advanced Upload Wizard - "{uploadTargetList?.name}"
               </h2>
               <div className="mt-3 flex items-center space-x-2">
                 {[
