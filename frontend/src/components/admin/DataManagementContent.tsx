@@ -887,10 +887,54 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <p className="mt-2 text-gray-600">Select a data list to upload contacts to.</p>
             </div>
             
-            {dataLists.length > 0 ? (
+            <div className="bg-yellow-100 border border-yellow-400 rounded p-4">
+              <p className="text-yellow-800">🔍 Debug: dataLists.length = {dataLists.length}</p>
+              <p className="text-yellow-800">🔍 Debug: loading = {loading.toString()}</p>
+              <p className="text-yellow-800">🔍 Debug: error = {error || 'none'}</p>
+              <p className="text-yellow-800">🔍 Debug: isUploadWizardOpen = {isUploadWizardOpen.toString()}</p>
+              <p className="text-yellow-800">🔍 Debug: uploadTargetList = {uploadTargetList ? uploadTargetList.name : 'null'}</p>
+              
+              <button 
+                onClick={() => {
+                  console.log('🧪 TEST: Force opening modal');
+                  setIsUploadWizardOpen(true);
+                  setUploadTargetList({ 
+                    id: 'test', 
+                    name: 'Test List', 
+                    description: 'Test',
+                    campaign: 'Test',
+                    total: 0,
+                    available: 0,
+                    dialAttempts: 0,
+                    lastDialed: '',
+                    status: 'Active' as const,
+                    createdAt: new Date(),
+                    listId: 'test'
+                  });
+                  alert('Force opened modal - check if it appears');
+                }}
+                className="mt-2 px-4 py-2 bg-red-500 text-white rounded"
+              >
+                🧪 TEST: Force Open Modal
+              </button>
+            </div>
+            
+            {loading && (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Loading data lists...</p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="text-center py-8">
+                <p className="text-red-600">Error: {error}</p>
+              </div>
+            )}
+            
+            {!loading && !error && dataLists.length > 0 ? (
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h4 className="text-lg font-medium text-gray-900">Available Data Lists</h4>
+                  <h4 className="text-lg font-medium text-gray-900">Available Data Lists ({dataLists.length} found)</h4>
                 </div>
                 <div className="divide-y divide-gray-200">
                   {dataLists.map((list) => (
@@ -899,12 +943,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <h5 className="text-sm font-medium text-gray-900">{list.name}</h5>
                         <p className="text-sm text-gray-600">{list.description}</p>
                         <p className="text-xs text-gray-500">
-                          {list.total} contacts • Status: {list.status}
+                          {list.total} contacts • Status: {list.status} • ID: {list.id}
                         </p>
                       </div>
                       <button
                         onClick={() => {
                           console.log('🎯 Direct upload button clicked for:', list);
+                          console.log('🎯 Button click event fired successfully');
+                          alert(`Button clicked for: ${list.name}`);
                           handleUploadData(list);
                         }}
                         className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -915,11 +961,11 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : !loading && !error ? (
               <div className="text-center py-8">
                 <p className="text-gray-600">No data lists available. Create one first in the "Create Data Lists" tab.</p>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
