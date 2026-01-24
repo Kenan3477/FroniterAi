@@ -564,7 +564,16 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Complete upload with advanced processing
   const handleCompleteUpload = async () => {
-    if (!uploadData.file || !uploadTargetList) return;
+    if (!uploadData.file || !uploadTargetList) {
+      console.error('❌ Upload missing required data:', { file: !!uploadData.file, targetList: !!uploadTargetList });
+      return;
+    }
+
+    console.log('📤 Starting upload process...', { 
+      fileName: uploadData.file.name, 
+      targetList: uploadTargetList.name,
+      listId: uploadTargetList.id 
+    });
 
     try {
       // Process file based on mapping
@@ -606,6 +615,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         return contact.firstName || contact.lastName || contact.telephone1 || contact.tel1;
       });
 
+      console.log('📋 Processed contacts:', { 
+        totalProcessed: contacts.length, 
+        sampleContact: contacts[0],
+        targetListId: uploadTargetList.id 
+      });
+
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -625,16 +640,23 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       }
 
       const result = await response.json();
+      console.log('📤 Upload response:', result);
+      
       if (result.success) {
+        const uploadStats = result.data || {};
         setUploadData(prev => ({
           ...prev,
           step: 'complete',
-          validContacts: contacts.length
+          validContacts: uploadStats.totalProcessed || contacts.length,
+          duplicateContacts: uploadStats.duplicatesSkipped || 0,
+          invalidContacts: uploadStats.invalidContacts || 0,
+          dncContacts: uploadStats.dncRejected || 0
         }));
         
         fetchDataLists(); // Refresh to show updated contact counts
+        console.log('✅ Upload completed successfully');
       } else {
-        throw new Error(result.error?.message || 'Upload failed');
+        throw new Error(result.error?.message || result.message || 'Upload failed');
       }
     } catch (error) {
       console.error('Error uploading data:', error);
@@ -1488,25 +1510,22 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
                 {uploadData.step === 'uploadReview' && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setUploadData(prev => ({ ...prev, step: 'upload' }));
-                      // Start upload process
-                      setTimeout(() => {
+                      
+                      try {
                         // Save template if requested
                         if (uploadData.saveAsTemplate && uploadData.templateName) {
                           createTemplateFromMappings(uploadData.templateName, uploadData.primaryColumns);
                         }
                         
-                        handleCompleteUpload();
-                        setUploadData(prev => ({ 
-                          ...prev, 
-                          step: 'complete',
-                          validContacts: 245,
-                          duplicateContacts: 12,
-                          invalidContacts: 8,
-                          dncContacts: 3
-                        }));
-                      }, 2000);
+                        // Execute the actual upload
+                        await handleCompleteUpload();
+                      } catch (error) {
+                        console.error('Upload failed:', error);
+                        // Reset to review step on error
+                        setUploadData(prev => ({ ...prev, step: 'uploadReview' }));
+                      }
                     }}
                     className="px-6 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
                   >
