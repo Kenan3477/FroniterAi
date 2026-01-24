@@ -316,6 +316,15 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     fetchDataLists();
   }, []);
 
+  // Debug: Monitor modal state changes
+  useEffect(() => {
+    console.log('🔍 REACT STATE CHANGE - isUploadWizardOpen changed to:', isUploadWizardOpen);
+  }, [isUploadWizardOpen]);
+
+  useEffect(() => {
+    console.log('🔍 REACT STATE CHANGE - uploadTargetList changed to:', uploadTargetList);
+  }, [uploadTargetList]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -462,13 +471,31 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Upload data to list with advanced wizard
   const handleUploadData = (list: DataList) => {
-    console.log(`📤 Opening advanced upload wizard for data list:`, list);
-    console.log(`📤 Current state:`, { isUploadWizardOpen, uploadTargetList });
-    setUploadTargetList(list);
-    setIsUploadWizardOpen(true);
-    setUploadData(prev => ({ ...prev, step: 'fileUpload' }));
-    setOpenDropdown(null);
-    console.log(`📤 After state update - wizard should be open now`);
+    console.log(`📤 === HANDLE UPLOAD DATA FUNCTION CALLED ===`);
+    console.log(`📤 List parameter:`, list);
+    console.log(`📤 Current state BEFORE updates:`, { 
+      isUploadWizardOpen, 
+      uploadTargetList,
+      uploadDataStep: uploadData.step 
+    });
+    
+    try {
+      setUploadTargetList(list);
+      console.log(`📤 setUploadTargetList called with:`, list);
+      
+      setIsUploadWizardOpen(true);
+      console.log(`📤 setIsUploadWizardOpen called with: true`);
+      
+      setUploadData(prev => ({ ...prev, step: 'fileUpload' }));
+      console.log(`📤 setUploadData called to set step to 'fileUpload'`);
+      
+      setOpenDropdown(null);
+      console.log(`📤 setOpenDropdown called with: null`);
+      
+      console.log(`📤 === ALL STATE SETTERS CALLED ===`);
+    } catch (error) {
+      console.error(`📤 ERROR in handleUploadData:`, error);
+    }
   };
 
   // Handle file selection with advanced processing
@@ -947,11 +974,25 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         </p>
                       </div>
                       <button
-                        onClick={() => {
-                          console.log('🎯 Direct upload button clicked for:', list);
-                          console.log('🎯 Button click event fired successfully');
-                          alert(`Button clicked for: ${list.name}`);
-                          handleUploadData(list);
+                        onClick={(e) => {
+                          console.log('🎯 BUTTON CLICKED - Upload Data for:', list.name);
+                          console.log('🎯 Event object:', e);
+                          console.log('🎯 Current modal state BEFORE:', isUploadWizardOpen);
+                          console.log('🎯 Current target list BEFORE:', uploadTargetList);
+                          
+                          try {
+                            handleUploadData(list);
+                            console.log('🎯 handleUploadData called successfully');
+                            
+                            // Add a slight delay to check state after React updates
+                            setTimeout(() => {
+                              console.log('🎯 Modal state AFTER (delayed check):', isUploadWizardOpen);
+                              console.log('🎯 Target list AFTER (delayed check):', uploadTargetList);
+                            }, 100);
+                            
+                          } catch (error) {
+                            console.error('🎯 ERROR in handleUploadData:', error);
+                          }
                         }}
                         className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
@@ -1023,8 +1064,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
       {/* Advanced Upload Wizard */}
       {(() => {
-        console.log('🔍 Modal render check:', { isUploadWizardOpen, uploadTargetList: !!uploadTargetList });
-        return isUploadWizardOpen && uploadTargetList;
+        console.log('🔍 === MODAL RENDER CHECK ===');
+        console.log('🔍 isUploadWizardOpen:', isUploadWizardOpen, typeof isUploadWizardOpen);
+        console.log('🔍 uploadTargetList:', uploadTargetList);
+        console.log('🔍 uploadTargetList truthy?', !!uploadTargetList);
+        const shouldRenderModal = isUploadWizardOpen && uploadTargetList;
+        console.log('🔍 Final shouldRenderModal result:', shouldRenderModal);
+        console.log('🔍 === END MODAL RENDER CHECK ===');
+        return shouldRenderModal;
       })() && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
