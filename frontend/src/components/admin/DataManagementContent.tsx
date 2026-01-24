@@ -263,18 +263,11 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   };
 
   // Load data lists from API
-  // Helper function to get authentication headers
+  // Helper function to get authentication headers (cookies handled server-side)
   const getAuthHeaders = (): Record<string, string> => {
-    const headers: Record<string, string> = {
+    return {
       'Content-Type': 'application/json',
     };
-    
-    const token = localStorage.getItem('omnivox_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    return headers;
   };
 
   const fetchDataLists = async () => {

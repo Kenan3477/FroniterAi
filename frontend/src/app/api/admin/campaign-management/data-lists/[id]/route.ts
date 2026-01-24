@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
@@ -9,14 +10,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json();
     const backendUrl = `${BACKEND_URL}/api/admin/campaign-management/data-lists/${params.id}`;
     
+    // Get auth token from cookies or headers
+    const cookieStore = cookies();
+    const tokenFromCookie = cookieStore.get('auth-token')?.value;
+    const tokenFromHeader = request.headers.get('authorization')?.replace('Bearer ', '');
+    const authToken = tokenFromHeader || tokenFromCookie;
+
+    console.log('🔐 Auth token found for PUT:', authToken ? 'YES' : 'NO');
+    
     // Forward the request to the Railway backend
     const response = await fetch(backendUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        // Forward any authorization headers from the original request
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
+        // Use token from cookie if no authorization header present
+        ...(authToken && {
+          'Authorization': `Bearer ${authToken}`
         }),
       },
       body: JSON.stringify(body),
@@ -47,14 +56,22 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     const backendUrl = `${BACKEND_URL}/api/admin/campaign-management/data-lists/${params.id}`;
     
+    // Get auth token from cookies or headers
+    const cookieStore = cookies();
+    const tokenFromCookie = cookieStore.get('auth-token')?.value;
+    const tokenFromHeader = request.headers.get('authorization')?.replace('Bearer ', '');
+    const authToken = tokenFromHeader || tokenFromCookie;
+
+    console.log('🔐 Auth token found for DELETE:', authToken ? 'YES' : 'NO');
+    
     // Forward the request to the Railway backend
     const response = await fetch(backendUrl, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        // Forward any authorization headers from the original request
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
+        // Use token from cookie if no authorization header present
+        ...(authToken && {
+          'Authorization': `Bearer ${authToken}`
         }),
       },
     });
