@@ -262,6 +262,35 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
+  // Manual function to update contact counts for debugging
+  const forceUpdateContactCounts = async () => {
+    console.log('🔧 Force updating contact counts...');
+    
+    try {
+      // Direct backend call to trigger contact count recalculation
+      const response = await fetch('https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'recalculate_counts'
+        })
+      });
+      
+      if (response.ok) {
+        console.log('🔧 Contact count recalculation triggered');
+        setTimeout(() => fetchDataLists(), 1000);
+      }
+    } catch (error) {
+      console.error('🔧 Force update failed:', error);
+      
+      // Fallback: Just refresh the data lists
+      setTimeout(() => fetchDataLists(), 500);
+    }
+  };
+
   // Load data lists from API
   // Helper function to get authentication headers (cookies handled server-side)
   const getAuthHeaders = (): Record<string, string> => {
@@ -297,12 +326,20 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           const contactCount = list.totalContacts || list.contactCount || list.total_contacts || list._count?.contacts || 0;
           
           console.log(`📊 Data list "${list.name}" contact count:`, {
+            id: list.id,
+            name: list.name,
             totalContacts: list.totalContacts,
             contactCount: list.contactCount,
             total_contacts: list.total_contacts,
             _count: list._count,
-            finalCount: contactCount
+            finalCount: contactCount,
+            rawListData: list
           });
+          
+          // Flag problematic data
+          if (contactCount === 0 && (list.totalContacts !== 0 || list.contactCount !== 0 || list.total_contacts !== 0)) {
+            console.warn(`⚠️ CONTACT COUNT ISSUE: List "${list.name}" has mismatched contact count fields!`);
+          }
           
           return {
             id: list.id,
@@ -723,12 +760,37 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         }));
         
         console.log('📊 Upload completed, refreshing data lists...');
+        console.log('📊 Upload stats from backend:', uploadStats);
         
-        // Add a small delay to ensure backend has processed the upload
+        // Immediate verification: Check specific list data directly from backend
+        try {
+          const verifyResponse = await fetch(`https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists`, {
+            headers: {
+              'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (verifyResponse.ok) {
+            const verifyResult = await verifyResponse.json();
+            console.log('🔍 DIRECT BACKEND VERIFICATION:', verifyResult);
+            
+            const updatedList = verifyResult.data?.dataLists?.find((list: any) => list.id === uploadTargetList.id);
+            console.log('🔍 Updated list from backend:', updatedList);
+            
+            if (updatedList) {
+              console.log(`📊 Backend shows ${updatedList.totalContacts} contacts for list ${updatedList.name}`);
+            }
+          }
+        } catch (verifyError) {
+          console.log('🔍 Backend verification failed:', verifyError);
+        }
+        
+        // Add a delay to ensure backend has processed the upload, then refresh
         setTimeout(async () => {
           await fetchDataLists();
           console.log('📊 Data lists refreshed after upload');
-        }, 1000);
+        }, 2000); // Increased delay to 2 seconds
         
         console.log('✅ Upload completed successfully');
       } else {
@@ -781,10 +843,55 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                 <h3 className="text-lg font-semibold text-gray-900">Data Lists</h3>
                 <p className="text-sm text-gray-500">Manage your contact data lists</p>
               </div>
-              <button className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors flex items-center">
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Create New List
-              </button>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => {
+                    console.log('🔄 Manual refresh triggered');
+                    fetchDataLists();
+                  }}
+                  className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                >
+                  🔄 Refresh
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    console.log('🔍 Direct backend check triggered');
+                    try {
+                      const response = await fetch('https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists', {
+                        headers: {
+                          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
+                          'Content-Type': 'application/json'
+                        }
+                      });
+                      
+                      if (response.ok) {
+                        const result = await response.json();
+                        console.log('🔍 DIRECT BACKEND RESULT:', result);
+                        alert(`Backend check: Found ${result.data?.dataLists?.length || 0} lists. Check console for details.`);
+                      }
+                    } catch (error) {
+                      console.error('🔍 Direct backend check failed:', error);
+                      alert('Backend check failed - see console');
+                    }
+                  }}
+                  className="px-3 py-1 text-xs font-medium text-purple-600 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100"
+                >
+                  🔍 Backend Check
+                </button>
+                
+                <button
+                  onClick={() => forceUpdateContactCounts()}
+                  className="px-3 py-1 text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100"
+                >
+                  🔧 Fix Counts
+                </button>
+                
+                <button className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors flex items-center">
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create New List
+                </button>
+              </div>
             </div>
 
             {error && (
