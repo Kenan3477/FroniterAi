@@ -4,16 +4,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// Helper function to get authentication token
+// Helper function to get authentication token from headers or cookies
 function getAuthToken(request: NextRequest): string | null {
+  // Try authorization header first
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);
   }
-  return null;
+  
+  // Fallback to cookies
+  const cookieStore = cookies();
+  const tokenFromCookie = cookieStore.get('auth-token')?.value;
+  return tokenFromCookie || null;
 }
 
 export async function GET(request: NextRequest) {
