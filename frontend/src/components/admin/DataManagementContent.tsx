@@ -347,9 +347,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenDropdown(null);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.dropdown-menu') && !target.closest('[data-dropdown-toggle]')) {
+        setOpenDropdown(null);
+      }
     };
+    
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -753,7 +757,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       
       <div className="bg-white border-b border-gray-200 px-6">
         <nav className="flex space-x-8">
-          {['Manage Data Lists', 'Create Data Lists', 'Upload Data', 'Data Analytics'].map((tab) => (
+          {['Manage Data Lists', 'Create Data Lists', 'Data Analytics'].map((tab) => (
             <button
               key={tab}
               onClick={() => setSelectedSubTab(tab)}
@@ -874,61 +878,77 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="relative">
+                            <div className="flex items-center space-x-2">
+                              {/* Direct Action Buttons */}
                               <button
-                                onClick={() => setOpenDropdown(openDropdown === list.id ? null : list.id)}
-                                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                onClick={() => {
+                                  console.log('🔍 Direct Upload Data button clicked for list:', list);
+                                  handleUploadData(list);
+                                }}
+                                className="inline-flex items-center px-3 py-1 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100"
                               >
-                                <EllipsisVerticalIcon className="h-5 w-5" />
+                                <CloudArrowUpIcon className="h-3 w-3 mr-1" />
+                                Upload
                               </button>
                               
-                              {openDropdown === list.id && (
-                                <div className="absolute right-0 top-8 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
-                                  <div className="py-1">
-                                    <button 
-                                      onClick={() => {
-                                        setOpenDropdown(null);
-                                        handleEditList(list);
-                                      }}
-                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      <PencilIcon className="h-4 w-4 mr-3" />
-                                      Edit List
-                                    </button>
-                                    <button 
-                                      onClick={() => {
-                                        console.log('🔍 Upload Data button clicked for list:', list);
-                                        setOpenDropdown(null);
-                                        handleUploadData(list);
-                                      }}
-                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      <CloudArrowUpIcon className="h-4 w-4 mr-3" />
-                                      Upload Data
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setOpenDropdown(null);
-                                        handleCloneList(list);
-                                      }}
-                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
-                                      Clone List
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setOpenDropdown(null);
-                                        handleDeleteList(list);
-                                      }}
-                                      className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                                    >
-                                      <TrashIcon className="h-4 w-4 mr-3" />
-                                      Delete List
-                                    </button>
+                              {/* Dropdown Menu */}
+                              <div className="relative">
+                                <button
+                                  data-dropdown-toggle
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.log('🔍 Dropdown button clicked for list:', list.id);
+                                    setOpenDropdown(openDropdown === list.id ? null : list.id);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+                                >
+                                  <EllipsisVerticalIcon className="h-4 w-4" />
+                                </button>
+                                
+                                {openDropdown === list.id && (
+                                  <div className="dropdown-menu absolute right-0 top-6 mt-1 w-44 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20">
+                                    <div className="py-1">
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🔍 Edit List dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleEditList(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <PencilIcon className="h-4 w-4 mr-3" />
+                                        Edit List
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🔍 Clone List dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleCloneList(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
+                                        Clone List
+                                      </button>
+                                      <hr className="my-1" />
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🗑️ Delete List dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleDeleteList(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                      >
+                                        <TrashIcon className="h-4 w-4 mr-3" />
+                                        Delete List
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -946,119 +966,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             <PlusIcon className="mx-auto h-16 w-16 text-gray-400" />
             <h3 className="mt-4 text-lg font-medium text-gray-900">Create New Data List</h3>
             <p className="mt-2 text-gray-600">Feature coming soon...</p>
-          </div>
-        )}
-
-        {selectedSubTab === 'Upload Data' && (
-          <div className="space-y-6">
-            <div className="text-center py-8">
-              <CloudArrowUpIcon className="mx-auto h-16 w-16 text-blue-500" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">Upload Data to Existing List</h3>
-              <p className="mt-2 text-gray-600">Select a data list to upload contacts to.</p>
-            </div>
-            
-            <div className="bg-yellow-100 border border-yellow-400 rounded p-4">
-              <p className="text-yellow-800">🔍 Debug: dataLists.length = {dataLists.length}</p>
-              <p className="text-yellow-800">🔍 Debug: loading = {loading.toString()}</p>
-              <p className="text-yellow-800">🔍 Debug: error = {error || 'none'}</p>
-              <p className="text-yellow-800">🔍 Debug: isUploadWizardOpen = {isUploadWizardOpen.toString()}</p>
-              <p className="text-yellow-800">🔍 Debug: uploadTargetList = {uploadTargetList ? uploadTargetList.name : 'null'}</p>
-              
-              <button 
-                onClick={() => {
-                  console.log('🧪 TEST: Force opening modal');
-                  setIsUploadWizardOpen(true);
-                  setUploadTargetList({ 
-                    id: 'test', 
-                    name: 'Test List', 
-                    description: 'Test',
-                    campaign: 'Test',
-                    total: 0,
-                    available: 0,
-                    dialAttempts: 0,
-                    lastDialed: '',
-                    status: 'Active' as const,
-                    createdAt: new Date(),
-                    listId: 'test'
-                  });
-                  alert('Force opened modal - check if it appears');
-                }}
-                className="mt-2 px-4 py-2 bg-red-500 text-white rounded"
-              >
-                🧪 TEST: Force Open Modal
-              </button>
-            </div>
-            
-            {loading && (
-              <div className="text-center py-8">
-                <p className="text-gray-600">Loading data lists...</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="text-center py-8">
-                <p className="text-red-600">Error: {error}</p>
-              </div>
-            )}
-            
-            {!loading && !error && dataLists.length > 0 ? (
-              <div className="bg-white shadow rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                  <h4 className="text-lg font-medium text-gray-900">Available Data Lists ({dataLists.length} found)</h4>
-                  <button
-                    onClick={() => {
-                      console.log('🔄 Manual refresh triggered');
-                      fetchDataLists();
-                    }}
-                    className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                  >
-                    🔄 Refresh
-                  </button>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {dataLists.map((list) => (
-                    <div key={list.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                      <div className="flex-1">
-                        <h5 className="text-sm font-medium text-gray-900">{list.name}</h5>
-                        <p className="text-sm text-gray-600">{list.description}</p>
-                        <p className="text-xs text-gray-500">
-                          {list.total} contacts • Status: {list.status} • ID: {list.id}
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          console.log('🎯 BUTTON CLICKED - Upload Data for:', list.name);
-                          console.log('🎯 Event object:', e);
-                          console.log('🎯 Current modal state BEFORE:', isUploadWizardOpen);
-                          console.log('🎯 Current target list BEFORE:', uploadTargetList);
-                          
-                          try {
-                            handleUploadData(list);
-                            console.log('🎯 handleUploadData called successfully');
-                            
-                            // Add a slight delay to check state after React updates
-                            setTimeout(() => {
-                              console.log('🎯 Modal state AFTER (delayed check):', isUploadWizardOpen);
-                              console.log('🎯 Target list AFTER (delayed check):', uploadTargetList);
-                            }, 100);
-                            
-                          } catch (error) {
-                            console.error('🎯 ERROR in handleUploadData:', error);
-                          }
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Upload Data
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : !loading && !error ? (
-              <div className="text-center py-8">
-                <p className="text-gray-600">No data lists available. Create one first in the "Create Data Lists" tab.</p>
-              </div>
-            ) : null}
           </div>
         )}
 
