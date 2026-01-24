@@ -29,9 +29,12 @@ export default function Dashboard() {
     console.log('🔌 Setting up WebSocket connection for inbound calls...');
     console.log('👤 User ID:', user.id, 'Username:', user.username);
     
+    // Get auth token for WebSocket authentication
+    const token = localStorage.getItem('omnivox_token');
+    
     // Connect to agent socket using user ID (important!)
     agentSocket.connect(user.id.toString());
-    agentSocket.authenticateAgent(user.id.toString());
+    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
     
     // Handle inbound call notifications
     const handleInboundCallRinging = (data: any) => {

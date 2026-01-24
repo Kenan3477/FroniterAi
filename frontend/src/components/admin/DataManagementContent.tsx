@@ -263,12 +263,28 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   };
 
   // Load data lists from API
+  // Helper function to get authentication headers
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    const token = localStorage.getItem('omnivox_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  };
+
   const fetchDataLists = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/admin/campaign-management/data-lists');
+      const response = await fetch('/api/admin/campaign-management/data-lists', {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch data lists: ${response.status} ${response.statusText}`);
       }
@@ -327,9 +343,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       console.log(`📋 Delete response status: ${response.status}`);
@@ -367,9 +381,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     try {
       const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/clone`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           newName: `${list.name} (Copy)`,
           includeContacts: includeContacts
@@ -423,9 +435,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     try {
       const response = await fetch(`/api/admin/campaign-management/data-lists/${editingList.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           name: editingList.name,
           campaignId: editingList.campaign !== 'Unassigned' ? editingList.campaign : null,
@@ -605,9 +615,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           contacts: contacts,
           mapping: uploadData.primaryColumns,

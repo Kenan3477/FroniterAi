@@ -1,9 +1,24 @@
 /**
  * Interaction Service
- * Handles fetching real interaction data from backend
+ * Handles fetching real interaction data from backend with authentication
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
+// Helper function to get authentication headers
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Get token from localStorage
+  const token = localStorage.getItem('omnivox_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
 
 export interface InteractionData {
   id: string;
@@ -39,9 +54,7 @@ export async function getOutcomedInteractions(
     params.append('status', 'completed');
 
     const response = await fetch(`${BACKEND_URL}/api/interactions?${params}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -89,9 +102,7 @@ export async function getActiveInteractions(agentId?: string): Promise<Interacti
     params.append('status', 'active');
 
     const response = await fetch(`${BACKEND_URL}/api/interactions?${params}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
