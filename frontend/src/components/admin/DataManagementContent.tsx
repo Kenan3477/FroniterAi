@@ -880,10 +880,46 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         )}
 
         {selectedSubTab === 'Upload Data' && (
-          <div className="text-center py-12">
-            <CloudArrowUpIcon className="mx-auto h-16 w-16 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Upload Data</h3>
-            <p className="mt-2 text-gray-600">Feature coming soon...</p>
+          <div className="space-y-6">
+            <div className="text-center py-8">
+              <CloudArrowUpIcon className="mx-auto h-16 w-16 text-blue-500" />
+              <h3 className="mt-4 text-lg font-medium text-gray-900">Upload Data to Existing List</h3>
+              <p className="mt-2 text-gray-600">Select a data list to upload contacts to.</p>
+            </div>
+            
+            {dataLists.length > 0 ? (
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h4 className="text-lg font-medium text-gray-900">Available Data Lists</h4>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {dataLists.map((list) => (
+                    <div key={list.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                      <div className="flex-1">
+                        <h5 className="text-sm font-medium text-gray-900">{list.name}</h5>
+                        <p className="text-sm text-gray-600">{list.description}</p>
+                        <p className="text-xs text-gray-500">
+                          {list.total} contacts • Status: {list.status}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          console.log('🎯 Direct upload button clicked for:', list);
+                          handleUploadData(list);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Upload Data
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No data lists available. Create one first in the "Create Data Lists" tab.</p>
+              </div>
+            )}
           </div>
         )}
 
