@@ -275,29 +275,49 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       setLoading(true);
       setError(null);
       
+      console.log('🔗 Fetching data lists from API...');
       const response = await fetch('/api/admin/campaign-management/data-lists', {
         headers: getAuthHeaders(),
       });
+      
+      console.log('📡 API response status:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API response error:', errorText);
         throw new Error(`Failed to fetch data lists: ${response.status} ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log('📡 Raw API response:', result);
       if (result.success && result.data?.dataLists) {
         // Transform backend data to frontend format
-        const transformedLists = result.data.dataLists.map((list: any) => ({
-          id: list.id,
-          listId: list.listId,
-          name: list.name,
-          description: list.campaignId ? `Assigned to Campaign: ${list.campaignId}` : 'No campaign assigned',
-          campaign: list.campaignId || 'Unassigned',
-          total: list.totalContacts || 0,
-          available: list.totalContacts || 0,
-          dialAttempts: 0,
-          lastDialed: new Date().toISOString().split('T')[0],
-          status: list.active ? 'Active' : 'Inactive' as 'Active' | 'Inactive',
-          createdAt: new Date(list.createdAt)
-        }));
+        const transformedLists = result.data.dataLists.map((list: any) => {
+          // Try multiple possible fields for contact count
+          const contactCount = list.totalContacts || list.contactCount || list.total_contacts || list._count?.contacts || 0;
+          
+          console.log(`📊 Data list "${list.name}" contact count:`, {
+            totalContacts: list.totalContacts,
+            contactCount: list.contactCount,
+            total_contacts: list.total_contacts,
+            _count: list._count,
+            finalCount: contactCount
+          });
+          
+          return {
+            id: list.id,
+            listId: list.listId,
+            name: list.name,
+            description: list.campaignId ? `Assigned to Campaign: ${list.campaignId}` : 'No campaign assigned',
+            campaign: list.campaignId || 'Unassigned',
+            total: contactCount,
+            available: contactCount,
+            dialAttempts: 0,
+            lastDialed: new Date().toISOString().split('T')[0],
+            status: list.active ? 'Active' : 'Inactive' as 'Active' | 'Inactive',
+            createdAt: new Date(list.createdAt)
+          };
+        });
         setDataLists(transformedLists);
       } else {
         console.error('Invalid response format:', result);
@@ -349,24 +369,40 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       });
 
       console.log(`📋 Delete response status: ${response.status}`);
+      const responseText = await response.text();
+      console.log(`📋 Delete response body: ${responseText}`);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Delete request failed:', errorText);
-        throw new Error(`Failed to delete data list: ${response.status} ${response.statusText}`);
+        console.error('❌ Delete request failed:', responseText);
+        throw new Error(`Failed to delete data list: ${response.status} ${response.statusText} - ${responseText}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('📋 Response was not JSON, treating as success');
+        result = { success: true };
+      }
+      
       console.log('📋 Delete response data:', result);
 
-      if (result.success) {
-        // Remove from local state
+      if (result.success !== false) {
+        // Remove from local state immediately
         setDataLists(prev => prev.filter(l => l.id !== list.id));
         console.log(`✅ Deleted data list: ${list.name}`);
-        alert(`Successfully deleted "${list.name}" and ${result.data?.deletedContacts || 0} contacts`);
+        
+        // Show success message
+        const deletedCount = result.data?.deletedContacts || 'all';
+        alert(`Successfully deleted "${list.name}" and ${deletedCount} contacts`);
         
         // Close dropdown
         setOpenDropdown(null);
+        
+        // Refresh data from backend to ensure consistency
+        setTimeout(() => {
+          fetchDataLists();
+        }, 500);
       } else {
         throw new Error(result.error?.message || 'Failed to delete data list');
       }
@@ -682,7 +718,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           dncContacts: uploadStats.dncRejected || 0
         }));
         
-        fetchDataLists(); // Refresh to show updated contact counts
+        console.log('📊 Upload completed, refreshing data lists...');
+        
+        // Add a small delay to ensure backend has processed the upload
+        setTimeout(async () => {
+          await fetchDataLists();
+          console.log('📊 Data lists refreshed after upload');
+        }, 1000);
+        
         console.log('✅ Upload completed successfully');
       } else {
         throw new Error(result.error?.message || result.message || 'Upload failed');
@@ -960,8 +1003,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             
             {!loading && !error && dataLists.length > 0 ? (
               <div className="bg-white shadow rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                   <h4 className="text-lg font-medium text-gray-900">Available Data Lists ({dataLists.length} found)</h4>
+                  <button
+                    onClick={() => {
+                      console.log('🔄 Manual refresh triggered');
+                      fetchDataLists();
+                    }}
+                    className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                  >
+                    🔄 Refresh
+                  </button>
                 </div>
                 <div className="divide-y divide-gray-200">
                   {dataLists.map((list) => (
