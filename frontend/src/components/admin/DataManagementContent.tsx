@@ -724,32 +724,60 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       console.log('📋 Processed contacts:', { 
         totalProcessed: contacts.length, 
         sampleContact: contacts[0],
-        targetListId: uploadTargetList.id 
+        targetListId: uploadTargetList.id,
+        allContacts: contacts.slice(0, 3) // Show first 3 contacts
+      });
+
+      const uploadPayload = {
+        contacts: contacts,
+        mapping: uploadData.primaryColumns,
+        options: {
+          skipDuplicates: uploadData.duplicateCheck,
+          validateEmails: uploadData.contactsNeedEmail,
+          dncCheck: uploadData.dncCheck
+        }
+      };
+      
+      console.log('📤 Upload payload being sent:', {
+        contactCount: uploadPayload.contacts.length,
+        mapping: uploadPayload.mapping,
+        options: uploadPayload.options,
+        samplePayload: {
+          contacts: uploadPayload.contacts.slice(0, 2),
+          mapping: uploadPayload.mapping,
+          options: uploadPayload.options
+        }
       });
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          contacts: contacts,
-          mapping: uploadData.primaryColumns,
-          options: {
-            skipDuplicates: uploadData.duplicateCheck,
-            validateEmails: uploadData.contactsNeedEmail,
-            dncCheck: uploadData.dncCheck
-          }
-        }),
+        body: JSON.stringify(uploadPayload),
       });
 
+      console.log('📡 Upload request sent, awaiting response...');
+      console.log('📡 Upload response status:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Upload response error:', errorText);
+        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
       console.log('📤 Upload response:', result);
+      console.log('📤 Upload response details:', JSON.stringify(result, null, 2));
       
       if (result.success) {
         const uploadStats = result.data || {};
+        console.log('📤 Upload stats breakdown:', {
+          totalProcessed: uploadStats.totalProcessed,
+          duplicatesSkipped: uploadStats.duplicatesSkipped, 
+          invalidContacts: uploadStats.invalidContacts,
+          dncRejected: uploadStats.dncRejected,
+          contactsSaved: uploadStats.contactsSaved,
+          rawUploadStats: uploadStats
+        });
         setUploadData(prev => ({
           ...prev,
           step: 'complete',
@@ -764,6 +792,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         
         // Immediate verification: Check specific list data directly from backend
         try {
+          console.log('🔍 Starting backend verification...');
+          
           const verifyResponse = await fetch(`https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists`, {
             headers: {
               'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
@@ -780,8 +810,34 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             
             if (updatedList) {
               console.log(`📊 Backend shows ${updatedList.totalContacts} contacts for list ${updatedList.name}`);
+              
+              if (updatedList.totalContacts === 0) {
+                console.error('🚨 CRITICAL ISSUE: Backend shows 0 contacts after upload!');
+                console.error('🚨 Upload may have failed silently or contacts not being counted');
+              }
             }
           }
+          
+          // Also try to directly query contacts for this list
+          try {
+            const contactsResponse = await fetch(`https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists/${uploadTargetList.id}/contacts`, {
+              headers: {
+                'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (contactsResponse.ok) {
+              const contactsResult = await contactsResponse.json();
+              console.log('🔍 DIRECT CONTACTS CHECK:', contactsResult);
+              console.log(`📊 Direct contact query shows: ${contactsResult.data?.contacts?.length || 0} contacts`);
+            } else {
+              console.log('🔍 Direct contacts endpoint not available or failed');
+            }
+          } catch (contactsError) {
+            console.log('🔍 Direct contacts check failed:', contactsError);
+          }
+          
         } catch (verifyError) {
           console.log('🔍 Backend verification failed:', verifyError);
         }
