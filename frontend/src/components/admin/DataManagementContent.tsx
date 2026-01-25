@@ -693,14 +693,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       // Parse contacts with comprehensive field mapping
       const contacts = dataLines.map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const contact: any = {};
+        const rawContact: any = {};
         
-        // Map primary columns
+        // Map primary columns to raw contact
         Object.entries(uploadData.primaryColumns).forEach(([field, column]) => {
           if (column) {
             const columnIndex = headers.indexOf(column);
             if (columnIndex !== -1 && values[columnIndex]) {
-              contact[field] = values[columnIndex];
+              rawContact[field] = values[columnIndex];
             }
           }
         });
@@ -709,16 +709,61 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         uploadData.customColumns.forEach(({ name, matchColumn }) => {
           const columnIndex = headers.indexOf(matchColumn);
           if (columnIndex !== -1 && values[columnIndex]) {
-            contact[name] = values[columnIndex];
+            rawContact[name] = values[columnIndex];
+          }
+        });
+
+        // Transform to backend-expected format
+        const contact: any = {};
+        
+        // Map phone field (backend expects 'phone', not 'telephone1')
+        contact.phone = rawContact.telephone1 || rawContact.tel1 || rawContact.phone || '';
+        
+        // Map name fields (backend expects 'firstName' and/or 'fullName')
+        contact.firstName = rawContact.firstName || '';
+        contact.lastName = rawContact.lastName || '';
+        
+        // If we have both first and last name, create fullName field
+        if (contact.firstName && contact.lastName) {
+          contact.fullName = `${contact.firstName} ${contact.lastName}`.trim();
+        } else if (rawContact.fullName) {
+          contact.fullName = rawContact.fullName;
+        }
+        
+        // Map other common fields
+        contact.email = rawContact.email || '';
+        contact.address1 = rawContact.address1 || '';
+        contact.address2 = rawContact.address2 || '';
+        contact.city = rawContact.city || '';
+        contact.state = rawContact.state || '';
+        contact.zipCode = rawContact.zipCode || '';
+        contact.country = rawContact.country || '';
+        contact.dateOfBirth = rawContact.dateOfBirth || '';
+        contact.gender = rawContact.gender || '';
+        contact.title = rawContact.title || '';
+        contact.company = rawContact.company || '';
+        contact.jobTitle = rawContact.jobTitle || '';
+        
+        // Map additional phone numbers
+        contact.telephone2 = rawContact.telephone2 || '';
+        contact.telephone3 = rawContact.telephone3 || '';
+        contact.fax = rawContact.fax || '';
+        contact.mobile = rawContact.mobile || '';
+        contact.sms = rawContact.sms || '';
+        
+        // Copy any custom fields
+        Object.keys(rawContact).forEach(key => {
+          if (!contact.hasOwnProperty(key) && rawContact[key]) {
+            contact[key] = rawContact[key];
           }
         });
 
         return contact;
       }).filter(contact => {
-        // Apply validation rules
-        if (uploadData.contactsNeedNumber && !contact.telephone1 && !contact.tel1) return false;
+        // Apply validation rules (using backend field names)
+        if (uploadData.contactsNeedNumber && !contact.phone) return false;
         if (uploadData.contactsNeedEmail && !contact.email) return false;
-        return contact.firstName || contact.lastName || contact.telephone1 || contact.tel1;
+        return contact.firstName || contact.fullName || contact.phone;
       });
 
       console.log('📋 Processed contacts:', { 
