@@ -159,10 +159,36 @@ export default function InboundCallPopup() {
   };
 
   // Handle declining a call
-  const handleDeclineCall = (call: InboundCall) => {
+  const handleDeclineCall = async (call: InboundCall) => {
     console.log('📞 Declining call from global popup:', call.id);
+    
+    try {
+      // Notify backend that call was declined
+      const response = await fetch('/api/calls/decline', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callId: call.id,
+          agentId: localStorage.getItem('agentId') || 'current-agent',
+          reason: 'agent_declined',
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Call decline notification sent to backend');
+      } else {
+        console.error('❌ Failed to notify backend of call decline:', response.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Error notifying backend of call decline:', error);
+    }
+    
+    // Remove the call from UI regardless of backend response
     setInboundCalls(prev => prev.filter(c => c.id !== call.id));
-    // TODO: Notify backend that call was declined
   };
 
   // Handle transferring a call

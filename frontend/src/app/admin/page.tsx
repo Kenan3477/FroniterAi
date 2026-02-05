@@ -15,6 +15,10 @@ import FlowsManagement from '@/components/flows/FlowsManagement';
 import ChannelsManagement from '@/components/admin/ChannelsManagement';
 import ReportsSystem from '@/components/admin/ReportsSystem';
 import SystemOverview from '@/components/admin/SystemOverview';
+import SLAsManagement from '@/components/admin/SLAsManagement';
+import ViewsManagement from '@/components/admin/ViewsManagement';
+import NetworkSettingsManagement from '@/components/admin/NetworkSettingsManagement';
+import AuditLogsManagement from '@/components/admin/AuditLogsManagement';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -563,6 +567,22 @@ export default function AdminPage() {
               </div>
             ) : selectedSection === 'Reports & Analytics' ? (
               <ReportsSystem />
+            ) : selectedSection === 'SLAs' ? (
+              <div className="p-6">
+                <SLAsManagement />
+              </div>
+            ) : selectedSection === 'Views' ? (
+              <div className="p-6">
+                <ViewsManagement />
+              </div>
+            ) : selectedSection === 'Network Settings' ? (
+              <div className="p-6">
+                <NetworkSettingsManagement />
+              </div>
+            ) : selectedSection === 'Audit Logs' ? (
+              <div className="p-6">
+                <AuditLogsManagement />
+              </div>
             ) : selectedSection === 'Flows' || selectedSection.startsWith('Flows - ') ? (
               <FlowsManagement 
                 onBackToAdmin={() => setSelectedSection('Admin')}

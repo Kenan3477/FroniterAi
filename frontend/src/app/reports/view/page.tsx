@@ -54,33 +54,8 @@ function ReportViewPageContent() {
     'pause_reasons': 'Pause Reasons Analysis'
   };
 
-  const generateMockKPIs = (): KPIMetric[] => {
-    if (reportType?.includes('outcome') || reportType === 'summary_combined') {
-      return [
-        { label: 'Total Calls', value: 1247, change: 12, format: 'number' },
-        { label: 'Positive Outcomes', value: 187, change: 8, format: 'number' },
-        { label: 'Conversion Rate', value: 15.0, change: -2.1, format: 'percentage' },
-        { label: 'Average Call Duration', value: '3:42', change: 5.2, format: 'duration' },
-        { label: 'Contact Rate', value: 68.5, change: 3.2, format: 'percentage' },
-        { label: 'Revenue Generated', value: 24750, change: 18.7, format: 'currency' }
-      ];
-    } else if (reportType?.includes('activity') || reportType?.includes('login')) {
-      return [
-        { label: 'Active Agents', value: 12, change: 2, format: 'number' },
-        { label: 'Total Login Time', value: '48:32:15', format: 'duration' },
-        { label: 'Average Session', value: '4:02:41', change: -8.3, format: 'duration' },
-        { label: 'Productive Time %', value: 87.2, change: 4.1, format: 'percentage' },
-        { label: 'Break Time %', value: 12.8, change: -4.1, format: 'percentage' }
-      ];
-    } else {
-      return [
-        { label: 'Data Points', value: 2847, format: 'number' },
-        { label: 'Coverage', value: 94.2, format: 'percentage' },
-        { label: 'Accuracy', value: 98.7, format: 'percentage' },
-        { label: 'Processing Time', value: '0:12', format: 'duration' }
-      ];
-    }
-  };
+  // ✅ REMOVED: Mock data generator replaced with real backend integration
+  // All KPI data now comes from loadReportData() function which calls Railway backend
 
   const loadReportData = async () => {
     setLoading(true);
@@ -130,35 +105,11 @@ function ReportViewPageContent() {
     }
   };
 
-  const generateMockChartData = () => {
-    if (reportType === 'hour_breakdown') {
-      return Array.from({ length: 24 }, (_, i) => ({
-        hour: `${i.toString().padStart(2, '0')}:00`,
-        calls: Math.floor(Math.random() * 100) + 20,
-        conversions: Math.floor(Math.random() * 20) + 2
-      }));
-    }
-    return [];
-  };
+  // ✅ REMOVED: Mock chart data generator replaced with real backend integration
+  // All chart data now comes from loadReportData() function which calls Railway backend
 
-  const generateMockTableData = () => {
-    if (reportType?.includes('outcome')) {
-      return [
-        { disposition: 'Sale', count: 45, percentage: 15.2 },
-        { disposition: 'Interested', count: 78, percentage: 26.4 },
-        { disposition: 'Callback Scheduled', count: 64, percentage: 21.6 },
-        { disposition: 'Not Interested', count: 89, percentage: 30.1 },
-        { disposition: 'Wrong Number', count: 20, percentage: 6.7 }
-      ];
-    } else if (reportType?.includes('activity')) {
-      return [
-        { agent: 'John Smith', loginTime: '08:30', logoutTime: '17:15', totalTime: '8:45', calls: 47 },
-        { agent: 'Sarah Wilson', loginTime: '09:00', logoutTime: '17:30', totalTime: '8:30', calls: 52 },
-        { agent: 'Mike Johnson', loginTime: '08:45', logoutTime: '17:00', totalTime: '8:15', calls: 38 }
-      ];
-    }
-    return [];
-  };
+  // ✅ REMOVED: Mock table data generator replaced with real backend integration
+  // All table data now comes from loadReportData() function which calls Railway backend
 
   const formatValue = (value: string | number, format?: string) => {
     switch (format) {
@@ -174,9 +125,46 @@ function ReportViewPageContent() {
     }
   };
 
-  const exportReport = () => {
-    // Mock export functionality
-    console.log('Exporting report...');
+  const exportReport = async () => {
+    try {
+      console.log('📄 Exporting report...', reportType);
+      
+      // Build export parameters
+      const params = new URLSearchParams();
+      if (reportType) params.append('type', reportType);
+      if (filters?.dateRange?.from) params.append('startDate', filters.dateRange.from);
+      if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
+      if (filters?.campaign) params.append('campaignId', filters.campaign);
+      if (filters?.agent) params.append('agentId', filters.agent);
+      params.append('format', 'csv'); // Default to CSV export
+
+      const response = await fetch(`/api/admin/reports/export?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to export report: ${response.status}`);
+      }
+
+      // Handle file download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Report exported successfully');
+    } catch (error) {
+      console.error('❌ Export failed:', error);
+      alert(`Failed to export report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   useEffect(() => {

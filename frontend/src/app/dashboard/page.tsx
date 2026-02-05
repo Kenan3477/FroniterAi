@@ -147,15 +147,7 @@ export default function Dashboard() {
     }
   };
 
-  // TODO: Replace with actual Redux selectors once authentication is implemented
-  // const { user, isAuthenticated } = useAppSelector((state) => state.auth);
-  // const router = useRouter();
-  // useEffect(() => {
-  //   if (!isAuthenticated) {
-  //     router.push('/login');
-  //   }
-  // }, [isAuthenticated, router]);
-
+  // Authentication is handled by useAuth() hook above
   if (!isAuthenticated) {
     return null;
   }
