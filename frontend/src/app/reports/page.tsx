@@ -1,3 +1,8 @@
+/**
+ * Reports Page with CLI Management
+ * Updated: 2026-02-05 - Added CLI section functionality
+ * CLI section now displays inbound phone numbers for caller ID selection
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -610,6 +615,14 @@ export default function ReportsPage() {
               renderReportGrid(voiceDataReports, 'Voice Data Reports')
             )}
 
+            {/* Debug logging for CLI condition */}
+            {(() => {
+              console.log('🔍 CLI Debug - selectedCategory:', selectedCategory);
+              console.log('🔍 CLI Debug - selectedSubcategory:', selectedSubcategory);
+              console.log('🔍 CLI Debug - should render CLI:', selectedCategory === 'voice' && selectedSubcategory === 'cli');
+              return null;
+            })()}
+
             {selectedCategory === 'voice' && selectedSubcategory === 'cli' && (
               <CLIManagement />
             )}
@@ -693,6 +706,10 @@ const CLIManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCLI, setSelectedCLI] = useState<string | null>(null);
+
+  // Debug logging
+  console.log('🔍 CLIManagement component rendered');
+  console.log('🔍 Current state:', { loading, error, numbersCount: inboundNumbers.length });
 
   useEffect(() => {
     const fetchInboundNumbers = async () => {
