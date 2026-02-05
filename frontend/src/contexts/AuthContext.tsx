@@ -396,13 +396,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       console.log('🧹 Clearing user session data...');
       
-      // Always clear client-side state regardless of API response
+      // Clear all client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear AuthContext state
       setUser(null);
       setCurrentCampaign(null);
       setAvailableCampaigns([]);
+      setAgentStatus('Away');
+      setIsInQueue(false);
+      setQueueStatus(null);
       
-      console.log('↩️ Redirecting to login page...');
-      router.push('/login');
+      // Force a hard redirect to prevent back button issues
+      console.log('↩️ Performing hard redirect to login page...');
+      window.location.replace('/login');
       
       console.log('✅ Logout process completed');
     }

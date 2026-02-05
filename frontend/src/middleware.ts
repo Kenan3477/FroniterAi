@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token');
   const isLoginPage = request.nextUrl.pathname === '/login';
+  const isLogoutPage = request.nextUrl.pathname === '/logout';
   const isDashboardPage = request.nextUrl.pathname === '/dashboard' || request.nextUrl.pathname === '/';
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
@@ -11,6 +12,11 @@ export function middleware(request: NextRequest) {
   
   // Allow API routes to handle their own auth
   if (isApiRoute) {
+    return NextResponse.next();
+  }
+  
+  // Allow logout page access
+  if (isLogoutPage) {
     return NextResponse.next();
   }
   
@@ -24,7 +30,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?preview=true', request.url));
   }
   
-  // If user is authenticated and trying to access login page
+  // If user is authenticated and trying to access login page, redirect to dashboard
   if (token && isLoginPage) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
