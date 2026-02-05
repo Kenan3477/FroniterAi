@@ -101,8 +101,8 @@ const AgentCoaching = () => {
       setLoadingAgents(true);
       console.log('🔄 Loading live agents from coaching API...');
       
-      // Use dedicated coaching API endpoint for better data
-      const response = await fetch('/api/coaching/agents', {
+      // Use dedicated coaching API endpoint for real live data
+      const response = await fetch('/api/admin/agent-coaching', {
         headers: {
           'Content-Type': 'application/json',
         }
@@ -113,34 +113,34 @@ const AgentCoaching = () => {
       }
 
       const result = await response.json();
-      console.log('📊 Coaching agents response:', result);
+      console.log('📊 Live coaching agents response:', result);
       
       if (result.success && result.data?.agents) {
-        // Transform coaching API data to local interface format
+        // Transform backend API data to local interface format
         const transformedAgents: Agent[] = result.data.agents.map((apiAgent: any) => ({
-          id: apiAgent.agentId,
-          name: `${apiAgent.firstName} ${apiAgent.lastName}`.trim() || apiAgent.username,
+          id: apiAgent.id || apiAgent.agentId,
+          name: `${apiAgent.firstName} ${apiAgent.lastName}`.trim() || apiAgent.username || 'Agent',
           status: mapBackendStatusToLocal(apiAgent.status),
           avatar: `/avatars/agent-${apiAgent.id}.jpg`,
           currentCall: apiAgent.currentCall ? {
-            contactName: apiAgent.currentCall.contactName,
-            contactPhone: apiAgent.currentCall.contactPhone,
+            contactName: apiAgent.currentCall.contactName || 'Unknown Contact',
+            contactPhone: apiAgent.currentCall.contactPhone || 'Unknown Number',
             startTime: new Date(apiAgent.currentCall.startTime),
-            callType: apiAgent.currentCall.callType,
+            callType: apiAgent.currentCall.callType || 'outbound',
             script: 'Live call in progress',
             sentiment: 'neutral',
             quality: 7
           } : undefined,
           stats: {
-            callsToday: apiAgent.stats.callsToday,
-            avgCallTime: apiAgent.stats.avgCallTime,
-            conversionRate: apiAgent.stats.conversionRate,
-            satisfaction: apiAgent.stats.satisfaction
+            callsToday: apiAgent.coaching?.performance?.callsToday || 0,
+            avgCallTime: apiAgent.coaching?.avgTalkTime || 0,
+            conversionRate: apiAgent.coaching?.conversionRate || 0, // ⚠️ PARTIALLY IMPLEMENTED: Backend needs to calculate conversion metrics
+            satisfaction: apiAgent.coaching?.satisfaction || 0 // ⚠️ NOT IMPLEMENTED: Customer satisfaction tracking not available
           }
         }));
         
         setAgents(transformedAgents);
-        console.log('✅ Loaded live coaching agents:', transformedAgents);
+        console.log('✅ Loaded live coaching agents from backend:', transformedAgents);
         
         // Load coaching alerts for active agents
         loadCoachingAlerts(transformedAgents);
