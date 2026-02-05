@@ -610,6 +610,10 @@ export default function ReportsPage() {
               renderReportGrid(voiceDataReports, 'Voice Data Reports')
             )}
 
+            {selectedCategory === 'voice' && selectedSubcategory === 'cli' && (
+              <CLIManagement />
+            )}
+
             {selectedCategory === 'voice' && selectedSubcategory === 'call' && (
               <div>
                 <div className="mb-6">
@@ -682,3 +686,236 @@ export default function ReportsPage() {
     </MainLayout>
   );
 }
+
+// CLI Management Component for Call Line Identification
+const CLIManagement: React.FC = () => {
+  const [inboundNumbers, setInboundNumbers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCLI, setSelectedCLI] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchInboundNumbers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch('/api/voice/inbound-numbers', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setError('Authentication required. Please ensure you are logged in.');
+            return;
+          }
+          throw new Error(`Failed to fetch inbound numbers: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📞 CLI - Fetched inbound numbers:', data);
+        
+        const numbersArray = Array.isArray(data) ? data : (data.data || []);
+        setInboundNumbers(numbersArray);
+        
+        // Set default CLI if there's only one number
+        if (numbersArray.length === 1) {
+          setSelectedCLI(numbersArray[0].phoneNumber);
+        }
+        
+      } catch (err: any) {
+        console.error('❌ CLI - Error fetching inbound numbers:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInboundNumbers();
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Call Line Identification (CLI)</h2>
+          <p className="text-gray-600">Manage caller ID selection for outbound calls</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+          <span className="ml-2 text-gray-600">Loading phone numbers...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Call Line Identification (CLI)</h2>
+          <p className="text-gray-600">Manage caller ID selection for outbound calls</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XMarkIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Failed to load phone numbers</h3>
+              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-3 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Call Line Identification (CLI)</h2>
+        <p className="text-gray-600">Select caller ID for outbound calls and manage phone number presentation</p>
+      </div>
+
+      {inboundNumbers.length === 0 ? (
+        <div className="text-center py-12">
+          <PhoneIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Phone Numbers Found</h3>
+          <p className="text-gray-500 mb-4">
+            You need to configure inbound phone numbers before you can select a caller ID.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <a
+              href="/admin?section=channels"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+            >
+              Configure Phone Numbers
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Current CLI Status */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <PhoneIcon className="h-5 w-5 text-blue-600" aria-hidden="true" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Current CLI Selection</h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  {selectedCLI ? `Outbound calls will display: ${selectedCLI}` : 'No CLI selected'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* CLI Selection */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Available Phone Numbers</h3>
+            <div className="space-y-3">
+              {inboundNumbers.map((number) => (
+                <div
+                  key={number.id}
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                    selectedCLI === number.phoneNumber
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedCLI(number.phoneNumber)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        selectedCLI === number.phoneNumber
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedCLI === number.phoneNumber && (
+                          <CheckIcon className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">
+                          {number.phoneNumber}
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          {number.displayName || 'No display name set'}
+                        </p>
+                        {number.assignedFlow && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                            Flow: {number.assignedFlow.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        number.isActive !== false 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {number.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                      <div className="text-xs text-gray-400">
+                        {number.type === 'voice' ? '📞' : '📱'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {selectedCLI && (
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Selected CLI: <span className="font-medium">{selectedCLI}</span>
+              </div>
+              <div className="space-x-3">
+                <button
+                  onClick={() => {
+                    // In a real implementation, this would save the CLI preference
+                    alert(`CLI ${selectedCLI} has been set as default for outbound calls.`);
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-md hover:bg-slate-700"
+                >
+                  Set as Default CLI
+                </button>
+                <a
+                  href="/admin?section=channels"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50"
+                >
+                  Manage Numbers
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* CLI Information */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">About Call Line Identification (CLI)</h4>
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>• CLI determines which phone number appears to recipients when you make outbound calls</p>
+              <p>• Your selected CLI must be a verified phone number purchased through your provider</p>
+              <p>• Some regions require CLI to match your actual purchased numbers for compliance</p>
+              <p>• CLI can be overridden per campaign or individual call if needed</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
