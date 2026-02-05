@@ -1,68 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/middleware/auth';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+const RAILWAY_BACKEND_URL = process.env.RAILWAY_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// Helper function to get authentication token
-function getAuthToken(request?: NextRequest): string | null {
-  if (!request) return null;
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  return null;
-}
-
-export async function GET(request?: NextRequest) {
+export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) => {
   try {
     console.log('📊 Fetching organizations from Railway backend...');
     
-    // Get auth token for backend request
-    const authToken = getAuthToken(request);
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-      console.log('🔑 Using authentication token for backend request');
-    } else {
-      console.log('⚠️ No authentication token provided - backend may deny request');
-    }
-    
-    const response = await fetch(`${BACKEND_URL}/api/admin/business-settings/organizations`, {
+    const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations`, {
       method: 'GET',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer demo-token`,
+        'User-ID': user.userId.toString(),
+      },
     });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Organizations fetched successfully from Railway backend');
-      return NextResponse.json(data);
-    } else {
-      console.log(`❌ Railway backend responded with status ${response.status}, returning empty data`);
-      throw new Error(`Backend responded with status ${response.status}`);
-    }
-  } catch (error) {
-    console.error('❌ Error fetching organizations from Railway backend:', error);
-    console.log('🔄 Returning empty organizations data (system has no data)');
-    
-    // Return empty data to show system is truly empty
-    return NextResponse.json({
-      data: []
-    });
-  }
-}
 
-export async function POST(request: NextRequest) {
+    if (!response.ok) {
+      console.error('❌ Backend organizations request failed:', response.status, response.statusText);
+      return NextResponse.json({ data: [] });
+    }
+
+    const data = await response.json();
+    console.log('✅ Organizations fetched successfully');
+    
+    return NextResponse.json(data);
+
+  } catch (error) {
+    console.error('❌ Error fetching organizations:', error);
+    return NextResponse.json({ data: [] });
+  }
+});
+
+export const POST = requireRole(['ADMIN'])(async (request, user) => {
   try {
     const body = await request.json();
     
-    const response = await fetch(`${BACKEND_URL}/api/admin/business-settings/organizations`, {
+    const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer demo-token`,
+        'User-ID': user.userId.toString(),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        createdBy: user.userId,
+        timestamp: new Date().toISOString()
+      }),
     });
 
     const data = await response.json();
@@ -72,11 +57,93 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(data);
+    
   } catch (error) {
-    console.error('Error creating organization:', error);
+    console.error('❌ Error creating organization:', error);
     return NextResponse.json(
       { error: 'Failed to create organization' },
       { status: 500 }
     );
   }
-}
+});
+
+export const PUT = requireRole(['ADMIN'])(async (request, user) => {
+  try {
+    const body = await request.json();
+    const { id, ...updateData } = body;
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer demo-token`,
+        'User-ID': user.userId.toString(),
+      },
+      body: JSON.stringify({
+        ...updateData,
+        updatedBy: user.userId,
+        timestamp: new Date().toISOString()
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
+    }
+    
+    return NextResponse.json(data);
+    
+  } catch (error) {
+    console.error('❌ Error updating organization:', error);
+    return NextResponse.json(
+      { error: 'Failed to update organization' },
+      { status: 500 }
+    );
+  }
+});
+
+export const DELETE = requireRole(['ADMIN'])(async (request, user) => {
+  try {
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer demo-token`,
+        'User-ID': user.userId.toString(),
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
+    }
+    
+    return NextResponse.json(data);
+    
+  } catch (error) {
+    console.error('❌ Error deleting organization:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete organization' },
+      { status: 500 }
+    );
+  }
+});

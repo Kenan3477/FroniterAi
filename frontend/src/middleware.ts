@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token');
   const isLoginPage = request.nextUrl.pathname === '/login';
+  const isDashboardPage = request.nextUrl.pathname === '/dashboard' || request.nextUrl.pathname === '/';
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
   const isReportsRoute = request.nextUrl.pathname.startsWith('/reports');
@@ -13,9 +14,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // If user is not authenticated and trying to access protected route
-  if (!token && !isLoginPage) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Allow dashboard access without authentication (preview mode)
+  if (isDashboardPage) {
+    return NextResponse.next();
+  }
+  
+  // If user is not authenticated and trying to access protected route (not dashboard/login)
+  if (!token && !isLoginPage && !isDashboardPage) {
+    return NextResponse.redirect(new URL('/dashboard?preview=true', request.url));
   }
   
   // If user is authenticated and trying to access login page

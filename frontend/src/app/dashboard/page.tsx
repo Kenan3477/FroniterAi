@@ -1,30 +1,46 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
 import { kpiApi, DashboardStats } from '@/services/kpiApi';
+import { demoDataService, DemoStats } from '@/services/demoDataService';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const searchParams = useSearchParams();
+  const isPreviewMode = searchParams?.get('preview') === 'true';
+  
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | DemoStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   
-  // Get authenticated user
+  // Get authenticated user (null in preview mode)
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isPreviewMode) {
       loadDashboardStats();
+    } else if (isPreviewMode || !isAuthenticated) {
+      loadDemoStats();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isPreviewMode]);
 
-  // CRITICAL: Set up WebSocket connection for inbound call notifications
+  const loadDemoStats = () => {
+    setLoading(true);
+    // Simulate loading time for better UX
+    setTimeout(() => {
+      setDashboardStats(demoDataService.getDemoStats());
+      setLoading(false);
+    }, 500);
+  };
+
+  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isAuthenticated || isPreviewMode) return;
     
     console.log('🔌 Setting up WebSocket connection for inbound calls...');
     console.log('👤 User ID:', user.id, 'Username:', user.username);
@@ -148,9 +164,9 @@ export default function Dashboard() {
   };
 
   // Authentication is handled by useAuth() hook above
-  if (!isAuthenticated) {
-    return null;
-  }
+  // In preview mode, we show demo data without requiring authentication
+  const currentUser = isPreviewMode || !isAuthenticated ? demoDataService.getDemoUser() : user;
+  const showPreviewBanner = isPreviewMode || !isAuthenticated;
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -172,8 +188,37 @@ export default function Dashboard() {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto">
-        {/* Inbound Call Notifications */}
-        {inboundCalls.length > 0 && (
+        {/* Preview Mode Banner */}
+        {showPreviewBanner && (
+          <div className="mb-6 bg-gradient-to-r from-blue-100 to-cyan-100 border-2 border-blue-300 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="text-3xl">👋</div>
+                <div>
+                  <h3 className="text-lg font-bold text-blue-800">Welcome to Omnivox-AI Preview!</h3>
+                  <p className="text-blue-700">You're viewing demo data. Sign up to access real call center features and your own dashboard.</p>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <button 
+                  onClick={() => window.location.href = '/login'}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/signup'}
+                  className="bg-white text-blue-600 border-2 border-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inbound Call Notifications (authenticated users only) */}
+        {!showPreviewBanner && inboundCalls.length > 0 && (
           <div className="mb-6">
             {inboundCalls.map((call, index) => (
               <div key={call.id || index} className="bg-red-100 border-2 border-red-400 text-red-800 px-6 py-4 rounded-lg mb-3 flex items-center justify-between animate-pulse shadow-lg">
@@ -235,11 +280,22 @@ export default function Dashboard() {
             </div>
           </h1>
           <p className="mt-2 text-lg text-gray-600">
-            Hello, {user?.firstName} {user?.lastName}! Let's get started with your AI-powered dialer.
+            Hello, {currentUser?.firstName} {currentUser?.lastName}! 
+            {showPreviewBanner 
+              ? " Explore our AI-powered dialer in preview mode." 
+              : " Let's get started with your AI-powered dialer."
+            }
           </p>
         </div>
         
         {/* Stats Cards */}
+        {showPreviewBanner && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 text-center">
+              📊 <strong>Demo Statistics Below</strong> - These numbers represent what your dashboard could look like with real data
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <DashboardCard
             title="Today's Calls"
@@ -275,8 +331,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white shadow-sm rounded-lg border border-gray-200">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-              <RecentActivity activities={[]} />
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Activity
+                {showPreviewBanner && <span className="text-sm text-gray-500 ml-2">(Demo Data)</span>}
+              </h3>
+              <RecentActivity 
+                activities={showPreviewBanner ? demoDataService.getDemoActivity() : []} 
+              />
             </div>
           </div>
 
@@ -284,14 +345,38 @@ export default function Dashboard() {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full bg-slate-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-slate-700 transition-colors">
-                  Start New Campaign
+                <button 
+                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
+                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
+                    showPreviewBanner 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
+                      : 'bg-slate-600 text-white hover:bg-slate-700'
+                  }`}
+                  disabled={showPreviewBanner}
+                >
+                  {showPreviewBanner ? '🔒 Start New Campaign (Sign In Required)' : 'Start New Campaign'}
                 </button>
-                <button className="w-full bg-white text-slate-600 border border-slate-600 px-4 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors">
-                  Import Contacts
+                <button 
+                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
+                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
+                    showPreviewBanner 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
+                      : 'bg-white text-slate-600 border border-slate-600 hover:bg-slate-50'
+                  }`}
+                  disabled={showPreviewBanner}
+                >
+                  {showPreviewBanner ? '🔒 Import Contacts (Sign In Required)' : 'Import Contacts'}
                 </button>
-                <button className="w-full bg-white text-gray-600 border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                  View Reports
+                <button 
+                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
+                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
+                    showPreviewBanner 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
+                      : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                  disabled={showPreviewBanner}
+                >
+                  {showPreviewBanner ? '🔒 View Reports (Sign In Required)' : 'View Reports'}
                 </button>
               </div>
             </div>
@@ -302,12 +387,25 @@ export default function Dashboard() {
         <div className="mt-8">
           <div className="bg-white shadow-sm rounded-lg border border-gray-200">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Overview</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Performance Overview
+                {showPreviewBanner && <span className="text-sm text-gray-500 ml-2">(Demo Data)</span>}
+              </h3>
               <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <div className="text-center">
                   <div className="text-4xl mb-2">📈</div>
-                  <p className="text-gray-600">Charts and analytics will be displayed here</p>
-                  <p className="text-sm text-gray-500">Coming soon in the next update</p>
+                  <p className="text-gray-600">
+                    {showPreviewBanner 
+                      ? "Advanced analytics and charts available in full version" 
+                      : "Charts and analytics will be displayed here"
+                    }
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {showPreviewBanner 
+                      ? "Sign in to see your real performance data" 
+                      : "Coming soon in the next update"
+                    }
+                  </p>
                 </div>
               </div>
             </div>
