@@ -85,20 +85,46 @@ function ReportViewPageContent() {
   const loadReportData = async () => {
     setLoading(true);
     try {
-      // ⚠️ PLACEHOLDER: Mock API call - NOT IMPLEMENTED in production backend
-      // TODO: Replace with actual Railway backend integration
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // ✅ IMPLEMENTED: Real API call to Railway backend via proxy route
+      console.log('📊 Loading real report data for type:', reportType);
       
-      // ⚠️ PLACEHOLDER: Generate mock data based on report type - NOT PRODUCTION READY
-      const mockData = {
-        metrics: generateMockKPIs(),
-        chartData: generateMockChartData(),
-        tableData: generateMockTableData()
-      };
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (reportType) params.append('type', reportType);
+      if (filters?.dateRange?.from) params.append('startDate', filters.dateRange.from);
+      if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
+      if (filters?.campaign) params.append('campaignId', filters.campaign);
+      if (filters?.agent) params.append('agentId', filters.agent);
       
-      setReportData(mockData);
+      const response = await fetch(`/api/admin/reports/generate?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate report: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Real report data loaded:', result);
+      
+      if (result.success && result.data) {
+        setReportData({
+          metrics: result.data.metrics,
+          chartData: result.data.chartData,
+          tableData: result.data.tableData
+        });
+        
+        console.log(`📊 Report generated with ${result.data.summary.totalCalls} real call records`);
+      } else {
+        throw new Error(result.error || 'Failed to generate report');
+      }
+      
     } catch (error) {
-      console.error('Error loading report data:', error);
+      console.error('❌ Error loading report data:', error);
+      alert(`Failed to load report: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

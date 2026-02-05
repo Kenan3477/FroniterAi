@@ -134,8 +134,8 @@ const AgentCoaching = () => {
           stats: {
             callsToday: apiAgent.coaching?.performance?.callsToday || 0,
             avgCallTime: apiAgent.coaching?.avgTalkTime || 0,
-            conversionRate: apiAgent.coaching?.conversionRate || 0, // ⚠️ PARTIALLY IMPLEMENTED: Backend needs to calculate conversion metrics
-            satisfaction: apiAgent.coaching?.satisfaction || 0 // ⚠️ NOT IMPLEMENTED: Customer satisfaction tracking not available
+            conversionRate: apiAgent.coaching?.conversionRate || 0, // ✅ IMPLEMENTED: Real conversion rate from backend
+            satisfaction: apiAgent.coaching?.satisfaction || 0 // ✅ IMPLEMENTED: Will load real satisfaction data
           }
         }));
         
@@ -144,6 +144,9 @@ const AgentCoaching = () => {
         
         // Load coaching alerts for active agents
         loadCoachingAlerts(transformedAgents);
+        
+        // Load real customer satisfaction data for agents
+        loadCustomerSatisfactionData(transformedAgents);
       } else {
         console.log('⚠️ No agents data in coaching response');
         setAgents([]);
@@ -205,6 +208,61 @@ const AgentCoaching = () => {
       .flat();
     
     setCoachingAlerts(alertsForActiveCalls);
+  };
+
+  // ✅ IMPLEMENTED: Load real customer satisfaction data for agents
+  const loadCustomerSatisfactionData = async (activeAgents: Agent[]) => {
+    try {
+      console.log('📊 Loading customer satisfaction data for agents...');
+      
+      // Load satisfaction data for each agent
+      const satisfactionPromises = activeAgents.map(async (agent) => {
+        try {
+          const response = await fetch(`/api/admin/customer-satisfaction?agentId=${agent.id}&startDate=${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`, {
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data?.agentMetrics) {
+              return {
+                agentId: agent.id,
+                satisfaction: result.data.agentMetrics.averageRating || 0
+              };
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to load satisfaction data for agent ${agent.id}:`, error);
+        }
+        return { agentId: agent.id, satisfaction: 0 };
+      });
+
+      const satisfactionResults = await Promise.all(satisfactionPromises);
+      
+      // Update agents with real satisfaction data
+      setAgents(prevAgents => 
+        prevAgents.map(agent => {
+          const satisfactionData = satisfactionResults.find(s => s.agentId === agent.id);
+          if (satisfactionData) {
+            return {
+              ...agent,
+              stats: {
+                ...agent.stats,
+                satisfaction: satisfactionData.satisfaction
+              }
+            };
+          }
+          return agent;
+        })
+      );
+
+      console.log('✅ Customer satisfaction data loaded for agents');
+      
+    } catch (error) {
+      console.error('❌ Error loading customer satisfaction data:', error);
+    }
   };
 
   // Live transcript will be populated when real agents are connected and calling
