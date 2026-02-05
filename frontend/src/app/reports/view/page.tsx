@@ -85,10 +85,11 @@ function ReportViewPageContent() {
   const loadReportData = async () => {
     setLoading(true);
     try {
-      // Mock API call
+      // ⚠️ PLACEHOLDER: Mock API call - NOT IMPLEMENTED in production backend
+      // TODO: Replace with actual Railway backend integration
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Generate mock data based on report type
+      // ⚠️ PLACEHOLDER: Generate mock data based on report type - NOT PRODUCTION READY
       const mockData = {
         metrics: generateMockKPIs(),
         chartData: generateMockChartData(),

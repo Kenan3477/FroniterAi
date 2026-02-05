@@ -1,5 +1,7 @@
 // Dialer API service
-// This is a placeholder implementation for the dialer service
+// ⚠️ PLACEHOLDER: This is a placeholder implementation for the dialer service
+// 🚨 NOT IMPLEMENTED: Critical telephony features are stubbed
+// 🔧 REQUIRED: Implement actual Railway backend telephony integration
 
 export interface InitiateCallParams {
   to: string;

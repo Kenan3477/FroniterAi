@@ -1,6 +1,8 @@
 /**
  * Simple KPI Tracking Service
- * Mock implementation for testing reports functionality
+ * ⚠️ PLACEHOLDER: Mock implementation for testing reports functionality
+ * 🚨 NOT IMPLEMENTED: This service generates fake data and is NOT PRODUCTION READY
+ * 🔧 REQUIRED: Replace with actual Railway backend API integration
  */
 
 export interface CallKPIData {

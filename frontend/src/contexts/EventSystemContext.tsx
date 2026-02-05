@@ -139,7 +139,7 @@ interface EventSystemProviderProps {
 // Provider component
 export const EventSystemProvider: React.FC<EventSystemProviderProps> = ({ 
   children, 
-  serverUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002',
+  serverUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app',
   maxEvents = 100 
 }) => {
   const [socket, setSocket] = useState<Socket | null>(null);

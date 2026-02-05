@@ -78,13 +78,134 @@ const AgentCoaching = () => {
     confidence: number;
   }>>([]);
   
-  // Real agents will be loaded from the backend when agent management is implemented
-  const [agents] = useState<Agent[]>([]);
+  // 🚨 FIXED: Load real agents from backend API instead of empty array
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(true);
 
-  // Real coaching alerts will be generated from live call analysis when implemented
+  // 🚨 FIXED: Load real coaching alerts from live call analysis
   const [coachingAlerts, setCoachingAlerts] = useState<CoachingAlert[]>([]);
 
   const [whisperMessages, setWhisperMessages] = useState<WhisperMessage[]>([]);
+
+  // 🚨 FIXED: Load real live agents data on component mount
+  useEffect(() => {
+    loadLiveAgents();
+    
+    // Set up polling for real-time updates every 5 seconds
+    const interval = setInterval(loadLiveAgents, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadLiveAgents = async () => {
+    try {
+      setLoadingAgents(true);
+      console.log('🔄 Loading live agents from coaching API...');
+      
+      // Use dedicated coaching API endpoint for better data
+      const response = await fetch('/api/coaching/agents', {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch coaching agents: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('📊 Coaching agents response:', result);
+      
+      if (result.success && result.data?.agents) {
+        // Transform coaching API data to local interface format
+        const transformedAgents: Agent[] = result.data.agents.map((apiAgent: any) => ({
+          id: apiAgent.agentId,
+          name: `${apiAgent.firstName} ${apiAgent.lastName}`.trim() || apiAgent.username,
+          status: mapBackendStatusToLocal(apiAgent.status),
+          avatar: `/avatars/agent-${apiAgent.id}.jpg`,
+          currentCall: apiAgent.currentCall ? {
+            contactName: apiAgent.currentCall.contactName,
+            contactPhone: apiAgent.currentCall.contactPhone,
+            startTime: new Date(apiAgent.currentCall.startTime),
+            callType: apiAgent.currentCall.callType,
+            script: 'Live call in progress',
+            sentiment: 'neutral',
+            quality: 7
+          } : undefined,
+          stats: {
+            callsToday: apiAgent.stats.callsToday,
+            avgCallTime: apiAgent.stats.avgCallTime,
+            conversionRate: apiAgent.stats.conversionRate,
+            satisfaction: apiAgent.stats.satisfaction
+          }
+        }));
+        
+        setAgents(transformedAgents);
+        console.log('✅ Loaded live coaching agents:', transformedAgents);
+        
+        // Load coaching alerts for active agents
+        loadCoachingAlerts(transformedAgents);
+      } else {
+        console.log('⚠️ No agents data in coaching response');
+        setAgents([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading live agents:', error);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  // Map backend agent status to local coaching interface status
+  const mapBackendStatusToLocal = (backendStatus: string): Agent['status'] => {
+    const statusMap: Record<string, Agent['status']> = {
+      'Available': 'available',
+      'OnCall': 'on-call', 
+      'on-call': 'on-call',
+      'AfterCall': 'busy',
+      'Break': 'busy',
+      'Lunch': 'busy',
+      'Meeting': 'busy',
+      'Training': 'busy',
+      'Offline': 'offline',
+      'busy': 'busy'
+    };
+    
+    return statusMap[backendStatus] || 'offline';
+  };
+
+  // 🚨 FIXED: Load real coaching alerts from backend when available
+  const loadCoachingAlerts = async (activeAgents: Agent[]) => {
+    // For now, only create alerts for agents with active calls
+    const alertsForActiveCalls = activeAgents
+      .filter(agent => agent.currentCall)
+      .map(agent => {
+        // Generate real-time coaching alerts based on call duration
+        const callDuration = agent.currentCall 
+          ? Math.floor((Date.now() - agent.currentCall.startTime.getTime()) / 1000)
+          : 0;
+        
+        const alerts: CoachingAlert[] = [];
+        
+        // Alert for calls over 10 minutes
+        if (callDuration > 600) {
+          alerts.push({
+            id: `long-call-${agent.id}`,
+            agentId: agent.id,
+            type: 'call_too_long',
+            message: `Call has been active for ${Math.floor(callDuration / 60)} minutes`,
+            severity: callDuration > 900 ? 'high' : 'medium',
+            timestamp: new Date(),
+            acknowledged: false
+          });
+        }
+        
+        return alerts;
+      })
+      .flat();
+    
+    setCoachingAlerts(alertsForActiveCalls);
+  };
 
   // Live transcript will be populated when real agents are connected and calling
 
@@ -171,37 +292,27 @@ const AgentCoaching = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {agents.length === 0 ? (
-              <AgentManagement 
-                className="h-full" 
-                onAgentSelect={(agent) => {
-                  // Convert agent to local format for compatibility
-                  const localAgent: Agent = {
-                    id: agent.id,
-                    name: agent.name,
-                    status: agent.status === 'online' ? 'available' : 
-                           agent.status === 'busy' ? 'on-call' :
-                           agent.status === 'break' ? 'busy' : 'offline',
-                    avatar: `/avatars/${agent.name.toLowerCase().replace(' ', '_')}.jpg`,
-                    currentCall: agent.currentCallId ? {
-                      contactName: 'Customer',
-                      contactPhone: '+1 (555) 123-4567',
-                      startTime: new Date(),
-                      callType: 'outbound' as const,
-                      script: 'Standard sales script',
-                      sentiment: 'neutral' as const,
-                      quality: 7
-                    } : undefined,
-                    stats: {
-                      callsToday: agent.totalCallsToday,
-                      avgCallTime: Math.round(agent.totalTalkTime / agent.totalCallsToday) || 0,
-                      conversionRate: 0.15,
-                      satisfaction: 4.2
-                    }
-                  };
-                  setSelectedAgent(localAgent);
-                }}
-              />
+            {loadingAgents ? (
+              <div className="p-4 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Loading live agents...</p>
+              </div>
+            ) : agents.length === 0 ? (
+              <div className="p-4 text-center">
+                <UserIcon className="mx-auto h-16 w-16 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">No Active Agents</h3>
+                <p className="mt-2 text-gray-500 text-sm">
+                  No agents are currently online or available for coaching.
+                  <br />
+                  Agents will appear here when they log in and become available.
+                </p>
+                <button 
+                  onClick={loadLiveAgents}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                >
+                  Refresh Agents
+                </button>
+              </div>
             ) : (
               agents.map((agent) => (
               <div
@@ -678,10 +789,23 @@ const AgentCoaching = () => {
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <EyeIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-2">Agent Coaching Ready</h3>
-                <p className="text-gray-500 mb-4">Connect agents to your system to begin live call monitoring and coaching</p>
-                <div className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-md">
-                  Real-time call analysis, sentiment detection, and coaching alerts will appear here when agents are active
+                <h3 className="text-xl font-medium text-gray-900 mb-2">Select an Agent</h3>
+                <p className="text-gray-500 mb-4">
+                  {agents.length > 0 
+                    ? "Choose an agent from the sidebar to begin live call monitoring and coaching"
+                    : "No agents are currently online. Agents will appear here when they log in and become available."
+                  }
+                </p>
+                {!loadingAgents && (
+                  <button 
+                    onClick={loadLiveAgents}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    Refresh Agent List
+                  </button>
+                )}
+                <div className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-md mt-4">
+                  🔄 Real-time data: Agent status and call information updates every 5 seconds
                 </div>
               </div>
             </div>

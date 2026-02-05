@@ -18,7 +18,8 @@ export default function FlowExecutionTestPage() {
   const startFlowExecution = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/flow-execution/start', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/flow-execution/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,7 +49,8 @@ export default function FlowExecutionTestPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/flow-execution/ivr', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/flow-execution/ivr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,7 +86,8 @@ export default function FlowExecutionTestPage() {
         }
       };
 
-      const response = await fetch('http://localhost:3001/api/flow-execution/start', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/flow-execution/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

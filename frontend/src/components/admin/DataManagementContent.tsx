@@ -1173,14 +1173,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           <div className="text-center py-12">
             <PlusIcon className="mx-auto h-16 w-16 text-gray-400" />
             <h3 className="mt-4 text-lg font-medium text-gray-900">Create New Data List</h3>
-            <p className="mt-2 text-gray-600">Feature coming soon...</p>
+            <p className="mt-2 text-gray-600">⚠️ PLACEHOLDER: Feature coming soon - NOT IMPLEMENTED</p>
           </div>
         )}
 
         {selectedSubTab === 'Data Analytics' && (
           <div className="text-center py-12">
             <h3 className="mt-4 text-lg font-medium text-gray-900">Data Analytics</h3>
-            <p className="mt-2 text-gray-600">Feature coming soon...</p>
+            <p className="mt-2 text-gray-600">⚠️ PLACEHOLDER: Feature coming soon - NOT IMPLEMENTED</p>
           </div>
         )}
       </div>
