@@ -8,7 +8,11 @@ async function createInitialUsers() {
     console.log('🚀 Creating initial users for Omnivox-AI...');
 
     // Create admin user
-    const adminPassword = await bcrypt.hash('OmnivoxAdmin2025!', 12);
+    const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET';
+    if (defaultAdminPassword === 'ADMIN_PASSWORD_NOT_SET') {
+      throw new Error('ADMIN_PASSWORD environment variable must be set');
+    }
+    const adminPassword = await bcrypt.hash(defaultAdminPassword, 12);
     const adminUser = await prisma.user.upsert({
       where: { email: 'admin@omnivox-ai.com' },
       update: {
@@ -78,11 +82,11 @@ async function createInitialUsers() {
 
     console.log('\n🎯 Production Authentication Setup Complete!');
     console.log('════════════════════════════════════════════');
-    console.log('Admin Login:      admin@omnivox-ai.com / OmnivoxAdmin2025!');
-    console.log('Agent Login:      agent@omnivox-ai.com / OmnivoxAgent2025!');
-    console.log('Supervisor Login: supervisor@omnivox-ai.com / OmnivoxSupervisor2025!');
+    console.log('Admin Login:      admin@omnivox-ai.com / [SET_VIA_ADMIN_PASSWORD_ENV_VAR]');
+    console.log('Agent Login:      agent@omnivox-ai.com / [SET_VIA_AGENT_PASSWORD_ENV_VAR]');
+    console.log('Supervisor Login: supervisor@omnivox-ai.com / [SET_VIA_SUPERVISOR_PASSWORD_ENV_VAR]');
     console.log('════════════════════════════════════════════');
-    console.log('\n⚠️  SECURITY NOTICE: Change these passwords in production!');
+    console.log('\n⚠️  SECURITY NOTICE: Passwords are set via environment variables!');
 
   } catch (error) {
     console.error('❌ Error creating initial users:', error);

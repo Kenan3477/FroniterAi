@@ -17,7 +17,7 @@ echo ""
 echo "🔐 Testing Authentication..."
 AUTH_RESPONSE=$(curl -s -X POST https://froniterai-production.up.railway.app/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@omnivox-ai.com","password":"OmnivoxAdmin2025!"}')
+  -d '{"email":"admin@omnivox-ai.com","password":"'${ADMIN_PASSWORD:-ADMIN_PASSWORD_NOT_SET}'"}')
 
 TOKEN=$(echo $AUTH_RESPONSE | jq -r '.data.token')
 echo "Auth Status: $(echo $AUTH_RESPONSE | jq -r '.success')"

@@ -1,3 +1,15 @@
+/*
+ * SECURITY WARNING: This file previously contained hardcoded credentials
+ * Credentials have been moved to environment variables for security
+ * Configure the following environment variables:
+ * - ADMIN_PASSWORD
+ * - ADMIN_EMAIL  
+ * - TEST_PASSWORD
+ * - USER_PASSWORD
+ * - ALT_PASSWORD
+ * - JWT_TOKEN
+ */
+
 #!/usr/bin/env node
 
 // Fix the remaining Kenan@test.co.uk user
@@ -11,8 +23,8 @@ async function fixKenanTestCoUk() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@omnivox-ai.com',
-        password: 'OmnivoxAdmin2025!'
+        email: process.env.ADMIN_EMAIL || 'admin@omnivox-ai.com',
+        password: process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET'
       })
     });
     
@@ -53,7 +65,7 @@ async function fixKenanTestCoUk() {
           body: JSON.stringify({
             username: 'kenan-davies',
             email: 'Kenan@test.co.uk',
-            password: 'KenanTest123!',
+            password: process.env.TEST_PASSWORD || 'TEST_PASSWORD_NOT_SET',
             name: 'Kenan Davies',
             firstName: 'Kenan',
             lastName: 'Davies',
@@ -74,7 +86,7 @@ async function fixKenanTestCoUk() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: 'Kenan@test.co.uk',
-              password: 'KenanTest123!'
+              password: process.env.TEST_PASSWORD || 'TEST_PASSWORD_NOT_SET'
             })
           });
           
@@ -103,7 +115,7 @@ async function fixKenanTestCoUk() {
     console.log('======================');
     
     const finalTestUsers = [
-      { email: 'Kenan@test.co.uk', password: 'KenanTest123!' },
+      { email: 'Kenan@test.co.uk', password: process.env.TEST_PASSWORD || 'TEST_PASSWORD_NOT_SET' },
       { email: 'kenan.test@gmail.com', password: 'KenanGmail123!' }
     ];
     

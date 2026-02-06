@@ -1,3 +1,15 @@
+/*
+ * SECURITY WARNING: This file previously contained hardcoded credentials
+ * Credentials have been moved to environment variables for security
+ * Configure the following environment variables:
+ * - ADMIN_PASSWORD
+ * - ADMIN_EMAIL  
+ * - TEST_PASSWORD
+ * - USER_PASSWORD
+ * - ALT_PASSWORD
+ * - JWT_TOKEN
+ */
+
 #!/usr/bin/env node
 
 // Complete the Kenan fix with strong password
@@ -11,8 +23,8 @@ async function completeKenanFix() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@omnivox-ai.com',
-        password: 'OmnivoxAdmin2025!'
+        email: process.env.ADMIN_EMAIL || 'admin@omnivox-ai.com',
+        password: process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET'
       })
     });
     

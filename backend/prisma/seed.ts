@@ -13,7 +13,7 @@ async function main() {
     {
       username: 'admin',
       email: 'admin@omnivox-ai.com',
-      password: 'OmnivoxAdmin2025!',
+      password: process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET',
       role: 'ADMIN',
       firstName: 'System',
       lastName: 'Administrator'
@@ -21,7 +21,7 @@ async function main() {
     {
       username: 'agent',
       email: 'agent@omnivox-ai.com',
-      password: 'OmnivoxAgent2025!',
+      password: process.env.AGENT_PASSWORD || 'AGENT_PASSWORD_NOT_SET',
       role: 'AGENT',
       firstName: 'Demo',
       lastName: 'Agent'
@@ -29,7 +29,7 @@ async function main() {
     {
       username: 'supervisor',
       email: 'supervisor@omnivox-ai.com',
-      password: 'OmnivoxSupervisor2025!',
+      password: process.env.SUPERVISOR_PASSWORD || 'SUPERVISOR_PASSWORD_NOT_SET',
       role: 'SUPERVISOR',
       firstName: 'Demo',
       lastName: 'Supervisor'

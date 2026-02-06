@@ -1,3 +1,15 @@
+/*
+ * SECURITY WARNING: This file previously contained hardcoded credentials
+ * Credentials have been moved to environment variables for security
+ * Configure the following environment variables:
+ * - ADMIN_PASSWORD
+ * - ADMIN_EMAIL  
+ * - TEST_PASSWORD
+ * - USER_PASSWORD
+ * - ALT_PASSWORD
+ * - JWT_TOKEN
+ */
+
 const http = require('http');
 
 async function testFrontendWorkflow() {
@@ -49,8 +61,8 @@ async function testFrontendWorkflow() {
     // Step 1: Test frontend login
     console.log('\n1. Testing frontend login...');
     const loginResponse = await makeRequest('/api/auth/login', 'POST', {
-      email: 'admin@omnivox-ai.com',
-      password: 'OmnivoxAdmin2025!'
+      email: process.env.ADMIN_EMAIL || 'admin@omnivox-ai.com',
+      password: process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET'
     });
 
     console.log(`   Login Status: ${loginResponse.status}`);

@@ -14,7 +14,7 @@ The "Inbound Numbers" tab was failing to load with an "Internal Server Error" du
 
 ### Steps to Fix:
 1. Go to http://localhost:3000/login
-2. Log in with: `admin@omnivox-ai.com` / `OmnivoxAdmin2025!`
+2. Log in with: `admin@omnivox-ai.com` / `[SET_VIA_ADMIN_PASSWORD_ENV_VAR]`
 3. Navigate back to Admin > Channels > Inbound Numbers
 4. The tab will now load successfully showing all 4 inbound numbers
 

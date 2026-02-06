@@ -48,7 +48,11 @@ router.post('/create-users', async (req: Request, res: Response) => {
     }
 
     // Create admin user
-    const adminPassword = await bcrypt.hash('OmnivoxAdmin2025!', 12);
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'ADMIN_PASSWORD_NOT_SET';
+    if (defaultPassword === 'ADMIN_PASSWORD_NOT_SET') {
+      throw new Error('ADMIN_PASSWORD environment variable must be set');
+    }
+    const adminPassword = await bcrypt.hash(defaultPassword, 12);
     const adminUser = await prisma.user.create({
       data: {
         username: 'admin',
@@ -107,9 +111,9 @@ router.post('/create-users', async (req: Request, res: Response) => {
         { email: supervisorUser.email, role: supervisorUser.role }
       ],
       credentials: {
-        admin: { email: 'admin@omnivox-ai.com', password: 'OmnivoxAdmin2025!' },
-        agent: { email: 'agent@omnivox-ai.com', password: 'OmnivoxAgent2025!' },
-        supervisor: { email: 'supervisor@omnivox-ai.com', password: 'OmnivoxSupervisor2025!' }
+        admin: { email: 'admin@omnivox-ai.com', password: 'SET_VIA_ADMIN_PASSWORD_ENV_VAR' },
+        agent: { email: 'agent@omnivox-ai.com', password: 'SET_VIA_AGENT_PASSWORD_ENV_VAR' },
+        supervisor: { email: 'supervisor@omnivox-ai.com', password: 'SET_VIA_SUPERVISOR_PASSWORD_ENV_VAR' }
       }
     });
 

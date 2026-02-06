@@ -34,7 +34,7 @@ The **database cleanup is 100% complete**. However, the Railway API might still 
 
 1. **Go to**: http://localhost:3000/login
 2. **Log out** (if currently logged in)  
-3. **Log in again** with: `admin@omnivox-ai.com` / `OmnivoxAdmin2025!`
+3. **Log in again** with: `admin@omnivox-ai.com` / `[SET_VIA_ADMIN_PASSWORD_ENV_VAR]`
 4. **Navigate to**: Admin > Channels > Inbound Numbers
 
 You should now see **only your real Twilio number** (+442046343130).
