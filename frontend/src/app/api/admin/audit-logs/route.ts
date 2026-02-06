@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Force dynamic rendering for this route
-export const dynamic = 'force-dynamic';
 import { requireRole } from '@/middleware/auth';
 
 // Force dynamic rendering for this route
