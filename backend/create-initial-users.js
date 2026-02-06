@@ -35,7 +35,11 @@ async function createInitialUsers() {
     console.log('✅ Admin user created:', adminUser.email);
 
     // Create agent user
-    const agentPassword = await bcrypt.hash('OmnivoxAgent2025!', 12);
+    const defaultAgentPassword = process.env.AGENT_PASSWORD || 'AGENT_PASSWORD_NOT_SET';
+    if (defaultAgentPassword === 'AGENT_PASSWORD_NOT_SET') {
+      throw new Error('AGENT_PASSWORD environment variable must be set');
+    }
+    const agentPassword = await bcrypt.hash(defaultAgentPassword, 12);
     const agentUser = await prisma.user.upsert({
       where: { email: 'agent@omnivox-ai.com' },
       update: {
@@ -58,7 +62,11 @@ async function createInitialUsers() {
     console.log('✅ Agent user created:', agentUser.email);
 
     // Create supervisor user
-    const supervisorPassword = await bcrypt.hash('OmnivoxSupervisor2025!', 12);
+    const defaultSupervisorPassword = process.env.SUPERVISOR_PASSWORD || 'SUPERVISOR_PASSWORD_NOT_SET';
+    if (defaultSupervisorPassword === 'SUPERVISOR_PASSWORD_NOT_SET') {
+      throw new Error('SUPERVISOR_PASSWORD environment variable must be set');
+    }
+    const supervisorPassword = await bcrypt.hash(defaultSupervisorPassword, 12);
     const supervisorUser = await prisma.user.upsert({
       where: { email: 'supervisor@omnivox-ai.com' },
       update: {

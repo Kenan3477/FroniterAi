@@ -37,7 +37,7 @@ async function main() {
     {
       username: 'test-user',
       email: 'test.user@example.com',
-      password: 'TestUser123!',
+      password: process.env.TEST_PASSWORD || 'TEST_PASSWORD_NOT_SET',
       role: 'AGENT',
       firstName: 'Test',
       lastName: 'User'
@@ -45,7 +45,7 @@ async function main() {
     {
       username: 'kenan-test',
       email: 'kenan.test@gmail.com',
-      password: 'KenanGmail123!',
+      password: process.env.KENAN_PASSWORD || 'KENAN_PASSWORD_NOT_SET',
       role: 'AGENT',
       firstName: 'Kenan',
       lastName: 'Test'
