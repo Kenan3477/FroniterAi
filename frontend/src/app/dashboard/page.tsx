@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
@@ -10,7 +10,7 @@ import { demoDataService, DemoStats } from '@/services/demoDataService';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function Dashboard() {
+function DashboardContent() {
   const searchParams = useSearchParams();
   const isPreviewMode = searchParams?.get('preview') === 'true';
   
@@ -413,5 +413,19 @@ export default function Dashboard() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </MainLayout>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

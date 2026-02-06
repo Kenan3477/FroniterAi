@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 import { requireRole } from '@/middleware/auth';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 const RAILWAY_BACKEND_URL = process.env.RAILWAY_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 

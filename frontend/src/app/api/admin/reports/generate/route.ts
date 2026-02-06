@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 import { cookies } from 'next/headers';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
