@@ -673,13 +673,46 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('🎯 Creating conference call:', conferenceId);
 
-    // Start call record in database (without agent reference initially)
+    // Ensure manual dial campaign exists
+    const campaignId = 'manual-dial';
+    let campaign = await prisma.campaign.findUnique({
+      where: { campaignId: campaignId }
+    });
+
+    if (!campaign) {
+      console.log('🔧 Creating manual dial campaign...');
+      campaign = await prisma.campaign.create({
+        data: {
+          campaignId: campaignId,
+          name: 'Manual Dial Campaign',
+          dialMethod: 'Manual',
+          status: 'Active'
+        }
+      });
+      console.log('✅ Created campaign:', campaign.campaignId);
+    }
+
+    // Create a basic contact record for manual dial
+    const contactId = `contact-${Date.now()}`;
+    const contact = await prisma.contact.create({
+      data: {
+        contactId: contactId,
+        listId: 'manual-dial-list',
+        firstName: 'Manual',
+        lastName: 'Dial',
+        phone: formattedTo,
+        status: 'new'
+      }
+    });
+    console.log('✅ Created contact:', contact.contactId);
+
+    // Start call record in database
     const callRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
         agentId: null, // Skip agent reference for now to avoid foreign key issues
-        contactId: `contact-${Date.now()}`, // TODO: Get or create actual contact
-        campaignId: 'manual-dial', // Manual dial campaign
+        contactId: contactId, // Use created contact ID
+        campaignId: campaignId, // Use existing/created campaign ID
         phoneNumber: formattedTo,
         dialedNumber: formattedTo,
         callType: 'outbound',
