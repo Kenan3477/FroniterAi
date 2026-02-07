@@ -673,34 +673,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('🎯 Creating conference call:', conferenceId);
 
-    // Ensure agent exists before creating call record
-    const targetAgentId = 'agent-001';
-    let agent = await prisma.agent.findUnique({
-      where: { agentId: targetAgentId }
-    });
-
-    if (!agent) {
-      console.log('🔧 Creating agent record for call...');
-      agent = await prisma.agent.create({
-        data: {
-          agentId: targetAgentId,
-          firstName: 'Manual',
-          lastName: 'Dialer',
-          email: 'dialer@omnivox.ai',
-          status: 'AVAILABLE',
-          isLoggedIn: true
-        }
-      });
-      console.log('✅ Created agent:', agent.agentId);
-    } else {
-      console.log('✅ Using existing agent:', agent.agentId);
-    }
-
-    // Start call record in database
+    // Start call record in database (without agent reference initially)
     const callRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: targetAgentId, // Use verified agent ID
+        agentId: null, // Skip agent reference for now to avoid foreign key issues
         contactId: `contact-${Date.now()}`, // TODO: Get or create actual contact
         campaignId: 'manual-dial', // Manual dial campaign
         phoneNumber: formattedTo,
