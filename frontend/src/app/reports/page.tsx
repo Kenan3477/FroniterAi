@@ -33,7 +33,9 @@ import {
   PlusIcon,
   XMarkIcon,
   CheckIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
 import {
@@ -364,6 +366,9 @@ export default function ReportsPage() {
     chartType: 'bar' as 'line' | 'bar' | 'pie' | 'doughnut'
   });
 
+  // Collapsible Reports state
+  const [isReportsCollapsed, setIsReportsCollapsed] = useState(false);
+
   // Check user role authorization
   useEffect(() => {
     const checkUserRole = async () => {
@@ -493,16 +498,32 @@ export default function ReportsPage() {
   return (
     <MainLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-        <p className="mt-2 text-lg text-gray-600">
-          Comprehensive reporting suite with real-time analytics and performance metrics.
-        </p>
+        <div 
+          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+          onClick={() => setIsReportsCollapsed(!isReportsCollapsed)}
+        >
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
+            <p className="mt-2 text-lg text-gray-600">
+              Comprehensive reporting suite with real-time analytics and performance metrics.
+            </p>
+          </div>
+          <div className="ml-4">
+            {isReportsCollapsed ? (
+              <ChevronDownIcon className="h-6 w-6 text-gray-400" />
+            ) : (
+              <ChevronUpIcon className="h-6 w-6 text-gray-400" />
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+      {!isReportsCollapsed && (
+        <>
+          {/* Tab Navigation */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
             {[
               { id: 'categories', label: 'Report Categories', icon: ChartBarIcon },
               { id: 'dashboard', label: 'Dashboard (Not Available)', icon: ChartPieIcon },
@@ -695,6 +716,8 @@ export default function ReportsPage() {
           <ScheduledReports />
         </div>
       )}
+        </>
+      )}
 
     </MainLayout>
   );
@@ -708,6 +731,16 @@ const CLIManagement: React.FC = () => {
   const [selectedCLI, setSelectedCLI] = useState<string | null>(null);
   const [selectedSubTab, setSelectedSubTab] = useState('Manage Phone Numbers');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Add New Number modal state
+  const [isAddNumberModalOpen, setIsAddNumberModalOpen] = useState(false);
+  const [newNumberForm, setNewNumberForm] = useState({
+    phoneNumber: '',
+    displayName: '',
+    type: 'voice' as 'voice' | 'sms',
+    assignedFlow: '',
+    isActive: true
+  });
 
   // Debug logging
   console.log('🔍 CLIManagement component rendered');
@@ -763,6 +796,39 @@ const CLIManagement: React.FC = () => {
     (number.displayName && number.displayName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (number.assignedFlow?.name && number.assignedFlow.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Handle form submission for new number
+  const handleAddNumber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newNumberForm.phoneNumber) {
+      alert('Phone number is required');
+      return;
+    }
+
+    try {
+      // In a real implementation, this would call the API to add the number
+      console.log('Adding new number:', newNumberForm);
+      alert(`Number ${newNumberForm.phoneNumber} would be configured and added to the system.`);
+      
+      // Reset form and close modal
+      setNewNumberForm({
+        phoneNumber: '',
+        displayName: '',
+        type: 'voice',
+        assignedFlow: '',
+        isActive: true
+      });
+      setIsAddNumberModalOpen(false);
+      
+      // In a real implementation, refresh the numbers list
+      // fetchInboundNumbers();
+      
+    } catch (error) {
+      console.error('Error adding number:', error);
+      alert('Failed to add number. Please try again.');
+    }
+  };
 
   return (
     <div className="h-full bg-gray-50 flex flex-col">
@@ -830,7 +896,7 @@ const CLIManagement: React.FC = () => {
                 
                 <button 
                   className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors flex items-center"
-                  onClick={() => window.open('/admin?section=channels', '_blank')}
+                  onClick={() => setIsAddNumberModalOpen(true)}
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Add New Number
@@ -1077,6 +1143,117 @@ const CLIManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Add New Number Modal */}
+      {isAddNumberModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsAddNumberModalOpen(false)}></div>
+            
+            {/* Center the modal */}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleAddNumber}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                        Add New Phone Number
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Phone Number *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={newNumberForm.phoneNumber}
+                            onChange={(e) => setNewNumberForm({...newNumberForm, phoneNumber: e.target.value})}
+                            placeholder="+442046343130"
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Display Name
+                          </label>
+                          <input
+                            type="text"
+                            value={newNumberForm.displayName}
+                            onChange={(e) => setNewNumberForm({...newNumberForm, displayName: e.target.value})}
+                            placeholder="Main Office Line"
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Type
+                          </label>
+                          <select
+                            value={newNumberForm.type}
+                            onChange={(e) => setNewNumberForm({...newNumberForm, type: e.target.value as 'voice' | 'sms'})}
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          >
+                            <option value="voice">Voice</option>
+                            <option value="sms">SMS</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Assigned Flow
+                          </label>
+                          <input
+                            type="text"
+                            value={newNumberForm.assignedFlow}
+                            onChange={(e) => setNewNumberForm({...newNumberForm, assignedFlow: e.target.value})}
+                            placeholder="Customer Service Flow"
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isActive"
+                            checked={newNumberForm.isActive}
+                            onChange={(e) => setNewNumberForm({...newNumberForm, isActive: e.target.checked})}
+                            className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+                            Active
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-slate-600 text-base font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Add Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddNumberModalOpen(false)}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
