@@ -692,12 +692,31 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       console.log('✅ Created campaign:', campaign.campaignId);
     }
 
+    // Ensure manual dial list exists
+    const listId = 'manual-dial-list';
+    let dataList = await prisma.dataList.findUnique({
+      where: { listId: listId }
+    });
+
+    if (!dataList) {
+      console.log('🔧 Creating manual dial list...');
+      dataList = await prisma.dataList.create({
+        data: {
+          listId: listId,
+          name: 'Manual Dial List',
+          campaignId: campaignId,
+          active: true
+        }
+      });
+      console.log('✅ Created list:', dataList.listId);
+    }
+
     // Create a basic contact record for manual dial
     const contactId = `contact-${Date.now()}`;
     const contact = await prisma.contact.create({
       data: {
         contactId: contactId,
-        listId: 'manual-dial-list',
+        listId: listId, // Use created list ID
         firstName: 'Manual',
         lastName: 'Dial',
         phone: formattedTo,
