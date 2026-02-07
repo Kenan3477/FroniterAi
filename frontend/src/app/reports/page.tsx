@@ -35,7 +35,10 @@ import {
   CheckIcon,
   UserGroupIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
 import {
@@ -742,52 +745,141 @@ const CLIManagement: React.FC = () => {
     isActive: true
   });
 
+  // Edit Number modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingNumber, setEditingNumber] = useState<any>(null);
+  
+  // Assignment modal state
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [assignmentTarget, setAssignmentTarget] = useState<any>(null);
+  const [assignmentForm, setAssignmentForm] = useState({
+    assignedCampaign: '',
+    assignedFlow: '',
+    assignedCallGroup: '',
+    assignedQueue: '',
+    dropAction: 'hangup' as 'hangup' | 'voicemail' | 'audio' | 'ivr' | 'transfer',
+    outOfHoursAction: 'hangup' as 'hangup' | 'voicemail' | 'audio' | 'ivr' | 'transfer',
+    audioFileUrl: '',
+    transferNumber: '',
+    ivrFlowId: ''
+  });
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  
+  // Dropdown state
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // Backend data states for dropdowns
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [flows, setFlows] = useState<any[]>([]);
+  const [callGroups, setCallGroups] = useState<any[]>([]);
+  const [queues, setQueues] = useState<any[]>([]);
+
+  // Load backend data for dropdowns
+  const fetchBackendData = async () => {
+    try {
+      console.log('📊 Loading backend data for dropdowns...');
+
+      // Load campaigns
+      const campaignsRes = await fetch('/api/campaigns/active', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (campaignsRes.ok) {
+        const campaignsData = await campaignsRes.json();
+        setCampaigns(campaignsData.campaigns || []);
+        console.log('✅ Loaded campaigns:', campaignsData.campaigns?.length || 0);
+      }
+
+      // Load flows
+      const flowsRes = await fetch('/api/flows', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (flowsRes.ok) {
+        const flowsData = await flowsRes.json();
+        setFlows(Array.isArray(flowsData) ? flowsData : flowsData.data || []);
+        console.log('✅ Loaded flows:', flowsData?.length || flowsData.data?.length || 0);
+      }
+
+      // Load inbound queues
+      const queuesRes = await fetch('/api/voice/inbound-queues', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (queuesRes.ok) {
+        const queuesData = await queuesRes.json();
+        setQueues(queuesData.data || []);
+        console.log('✅ Loaded queues:', queuesData.data?.length || 0);
+      }
+
+      // Set mock call groups for now (can be replaced with real API later)
+      setCallGroups([
+        { id: 'group1', name: 'Sales Team' },
+        { id: 'group2', name: 'Support Team' },
+        { id: 'group3', name: 'Management Team' }
+      ]);
+
+    } catch (err: any) {
+      console.error('❌ Error loading backend data:', err);
+    }
+  };
+
   // Debug logging
   console.log('🔍 CLIManagement component rendered');
   console.log('🔍 Current state:', { loading, error, numbersCount: inboundNumbers.length });
 
-  useEffect(() => {
-    const fetchInboundNumbers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // Fetch inbound numbers from backend
+  const fetchInboundNumbers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const response = await fetch('/api/voice/inbound-numbers', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
+      const response = await fetch('/api/voice/inbound-numbers', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
 
-        if (!response.ok) {
-          if (response.status === 401) {
-            setError('Authentication required. Please ensure you are logged in.');
-            return;
-          }
-          throw new Error(`Failed to fetch inbound numbers: ${response.statusText}`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError('Authentication required. Please ensure you are logged in.');
+          return;
         }
-
-        const data = await response.json();
-        console.log('📞 CLI - Fetched inbound numbers:', data);
-        
-        const numbersArray = Array.isArray(data) ? data : (data.data || []);
-        setInboundNumbers(numbersArray);
-        
-        // Set default CLI if there's only one number
-        if (numbersArray.length === 1) {
-          setSelectedCLI(numbersArray[0].phoneNumber);
-        }
-        
-      } catch (err: any) {
-        console.error('❌ CLI - Error fetching inbound numbers:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        throw new Error(`Failed to fetch inbound numbers: ${response.statusText}`);
       }
-    };
 
+      const data = await response.json();
+      console.log('📞 CLI - Fetched inbound numbers:', data);
+      
+      const numbersArray = Array.isArray(data) ? data : (data.data || []);
+      setInboundNumbers(numbersArray);
+      
+      // Set default CLI if there's only one number
+      if (numbersArray.length === 1) {
+        setSelectedCLI(numbersArray[0].phoneNumber);
+      }
+      
+    } catch (err: any) {
+      console.error('❌ CLI - Error fetching inbound numbers:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchInboundNumbers();
+    fetchBackendData();
   }, []);
 
   // Filter numbers based on search term
@@ -797,20 +889,40 @@ const CLIManagement: React.FC = () => {
     (number.assignedFlow?.name && number.assignedFlow.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Handle form submission for new number
+  // Handle form submission for new number  
   const handleAddNumber = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newNumberForm.phoneNumber) {
-      alert('Phone number is required');
-      return;
-    }
-
     try {
-      // In a real implementation, this would call the API to add the number
-      console.log('Adding new number:', newNumberForm);
-      alert(`Number ${newNumberForm.phoneNumber} would be configured and added to the system.`);
-      
+      console.log('➕ Adding new inbound number:', newNumberForm);
+
+      const response = await fetch('/api/voice/inbound-numbers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          phoneNumber: newNumberForm.phoneNumber,
+          displayName: newNumberForm.displayName,
+          description: `${newNumberForm.displayName} - ${newNumberForm.type}`,
+          country: 'GB',
+          region: 'London',
+          numberType: 'LOCAL',
+          provider: 'TWILIO',
+          capabilities: newNumberForm.type === 'voice' ? ['VOICE'] : newNumberForm.type === 'sms' ? ['SMS'] : ['VOICE', 'SMS'],
+          isActive: newNumberForm.isActive
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to create number: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Number created successfully:', result);
+
       // Reset form and close modal
       setNewNumberForm({
         phoneNumber: '',
@@ -820,13 +932,147 @@ const CLIManagement: React.FC = () => {
         isActive: true
       });
       setIsAddNumberModalOpen(false);
+
+      // Refresh the list
+      await fetchInboundNumbers();
       
-      // In a real implementation, refresh the numbers list
-      // fetchInboundNumbers();
+      alert(`Phone number ${newNumberForm.phoneNumber} has been added successfully!`);
+
+    } catch (err: any) {
+      console.error('❌ Error adding number:', err);
+      alert(`Failed to add number: ${err.message}`);
+    }
+  };
+
+  // Handle Edit Number form submission
+  const handleEditNumber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingNumber) return;
+
+    try {
+      console.log('✏️ Updating inbound number:', editingNumber.id);
+
+      const formData = new FormData(e.target as HTMLFormElement);
+      const updateData = {
+        displayName: formData.get('displayName') as string,
+        isActive: formData.get('isActive') === 'on',
+      };
+
+      const response = await fetch(`/api/voice/inbound-numbers/${editingNumber.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update number: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Number updated successfully:', result);
+
+      setIsEditModalOpen(false);
+      setEditingNumber(null);
+
+      // Refresh the list
+      await fetchInboundNumbers();
       
-    } catch (error) {
-      console.error('Error adding number:', error);
-      alert('Failed to add number. Please try again.');
+      alert(`Phone number ${editingNumber.phoneNumber} has been updated successfully!`);
+
+    } catch (err: any) {
+      console.error('❌ Error updating number:', err);
+      alert(`Failed to update number: ${err.message}`);
+    }
+  };
+
+  // Handle Assignment form submission
+  const handleSaveAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!assignmentTarget) return;
+
+    try {
+      console.log('🎯 Saving assignment configuration:', assignmentForm);
+
+      const updateData = {
+        assignedFlowId: assignmentForm.assignedFlow || null,
+        selectedQueueId: assignmentForm.assignedQueue || null,
+        outOfHoursAction: assignmentForm.outOfHoursAction === 'hangup' ? 'Hangup' : 
+                         assignmentForm.outOfHoursAction === 'voicemail' ? 'Voicemail' :
+                         assignmentForm.outOfHoursAction === 'transfer' ? 'Transfer' :
+                         assignmentForm.outOfHoursAction === 'audio' ? 'Announcement' : 'Hangup',
+        outOfHoursTransferNumber: assignmentForm.outOfHoursAction === 'transfer' ? assignmentForm.transferNumber : null,
+        outOfHoursAudioFile: assignmentForm.outOfHoursAction === 'audio' ? assignmentForm.audioFileUrl : null,
+      };
+
+      const response = await fetch(`/api/voice/inbound-numbers/${assignmentTarget.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to save assignments: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Assignments saved successfully:', result);
+
+      setIsAssignmentModalOpen(false);
+      setAssignmentTarget(null);
+
+      // Refresh the list
+      await fetchInboundNumbers();
+      
+      alert(`Assignment configuration for ${assignmentTarget.phoneNumber} has been saved successfully!`);
+
+    } catch (err: any) {
+      console.error('❌ Error saving assignments:', err);
+      alert(`Failed to save assignments: ${err.message}`);
+    }
+  };
+
+  // Handle Delete Number
+  const handleDeleteNumber = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      console.log('🗑️ Deleting inbound number:', deleteTarget.id);
+
+      const response = await fetch(`/api/voice/inbound-numbers/${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to delete number: ${response.statusText}`);
+      }
+
+      console.log('✅ Number deleted successfully');
+
+      setDeleteTarget(null);
+
+      // Refresh the list
+      await fetchInboundNumbers();
+      
+      alert(`Phone number ${deleteTarget.phoneNumber} has been deleted successfully!`);
+
+    } catch (err: any) {
+      console.error('❌ Error deleting number:', err);
+      alert(`Failed to delete number: ${err.message}`);
     }
   };
 
@@ -1023,6 +1269,7 @@ const CLIManagement: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center space-x-2">
+                              {/* Quick CLI Selection */}
                               <button
                                 onClick={() => {
                                   setSelectedCLI(number.phoneNumber);
@@ -1032,6 +1279,60 @@ const CLIManagement: React.FC = () => {
                               >
                                 📞 Select CLI
                               </button>
+                              
+                              {/* Dropdown Menu */}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdown(openDropdown === number.id ? null : number.id);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+                                >
+                                  <EllipsisVerticalIcon className="h-4 w-4" />
+                                </button>
+                                
+                                {openDropdown === number.id && (
+                                  <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => {
+                                          setEditingNumber(number);
+                                          setIsEditModalOpen(true);
+                                          setOpenDropdown(null);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <PencilIcon className="h-4 w-4 mr-2" />
+                                        Edit Number
+                                      </button>
+                                      
+                                      <button
+                                        onClick={() => {
+                                          setAssignmentTarget(number);
+                                          setIsAssignmentModalOpen(true);
+                                          setOpenDropdown(null);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                                        Configure Assignments
+                                      </button>
+                                      
+                                      <button
+                                        onClick={() => {
+                                          setDeleteTarget(number);
+                                          setOpenDropdown(null);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                      >
+                                        <TrashIcon className="h-4 w-4 mr-2" />
+                                        Delete Number
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -1250,6 +1551,343 @@ const CLIManagement: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Number Modal */}
+      {isEditModalOpen && editingNumber && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsEditModalOpen(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleEditNumber}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                        Edit Phone Number: {editingNumber.phoneNumber}
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Display Name
+                          </label>
+                          <input
+                            type="text"
+                            defaultValue={editingNumber.displayName}
+                            placeholder="Main Office Line"
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Type
+                          </label>
+                          <select
+                            defaultValue={editingNumber.type || 'voice'}
+                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                          >
+                            <option value="voice">Voice</option>
+                            <option value="sms">SMS</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="editIsActive"
+                            defaultChecked={editingNumber.isActive !== false}
+                            className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="editIsActive" className="ml-2 block text-sm text-gray-700">
+                            Active
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-slate-600 text-base font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Update Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingNumber(null);
+                    }}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assignment Modal */}
+      {isAssignmentModalOpen && assignmentTarget && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsAssignmentModalOpen(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+              <form onSubmit={handleSaveAssignment}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                        Configure Assignments: {assignmentTarget.phoneNumber}
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Primary Assignments */}
+                        <div className="space-y-4">
+                          <h4 className="text-md font-medium text-gray-800 border-b pb-2">Primary Assignments</h4>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Assigned Campaign
+                            </label>
+                            <select
+                              value={assignmentForm.assignedCampaign}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, assignedCampaign: e.target.value})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="">No Campaign</option>
+                              {campaigns.map((campaign) => (
+                                <option key={campaign.id} value={campaign.id}>
+                                  {campaign.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Assigned Flow
+                            </label>
+                            <select
+                              value={assignmentForm.assignedFlow}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, assignedFlow: e.target.value})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="">No Flow</option>
+                              {flows.map((flow) => (
+                                <option key={flow.id} value={flow.id}>
+                                  {flow.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Call Group
+                            </label>
+                            <select
+                              value={assignmentForm.assignedCallGroup}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, assignedCallGroup: e.target.value})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="">No Call Group</option>
+                              {callGroups.map((group) => (
+                                <option key={group.id} value={group.id}>
+                                  {group.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Queue Assignment
+                            </label>
+                            <select
+                              value={assignmentForm.assignedQueue}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, assignedQueue: e.target.value})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="">No Queue</option>
+                              {queues.map((queue) => (
+                                <option key={queue.id} value={queue.id}>
+                                  {queue.displayName || queue.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Action Configuration */}
+                        <div className="space-y-4">
+                          <h4 className="text-md font-medium text-gray-800 border-b pb-2">Action Configuration</h4>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Drop Action
+                            </label>
+                            <select
+                              value={assignmentForm.dropAction}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, dropAction: e.target.value as any})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="hangup">Hangup</option>
+                              <option value="voicemail">Send to Voicemail</option>
+                              <option value="audio">Play Audio File</option>
+                              <option value="ivr">Route to IVR</option>
+                              <option value="transfer">Transfer to Number</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Out of Hours Action
+                            </label>
+                            <select
+                              value={assignmentForm.outOfHoursAction}
+                              onChange={(e) => setAssignmentForm({...assignmentForm, outOfHoursAction: e.target.value as any})}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                            >
+                              <option value="hangup">Hangup</option>
+                              <option value="voicemail">Send to Voicemail</option>
+                              <option value="audio">Play Audio File</option>
+                              <option value="ivr">Route to IVR</option>
+                              <option value="transfer">Transfer to Number</option>
+                            </select>
+                          </div>
+
+                          {(assignmentForm.dropAction === 'audio' || assignmentForm.outOfHoursAction === 'audio') && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Audio File URL
+                              </label>
+                              <input
+                                type="url"
+                                value={assignmentForm.audioFileUrl}
+                                onChange={(e) => setAssignmentForm({...assignmentForm, audioFileUrl: e.target.value})}
+                                placeholder="https://example.com/audio/message.mp3"
+                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                              />
+                            </div>
+                          )}
+
+                          {(assignmentForm.dropAction === 'transfer' || assignmentForm.outOfHoursAction === 'transfer') && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Transfer Number
+                              </label>
+                              <input
+                                type="tel"
+                                value={assignmentForm.transferNumber}
+                                onChange={(e) => setAssignmentForm({...assignmentForm, transferNumber: e.target.value})}
+                                placeholder="+442046343130"
+                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                              />
+                            </div>
+                          )}
+
+                          {(assignmentForm.dropAction === 'ivr' || assignmentForm.outOfHoursAction === 'ivr') && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                IVR Flow ID
+                              </label>
+                              <select
+                                value={assignmentForm.ivrFlowId}
+                                onChange={(e) => setAssignmentForm({...assignmentForm, ivrFlowId: e.target.value})}
+                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                              >
+                                <option value="">Select IVR Flow</option>
+                                {flows.map((flow) => (
+                                  <option key={flow.id} value={flow.id}>
+                                    {flow.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-slate-600 text-base font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Save Configuration
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAssignmentModalOpen(false);
+                      setAssignmentTarget(null);
+                    }}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setDeleteTarget(null)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <TrashIcon className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Delete Phone Number
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete <strong>{deleteTarget.phoneNumber}</strong>? This action cannot be undone and will remove all associated configurations, assignments, and call routing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={handleDeleteNumber}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Delete Number
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
