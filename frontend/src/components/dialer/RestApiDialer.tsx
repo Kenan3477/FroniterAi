@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Device } from '@twilio/voice-sdk';
 import { RootState } from '@/store';
 import { startCall, answerCall, endCall } from '@/store/slices/activeCallSlice';
+import { DispositionCard, DispositionData } from './DispositionCard';
 
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
@@ -21,6 +22,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Disposition modal state
+  const [showDispositionModal, setShowDispositionModal] = useState(false);
+  const [pendingCallEnd, setPendingCallEnd] = useState<{callSid: string, duration: number} | null>(null);
+  
   const deviceRef = useRef<Device | null>(null);
 
   // Get active call state from Redux
@@ -232,9 +238,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             call.on('disconnect', async () => {
               console.log('📱 Call disconnected by customer');
               
-              // End call via backend API if we have call info
-              if (activeCall.callSid) {
-                await endCallViaBackend(activeCall.callSid, 'customer-hangup');
+              // End call via backend API if we have call info - use activeRestApiCall for REST API calls
+              if (activeRestApiCall?.callSid) {
+                await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
               }
               
               setCurrentCall(null);
@@ -247,9 +253,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             call.on('cancel', async () => {
               console.log('📱 Call cancelled by customer');
               
-              // End call via backend API if we have call info
-              if (activeCall.callSid) {
-                await endCallViaBackend(activeCall.callSid, 'customer-cancel');
+              // End call via backend API if we have call info - use activeRestApiCall for REST API calls
+              if (activeRestApiCall?.callSid) {
+                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel');
               }
               
               setCurrentCall(null);
@@ -331,13 +337,24 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   };
 
   // Helper function to end call via backend API
-  const endCallViaBackend = async (callSid: string, disposition: string) => {
+  const endCallViaBackend = async (callSid: string, autoDisposition?: string) => {
+    const callDuration = activeRestApiCall?.startTime 
+      ? Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000)
+      : 0;
+    
+    console.log('📞 Call ended, preparing disposition...', { callSid, duration: callDuration });
+    
+    // If this is an automatic disposition (like customer-hangup), show modal for agent to provide real disposition
+    if (autoDisposition) {
+      console.log('📋 Showing disposition modal for agent input...');
+      setPendingCallEnd({ callSid, duration: callDuration });
+      setShowDispositionModal(true);
+      return true; // Don't actually end the call yet, wait for disposition
+    }
+    
+    // This will be called after disposition modal is filled out
     try {
-      const callDuration = activeCall.callStartTime 
-        ? Math.floor((new Date().getTime() - new Date(activeCall.callStartTime).getTime()) / 1000)
-        : 0;
-      
-      console.log('📞 Ending call via backend API:', { callSid, duration: callDuration, disposition });
+      console.log('📞 Ending call via backend API:', { callSid, duration: callDuration });
       
       const response = await fetch('/api/dialer/end', {
         method: 'POST',
@@ -349,7 +366,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           callSid: callSid,
           duration: callDuration,
           status: 'completed',
-          disposition: disposition
+          disposition: 'completed' // Generic status, real disposition comes from modal
         })
       });
       
@@ -365,6 +382,57 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     } catch (error) {
       console.error('❌ Error calling backend API to end call:', error);
       return false;
+    }
+  };
+
+  // Handle disposition modal submission
+  const handleDispositionSubmit = async (dispositionData: DispositionData) => {
+    if (!pendingCallEnd) return;
+    
+    try {
+      // Save disposition to backend
+      const response = await fetch('/api/calls/save-call-data', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          callSid: pendingCallEnd.callSid,
+          duration: pendingCallEnd.duration,
+          disposition: dispositionData.outcome,
+          notes: dispositionData.notes,
+          followUpRequired: dispositionData.followUpRequired,
+          followUpDate: dispositionData.followUpDate,
+          phoneNumber: phoneNumber,
+          agentId: 'agent-browser' // TODO: Get real agent ID
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Call disposition saved successfully');
+        
+        // Now actually end the call in backend
+        await endCallViaBackend(pendingCallEnd.callSid);
+        
+        // Clear state
+        setShowDispositionModal(false);
+        setPendingCallEnd(null);
+        setActiveRestApiCall(null);
+        
+        setLastCallResult({
+          success: true,
+          message: 'Call completed and disposition saved'
+        });
+      } else {
+        console.error('❌ Failed to save disposition:', result.error);
+        alert('Failed to save call disposition. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error saving disposition:', error);
+      alert('Failed to save call disposition. Please try again.');
     }
   };
 
@@ -509,38 +577,20 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         setIsLoading(true);
         const callDuration = Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000);
         
-        // End the REST API call through backend
-        const response = await fetch('/api/dialer/end', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          },
-          body: JSON.stringify({ 
-            callSid: activeRestApiCall.callSid,
-            duration: callDuration,
-            status: 'completed',
-            disposition: 'agent-hangup'
-          })
+        console.log('📞 Agent ending call, showing disposition modal...');
+        
+        // Show disposition modal instead of immediately ending with hardcoded disposition
+        setPendingCallEnd({ 
+          callSid: activeRestApiCall.callSid, 
+          duration: callDuration 
         });
+        setShowDispositionModal(true);
         
-        const result = await response.json();
-        
-        if (result.success) {
-          setLastCallResult({
-            success: true,
-            message: 'Call ended successfully'
-          });
-          setActiveRestApiCall(null);
-          console.log('✅ REST API call ended:', result);
-        } else {
-          throw new Error(result.error || 'Failed to end call');
-        }
       } catch (error: any) {
-        console.error('❌ Error ending REST API call:', error);
+        console.error('❌ Error preparing call end:', error);
         setLastCallResult({
           success: false,
-          message: 'Failed to end call: ' + error.message
+          message: 'Failed to prepare call end: ' + error.message
         });
       } finally {
         setIsLoading(false);
@@ -552,6 +602,13 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         success: true,
         message: 'No active call to end'
       });
+    }
+
+    // End WebRTC call if active
+    if (currentCall) {
+      currentCall.disconnect();
+      setCurrentCall(null);
+      dispatch(endCall());
     }
   };
 
@@ -718,6 +775,23 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         )}
 
         </div>
+      )}
+
+      {/* Disposition Modal */}
+      {showDispositionModal && pendingCallEnd && (
+        <DispositionCard
+          isOpen={showDispositionModal}
+          onSave={handleDispositionSubmit}
+          onClose={() => {
+            setShowDispositionModal(false);
+            setPendingCallEnd(null);
+          }}
+          customerInfo={{
+            name: phoneNumber || 'Unknown',
+            phoneNumber: phoneNumber || 'Unknown'
+          }}
+          callDuration={pendingCallEnd.duration}
+        />
       )}
     </div>
   );
