@@ -739,8 +739,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       }
     });
 
-    // Call the customer and connect them to the conference
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer?conference=${conferenceId}`;
+    // Call the customer and connect them directly to the WebRTC agent
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
     const callResult = await twilioClient.calls.create({
       to: formattedTo,
@@ -749,13 +749,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       method: 'POST',
       statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-      statusCallbackMethod: 'POST',
-      record: true, // Enable recording
-      recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-status`,
-      recordingStatusCallbackMethod: 'POST'
+      statusCallbackMethod: 'POST'
+      // Recording is handled in TwiML
     });
 
-    console.log('✅ Customer call initiated - Conference:', conferenceId);
+    console.log('✅ Customer call initiated - Direct agent connection');
     console.log('✅ Twilio Call SID:', callResult.sid);
 
     // Update call record with Twilio call SID
@@ -771,7 +769,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       callSid: callResult.sid,
       conferenceId: conferenceId,
       status: callResult.status,
-      message: 'Conference call initiated - Connect agent to join'
+      message: 'Direct agent call initiated - Customer will be connected to agent browser'
     });
 
   } catch (error: any) {
