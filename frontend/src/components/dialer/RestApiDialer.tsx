@@ -244,10 +244,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
               }
               
               setCurrentCall(null);
-              // Clear Redux state
-              dispatch(endCall());
-              console.log('📱 Redux state updated - call ended');
-              // Don't stop the microphone stream here - keep it for next call
+              // Don't clear Redux state immediately - let disposition modal handle it
+              console.log('📱 Customer disconnected - disposition modal should appear');
             });
             
             call.on('cancel', async () => {
@@ -259,24 +257,21 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
               }
               
               setCurrentCall(null);
-              // Clear Redux state
-              dispatch(endCall());
-              console.log('📱 Redux state updated - call cancelled');
+              // Don't clear Redux state immediately - let disposition modal handle it
+              console.log('📱 Customer cancelled - disposition modal should appear');
             });
             
             call.on('error', async (error: any) => {
               console.error('❌ Call error:', error);
               
               // End call via backend API if we have call info
-              if (activeCall.callSid) {
-                await endCallViaBackend(activeCall.callSid, 'call-error');
+              if (activeRestApiCall?.callSid) {
+                await endCallViaBackend(activeRestApiCall.callSid, 'call-error');
               }
               
               setCurrentCall(null);
-              // Clear Redux state
-              dispatch(endCall());
-              console.log('📱 Redux state updated - call error');
-              // Don't stop the microphone stream on error - keep it for next call
+              // Don't clear Redux state immediately - let disposition modal handle it
+              console.log('📱 Call error - disposition modal should appear');
             });
             
           } catch (error) {
@@ -417,7 +412,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         // Now actually end the call in backend
         await endCallViaBackend(pendingCallEnd.callSid);
         
-        // Clear state
+        // Clear Redux state now that disposition is complete
+        dispatch(endCall());
+        
+        // Clear local state
         setShowDispositionModal(false);
         setPendingCallEnd(null);
         setActiveRestApiCall(null);
@@ -783,8 +781,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           isOpen={showDispositionModal}
           onSave={handleDispositionSubmit}
           onClose={() => {
+            // Clear Redux state when modal is closed without saving
+            dispatch(endCall());
             setShowDispositionModal(false);
             setPendingCallEnd(null);
+            setActiveRestApiCall(null);
           }}
           customerInfo={{
             name: phoneNumber || 'Unknown',
