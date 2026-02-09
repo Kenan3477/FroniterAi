@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { endCall, clearCall, holdCall } from '@/store/slices/activeCallSlice';
 import { RootState } from '@/store';
 import { CallTransferModal } from '@/components/ui/CallTransferModal';
+import { DispositionCard, DispositionData } from '@/components/dialer/DispositionCard';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
@@ -47,6 +48,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [showDispositionModal, setShowDispositionModal] = useState(false);
   const dispatch = useDispatch();
   const activeCallState = useSelector((state: RootState) => state.activeCall);
 
@@ -69,59 +71,100 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           console.warn('⚠️ No active WebRTC call found to terminate');
         }
         
-        // Get call information from Redux state  
-        const callSid = activeCallState?.callSid;
-        const callStartTime = activeCallState?.callStartTime;
+        // Show disposition modal instead of immediately ending call
+        console.log('📋 Showing disposition modal for call outcome...');
+        setShowDispositionModal(true);
         
-        // Calculate call duration
-        const callDuration = callStartTime 
-          ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
-          : 0;
+      } catch (error) {
+        console.error('❌ Error terminating WebRTC call:', error);
+        alert('❌ Error ending call. Please try again.');
+      }
+    }
+  };
+
+  // Handle disposition submission
+  const handleDispositionSubmit = async (dispositionData: DispositionData) => {
+    try {
+      console.log('📋 Submitting call disposition:', dispositionData);
+      
+      // Get call information from Redux state  
+      const callSid = activeCallState?.callSid;
+      const callStartTime = activeCallState?.callStartTime;
+      
+      // Calculate call duration
+      const callDuration = callStartTime 
+        ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
+        : customerData.callDuration || 0;
+      
+      console.log('📞 Ending call with backend API:', { callSid, duration: callDuration });
+      
+      // End the call through backend API if we have a callSid
+      if (callSid) {
+        const response = await fetch('/api/dialer/end', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: JSON.stringify({ 
+            callSid: callSid,
+            duration: callDuration,
+            status: 'completed',
+            disposition: dispositionData.outcome
+          })
+        });
         
-        console.log('📞 Ending call with backend API:', { callSid, duration: callDuration });
+        const result = await response.json();
         
-        // End the call through backend API if we have a callSid
-        if (callSid) {
-          try {
-            const response = await fetch('/api/dialer/end', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({ 
-                callSid: callSid,
-                duration: callDuration,
-                status: 'completed',
-                disposition: 'agent-hangup'
-              })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-              console.log('✅ Call ended successfully via backend API');
-            } else {
-              console.error('❌ Backend call end failed:', result.error);
-            }
-          } catch (apiError) {
-            console.error('❌ Error calling backend API to end call:', apiError);
-          }
+        if (result.success) {
+          console.log('✅ Call ended successfully via backend API');
         } else {
-          console.warn('⚠️ No callSid available - cannot end call via backend API');
+          console.error('❌ Backend call end failed:', result.error);
         }
+      }
+      
+      // Save call data with disposition
+      const saveResponse = await fetch('/api/calls/save-call-data', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          phoneNumber: customerData.phoneNumber,
+          customerInfo: customerData,
+          disposition: dispositionData,
+          callDuration: callDuration,
+          agentId: 'agent-browser', // TODO: Get real agent ID
+          campaignId: 'manual-dial'
+        })
+      });
+
+      const saveResult = await saveResponse.json();
+      
+      if (saveResult.success) {
+        console.log('✅ Call data and disposition saved successfully');
         
         // Update Redux state
         dispatch(endCall());
-        // After a short delay, clear the call to allow for disposition
+        
+        // Close disposition modal
+        setShowDispositionModal(false);
+        
+        // Optionally clear call state after a delay
         setTimeout(() => {
           dispatch(clearCall());
-        }, 2000);
+        }, 1000);
         
-      } catch (error) {
-        console.error('❌ Error ending call:', error);
-        alert('❌ Error ending call. Please try again.');
+      } else {
+        console.error('❌ Failed to save call data:', saveResult.error);
+        alert('Failed to save call disposition. Please try again.');
+        return;
       }
+      
+    } catch (error) {
+      console.error('❌ Error handling call disposition:', error);
+      alert('Error saving call disposition. Please try again.');
     }
   };
 
@@ -474,6 +517,20 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         callId={activeCallState?.callSid || customerData.id || ''}
         isTransferring={isTransferring}
       />
+      
+      {/* Disposition Modal */}
+      {showDispositionModal && (
+        <DispositionCard
+          isOpen={showDispositionModal}
+          onClose={() => setShowDispositionModal(false)}
+          onSave={handleDispositionSubmit}
+          customerInfo={{
+            name: `${customerData.firstName} ${customerData.lastName}`.trim() || 'Unknown',
+            phoneNumber: customerData.phoneNumber
+          }}
+          callDuration={customerData.callDuration}
+        />
+      )}
     </div>
   );
 };

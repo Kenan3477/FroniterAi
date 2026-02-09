@@ -8,7 +8,7 @@ import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
 import { RestApiDialer } from '@/components/dialer/RestApiDialer';
 import { RootState } from '@/store';
-import { updateCallDuration } from '@/store/slices/activeCallSlice';
+import { updateCallDuration, updateCustomerInfo } from '@/store/slices/activeCallSlice';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -93,8 +93,53 @@ export default function WorkPage() {
   
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
-    // This could dispatch an action to update Redux if needed
+    // Update Redux store with new customer information
     console.log('Update field:', field, value);
+    
+    dispatch(updateCustomerInfo({
+      [field]: value
+    }));
+  };
+
+  // Handle saving customer information
+  const handleSaveCustomerInfo = async () => {
+    try {
+      console.log('💾 Saving customer information...');
+      
+      if (!activeCall.isActive || !activeCall.customerInfo) {
+        console.warn('⚠️ No active call or customer info to save');
+        return;
+      }
+
+      // Save customer info to backend via API call
+      const response = await fetch('/api/calls/save-call-data', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          phoneNumber: activeCall.phoneNumber,
+          customerInfo: activeCall.customerInfo,
+          callDuration: activeCall.callDuration,
+          agentId: 'agent-browser', // TODO: Get real agent ID
+          campaignId: 'manual-dial'
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Customer information saved successfully');
+        // Optionally show success message
+      } else {
+        console.error('❌ Failed to save customer info:', result.error);
+        alert('Failed to save customer information. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error saving customer info:', error);
+      alert('Error saving customer information. Please try again.');
+    }
   };
 
   const getCurrentData = () => {
@@ -187,7 +232,7 @@ export default function WorkPage() {
                         callStatus: activeCall.callStatus
                       }}
                       onUpdateField={handleUpdateCustomerField}
-                      onSave={() => console.log('Save customer info')}
+                      onSave={handleSaveCustomerInfo}
                     />
                   </div>
                 ) : (
