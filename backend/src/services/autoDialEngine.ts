@@ -12,6 +12,7 @@ import {
   PredictiveMetrics, 
   DialingDecision 
 } from './predictiveDialingEngine';
+import { autoDialSentimentMonitor } from './autoDialSentimentMonitor';
 
 const prisma = new PrismaClient();
 
@@ -550,7 +551,7 @@ export class AutoDialEngine {
   }
 
   /**
-   * Initiate auto-dial call using existing Twilio infrastructure
+   * Initiate auto-dial call using Twilio client directly with AMD support
    */
   private async initiateAutoDialCall(
     customerPhone: string,
@@ -560,20 +561,44 @@ export class AutoDialEngine {
     campaignId: string
   ): Promise<{ success: boolean; callId?: string; error?: string }> {
     try {
-      // Use existing Twilio service to make the call
-      const callResult = await twilioService.createRestApiCall({
+      // Import Twilio for direct AMD-enabled calls
+      const twilio = require('twilio');
+      const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+      if (!twilioClient) {
+        return {
+          success: false,
+          error: 'Twilio client not configured'
+        };
+      }
+
+      // Create call with AMD enabled for auto-dial
+      const call = await twilioClient.calls.create({
         to: customerPhone,
         from: cliNumber,
-        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?agentId=${agentId}&contactId=${contactId}&campaignId=${campaignId}`
+        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?agentId=${agentId}&contactId=${contactId}&campaignId=${campaignId}`,
+        // Enable AMD for intelligent call handling
+        machineDetection: 'Enable',
+        machineDetectionTimeout: 8000, // 8 seconds for AMD analysis
+        machineDetectionSpeechThreshold: 2400, // 2.4 seconds of speech
+        machineDetectionSpeechEndThreshold: 1200, // 1.2 seconds of silence after speech
+        machineDetectionSilenceTimeout: 5000, // 5 seconds of silence timeout
+        asyncAmd: 'true',
+        asyncAmdStatusCallback: `${process.env.BACKEND_URL}/api/auto-dial/amd-webhook`,
+        // Additional call parameters
+        timeout: 30, // Ring timeout in seconds
+        record: false, // Recording will be handled by agent interface if needed
+        statusCallback: `${process.env.BACKEND_URL}/api/auto-dial/call-status-webhook`,
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
       });
 
-      if (callResult && callResult.sid) {
-        // Log call attempt
-        console.log(`📞 Auto-dial call initiated: SID ${callResult.sid}`);
+      if (call && call.sid) {
+        // Log call attempt with AMD enabled
+        console.log(`📞 Auto-dial call initiated with AMD: SID ${call.sid}`);
         
         return {
           success: true,
-          callId: callResult.sid
+          callId: call.sid
         };
       } else {
         return {
@@ -583,7 +608,7 @@ export class AutoDialEngine {
       }
 
     } catch (error) {
-      console.error('Error initiating auto-dial call:', error);
+      console.error('Error initiating auto-dial call with AMD:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Call initiation failed'
@@ -664,6 +689,323 @@ export class AutoDialEngine {
   updatePredictiveConfig(config: Partial<typeof predictiveDialingEngine>) {
     // This could be enhanced to update the predictive engine configuration
     console.log('Predictive configuration update requested:', config);
+  }
+
+  /**
+   * Handle AMD (Answering Machine Detection) webhook
+   */
+  async handleAMDWebhook(amdData: {
+    CallSid: string;
+    MachineDetectionResult: 'human' | 'machine' | 'unknown' | 'fax';
+    MachineDetectionDuration: number;
+    agentId?: string;
+    contactId?: string;
+    campaignId?: string;
+  }): Promise<void> {
+    const { CallSid, MachineDetectionResult, MachineDetectionDuration, agentId, contactId, campaignId } = amdData;
+    
+    console.log(`🤖 AMD Result for ${CallSid}: ${MachineDetectionResult} (${MachineDetectionDuration}s)`);
+    
+    try {
+      // Update call record with AMD result
+      await prisma.callRecord.updateMany({
+        where: { callId: CallSid },
+        data: {
+          outcome: MachineDetectionResult,
+          notes: `AMD: ${MachineDetectionResult} detected in ${MachineDetectionDuration}s`
+        }
+      });
+
+      // Handle different AMD outcomes
+      switch (MachineDetectionResult) {
+        case 'human':
+          await this.handleHumanAnswered(CallSid, agentId, contactId, campaignId);
+          break;
+        
+        case 'machine':
+          await this.handleAnsweringMachine(CallSid, agentId, contactId, campaignId);
+          break;
+          
+        case 'fax':
+          await this.handleFaxDetected(CallSid, agentId, contactId, campaignId);
+          break;
+          
+        case 'unknown':
+        default:
+          await this.handleUnknownAMD(CallSid, agentId, contactId, campaignId);
+          break;
+      }
+
+    } catch (error) {
+      console.error(`❌ Error processing AMD webhook for ${CallSid}:`, error);
+      
+      // If agent is assigned, release them back to available
+      if (agentId) {
+        await this.releaseAgentFromFailedCall(agentId);
+      }
+    }
+  }
+
+  /**
+   * Handle human answered - route to agent and start sentiment monitoring
+   */
+  private async handleHumanAnswered(
+    callId: string, 
+    agentId?: string, 
+    contactId?: string, 
+    campaignId?: string
+  ): Promise<void> {
+    console.log(`👤 Human answered call ${callId}, routing to agent ${agentId}`);
+    
+    try {
+      // Agent should already be assigned and status set to OnCall
+      // The existing TwiML will handle connecting the customer to the agent
+      
+      // Update dial queue entry status
+      if (contactId && agentId) {
+        await prisma.dialQueueEntry.updateMany({
+          where: {
+            contactId,
+            assignedAgentId: agentId,
+            status: 'dialing'
+          },
+          data: {
+            status: 'connected'
+          }
+        });
+      }
+
+      // Start real-time sentiment monitoring for this call
+      if (agentId && campaignId) {
+        await autoDialSentimentMonitor.startCallMonitoring(callId, agentId, campaignId);
+        console.log(`🎯 Started sentiment monitoring for call ${callId} with agent ${agentId}`);
+      }
+      
+      // Log successful human connection
+      console.log(`✅ Human call ${callId} successfully routed to agent ${agentId} with sentiment monitoring active`);
+      
+    } catch (error) {
+      console.error(`Error handling human answered for ${callId}:`, error);
+    }
+  }
+
+  /**
+   * Handle answering machine detected
+   */
+  private async handleAnsweringMachine(
+    callId: string, 
+    agentId?: string, 
+    contactId?: string, 
+    campaignId?: string
+  ): Promise<void> {
+    console.log(`🤖 Answering machine detected for call ${callId}`);
+    
+    try {
+      // Hang up the call - no point in connecting agent to answering machine
+      const twilio = require('twilio');
+      const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      
+      if (twilioClient) {
+        await twilioClient.calls(callId).update({ status: 'completed' });
+        console.log(`📞 Call ${callId} ended - answering machine`);
+      }
+
+      // Update contact for potential retry later
+      if (contactId) {
+        await prisma.dialQueueEntry.updateMany({
+          where: {
+            contactId,
+            assignedAgentId: agentId,
+            status: 'dialing'
+          },
+          data: {
+            status: 'answering_machine',
+            assignedAgentId: null
+            // Note: scheduledRetryAt would need to be added to schema if retry scheduling is needed
+          }
+        });
+      }
+
+      // Release agent back to available
+      if (agentId) {
+        await this.releaseAgentFromCall(agentId);
+        
+        // Trigger next auto-dial for this agent if still active
+        const autoDialState = autoDialStates.get(agentId);
+        if (autoDialState && autoDialState.isActive && !autoDialState.isPaused) {
+          setTimeout(() => {
+            this.attemptNextDial(agentId);
+          }, 1000); // Quick retry for answering machine
+        }
+      }
+
+    } catch (error) {
+      console.error(`Error handling answering machine for ${callId}:`, error);
+    }
+  }
+
+  /**
+   * Handle fax machine detected
+   */
+  private async handleFaxDetected(
+    callId: string, 
+    agentId?: string, 
+    contactId?: string, 
+    campaignId?: string
+  ): Promise<void> {
+    console.log(`📠 Fax machine detected for call ${callId}`);
+    
+    try {
+      // Hang up the call
+      const twilio = require('twilio');
+      const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      
+      if (twilioClient) {
+        await twilioClient.calls(callId).update({ status: 'completed' });
+        console.log(`📞 Call ${callId} ended - fax machine`);
+      }
+
+      // Mark contact as fax number - do not retry
+      if (contactId) {
+        await prisma.dialQueueEntry.updateMany({
+          where: {
+            contactId,
+            assignedAgentId: agentId,
+            status: 'dialing'
+          },
+          data: {
+            status: 'fax_detected',
+            assignedAgentId: null
+          }
+        });
+
+        // Add note to contact
+        await prisma.contact.update({
+          where: { contactId },
+          data: {
+            notes: 'Fax machine detected - removed from calling queue'
+          }
+        });
+      }
+
+      // Release agent
+      if (agentId) {
+        await this.releaseAgentFromCall(agentId);
+        
+        // Trigger next auto-dial
+        const autoDialState = autoDialStates.get(agentId);
+        if (autoDialState && autoDialState.isActive && !autoDialState.isPaused) {
+          setTimeout(() => {
+            this.attemptNextDial(agentId);
+          }, 500);
+        }
+      }
+
+    } catch (error) {
+      console.error(`Error handling fax detected for ${callId}:`, error);
+    }
+  }
+
+  /**
+   * Handle unknown AMD result
+   */
+  private async handleUnknownAMD(
+    callId: string, 
+    agentId?: string, 
+    contactId?: string, 
+    campaignId?: string
+  ): Promise<void> {
+    console.log(`❓ Unknown AMD result for call ${callId} - routing to agent as precaution`);
+    
+    // Treat unknown as human to avoid missing potential customers
+    await this.handleHumanAnswered(callId, agentId, contactId, campaignId);
+  }
+
+  /**
+   * Release agent from call and set back to Available
+   */
+  private async releaseAgentFromCall(agentId: string): Promise<void> {
+    try {
+      await prisma.agent.update({
+        where: { agentId },
+        data: { status: 'AVAILABLE' }
+      });
+      
+      console.log(`👤 Agent ${agentId} released back to Available status`);
+      
+    } catch (error) {
+      console.error(`Error releasing agent ${agentId}:`, error);
+    }
+  }
+
+  /**
+   * Release agent from failed call
+   */
+  private async releaseAgentFromFailedCall(agentId: string): Promise<void> {
+    await this.releaseAgentFromCall(agentId);
+    
+    // Also clean up any dial queue entries
+    await prisma.dialQueueEntry.updateMany({
+      where: {
+        assignedAgentId: agentId,
+        status: 'dialing'
+      },
+      data: {
+        assignedAgentId: null,
+        status: 'queued'
+      }
+    });
+  }
+
+  /**
+   * Handle call status webhooks (initiated, ringing, answered, completed)
+   */
+  async handleCallStatusWebhook(statusData: {
+    CallSid: string;
+    CallStatus: string;
+    Duration?: number;
+    agentId?: string;
+    contactId?: string;
+    campaignId?: string;
+  }): Promise<void> {
+    const { CallSid, CallStatus, Duration, agentId, contactId, campaignId } = statusData;
+    
+    console.log(`📞 Call status update: ${CallSid} -> ${CallStatus}`);
+    
+    try {
+      // Update call record
+      const updateData: any = {
+        outcome: CallStatus
+      };
+      
+      if (CallStatus === 'completed' && Duration) {
+        updateData.duration = Duration; // Duration is already a number
+        updateData.endTime = new Date();
+      }
+      
+      await prisma.callRecord.updateMany({
+        where: { callId: CallSid },
+        data: updateData
+      });
+
+      // Handle call completion
+      if (CallStatus === 'completed' && agentId) {
+        // End sentiment monitoring and get final report
+        const finalSentimentReport = await autoDialSentimentMonitor.endCallMonitoring(CallSid);
+        if (finalSentimentReport) {
+          console.log(`📊 Final sentiment report for call ${CallSid}:`, {
+            sentiment: finalSentimentReport.overallSentiment,
+            satisfaction: finalSentimentReport.customerSatisfactionScore.toFixed(2),
+            alerts: finalSentimentReport.alertCount
+          });
+        }
+
+        await this.handleCallCompletion(agentId);
+      }
+
+    } catch (error) {
+      console.error(`Error handling call status webhook for ${CallSid}:`, error);
+    }
   }
 }
 
