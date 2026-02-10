@@ -50,6 +50,23 @@ interface CallData {
   };
 }
 
+interface AutoDialStatus {
+  isActive: boolean;
+  isPaused: boolean;
+  sessionStartTime?: string;
+  nextDialTime?: string;
+  callsCompleted: number;
+  status: 'idle' | 'active' | 'paused' | 'error';
+  message?: string;
+}
+
+interface CampaignInfo {
+  id: string;
+  name: string;
+  dialMethod: 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP';
+  status: string;
+}
+
 type AgentStatus = 'Available' | 'OnCall' | 'Away' | 'Break' | 'Offline';
 
 export default function EnhancedAgentInterface({ 
@@ -66,6 +83,16 @@ export default function EnhancedAgentInterface({
   const [callDuration, setCallDuration] = useState(0);
   const [callTimer, setCallTimer] = useState<NodeJS.Timeout | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+
+  // Auto-dial state management
+  const [autoDialStatus, setAutoDialStatus] = useState<AutoDialStatus>({
+    isActive: false,
+    isPaused: false,
+    callsCompleted: 0,
+    status: 'idle'
+  });
+  const [campaignInfo, setCampaignInfo] = useState<CampaignInfo | null>(null);
+  const [autoDialPolling, setAutoDialPolling] = useState<NodeJS.Timeout | null>(null);
 
   // Call timer effect
   useEffect(() => {
@@ -86,6 +113,44 @@ export default function EnhancedAgentInterface({
       }
     };
   }, [currentCall, callTimer]);
+
+  // Initialize component - fetch campaign info and auto-dial status
+  useEffect(() => {
+    fetchCampaignInfo();
+    fetchAutoDialStatus();
+  }, [agentId, campaignId]);
+
+  // Auto-dial status polling for real-time updates  
+  useEffect(() => {
+    if (campaignInfo?.dialMethod === 'AUTODIAL' && status === 'Available') {
+      // Start polling for auto-dial status updates
+      const interval = setInterval(() => {
+        fetchAutoDialStatus();
+      }, 5000); // Poll every 5 seconds
+
+      setAutoDialPolling(interval);
+
+      return () => {
+        clearInterval(interval);
+        setAutoDialPolling(null);
+      };
+    } else if (autoDialPolling) {
+      // Stop polling if not auto-dial campaign or not available
+      clearInterval(autoDialPolling);
+      setAutoDialPolling(null);
+    }
+    
+    return undefined;
+  }, [campaignInfo, status, autoDialPolling]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoDialPolling) {
+        clearInterval(autoDialPolling);
+      }
+    };
+  }, []);
 
   // Format duration helper
   const formatDuration = (seconds: number): string => {
@@ -210,6 +275,137 @@ export default function EnhancedAgentInterface({
     }
   };
 
+  // Auto-dial API functions
+  const fetchAutoDialStatus = async () => {
+    try {
+      const response = await fetch(`/api/auto-dial/status/${agentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAutoDialStatus(data.session || {
+            isActive: false,
+            isPaused: false,
+            callsCompleted: 0,
+            status: 'idle'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching auto-dial status:', error);
+    }
+  };
+
+  const pauseAutoDial = async () => {
+    if (!autoDialStatus.isActive) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auto-dial/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('⏸️ Auto-dial paused');
+        await fetchAutoDialStatus();
+      } else {
+        throw new Error(data.message || 'Failed to pause auto-dial');
+      }
+    } catch (error: any) {
+      console.error('Error pausing auto-dial:', error);
+      setError(error.message || 'Failed to pause auto-dial');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resumeAutoDial = async () => {
+    if (!autoDialStatus.isPaused) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auto-dial/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('▶️ Auto-dial resumed');
+        await fetchAutoDialStatus();
+      } else {
+        throw new Error(data.message || 'Failed to resume auto-dial');
+      }
+    } catch (error: any) {
+      console.error('Error resuming auto-dial:', error);
+      setError(error.message || 'Failed to resume auto-dial');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const stopAutoDial = async () => {
+    if (!autoDialStatus.isActive) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auto-dial/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('⏹️ Auto-dial stopped');
+        await fetchAutoDialStatus();
+      } else {
+        throw new Error(data.message || 'Failed to stop auto-dial');
+      }
+    } catch (error: any) {
+      console.error('Error stopping auto-dial:', error);
+      setError(error.message || 'Failed to stop auto-dial');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch campaign information
+  const fetchCampaignInfo = async () => {
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCampaignInfo({
+          id: data.id || campaignId,
+          name: data.name || campaignName,
+          dialMethod: data.dialMethod || 'MANUAL_DIAL',
+          status: data.status || 'Active'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching campaign info:', error);
+      // Set fallback campaign info
+      setCampaignInfo({
+        id: campaignId,
+        name: campaignName,
+        dialMethod: 'MANUAL_DIAL',
+        status: 'Active'
+      });
+    }
+  };
+
   // Get status color
   const getStatusColor = (status: AgentStatus): string => {
     switch (status) {
@@ -285,6 +481,132 @@ export default function EnhancedAgentInterface({
           </div>
         )}
       </div>
+    );
+  };
+
+  // Render auto-dial controls for AUTODIAL campaigns
+  const renderAutoDialControls = () => {
+    if (!campaignInfo || campaignInfo.dialMethod !== 'AUTODIAL') {
+      return null;
+    }
+
+    return (
+      <Card className="border-indigo-200">
+        <div className="p-4">
+          <h3 className="text-lg font-semibold mb-3 flex items-center">
+            <Phone className="w-5 h-5 mr-2 text-indigo-600" />
+            Auto-Dial Controls
+          </h3>
+          
+          {/* Auto-dial status indicator */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Status</span>
+              <Badge 
+                variant={
+                  autoDialStatus.status === 'active' ? 'default' : 
+                  autoDialStatus.status === 'paused' ? 'secondary' : 
+                  autoDialStatus.status === 'error' ? 'destructive' : 'outline'
+                }
+              >
+                {autoDialStatus.status === 'active' && autoDialStatus.isPaused ? '⏸️ Paused' :
+                 autoDialStatus.status === 'active' ? '🎯 Active' :
+                 autoDialStatus.status === 'error' ? '❌ Error' : '⭕ Idle'}
+              </Badge>
+            </div>
+            
+            {autoDialStatus.isActive && (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Calls Completed</span>
+                  <span className="text-sm font-medium">{autoDialStatus.callsCompleted}</span>
+                </div>
+                
+                {autoDialStatus.sessionStartTime && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Session Duration</span>
+                    <span className="text-sm font-medium">
+                      {Math.floor((Date.now() - new Date(autoDialStatus.sessionStartTime).getTime()) / 60000)} min
+                    </span>
+                  </div>
+                )}
+                
+                {autoDialStatus.nextDialTime && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Next Dial</span>
+                    <span className="text-sm font-medium">
+                      {new Date(autoDialStatus.nextDialTime) > new Date() ? 
+                        `${Math.ceil((new Date(autoDialStatus.nextDialTime).getTime() - Date.now()) / 1000)}s` :
+                        'Now'
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {autoDialStatus.message && (
+              <p className="text-sm text-gray-600 mt-2">{autoDialStatus.message}</p>
+            )}
+          </div>
+
+          {/* Auto-dial control buttons */}
+          <div className="space-y-2">
+            {status === 'Available' && !autoDialStatus.isActive && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700 mb-2">
+                  ✨ Auto-dial available for this campaign
+                </p>
+                <p className="text-xs text-blue-600">
+                  Auto-dial will start automatically when you become Available
+                </p>
+              </div>
+            )}
+            
+            {autoDialStatus.isActive && (
+              <div className="grid grid-cols-2 gap-2">
+                {autoDialStatus.isPaused ? (
+                  <Button 
+                    onClick={resumeAutoDial}
+                    disabled={isLoading || status !== 'Available'}
+                    className="w-full"
+                    variant="default"
+                  >
+                    ▶️ Resume
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={pauseAutoDial}
+                    disabled={isLoading}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    ⏸️ Pause
+                  </Button>
+                )}
+                
+                <Button 
+                  onClick={stopAutoDial}
+                  disabled={isLoading}
+                  className="w-full"
+                  variant="destructive"
+                >
+                  ⏹️ Stop
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Campaign info */}
+          <div className="mt-4 pt-3 border-t">
+            <p className="text-xs text-gray-500">
+              <strong>Campaign:</strong> {campaignInfo.name}<br/>
+              <strong>Method:</strong> {campaignInfo.dialMethod}<br/>
+              <strong>Status:</strong> {campaignInfo.status}
+            </p>
+          </div>
+        </div>
+      </Card>
     );
   };
 
@@ -485,6 +807,9 @@ export default function EnhancedAgentInterface({
               )}
             </div>
           </Card>
+
+          {/* Auto-dial Controls - Only for AUTODIAL campaigns */}
+          {renderAutoDialControls()}
 
           {renderQueueStats()}
         </div>

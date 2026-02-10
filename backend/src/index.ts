@@ -20,6 +20,7 @@ import authRoutes from './routes/auth'; // Use proper Prisma-based authenticatio
 // Agent routes for frontend integration
 import agentRoutes from './routes/agent';
 import agentsRoutes from './routes/agents';
+import autoDialRoutes from './routes/autoDialRoutes'; // Auto-dial engine routes
 import campaignRoutes from './routes/campaignsNew'; // NEW: Production campaign service
 import interactionRoutes from './routes/interactionsNew'; // NEW: Production interaction service
 // import queueRoutes from './routes/queue'; // TEMPORARILY DISABLED - schema conflicts
@@ -158,6 +159,7 @@ class App {
     this.app.use('/api/auth', authRoutes); // Auth routes - enabled and working
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
+    this.app.use('/api/auto-dial', autoDialRoutes); // Auto-dial engine management
     this.app.use('/api/campaigns', campaignRoutes); // NEW: Production campaign management service
     this.app.use('/api/interactions', interactionRoutes); // NEW: Production interaction tracking service
     // this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents - TEMPORARILY DISABLED

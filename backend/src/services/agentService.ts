@@ -6,6 +6,7 @@
 
 import { PrismaClient, Agent } from '@prisma/client';
 import { z } from 'zod';
+import { autoDialEngine } from './autoDialEngine';
 
 const prisma = new PrismaClient();
 
@@ -316,7 +317,45 @@ export class AgentService {
     // Log status change
     console.log(`📊 Agent ${agentId} status changed: ${oldStatus} -> ${newStatus}`);
 
-    // Trigger auto-dialer if agent becomes available
+    // Handle auto-dial based on status change
+    if (newStatus === 'AVAILABLE' && oldStatus !== 'AVAILABLE') {
+      // Agent became available - check if they have campaign assignments to start auto-dial
+      const campaignAssignments = await prisma.agentCampaignAssignment.findMany({
+        where: {
+          agentId,
+          isActive: true
+        },
+        include: {
+          campaign: {
+            select: {
+              campaignId: true,
+              dialMethod: true,
+              status: true
+            }
+          }
+        }
+      });
+
+      // Start auto-dial for campaigns that support it
+      for (const assignment of campaignAssignments) {
+        const campaign = assignment.campaign;
+        if (campaign.dialMethod === 'AUTODIAL' && campaign.status === 'Active') {
+          console.log(`🎯 Starting auto-dial for agent ${agentId} in campaign ${campaign.campaignId}`);
+          await autoDialEngine.handleAgentStatusChange(agentId, newStatus, campaign.campaignId);
+          break; // Only start auto-dial for one campaign at a time
+        }
+      }
+    } else if (newStatus === 'AWAY' || newStatus === 'BREAK') {
+      // Agent became unavailable - pause auto-dial
+      console.log(`⏸️ Agent ${agentId} unavailable, handling auto-dial status`);
+      await autoDialEngine.handleAgentStatusChange(agentId, newStatus);
+    } else if (newStatus === 'OFFLINE') {
+      // Agent went offline - stop auto-dial
+      console.log(`⏹️ Agent ${agentId} offline, stopping auto-dial`);
+      await autoDialEngine.handleAgentStatusChange(agentId, newStatus);
+    }
+
+    // Legacy auto-dialer trigger (keep for backward compatibility)
     if (newStatus === 'AVAILABLE' && oldStatus !== 'AVAILABLE') {
       setImmediate(() => this.triggerAutoDialer(agentId));
     }
