@@ -727,6 +727,46 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
+  // Handle inline campaign assignment change
+  const handleCampaignChange = async (list: DataList, newCampaignId: string) => {
+    try {
+      const selectedCampaign = campaigns.find(c => c.campaignId === newCampaignId);
+      const campaignName = selectedCampaign ? (selectedCampaign.displayName || selectedCampaign.name) : 'Unassigned';
+
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: list.name,
+          campaignId: newCampaignId || null,
+          blendWeight: 75,
+          status: list.status,
+          active: list.status === 'Active'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update campaign assignment: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setDataLists(prev => prev.map(l => 
+          l.id === list.id 
+            ? { ...l, campaign: campaignName, campaignId: newCampaignId }
+            : l
+        ));
+        console.log(`✅ Campaign updated to: ${campaignName}`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to update campaign assignment');
+      }
+    } catch (error) {
+      console.error('Error updating campaign assignment:', error);
+      alert(`Failed to update campaign: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   // Upload data to list with advanced wizard
   const handleUploadData = (list: DataList) => {
     console.log(`📤 === HANDLE UPLOAD DATA FUNCTION CALLED ===`);
@@ -1253,7 +1293,18 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">{list.campaign}</span>
+                            <select
+                              value={list.campaignId || ''}
+                              onChange={(e) => handleCampaignChange(list, e.target.value)}
+                              className="text-sm text-gray-900 border-gray-300 rounded-md shadow-sm focus:border-slate-500 focus:ring-slate-500 bg-white min-w-[140px]"
+                            >
+                              <option value="">Unassigned</option>
+                              {campaigns.map((campaign) => (
+                                <option key={campaign.campaignId} value={campaign.campaignId}>
+                                  {campaign.displayName || campaign.name}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.total}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.available}</td>
