@@ -1058,6 +1058,9 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         }
       });
 
+      // Temporary debug alert to verify data
+      alert(`DEBUG: About to upload ${uploadPayload.contacts.length} contacts to list ID: ${uploadTargetList.id}. Check console for full details.`);
+
       // Validate payload before sending
       if (!uploadTargetList || !uploadTargetList.id) {
         throw new Error('No target data list specified');
