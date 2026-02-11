@@ -762,7 +762,7 @@ router.get('/data-lists/:id/contacts', async (req: Request, res: Response) => {
     const limitNum = parseInt(limit as string);
     const offset = (pageNum - 1) * limitNum;
 
-    // Check if data list exists
+    // Check if data list exists and get its listId
     const dataList = await prisma.dataList.findUnique({
       where: { id },
       select: { id: true, name: true, listId: true }
@@ -785,11 +785,11 @@ router.get('/data-lists/:id/contacts', async (req: Request, res: Response) => {
       ]
     } : {};
 
-    // Get contacts with pagination
+    // Get contacts with pagination using the listId
     const [contacts, totalCount] = await Promise.all([
       prisma.contact.findMany({
         where: {
-          listId: id,
+          listId: dataList.listId, // Use the listId from the DataList
           ...searchConditions
         },
         select: {
@@ -817,7 +817,7 @@ router.get('/data-lists/:id/contacts', async (req: Request, res: Response) => {
       }),
       prisma.contact.count({
         where: {
-          listId: id,
+          listId: dataList.listId, // Use the listId from the DataList
           ...searchConditions
         }
       })
@@ -884,14 +884,14 @@ router.delete('/data-lists/:id/contacts', async (req: Request, res: Response) =>
       await tx.dialQueueEntry.deleteMany({
         where: {
           contact: {
-            listId: id
+            listId: dataList.listId  // Use the listId from the DataList
           }
         }
       });
 
       // Delete all contacts in this list
       const deleteResult = await tx.contact.deleteMany({
-        where: { listId: id }
+        where: { listId: dataList.listId }  // Use the listId from the DataList
       });
 
       return deleteResult;
@@ -945,12 +945,12 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
     // Build status filter
     const statusFilter = status ? { status: status as string } : {};
 
-    // Get queue entries with pagination
+    // Get queue entries with pagination using the listId
     const [queueEntries, totalCount] = await Promise.all([
       prisma.dialQueueEntry.findMany({
         where: {
           contact: {
-            listId: id
+            listId: dataList.listId  // Use the listId from the DataList
           },
           ...statusFilter
         },
@@ -975,7 +975,7 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
       prisma.dialQueueEntry.count({
         where: {
           contact: {
-            listId: id
+            listId: dataList.listId  // Use the listId from the DataList
           },
           ...statusFilter
         }
@@ -987,7 +987,7 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
       by: ['status'],
       where: {
         contact: {
-          listId: id
+          listId: dataList.listId  // Use the listId from the DataList
         }
       },
       _count: {
