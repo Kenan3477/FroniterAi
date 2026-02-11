@@ -292,14 +292,20 @@ class AutoDialSentimentMonitor {
         data: {
           callId,
           agentId: metrics.agentId,
-          overallSentiment: metrics.overallSentiment,
-          customerSentimentScore: metrics.customerSatisfactionScore,
-          agentToneScore: metrics.agentPerformanceScore,
-          alertsGenerated: metrics.alertCount,
-          callQualityScore: (metrics.customerSatisfactionScore + metrics.agentPerformanceScore) / 2,
-          sentimentTrend: metrics.sentimentTrend,
-          recommendations: JSON.stringify(metrics.recommendations),
-          analysisTimestamp: new Date()
+          sentiment: metrics.overallSentiment || 'neutral', // Map to existing field
+          confidence: 0.8, // Default confidence score
+          timestamp: new Date(),
+          // Note: Removed fields that don't exist in schema:
+          // customerSentimentScore, agentToneScore, alertsGenerated, 
+          // callQualityScore, sentimentTrend - these would need custom fields or JSON storage
+          transcript: `Sentiment analysis for call ${callId}`,
+          emotions: JSON.stringify({
+            customerSatisfaction: metrics.customerSatisfactionScore,
+            agentPerformance: metrics.agentPerformanceScore,
+            alertCount: metrics.alertCount,
+            recommendations: metrics.recommendations // Store recommendations in emotions JSON field
+          }),
+          // Note: Removed 'recommendations' and 'analysisTimestamp' fields that don't exist in schema
         }
       });
     } catch (error) {
