@@ -5,7 +5,9 @@ import {
   PencilIcon, 
   DocumentDuplicateIcon,
   CloudArrowUpIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  QueueListIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 interface DataList {
@@ -214,6 +216,15 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   });
   const [createListLoading, setCreateListLoading] = useState(false);
   const [campaigns, setCampaigns] = useState<Array<{ campaignId: string; name: string; displayName: string; status: string }>>([]);
+
+  // New state for contact and queue views
+  const [isContactsViewOpen, setIsContactsViewOpen] = useState(false);
+  const [isQueueViewOpen, setIsQueueViewOpen] = useState(false);
+  const [viewingList, setViewingList] = useState<DataList | null>(null);
+  const [contactsData, setContactsData] = useState<any[]>([]);
+  const [queueData, setQueueData] = useState<any[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
 
   // Analytics data state
   const [analyticsData, setAnalyticsData] = useState({
@@ -795,6 +806,116 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       console.log(`📤 === ALL STATE SETTERS CALLED ===`);
     } catch (error) {
       console.error(`📤 ERROR in handleUploadData:`, error);
+    }
+  };
+
+  // View contacts in data list
+  const handleViewContacts = async (list: DataList) => {
+    console.log(`👥 Opening contacts view for data list: ${list.name}`);
+    setViewingList(list);
+    setContactsLoading(true);
+    setIsContactsViewOpen(true);
+    setOpenDropdown(null);
+
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/contacts?page=1&limit=100`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch contacts: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setContactsData(result.data.contacts);
+        console.log(`✅ Loaded ${result.data.contacts.length} contacts`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to load contacts');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching contacts:', error);
+      alert(`Failed to load contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  // View outbound queue for data list
+  const handleViewQueue = async (list: DataList) => {
+    console.log(`📞 Opening queue view for data list: ${list.name}`);
+    setViewingList(list);
+    setQueueLoading(true);
+    setIsQueueViewOpen(true);
+    setOpenDropdown(null);
+
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/queue?page=1&limit=100`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch queue: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setQueueData(result.data.queue);
+        console.log(`✅ Loaded ${result.data.queue.length} queue entries`);
+        console.log(`📊 Queue stats:`, result.data.stats);
+      } else {
+        throw new Error(result.error?.message || 'Failed to load queue');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching queue:', error);
+      alert(`Failed to load queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setQueueLoading(false);
+    }
+  };
+
+  // Delete all contacts in data list
+  const handleDeleteContacts = async (list: DataList) => {
+    if (!confirm(`Are you sure you want to delete ALL contacts in "${list.name}"?\n\nThis will remove ${list.total} contacts but keep the data list. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      console.log(`🗑️ Attempting to delete all contacts in: ${list.name}`);
+
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/contacts`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete contacts: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state - reset contact count to 0
+        setDataLists(prev => prev.map(l => 
+          l.id === list.id 
+            ? { ...l, total: 0, available: 0 }
+            : l
+        ));
+        
+        setOpenDropdown(null);
+        alert(`Successfully deleted ${result.data.deletedCount} contacts from "${list.name}"`);
+        
+        // Refresh data from backend
+        setTimeout(() => {
+          fetchDataLists();
+        }, 500);
+      } else {
+        throw new Error(result.error?.message || 'Failed to delete contacts');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting contacts:', error);
+      alert(`Failed to delete contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -1470,6 +1591,43 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                       >
                                         <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
                                         Clone List
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('👥 View Contacts dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleViewContacts(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <UserGroupIcon className="h-4 w-4 mr-3" />
+                                        View Contacts
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('📞 View Queue dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleViewQueue(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <QueueListIcon className="h-4 w-4 mr-3" />
+                                        View Queue
+                                      </button>
+                                      <hr className="my-1" />
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🗑️ Delete Contacts dropdown clicked for:', list);
+                                          setOpenDropdown(null);
+                                          handleDeleteContacts(list);
+                                        }}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                      >
+                                        <TrashIcon className="h-4 w-4 mr-3" />
+                                        Delete All Contacts
                                       </button>
                                       <hr className="my-1" />
                                       <button
@@ -2477,6 +2635,214 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contacts View Modal */}
+      {isContactsViewOpen && viewingList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[1000px] max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gray-50 px-6 py-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Contacts in "{viewingList.name}"
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                View and manage all contacts in this data list
+              </p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {contactsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-600">Loading contacts...</span>
+                </div>
+              ) : contactsData.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No contacts found</h3>
+                  <p className="mt-1 text-sm text-gray-500">This data list doesn't contain any contacts yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Phone
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Last Call
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {contactsData.map((contact) => (
+                        <tr key={contact.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {contact.firstName} {contact.lastName}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {contact.phone}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {contact.email || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {contact.lastCall ? (
+                              <div>
+                                <div>{new Date(contact.lastCall.startTime).toLocaleDateString()}</div>
+                                <div className="text-xs text-gray-400">{contact.lastCall.outcome || 'No outcome'}</div>
+                              </div>
+                            ) : (
+                              'Never called'
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(contact.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => {
+                  setIsContactsViewOpen(false);
+                  setViewingList(null);
+                  setContactsData([]);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Queue View Modal */}
+      {isQueueViewOpen && viewingList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[1200px] max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gray-50 px-6 py-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Outbound Queue for "{viewingList.name}"
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                View contacts queued for outbound dialing
+              </p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {queueLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-600">Loading queue...</span>
+                </div>
+              ) : queueData.length === 0 ? (
+                <div className="text-center py-8">
+                  <QueueListIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No queue entries found</h3>
+                  <p className="mt-1 text-sm text-gray-500">No contacts from this list are currently queued for dialing.</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Contact
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Phone
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Priority
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Queued At
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Last Dialed
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {queueData.map((entry) => (
+                        <tr key={entry.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {entry.contact.firstName} {entry.contact.lastName}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {entry.contact.phone}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              entry.status === 'queued' ? 'bg-yellow-100 text-yellow-800' :
+                              entry.status === 'dialing' ? 'bg-blue-100 text-blue-800' :
+                              entry.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              entry.status === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {entry.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {entry.priority}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(entry.queuedAt).toLocaleDateString()} {new Date(entry.queuedAt).toLocaleTimeString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {entry.dialedAt ? (
+                              <div>
+                                {new Date(entry.dialedAt).toLocaleDateString()}
+                                <div className="text-xs text-gray-400">
+                                  {new Date(entry.dialedAt).toLocaleTimeString()}
+                                </div>
+                              </div>
+                            ) : (
+                              'Not dialed yet'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => {
+                  setIsQueueViewOpen(false);
+                  setViewingList(null);
+                  setQueueData([]);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -752,6 +752,296 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/admin/campaign-management/data-lists/:id/contacts - Get contacts in data list
+router.get('/data-lists/:id/contacts', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { page = '1', limit = '50', search } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Check if data list exists
+    const dataList = await prisma.dataList.findUnique({
+      where: { id },
+      select: { id: true, name: true, listId: true }
+    });
+
+    if (!dataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Build search conditions
+    const searchConditions = search ? {
+      OR: [
+        { firstName: { contains: search as string, mode: 'insensitive' as any } },
+        { lastName: { contains: search as string, mode: 'insensitive' as any } },
+        { phone: { contains: search as string, mode: 'insensitive' as any } },
+        { email: { contains: search as string, mode: 'insensitive' as any } }
+      ]
+    } : {};
+
+    // Get contacts with pagination
+    const [contacts, totalCount] = await Promise.all([
+      prisma.contact.findMany({
+        where: {
+          listId: id,
+          ...searchConditions
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          callRecords: {
+            select: {
+              id: true,
+              startTime: true,
+              outcome: true,
+              duration: true
+            },
+            orderBy: { startTime: 'desc' },
+            take: 1 // Latest call
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limitNum
+      }),
+      prisma.contact.count({
+        where: {
+          listId: id,
+          ...searchConditions
+        }
+      })
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    res.json({
+      success: true,
+      data: {
+        dataList: {
+          id: dataList.id,
+          listId: dataList.listId,
+          name: dataList.name
+        },
+        contacts: contacts.map(contact => ({
+          ...contact,
+          lastCall: contact.callRecords[0] || null,
+          callRecords: undefined // Remove from response
+        })),
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalContacts: totalCount,
+          hasMore: pageNum < totalPages
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching data list contacts:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch contacts' }
+    });
+  }
+});
+
+// DELETE /api/admin/campaign-management/data-lists/:id/contacts - Delete all contacts in data list
+router.delete('/data-lists/:id/contacts', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if data list exists
+    const dataList = await prisma.dataList.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { contacts: true }
+        }
+      }
+    });
+
+    if (!dataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Use transaction to ensure consistency
+    const result = await prisma.$transaction(async (tx) => {
+      // Delete any dial queue entries for these contacts first
+      await tx.dialQueueEntry.deleteMany({
+        where: {
+          contact: {
+            listId: id
+          }
+        }
+      });
+
+      // Delete all contacts in this list
+      const deleteResult = await tx.contact.deleteMany({
+        where: { listId: id }
+      });
+
+      return deleteResult;
+    }, { timeout: 30000 });
+
+    res.json({
+      success: true,
+      data: {
+        deletedCount: result.count,
+        dataList: {
+          id: dataList.id,
+          listId: dataList.listId,
+          name: dataList.name
+        },
+        message: `Successfully deleted ${result.count} contacts from "${dataList.name}"`
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting data list contacts:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to delete contacts' }
+    });
+  }
+});
+
+// GET /api/admin/campaign-management/data-lists/:id/queue - Get outbound queue for data list
+router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, page = '1', limit = '50' } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Check if data list exists
+    const dataList = await prisma.dataList.findUnique({
+      where: { id },
+      select: { id: true, name: true, listId: true, campaignId: true }
+    });
+
+    if (!dataList) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Data list not found' }
+      });
+    }
+
+    // Build status filter
+    const statusFilter = status ? { status: status as string } : {};
+
+    // Get queue entries with pagination
+    const [queueEntries, totalCount] = await Promise.all([
+      prisma.dialQueueEntry.findMany({
+        where: {
+          contact: {
+            listId: id
+          },
+          ...statusFilter
+        },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true
+            }
+          }
+        },
+        orderBy: [
+          { priority: 'desc' },
+          { queuedAt: 'asc' }
+        ],
+        skip: offset,
+        take: limitNum
+      }),
+      prisma.dialQueueEntry.count({
+        where: {
+          contact: {
+            listId: id
+          },
+          ...statusFilter
+        }
+      })
+    ]);
+
+    // Get status breakdown
+    const statusBreakdown = await prisma.dialQueueEntry.groupBy({
+      by: ['status'],
+      where: {
+        contact: {
+          listId: id
+        }
+      },
+      _count: {
+        status: true
+      }
+    });
+
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    res.json({
+      success: true,
+      data: {
+        dataList: {
+          id: dataList.id,
+          listId: dataList.listId,
+          name: dataList.name,
+          campaignId: dataList.campaignId
+        },
+        queue: queueEntries.map(entry => ({
+          id: entry.id,
+          contactId: entry.contactId,
+          status: entry.status,
+          priority: entry.priority,
+          queuedAt: entry.queuedAt,
+          dialedAt: entry.dialedAt,
+          completedAt: entry.completedAt,
+          contact: entry.contact,
+          campaignId: entry.campaignId
+        })),
+        stats: {
+          total: totalCount,
+          statusBreakdown: statusBreakdown.reduce((acc, item) => {
+            acc[item.status] = item._count.status;
+            return acc;
+          }, {} as Record<string, number>)
+        },
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalEntries: totalCount,
+          hasMore: pageNum < totalPages
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching data list queue:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch queue data' }
+    });
+  }
+});
+
 // POST /api/admin/campaign-management/campaigns
 router.post('/campaigns', async (req: Request, res: Response) => {
   try {
