@@ -14,8 +14,14 @@ interface DataList {
   name: string;
   description: string;
   campaign: string;
+  campaignId?: string;
   total: number;
   available: number;
+  blendWeight?: number;
+  dataSource?: string;
+  autoRefresh?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Campaign {
@@ -30,14 +36,17 @@ interface Campaign {
 interface DataListTableProps {
   data: DataList[];
   searchTerm: string;
+  onRefresh: () => Promise<void>;
 }
 
-export default function DataListTable({ data, searchTerm }: DataListTableProps) {
+export default function DataListTable({ data, searchTerm, onRefresh }: DataListTableProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [editingList, setEditingList] = useState<DataList | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [isCloning, setIsCloning] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Fetch available campaigns
   useEffect(() => {
@@ -86,8 +95,10 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
         body: JSON.stringify({
           name: editingList.name,
           description: editingList.description,
-          campaignId: editingList.campaign !== 'Unassigned' ? editingList.campaign : null,
-          blendWeight: 75 // Default weight
+          campaignId: editingList.campaignId !== 'Unassigned' ? editingList.campaignId : null,
+          blendWeight: editingList.blendWeight || 75,
+          dataSource: editingList.dataSource || 'manual',
+          autoRefresh: editingList.autoRefresh || false
         })
       });
 
@@ -99,15 +110,87 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
       if (result.success) {
         setIsEditDialogOpen(false);
         setEditingList(null);
+        await onRefresh(); // Refresh data after successful update
         alert('Data list updated successfully!');
-        // Refresh data would typically be handled by parent component
-        // For now, we'll just close the dialog
       } else {
         throw new Error(result.error?.message || 'Failed to update data list');
       }
     } catch (error) {
       console.error('Error updating data list:', error);
       alert(`Failed to update data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Clone data list
+  const handleCloneList = async (list: DataList) => {
+    setIsCloning(list.id);
+    setOpenDropdown(null);
+    
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/clone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: `${list.name} (Copy)`,
+          description: `Cloned from: ${list.description}`,
+          preserveCampaignAssignment: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to clone data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        await onRefresh(); // Refresh data after successful clone
+        alert(`Data list "${list.name}" cloned successfully!`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to clone data list');
+      }
+    } catch (error) {
+      console.error('Error cloning data list:', error);
+      alert(`Failed to clone data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCloning(null);
+    }
+  };
+
+  // Delete data list
+  const handleDeleteList = async (list: DataList) => {
+    if (!confirm(`Are you sure you want to delete "${list.name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(list.id);
+    setOpenDropdown(null);
+    
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete data list: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        await onRefresh(); // Refresh data after successful deletion
+        alert(`Data list "${list.name}" deleted successfully!`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to delete data list');
+      }
+    } catch (error) {
+      console.error('Error deleting data list:', error);
+      alert(`Failed to delete data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -210,18 +293,38 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
                               Edit Data List
                             </button>
                             <button
-                              onClick={() => console.log('Clone data list:', item.id)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              onClick={() => handleCloneList(item)}
+                              disabled={isCloning === item.id}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
-                              Clone Data List
+                              {isCloning === item.id ? (
+                                <>
+                                  <div className="animate-spin h-4 w-4 mr-3 border-2 border-gray-300 border-t-gray-700 rounded-full"></div>
+                                  Cloning...
+                                </>
+                              ) : (
+                                <>
+                                  <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
+                                  Clone Data List
+                                </>
+                              )}
                             </button>
                             <button
-                              onClick={() => console.log('Delete data list:', item.id)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => handleDeleteList(item)}
+                              disabled={isDeleting === item.id}
+                              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <TrashIcon className="h-4 w-4 mr-3" />
-                              Delete Data List
+                              {isDeleting === item.id ? (
+                                <>
+                                  <div className="animate-spin h-4 w-4 mr-3 border-2 border-red-300 border-t-red-600 rounded-full"></div>
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <TrashIcon className="h-4 w-4 mr-3" />
+                                  Delete Data List
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
@@ -321,8 +424,16 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
                   </div>
                 ) : (
                   <select
-                    value={editingList.campaign}
-                    onChange={(e) => setEditingList({ ...editingList, campaign: e.target.value })}
+                    value={editingList.campaignId || 'Unassigned'}
+                    onChange={(e) => {
+                      const selectedCampaignId = e.target.value === 'Unassigned' ? undefined : e.target.value;
+                      const selectedCampaign = campaigns.find(c => c.campaignId === selectedCampaignId);
+                      setEditingList({ 
+                        ...editingList, 
+                        campaignId: selectedCampaignId,
+                        campaign: selectedCampaign ? (selectedCampaign.displayName || selectedCampaign.name) : 'Unassigned'
+                      });
+                    }}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                   >
                     <option value="Unassigned">Unassigned</option>
@@ -335,13 +446,17 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
                 )}
               </div>
 
-              {/* Additional Configuration Options */}
+              {/* Advanced Configuration Options */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Blend Weight</label>
-                <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <select 
+                  value={editingList.blendWeight || 75}
+                  onChange={(e) => setEditingList({ ...editingList, blendWeight: parseInt(e.target.value) })}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
                   <option value="25">Low Priority (25%)</option>
                   <option value="50">Medium Priority (50%)</option>
-                  <option value="75" selected>High Priority (75%)</option>
+                  <option value="75">High Priority (75%)</option>
                   <option value="100">Maximum Priority (100%)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">Controls how often this data list is used in campaigns</p>
@@ -349,7 +464,11 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
-                <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <select 
+                  value={editingList.dataSource || 'manual'}
+                  onChange={(e) => setEditingList({ ...editingList, dataSource: e.target.value })}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                >
                   <option value="manual">Manual Upload</option>
                   <option value="api">API Integration</option>
                   <option value="import">Imported from CSV</option>
@@ -362,6 +481,8 @@ export default function DataListTable({ data, searchTerm }: DataListTableProps) 
                 <input
                   type="checkbox"
                   id="autoRefresh"
+                  checked={editingList.autoRefresh || false}
+                  onChange={(e) => setEditingList({ ...editingList, autoRefresh: e.target.checked })}
                   className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-gray-300 rounded"
                 />
                 <label htmlFor="autoRefresh" className="ml-2 block text-sm text-gray-900">

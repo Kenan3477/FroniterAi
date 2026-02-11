@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout';
 import DataManagementSidebar from '@/components/data-management/DataManagementSidebar';
 import DataListTable from '@/components/data-management/DataListTable';
@@ -16,47 +16,109 @@ interface DataList {
   name: string;
   description: string;
   campaign: string;
+  campaignId?: string;
   total: number;
   available: number;
+  blendWeight?: number;
+  dataSource?: string;
+  autoRefresh?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
-
-// Mock data for data lists (with test data for demo)
-const mockDataLists: DataList[] = [
-  {
-    id: "DL-001",
-    name: "Lead List Q1 2024",
-    description: "Primary leads for Q1 2024 campaign targeting enterprise customers",
-    campaign: "Enterprise Sales Q1",
-    total: 2500,
-    available: 1847
-  },
-  {
-    id: "DL-002", 
-    name: "Warm Prospects",
-    description: "Previously contacted prospects showing interest",
-    campaign: "Unassigned",
-    total: 892,
-    available: 567
-  },
-  {
-    id: "DL-003",
-    name: "Renewal Opportunities",
-    description: "Existing customers approaching contract renewal dates",
-    campaign: "Customer Retention",
-    total: 345,
-    available: 234
-  }
-];
 
 export default function DataManagementPage() {
   const [selectedSection, setSelectedSection] = useState('Manage Data Lists');
   const [searchTerm, setSearchTerm] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dataLists, setDataLists] = useState<DataList[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data lists from backend
+  useEffect(() => {
+    const fetchDataLists = async () => {
+      if (selectedSection !== 'Manage Data Lists') {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch('/api/admin/campaign-management/data-lists', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data lists: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Transform backend data to frontend format
+          const transformedData = result.data.map((item: any) => ({
+            id: item.id || item.dataListId,
+            name: item.name || item.listName,
+            description: item.description || '',
+            campaign: item.campaignName || item.campaign || 'Unassigned',
+            campaignId: item.campaignId,
+            total: item.totalRecords || item.total || 0,
+            available: item.availableRecords || item.available || 0,
+            blendWeight: item.blendWeight || 75,
+            dataSource: item.dataSource || 'manual',
+            autoRefresh: item.autoRefresh || false,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }));
+
+          setDataLists(transformedData);
+        } else {
+          setDataLists([]);
+        }
+      } catch (err) {
+        console.error('Error fetching data lists:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load data lists');
+        setDataLists([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDataLists();
+  }, [selectedSection]);
+
+  // Refresh data lists after operations
+  const refreshDataLists = async () => {
+    const response = await fetch('/api/admin/campaign-management/data-lists');
+    const result = await response.json();
+    if (result.success && result.data) {
+      const transformedData = result.data.map((item: any) => ({
+        id: item.id || item.dataListId,
+        name: item.name || item.listName,
+        description: item.description || '',
+        campaign: item.campaignName || item.campaign || 'Unassigned',
+        campaignId: item.campaignId,
+        total: item.totalRecords || item.total || 0,
+        available: item.availableRecords || item.available || 0,
+        blendWeight: item.blendWeight || 75,
+        dataSource: item.dataSource || 'manual',
+        autoRefresh: item.autoRefresh || false,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }));
+      setDataLists(transformedData);
+    }
+  };
 
   const getCurrentData = () => {
     switch (selectedSection) {
       case 'Manage Data Lists':
-        return mockDataLists;
+        return dataLists;
       case 'Create Data Lists':
         return [];
       case 'Data Autoload':
@@ -176,7 +238,35 @@ export default function DataManagementPage() {
     }
     
     // Default: Manage Data Lists
-    return <DataListTable data={getCurrentData()} searchTerm={searchTerm} />;
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading data lists...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="text-red-500 text-xl mb-4">⚠️</div>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return <DataListTable data={getCurrentData()} searchTerm={searchTerm} onRefresh={refreshDataLists} />;
   };
 
   return (
