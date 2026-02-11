@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { 
   PhoneIcon,
   ArrowUpRightIcon,
-  ArrowDownLeftIcon
+  ArrowDownLeftIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
+import CallbackScheduler from './CallbackScheduler';
 
 interface InteractionData {
   id: string;
@@ -18,15 +21,20 @@ interface InteractionData {
   outcome: string;
   dateTime: string;
   duration: string;
+  dialType?: 'manual' | 'auto-dial';
+  callbackTime?: string;
+  notes?: string;
 }
 
 interface InteractionTableProps {
   data: InteractionData[];
   section: string;
   searchTerm: string;
+  onRefresh?: () => void;
 }
 
-export default function InteractionTable({ data, section, searchTerm }: InteractionTableProps) {
+export default function InteractionTable({ data, section, searchTerm, onRefresh }: InteractionTableProps) {
+  const [schedulingCallbackId, setSchedulingCallbackId] = useState<string | null>(null);
   const getInteractionIcon = (type: string) => {
     switch (type) {
       case 'call':
@@ -46,17 +54,23 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
       : <ArrowDownLeftIcon className="h-4 w-4 text-slate-600" />;
   };
 
-  const getOutcomeBadge = (outcome: string) => {
+  const getOutcomeBadge = (outcome: string, dialType?: string) => {
     const badges = {
       'Answering Machine': 'bg-yellow-100 text-yellow-800',
       'Not Interested - NI': 'bg-red-100 text-red-800',
       'Interested': 'bg-green-100 text-slate-800',
       'Cancelled': 'bg-gray-100 text-gray-800',
       'Connected': 'bg-blue-100 text-blue-800',
-      'Callback': 'bg-purple-100 text-purple-800'
+      'Callback': 'bg-purple-100 text-purple-800',
+      'CALLBACK_REQUESTED': 'bg-purple-100 text-purple-800',
+      'In Progress': 'bg-blue-100 text-blue-800',
+      'Completed': 'bg-green-100 text-green-800'
     };
     
-    return badges[outcome as keyof typeof badges] || 'bg-gray-100 text-gray-800';
+    const badgeClass = badges[outcome as keyof typeof badges] || 'bg-gray-100 text-gray-800';
+    const dialTypeIcon = dialType === 'auto-dial' ? '🤖' : '';
+    
+    return { badgeClass, dialTypeIcon };
   };
 
   const filteredData = data.filter(item =>
@@ -84,7 +98,7 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
         {/* Table Header */}
         <div className="bg-gray-50 border-b border-gray-200 rounded-t-lg">
-          <div className="grid grid-cols-10 gap-4 px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <div className="grid grid-cols-11 gap-4 px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
             <div className="col-span-1">Agent Name</div>
             <div className="col-span-1">Customer Name</div>
             <div className="col-span-1">Type</div>
@@ -94,6 +108,7 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
             <div className="col-span-2">Campaign Name</div>
             <div className="col-span-1">Outcome</div>
             <div className="col-span-1">Date/Time</div>
+            <div className="col-span-1">Actions</div>
           </div>
         </div>
 
@@ -133,68 +148,117 @@ export default function InteractionTable({ data, section, searchTerm }: Interact
               </div>
             </div>
           ) : (
-            filteredData.map((item, index) => (
-              <div 
-                key={item.id} 
-                className={`grid grid-cols-10 gap-4 px-6 py-4 text-sm hover:bg-gray-50 transition-colors ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                }`}
-              >
-                {/* Agent Name */}
-                <div className="col-span-1">
-                  <span className="font-medium text-gray-900">{item.agentName}</span>
-                </div>
+            <>
+              {filteredData.map((item, index) => (
+                <div key={item.id}>
+                  <div 
+                    className={`grid grid-cols-11 gap-4 px-6 py-4 text-sm hover:bg-gray-50 transition-colors ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                    }`}
+                  >
+                    {/* Agent Name */}
+                    <div className="col-span-1">
+                      <span className="font-medium text-gray-900">{item.agentName}</span>
+                    </div>
 
-                {/* Customer Name */}
-                <div className="col-span-1">
-                  <button className="text-blue-600 hover:text-blue-800 font-medium transition-colors text-left">
-                    {item.customerName}
-                  </button>
-                </div>
+                    {/* Customer Name */}
+                    <div className="col-span-1">
+                      <button className="text-blue-600 hover:text-blue-800 font-medium transition-colors text-left">
+                        {item.customerName}
+                      </button>
+                    </div>
 
-                {/* Interaction Type */}
-                <div className="col-span-1 flex items-center">
-                  {getInteractionIcon(item.interactionType)}
-                </div>
+                    {/* Interaction Type */}
+                    <div className="col-span-1 flex items-center">
+                      {getInteractionIcon(item.interactionType)}
+                      {item.dialType === 'auto-dial' && (
+                        <span className="ml-1 text-xs text-blue-600">🤖</span>
+                      )}
+                    </div>
 
-                {/* Telephone */}
-                <div className="col-span-1">
-                  <span className="text-gray-900 font-mono text-sm">{item.telephone}</span>
-                </div>
+                    {/* Telephone */}
+                    <div className="col-span-1">
+                      <span className="text-gray-900 font-mono text-sm">{item.telephone}</span>
+                    </div>
 
-                {/* Direction */}
-                <div className="col-span-1 flex items-center">
-                  {getDirectionIcon(item.direction)}
-                </div>
+                    {/* Direction */}
+                    <div className="col-span-1 flex items-center">
+                      {getDirectionIcon(item.direction)}
+                    </div>
 
-                {/* Subject */}
-                <div className="col-span-1">
-                  <span className="text-gray-700">{item.subject || '-'}</span>
-                </div>
+                    {/* Subject */}
+                    <div className="col-span-1">
+                      <span className="text-gray-700">{item.subject || '-'}</span>
+                    </div>
 
-                {/* Campaign Name */}
-                <div className="col-span-2">
-                  <span className="text-gray-900">{item.campaignName}</span>
-                </div>
+                    {/* Campaign Name */}
+                    <div className="col-span-2">
+                      <span className="text-gray-900">{item.campaignName}</span>
+                    </div>
 
-                {/* Outcome */}
-                <div className="col-span-1">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getOutcomeBadge(item.outcome)}`}>
-                    {item.outcome}
-                  </span>
-                </div>
+                    {/* Outcome */}
+                    <div className="col-span-1">
+                      {(() => {
+                        const { badgeClass, dialTypeIcon } = getOutcomeBadge(item.outcome, item.dialType);
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${badgeClass}`}>
+                            {dialTypeIcon && <span className="mr-1">{dialTypeIcon}</span>}
+                            {item.outcome}
+                          </span>
+                        );
+                      })()}
+                    </div>
 
-                {/* Date/Time */}
-                <div className="col-span-1">
-                  <div className="text-gray-900 text-sm">
-                    {item.dateTime}
+                    {/* Date/Time */}
+                    <div className="col-span-1">
+                      <div className="text-gray-900 text-sm">
+                        {item.dateTime}
+                      </div>
+                      <div className="text-gray-500 text-xs mt-1">
+                        {item.duration}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-1">
+                      {section === 'Outcomed Interactions' && item.outcome !== 'CALLBACK_REQUESTED' && (
+                        <button
+                          onClick={() => setSchedulingCallbackId(item.id)}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <CalendarDaysIcon className="h-3 w-3 mr-1" />
+                          Schedule
+                        </button>
+                      )}
+                      {item.callbackTime && (
+                        <div className="text-xs text-purple-600 flex items-center">
+                          <CalendarDaysIcon className="h-3 w-3 mr-1" />
+                          {new Date(item.callbackTime).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-gray-500 text-xs mt-1">
-                    {item.duration}
-                  </div>
+
+                  {/* Callback Scheduler Modal */}
+                  {schedulingCallbackId === item.id && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+                        <CallbackScheduler
+                          interactionId={item.id}
+                          customerName={item.customerName}
+                          phoneNumber={item.telephone}
+                          onScheduled={() => {
+                            setSchedulingCallbackId(null);
+                            onRefresh?.();
+                          }}
+                          onCancel={() => setSchedulingCallbackId(null)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
         </div>
 

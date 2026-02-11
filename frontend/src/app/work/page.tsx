@@ -16,7 +16,7 @@ import {
   ArrowPathIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
-import { getOutcomedInteractions, getActiveInteractions, InteractionData } from '@/services/interactionService';
+import { getOutcomedInteractions, getActiveInteractions, getQueuedInteractions, getUnallocatedInteractions, getCategorizedInteractions, InteractionData, CategorizedInteractions } from '@/services/interactionService';
 
 export default function WorkPage() {
   const [selectedView, setSelectedView] = useState('Queued Interactions');
@@ -26,8 +26,13 @@ export default function WorkPage() {
   const [agentId, setAgentId] = useState('demo-agent');
   
   // Real interaction data state
-  const [outcomedInteractions, setOutcomedInteractions] = useState<InteractionData[]>([]);
-  const [activeInteractions, setActiveInteractions] = useState<InteractionData[]>([]);
+  const [categorizedInteractions, setCategorizedInteractions] = useState<CategorizedInteractions>({
+    queued: [],
+    allocated: [],
+    outcomed: [],
+    unallocated: [],
+    counts: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+  });
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
 
   // Get active call from Redux
@@ -68,22 +73,16 @@ export default function WorkPage() {
 
   // Load interaction data when view changes or component mounts
   useEffect(() => {
-    if (selectedView === 'Outcomed Interactions' || selectedView === 'My Interactions') {
-      loadInteractionData();
-    }
+    loadInteractionData();
   }, [selectedView, agentId]);
 
   // Load real interaction data from backend
   const loadInteractionData = async () => {
     setIsLoadingInteractions(true);
     try {
-      if (selectedView === 'Outcomed Interactions') {
-        const interactions = await getOutcomedInteractions(agentId);
-        setOutcomedInteractions(interactions);
-      } else if (selectedView === 'My Interactions') {
-        const interactions = await getActiveInteractions(agentId);
-        setActiveInteractions(interactions);
-      }
+      const categorized = await getCategorizedInteractions(agentId);
+      setCategorizedInteractions(categorized);
+      console.log('🔄 Loaded categorized interactions:', categorized);
     } catch (error) {
       console.error('Failed to load interaction data:', error);
     } finally {
@@ -145,13 +144,13 @@ export default function WorkPage() {
   const getCurrentData = () => {
     switch (selectedView) {
       case 'My Interactions':
-        return activeInteractions; // Real active call data
+        return categorizedInteractions.allocated; // Real active call data
       case 'Outcomed Interactions':
-        return outcomedInteractions; // Real completed call data only - no mock data
+        return categorizedInteractions.outcomed; // Real completed call data only - no mock data
       case 'Queued Interactions':
-        return [];
+        return categorizedInteractions.queued;
       case 'Unallocated Interactions':
-        return [];
+        return categorizedInteractions.unallocated;
       case 'Sent Interactions':
         return [];
       case 'Tasks':
@@ -170,8 +169,10 @@ export default function WorkPage() {
           onViewChange={setSelectedView}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          outcomedInteractionsCount={outcomedInteractions.length}
-          activeInteractionsCount={activeInteractions.length}
+          outcomedInteractionsCount={categorizedInteractions.counts.outcomed}
+          activeInteractionsCount={categorizedInteractions.counts.allocated}
+          queuedInteractionsCount={categorizedInteractions.counts.queued}
+          unallocatedInteractionsCount={categorizedInteractions.counts.unallocated}
           tasksCount={0} // Tasks will be implemented with real task management system
         />
 
@@ -363,6 +364,7 @@ export default function WorkPage() {
                   data={getCurrentData()}
                   section={selectedView}
                   searchTerm={searchTerm}
+                  onRefresh={loadInteractionData}
                 />
               </div>
             </>

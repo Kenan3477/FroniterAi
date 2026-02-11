@@ -10,6 +10,8 @@ interface WorkSidebarProps {
   onToggle: () => void;
   outcomedInteractionsCount?: number;
   activeInteractionsCount?: number;
+  queuedInteractionsCount?: number;
+  unallocatedInteractionsCount?: number;
   tasksCount?: number;
 }
 
@@ -20,13 +22,15 @@ export default function WorkSidebar({
   onToggle,
   outcomedInteractionsCount = 0,
   activeInteractionsCount = 0,
+  queuedInteractionsCount = 0,
+  unallocatedInteractionsCount = 0,
   tasksCount = 0
 }: WorkSidebarProps) {
   const [showViewDropdown, setShowViewDropdown] = useState(false);
 
   const views = [
-    { name: 'Queued Interactions', count: 0 },
-    { name: 'Unallocated Interactions', count: 0 },
+    { name: 'Queued Interactions', count: queuedInteractionsCount },
+    { name: 'Unallocated Interactions', count: unallocatedInteractionsCount },
     { name: 'Outcomed Interactions', count: outcomedInteractionsCount },
     { name: 'Sent Interactions', count: 0 },
     { name: 'Tasks', count: tasksCount },
@@ -124,8 +128,18 @@ export default function WorkSidebar({
                     : 'No active interactions - start a call to see interactions here'
                   )
                 }
-                {selectedView === 'Queued Interactions' && 'No queued interactions'}
-                {selectedView === 'Unallocated Interactions' && 'No unallocated interactions'}
+                {selectedView === 'Queued Interactions' && 
+                  (queuedInteractionsCount > 0 
+                    ? `${queuedInteractionsCount} queued interaction${queuedInteractionsCount !== 1 ? 's' : ''}` 
+                    : 'No queued interactions - callbacks will appear here'
+                  )
+                }
+                {selectedView === 'Unallocated Interactions' && 
+                  (unallocatedInteractionsCount > 0 
+                    ? `${unallocatedInteractionsCount} unallocated interaction${unallocatedInteractionsCount !== 1 ? 's' : ''}` 
+                    : 'No unallocated interactions - interactions needing follow-up appear here'
+                  )
+                }
                 {selectedView === 'Outcomed Interactions' && 
                   (outcomedInteractionsCount > 0 
                     ? `${outcomedInteractionsCount} completed interaction${outcomedInteractionsCount !== 1 ? 's' : ''}` 

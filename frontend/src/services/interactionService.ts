@@ -1,6 +1,7 @@
 /**
  * Interaction Service
  * Handles fetching real interaction data from backend with authentication
+ * Updated to use categorized interaction history API
  */
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
@@ -36,10 +37,63 @@ export interface InteractionData {
   contactId?: string;
   agentId?: string;
   campaignId?: string;
+  dialType?: 'manual' | 'auto-dial';
+  callbackTime?: string;
+  notes?: string;
+}
+
+export interface CategorizedInteractions {
+  queued: InteractionData[];
+  allocated: InteractionData[];
+  outcomed: InteractionData[];
+  unallocated: InteractionData[];
+  counts: {
+    queued: number;
+    allocated: number;
+    outcomed: number;
+    unallocated: number;
+  };
 }
 
 /**
- * Fetch real outcomed interactions from backend
+ * Fetch categorized interactions from new backend API
+ */
+export async function getCategorizedInteractions(agentId?: string): Promise<CategorizedInteractions> {
+  try {
+    const params = new URLSearchParams();
+    if (agentId) params.append('agentId', agentId);
+
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/categorized?${params}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch categorized interactions:', response.status);
+      return getEmptyCategories();
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      // Transform backend data to match our interface
+      return {
+        queued: transformInteractionData(data.data.queued || []),
+        allocated: transformInteractionData(data.data.allocated || []),
+        outcomed: transformInteractionData(data.data.outcomed || []),
+        unallocated: transformInteractionData(data.data.unallocated || []),
+        counts: data.data.counts || { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+      };
+    }
+
+    return getEmptyCategories();
+  } catch (error) {
+    console.error('Error fetching categorized interactions:', error);
+    return getEmptyCategories();
+  }
+}
+
+/**
+ * Get interactions by specific status (for backward compatibility)
  */
 export async function getOutcomedInteractions(
   agentId?: string,
@@ -47,95 +101,176 @@ export async function getOutcomedInteractions(
   limit: number = 50
 ): Promise<InteractionData[]> {
   try {
-    const params = new URLSearchParams();
-    if (agentId) params.append('agentId', agentId);
-    if (campaignId) params.append('campaignId', campaignId);
-    params.append('limit', limit.toString());
-    params.append('status', 'completed');
-
-    const response = await fetch(`${BACKEND_URL}/api/interactions?${params}`, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      console.error('Failed to fetch interactions:', response.status);
-      return []; // Return empty array if backend is unavailable
-    }
-
-    const data = await response.json();
-    
-    if (data.success && data.data) {
-      // Transform backend data to match our interface
-      return data.data.map((interaction: any) => ({
-        id: interaction.id,
-        agentName: interaction.agentName || 'Unknown Agent',
-        customerName: interaction.contactName || interaction.customerName || 'Unknown Contact',
-        interactionType: interaction.type || 'call',
-        telephone: interaction.telephone || interaction.phoneNumber || '',
-        direction: interaction.direction || 'outbound',
-        subject: interaction.subject || interaction.telephone || '',
-        campaignName: interaction.campaignName || 'Unknown Campaign',
-        outcome: interaction.outcome || 'Unknown',
-        dateTime: formatDateTime(interaction.endTime || interaction.createdAt),
-        duration: formatDuration(interaction.duration || 0),
-        callId: interaction.callId,
-        contactId: interaction.contactId,
-        agentId: interaction.agentId,
-        campaignId: interaction.campaignId,
-      }));
-    }
-
-    return []; // Return empty if no data
+    const categorized = await getCategorizedInteractions(agentId);
+    return categorized.outcomed.slice(0, limit);
   } catch (error) {
     console.error('Error fetching outcomed interactions:', error);
-    return []; // Return empty array on error - no mock data
+    return [];
   }
 }
 
 /**
- * Fetch active interactions (calls in progress)
+ * Get active interactions (allocated interactions)
  */
 export async function getActiveInteractions(agentId?: string): Promise<InteractionData[]> {
   try {
-    const params = new URLSearchParams();
-    if (agentId) params.append('agentId', agentId);
-    params.append('status', 'active');
-
-    const response = await fetch(`${BACKEND_URL}/api/interactions?${params}`, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      return []; // Return empty if backend unavailable
-    }
-
-    const data = await response.json();
-    
-    if (data.success && data.data) {
-      return data.data.map((interaction: any) => ({
-        id: interaction.id,
-        agentName: interaction.agentName || 'Unknown Agent',
-        customerName: interaction.contactName || interaction.customerName || 'Unknown Contact',
-        interactionType: interaction.type || 'call',
-        telephone: interaction.telephone || interaction.phoneNumber || '',
-        direction: interaction.direction || 'outbound',
-        subject: interaction.subject || interaction.telephone || '',
-        campaignName: interaction.campaignName || 'Unknown Campaign',
-        outcome: 'In Progress',
-        dateTime: formatDateTime(interaction.startTime || interaction.createdAt),
-        duration: calculateActiveDuration(interaction.startTime),
-        callId: interaction.callId,
-        contactId: interaction.contactId,
-        agentId: interaction.agentId,
-        campaignId: interaction.campaignId,
-      }));
-    }
-
-    return [];
+    const categorized = await getCategorizedInteractions(agentId);
+    return categorized.allocated;
   } catch (error) {
     console.error('Error fetching active interactions:', error);
     return [];
   }
+}
+
+/**
+ * Get queued interactions (callbacks scheduled)
+ */
+export async function getQueuedInteractions(agentId?: string): Promise<InteractionData[]> {
+  try {
+    const categorized = await getCategorizedInteractions(agentId);
+    return categorized.queued;
+  } catch (error) {
+    console.error('Error fetching queued interactions:', error);
+    return [];
+  }
+}
+
+/**
+ * Get unallocated interactions (need follow-up)
+ */
+export async function getUnallocatedInteractions(agentId?: string): Promise<InteractionData[]> {
+  try {
+    const categorized = await getCategorizedInteractions(agentId);
+    return categorized.unallocated;
+  } catch (error) {
+    console.error('Error fetching unallocated interactions:', error);
+    return [];
+  }
+}
+
+/**
+ * Record a new interaction
+ */
+export async function recordInteraction(data: {
+  contactId: string;
+  campaignId: string;
+  dialType: 'manual' | 'auto-dial';
+  phoneNumber?: string;
+  notes?: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/record`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.error || 'Failed to record interaction' };
+    }
+
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('Error recording interaction:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Update interaction outcome
+ */
+export async function updateInteractionOutcome(
+  interactionId: string, 
+  data: {
+    outcome: string;
+    notes?: string;
+    callbackTime?: string;
+  }
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/${interactionId}/outcome`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.error || 'Failed to update outcome' };
+    }
+
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('Error updating interaction outcome:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Track auto-dial interaction
+ */
+export async function trackAutoDialInteraction(data: {
+  contactId: string;
+  campaignId: string;
+  phoneNumber: string;
+  autoDialMetrics?: any;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/auto-dial`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.error || 'Failed to track auto-dial interaction' };
+    }
+
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('Error tracking auto-dial interaction:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+// Helper functions
+
+function getEmptyCategories(): CategorizedInteractions {
+  return {
+    queued: [],
+    allocated: [],
+    outcomed: [],
+    unallocated: [],
+    counts: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+  };
+}
+
+function transformInteractionData(interactions: any[]): InteractionData[] {
+  return interactions.map((interaction: any) => ({
+    id: interaction.id,
+    agentName: interaction.agentName || interaction.agent?.firstName + ' ' + interaction.agent?.lastName || 'Unknown Agent',
+    customerName: interaction.contactName || interaction.contact?.firstName + ' ' + interaction.contact?.lastName || 'Unknown Contact',
+    interactionType: interaction.type || 'call',
+    telephone: interaction.phoneNumber || interaction.contact?.phoneNumber || '',
+    direction: interaction.direction || 'outbound',
+    subject: interaction.subject || interaction.phoneNumber || '',
+    campaignName: interaction.campaignName || interaction.campaign?.name || 'Unknown Campaign',
+    outcome: interaction.outcome || (interaction.endedAt ? 'Completed' : 'In Progress'),
+    dateTime: formatDateTime(interaction.endedAt || interaction.startedAt || interaction.createdAt),
+    duration: formatDuration(interaction.duration || 0),
+    callId: interaction.callId,
+    contactId: interaction.contactId,
+    agentId: interaction.agentId,
+    campaignId: interaction.campaignId,
+    dialType: interaction.dialType || 'manual',
+    callbackTime: interaction.callbackTime,
+    notes: interaction.notes || interaction.result
+  }));
 }
 
 /**

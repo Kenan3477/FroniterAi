@@ -82,6 +82,7 @@ import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tena
 // Phase 3: Advanced AI Dialler Features - NEW
 import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-time sentiment analysis and coaching
 import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition
+import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -193,6 +194,7 @@ class App {
     this.app.use('/api/voice', inboundQueueRoutes); // Inbound queue management system (under /api/voice/inbound-queues)
     this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
     this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
+    this.app.use('/api/interaction-history', interactionHistoryRoutes); // NEW: Call history for manual and auto-dial with categorization
 
     // Omnivox-AI Flows API routes - ENABLED
     this.app.use('/api/flows', flowRoutes); // ENABLED - User model conflict fixed
