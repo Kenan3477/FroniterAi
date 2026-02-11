@@ -20,9 +20,32 @@ interface DataList {
   available: number;
 }
 
-// Mock data for data lists (empty for now as requested)
+// Mock data for data lists (with test data for demo)
 const mockDataLists: DataList[] = [
-  // Empty array - no existing data lists
+  {
+    id: "DL-001",
+    name: "Lead List Q1 2024",
+    description: "Primary leads for Q1 2024 campaign targeting enterprise customers",
+    campaign: "Enterprise Sales Q1",
+    total: 2500,
+    available: 1847
+  },
+  {
+    id: "DL-002", 
+    name: "Warm Prospects",
+    description: "Previously contacted prospects showing interest",
+    campaign: "Unassigned",
+    total: 892,
+    available: 567
+  },
+  {
+    id: "DL-003",
+    name: "Renewal Opportunities",
+    description: "Existing customers approaching contract renewal dates",
+    campaign: "Customer Retention",
+    total: 345,
+    available: 234
+  }
 ];
 
 export default function DataManagementPage() {
