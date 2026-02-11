@@ -893,16 +893,19 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Complete upload with advanced processing
   const handleCompleteUpload = async () => {
-    if (!uploadData.file || !uploadTargetList) {
-      console.error('❌ Upload missing required data:', { file: !!uploadData.file, targetList: !!uploadTargetList });
-      return;
-    }
+    try {
+      if (!uploadData.file || !uploadTargetList) {
+        const errorMsg = `❌ Upload missing required data: file=${!!uploadData.file}, targetList=${!!uploadTargetList}`;
+        console.error(errorMsg);
+        alert(`ERROR: ${errorMsg}`);
+        return;
+      }
 
-    console.log('📤 Starting upload process...', { 
-      fileName: uploadData.file.name, 
-      targetList: uploadTargetList.name,
-      listId: uploadTargetList.id 
-    });
+      console.log('📤 Starting upload process...', { 
+        fileName: uploadData.file.name, 
+        targetList: uploadTargetList.name,
+        listId: uploadTargetList.id 
+      });
 
     try {
       // Process file based on mapping
@@ -1197,9 +1200,28 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         throw new Error(result.error?.message || result.message || 'Upload failed');
       }
     } catch (error) {
-      console.error('Error uploading data:', error);
-      alert(`Failed to upload data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ COMPREHENSIVE ERROR in handleCompleteUpload:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        name: error instanceof Error ? error.name : 'Unknown error type'
+      });
+      console.error('❌ Upload context:', {
+        hasFile: !!uploadData.file,
+        fileName: uploadData.file?.name,
+        hasTargetList: !!uploadTargetList,
+        targetListId: uploadTargetList?.id,
+        targetListName: uploadTargetList?.name
+      });
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`❌ UPLOAD FAILED: ${errorMessage}\n\nCheck console for detailed error information.`);
     }
+  } catch (topLevelError) {
+    console.error('❌ TOP-LEVEL ERROR in handleCompleteUpload:', topLevelError);
+    alert(`❌ CRITICAL ERROR: ${topLevelError instanceof Error ? topLevelError.message : 'Unknown critical error'}`);
+  }
   };
 
   // Filter data lists based on search
