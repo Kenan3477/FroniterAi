@@ -329,8 +329,10 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // Load data lists from API
   // Helper function to get authentication headers (cookies handled server-side)
   const getAuthHeaders = (): Record<string, string> => {
+    const token = document.cookie.split('auth-token=')[1]?.split(';')[0];
     return {
       'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
     };
   };
 
@@ -1061,11 +1063,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         throw new Error('No target data list specified');
       }
 
-      if (!uploadPayload.contacts || uploadPayload.contacts.length === 0) {
+      if (!filteredContacts || filteredContacts.length === 0) {
         throw new Error('No valid contacts to upload');
       }
 
       console.log('🔐 Auth headers for upload:', getAuthHeaders());
+      console.log('🎯 Upload target list:', uploadTargetList);
+      console.log('📍 Upload URL:', `/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`);
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
@@ -1077,6 +1081,15 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       });
 
       console.log('📡 Upload request sent, awaiting response...');
+      console.log('📡 Request details:', {
+        method: 'POST',
+        url: `/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        bodySize: JSON.stringify(uploadPayload).length
+      });
       console.log('📡 Upload response status:', response.status, response.statusText);
       
       if (!response.ok) {
