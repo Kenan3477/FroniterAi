@@ -637,6 +637,15 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             continue;
           }
 
+          console.log(`🔍 Processing contact ${i + 1}:`, {
+            phone: contactData.phone,
+            firstName: contactData.firstName,
+            lastName: contactData.lastName,
+            fullName: contactData.fullName,
+            email: contactData.email,
+            allFields: Object.keys(contactData)
+          });
+
           // Check for duplicates by phone number in this list
           if (skipDuplicates && !replaceExisting) {
             const existingContact = await tx.contact.findFirst({
@@ -654,35 +663,45 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
           }
 
           // Create contact
+          const contactCreateData = {
+            contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            listId: existingDataList.listId,
+            firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
+            lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
+            fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
+            phone: contactData.phone,
+            mobile: contactData.mobile || null,
+            workPhone: contactData.workPhone || null,
+            homePhone: contactData.homePhone || null,
+            email: contactData.email || null,
+            company: contactData.company || null,
+            jobTitle: contactData.jobTitle || null,
+            address: contactData.address || null,
+            city: contactData.city || null,
+            state: contactData.state || null,
+            zipCode: contactData.zipCode || null,
+            country: contactData.country || 'US',
+            custom1: contactData.custom1 || null,
+            status: 'New',
+            attemptCount: 0,
+            maxAttempts: contactData.maxAttempts || 3
+          };
+
+          console.log(`🔧 Creating contact with data:`, contactCreateData);
+          
           await tx.contact.create({
-            data: {
-              contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              listId: existingDataList.listId,
-              firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
-              lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
-              fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
-              phone: contactData.phone,
-              mobile: contactData.mobile || null,
-              workPhone: contactData.workPhone || null,
-              homePhone: contactData.homePhone || null,
-              email: contactData.email || null,
-              company: contactData.company || null,
-              jobTitle: contactData.jobTitle || null,
-              address: contactData.address || null,
-              city: contactData.city || null,
-              state: contactData.state || null,
-              zipCode: contactData.zipCode || null,
-              country: contactData.country || 'US',
-              custom1: contactData.custom1 || null,
-              status: 'New',
-              attemptCount: 0,
-              maxAttempts: contactData.maxAttempts || 3
-            }
+            data: contactCreateData
           });
 
           uploaded++;
         } catch (contactError) {
-          errors.push(`Row ${i + 1}: ${contactError}`);
+          console.error(`❌ Error creating contact ${i + 1}:`, contactError);
+          console.error(`❌ Contact data that failed:`, contactData);
+          console.error(`❌ Error details:`, {
+            message: contactError instanceof Error ? contactError.message : String(contactError),
+            stack: contactError instanceof Error ? contactError.stack : 'No stack trace'
+          });
+          errors.push(`Row ${i + 1}: ${contactError instanceof Error ? contactError.message : String(contactError)}`);
           skipped++;
         }
       }
