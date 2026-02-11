@@ -568,7 +568,15 @@ router.post('/data-lists/:id/clone', async (req: Request, res: Response) => {
 router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { contacts, replaceExisting = false } = req.body;
+    const { contacts, mapping, options } = req.body;
+
+    console.log('📥 Upload request received:', {
+      listId: id,
+      contactCount: contacts?.length,
+      mapping,
+      options,
+      sampleContact: contacts?.[0]
+    });
 
     if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
       return res.status(400).json({
@@ -576,6 +584,19 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
         error: { message: 'Contacts array is required and must not be empty' }
       });
     }
+
+    // Extract options with defaults
+    const replaceExisting = options?.replaceExisting || false;
+    const skipDuplicates = options?.skipDuplicates !== false; // Default to true
+    const validateEmails = options?.validateEmails || false;
+    const dncCheck = options?.dncCheck || false;
+
+    console.log('🔧 Processing options:', {
+      replaceExisting,
+      skipDuplicates,
+      validateEmails,
+      dncCheck
+    });
 
     // Find existing data list
     const existingDataList = await prisma.dataList.findUnique({
@@ -617,7 +638,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
           }
 
           // Check for duplicates by phone number in this list
-          if (!replaceExisting) {
+          if (skipDuplicates && !replaceExisting) {
             const existingContact = await tx.contact.findFirst({
               where: {
                 listId: existingDataList.listId,
@@ -626,6 +647,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             });
 
             if (existingContact) {
+              console.log(`⏭️ Skipping duplicate contact: ${contactData.phone}`);
               skipped++;
               continue;
             }
@@ -700,10 +722,22 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('Error uploading contacts to data list:', error);
+    console.error('❌ Error uploading contacts to data list:', error);
+    console.error('❌ Error stack:', (error as Error)?.stack);
+    console.error('❌ Request body structure:', {
+      hasContacts: !!req.body.contacts,
+      contactsType: typeof req.body.contacts,
+      contactsLength: req.body.contacts?.length,
+      hasMapping: !!req.body.mapping,
+      hasOptions: !!req.body.options
+    });
+    
     res.status(500).json({
       success: false,
-      error: { message: 'Failed to upload contacts to data list' }
+      error: { 
+        message: 'Failed to upload contacts to data list',
+        details: process.env.NODE_ENV === 'development' ? (error as Error)?.message : 'Internal server error'
+      }
     });
   }
 });
