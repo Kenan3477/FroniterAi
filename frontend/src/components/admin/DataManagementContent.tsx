@@ -213,7 +213,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     autoUpload: false
   });
   const [createListLoading, setCreateListLoading] = useState(false);
-  const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string }>>([]);
+  const [campaigns, setCampaigns] = useState<Array<{ campaignId: string; name: string; displayName: string; status: string }>>([]);
 
   // Analytics data state
   const [analyticsData, setAnalyticsData] = useState({
@@ -337,15 +337,18 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // Load available campaigns for assignment
   const fetchCampaigns = async () => {
     try {
-      const response = await fetch('/api/admin/campaign-management/campaigns', {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch('/api/campaigns/active');
       
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data?.campaigns) {
-          setCampaigns(result.data.campaigns);
+        console.log('🎯 Fetched campaigns:', result); // Debug log
+        if (result.success && result.campaigns) {
+          setCampaigns(result.campaigns);
+        } else {
+          console.warn('No campaigns found in response:', result);
         }
+      } else {
+        console.error('Failed to fetch campaigns, status:', response.status);
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
@@ -393,7 +396,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           name: result.data.dataList.name,
           description: newListData.description || 'No description provided',
           campaign: newListData.campaignId ? 
-            campaigns.find(c => c.id === newListData.campaignId)?.name || 'Assigned' : 
+            campaigns.find(c => c.campaignId === newListData.campaignId)?.name || 'Assigned' : 
             'Unassigned',
           total: 0,
           available: 0,
@@ -641,6 +644,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // Edit data list
   const handleEditList = (list: DataList) => {
     console.log(`📝 Opening edit dialog for data list: ${list.name}`);
+    fetchCampaigns(); // Ensure campaigns are loaded
     setEditingList(list);
     setIsEditDialogOpen(true);
     setOpenDropdown(null);
@@ -1396,8 +1400,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   >
                     <option value="">No Campaign (Unassigned)</option>
                     {campaigns.map(campaign => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.name}
+                      <option key={campaign.campaignId} value={campaign.campaignId}>
+                        {campaign.displayName || campaign.name}
                       </option>
                     ))}
                   </select>
@@ -1658,21 +1662,21 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
                 <select
-                  value={editingList.campaign}
+                  value={editingList.campaignId || ''}
                   onChange={(e) => {
-                    const selectedCampaign = campaigns.find(c => c.name === e.target.value);
+                    const selectedCampaign = campaigns.find(c => c.campaignId === e.target.value);
                     setEditingList({ 
                       ...editingList, 
-                      campaign: e.target.value,
-                      campaignId: selectedCampaign?.id || ''
+                      campaign: selectedCampaign ? (selectedCampaign.displayName || selectedCampaign.name) : 'Unassigned',
+                      campaignId: selectedCampaign?.campaignId || ''
                     });
                   }}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                 >
-                  <option value="Unassigned">Unassigned</option>
+                  <option value="">Unassigned</option>
                   {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.name}>
-                      {campaign.name}
+                    <option key={campaign.campaignId} value={campaign.campaignId}>
+                      {campaign.displayName || campaign.name}
                     </option>
                   ))}
                 </select>
