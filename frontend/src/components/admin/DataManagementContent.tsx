@@ -1015,14 +1015,41 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         }
       });
 
+      // Validate payload before sending
+      if (!uploadTargetList || !uploadTargetList.id) {
+        throw new Error('No target data list specified');
+      }
+
+      if (!uploadPayload.contacts || uploadPayload.contacts.length === 0) {
+        throw new Error('No valid contacts to upload');
+      }
+
+      console.log('🔐 Auth headers for upload:', getAuthHeaders());
+
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify(uploadPayload),
       });
 
       console.log('📡 Upload request sent, awaiting response...');
       console.log('📡 Upload response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        let errorDetails;
+        try {
+          const errorData = await response.text();
+          console.error('❌ Full error response:', errorData);
+          errorDetails = errorData;
+        } catch (parseError) {
+          console.error('❌ Could not parse error response:', parseError);
+          errorDetails = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(`Upload failed with ${response.status}: ${errorDetails}`);
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
