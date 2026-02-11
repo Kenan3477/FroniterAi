@@ -905,11 +905,27 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     try {
       // Process file based on mapping
       const text = await uploadData.file.text();
+      console.log('📄 File content preview:', text.substring(0, 500));
+      
       const lines = text.split('\n').filter(line => line.trim());
+      console.log('📋 Total lines found:', lines.length);
+      console.log('📋 First few lines:', lines.slice(0, 3));
+      
+      if (lines.length === 0) {
+        throw new Error('File appears to be empty');
+      }
       
       // Skip leading lines if configured
       const dataLines = lines.slice(uploadData.leadingLinesToSkip + 1);
+      console.log('📊 Data lines after skipping header:', dataLines.length);
+      console.log('📊 Leading lines to skip:', uploadData.leadingLinesToSkip);
+      
+      if (uploadData.leadingLinesToSkip >= lines.length) {
+        throw new Error(`Cannot skip ${uploadData.leadingLinesToSkip} lines from ${lines.length} total lines`);
+      }
+      
       const headers = lines[uploadData.leadingLinesToSkip].split(',').map(h => h.trim().replace(/"/g, ''));
+      console.log('📑 Headers detected:', headers);
       
       // Parse contacts with comprehensive field mapping
       const contacts = dataLines.map(line => {
@@ -980,22 +996,47 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         });
 
         return contact;
-      }).filter(contact => {
+      });
+
+      console.log('📊 Raw contacts before filtering:', {
+        totalRaw: contacts.length,
+        sampleRawContact: contacts[0],
+        validationRules: {
+          contactsNeedNumber: uploadData.contactsNeedNumber,
+          contactsNeedEmail: uploadData.contactsNeedEmail
+        }
+      });
+
+      const filteredContacts = contacts.filter(contact => {
+        const hasPhone = !!contact.phone;
+        const hasEmail = !!contact.email;
+        const hasName = !!(contact.firstName || contact.fullName);
+        
+        console.log('🔍 Filtering contact:', {
+          contact: contact,
+          hasPhone,
+          hasEmail,
+          hasName,
+          passesPhoneCheck: !uploadData.contactsNeedNumber || hasPhone,
+          passesEmailCheck: !uploadData.contactsNeedEmail || hasEmail,
+          passesNameCheck: hasName || hasPhone
+        });
+
         // Apply validation rules (using backend field names)
-        if (uploadData.contactsNeedNumber && !contact.phone) return false;
-        if (uploadData.contactsNeedEmail && !contact.email) return false;
-        return contact.firstName || contact.fullName || contact.phone;
+        if (uploadData.contactsNeedNumber && !hasPhone) return false;
+        if (uploadData.contactsNeedEmail && !hasEmail) return false;
+        return hasName || hasPhone;
       });
 
       console.log('📋 Processed contacts:', { 
-        totalProcessed: contacts.length, 
-        sampleContact: contacts[0],
+        totalProcessed: filteredContacts.length, 
+        sampleContact: filteredContacts[0],
         targetListId: uploadTargetList.id,
-        allContacts: contacts.slice(0, 3) // Show first 3 contacts
+        allContacts: filteredContacts.slice(0, 3) // Show first 3 contacts
       });
 
       const uploadPayload = {
-        contacts: contacts,
+        contacts: filteredContacts,
         mapping: uploadData.primaryColumns,
         options: {
           skipDuplicates: uploadData.duplicateCheck,
@@ -1049,12 +1090,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           errorDetails = `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(`Upload failed with ${response.status}: ${errorDetails}`);
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Upload response error:', errorText);
-        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
