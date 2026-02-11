@@ -974,24 +974,23 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         
         // Map other common fields
         contact.email = rawContact.email || '';
-        contact.address1 = rawContact.address1 || '';
+        contact.address = rawContact.address1 || rawContact.address || ''; // Fix: use 'address' not 'address1'
         contact.address2 = rawContact.address2 || '';
         contact.city = rawContact.city || '';
         contact.state = rawContact.state || '';
         contact.zipCode = rawContact.zipCode || '';
         contact.country = rawContact.country || '';
-        contact.dateOfBirth = rawContact.dateOfBirth || '';
-        contact.gender = rawContact.gender || '';
+        // Note: Remove unsupported fields that don't exist in backend schema
+        // contact.dateOfBirth, contact.gender not in schema
         contact.title = rawContact.title || '';
         contact.company = rawContact.company || '';
         contact.jobTitle = rawContact.jobTitle || '';
         
-        // Map additional phone numbers
-        contact.telephone2 = rawContact.telephone2 || '';
-        contact.telephone3 = rawContact.telephone3 || '';
-        contact.fax = rawContact.fax || '';
-        contact.mobile = rawContact.mobile || '';
-        contact.sms = rawContact.sms || '';
+        // Map additional phone numbers to backend schema fields
+        // contact.telephone2, contact.telephone3, contact.fax, contact.sms not in schema
+        contact.mobile = rawContact.mobile || rawContact.telephone2 || '';
+        contact.workPhone = rawContact.workPhone || rawContact.telephone3 || '';
+        contact.homePhone = rawContact.homePhone || rawContact.fax || ''; // Map fax to homePhone if needed
         
         // Copy any custom fields
         Object.keys(rawContact).forEach(key => {
