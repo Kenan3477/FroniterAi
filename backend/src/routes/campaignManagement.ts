@@ -610,7 +610,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
       });
     }
 
-    // Perform upload with transaction
+    // Perform upload with transaction (increased timeout for large uploads)
     const uploadResult = await prisma.$transaction(async (tx) => {
       let uploaded = 0;
       let skipped = 0;
@@ -637,15 +637,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             continue;
           }
 
-          console.log(`🔍 Processing contact ${i + 1}:`, {
-            phone: contactData.phone,
-            firstName: contactData.firstName,
-            lastName: contactData.lastName,
-            fullName: contactData.fullName,
-            email: contactData.email,
-            allFields: Object.keys(contactData)
-          });
-
+          // Process contact (logging removed to prevent rate limiting)
           // Check for duplicates by phone number in this list
           if (skipDuplicates && !replaceExisting) {
             const existingContact = await tx.contact.findFirst({
@@ -687,8 +679,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             maxAttempts: contactData.maxAttempts || 3
           };
 
-          console.log(`🔧 Creating contact with data:`, contactCreateData);
-          
+          // Create contact (detailed logging removed to prevent rate limiting)
           await tx.contact.create({
             data: contactCreateData
           });
@@ -707,7 +698,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
       }
 
       return { uploaded, skipped, errors };
-    });
+    }, { timeout: 30000 });
 
     // Get updated list with new contact count
     const updatedDataList = await prisma.dataList.findUnique({
