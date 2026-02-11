@@ -14,6 +14,7 @@ interface DataList {
   name: string;
   description: string;
   campaign: string;
+  campaignId?: string;
   total: number;
   available: number;
   dialAttempts: number;
@@ -478,6 +479,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             name: list.name,
             description: list.campaignId ? `Assigned to Campaign: ${list.campaignId}` : 'No campaign assigned',
             campaign: list.campaignId || 'Unassigned',
+            campaignId: list.campaignId,
             total: contactCount,
             available: contactCount,
             dialAttempts: 0,
@@ -654,7 +656,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         headers: getAuthHeaders(),
         body: JSON.stringify({
           name: editingList.name,
-          campaignId: editingList.campaign !== 'Unassigned' ? editingList.campaign : null,
+          campaignId: editingList.campaign !== 'Unassigned' ? editingList.campaignId : null,
           blendWeight: 75 // Default weight
         })
       });
@@ -668,7 +670,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         // Update local state
         setDataLists(prev => prev.map(l => 
           l.id === editingList.id 
-            ? { ...l, name: editingList.name, campaign: editingList.campaign }
+            ? { ...l, name: editingList.name, campaign: editingList.campaign, campaignId: editingList.campaignId }
             : l
         ));
         setIsEditDialogOpen(false);
@@ -680,6 +682,44 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     } catch (error) {
       console.error('Error updating data list:', error);
       alert(`Failed to update data list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Toggle data list status
+  const handleToggleStatus = async (list: DataList) => {
+    const newStatus = list.status === 'Active' ? 'Inactive' : 'Active';
+    
+    try {
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: list.name,
+          campaignId: list.campaign !== 'Unassigned' ? list.campaignId : null,
+          status: newStatus,
+          active: newStatus === 'Active'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update data list status: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setDataLists(prev => prev.map(l => 
+          l.id === list.id 
+            ? { ...l, status: newStatus }
+            : l
+        ));
+        alert(`Data list status updated to ${newStatus}!`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to update data list status');
+      }
+    } catch (error) {
+      console.error('Error updating data list status:', error);
+      alert(`Failed to update data list status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -1214,13 +1254,16 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.total}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.available}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              list.status === 'Active' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <button
+                              onClick={() => handleToggleStatus(list)}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors hover:opacity-80 cursor-pointer ${
+                                list.status === 'Active' 
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                              }`}
+                            >
                               {list.status}
-                            </span>
+                            </button>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center space-x-2">
@@ -1614,13 +1657,25 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
-                <input
-                  type="text"
+                <select
                   value={editingList.campaign}
-                  onChange={(e) => setEditingList({ ...editingList, campaign: e.target.value })}
+                  onChange={(e) => {
+                    const selectedCampaign = campaigns.find(c => c.name === e.target.value);
+                    setEditingList({ 
+                      ...editingList, 
+                      campaign: e.target.value,
+                      campaignId: selectedCampaign?.id || ''
+                    });
+                  }}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
-                  placeholder="Enter campaign name or 'Unassigned'"
-                />
+                >
+                  <option value="Unassigned">Unassigned</option>
+                  {campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.name}>
+                      {campaign.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-6">
