@@ -22,23 +22,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         const currentPath = window.location.pathname;
         const isProtectedRoute = !currentPath.startsWith('/login') && 
-                               !currentPath.startsWith('/logout') &&
-                               currentPath !== '/dashboard' && 
-                               currentPath !== '/';
-        
-        // Special check for dashboard after logout
-        const isDashboardRoute = currentPath === '/dashboard' || currentPath === '/';
+                               !currentPath.startsWith('/logout');
         
         if (isProtectedRoute && !isAuthenticated && !loading) {
-          console.log('🚫 AuthGuard: Unauthorized access to protected route detected, redirecting...');
-          window.location.replace('/dashboard?preview=true');
-        } else if (isDashboardRoute && !isAuthenticated && !loading) {
-          // For dashboard access after logout, ensure preview mode
-          const hasPreviewParam = window.location.search.includes('preview=true');
-          if (!hasPreviewParam) {
-            console.log('🔄 AuthGuard: Dashboard accessed after logout, enabling preview mode...');
-            window.location.replace('/dashboard?preview=true');
-          }
+          console.log('🚫 AuthGuard: Unauthorized access detected, redirecting to login...');
+          window.location.replace('/login');
         }
       }, 100);
     };

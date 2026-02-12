@@ -20,14 +20,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Allow dashboard access without authentication (preview mode)
+  // For dashboard/root pages - require authentication or redirect to login
   if (isDashboardPage) {
+    if (!token) {
+      console.log('🔐 No auth token found, redirecting to login');
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
     return NextResponse.next();
   }
   
-  // If user is not authenticated and trying to access protected route (not dashboard/login)
-  if (!token && !isLoginPage && !isDashboardPage) {
-    return NextResponse.redirect(new URL('/dashboard?preview=true', request.url));
+  // If user is not authenticated and trying to access protected route
+  if (!token && !isLoginPage) {
+    console.log('🔐 No auth token found for protected route, redirecting to login');
+    return NextResponse.redirect(new URL('/login', request.url));
   }
   
   // If user is authenticated and trying to access login page, redirect to dashboard

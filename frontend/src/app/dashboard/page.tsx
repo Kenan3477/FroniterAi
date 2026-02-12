@@ -11,36 +11,22 @@ import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
 function DashboardContent() {
-  const searchParams = useSearchParams();
-  const isPreviewMode = searchParams?.get('preview') === 'true';
-  
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | DemoStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   
-  // Get authenticated user (null in preview mode)
+  // Get authenticated user - dashboard now requires authentication
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated && !isPreviewMode) {
+    if (isAuthenticated && user) {
       loadDashboardStats();
-    } else if (isPreviewMode || !isAuthenticated) {
-      loadDemoStats();
     }
-  }, [isAuthenticated, isPreviewMode]);
-
-  const loadDemoStats = () => {
-    setLoading(true);
-    // Simulate loading time for better UX
-    setTimeout(() => {
-      setDashboardStats(demoDataService.getDemoStats());
-      setLoading(false);
-    }, 500);
-  };
+  }, [isAuthenticated, user]);
 
   // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
   useEffect(() => {
-    if (!user || !isAuthenticated || isPreviewMode) return;
+    if (!user || !isAuthenticated) return;
     
     console.log('🔌 Setting up WebSocket connection for inbound calls...');
     console.log('👤 User ID:', user.id, 'Username:', user.username);
@@ -163,10 +149,9 @@ function DashboardContent() {
     }
   };
 
-  // Authentication is handled by useAuth() hook above
-  // In preview mode, we show demo data without requiring authentication
-  const currentUser = isPreviewMode || !isAuthenticated ? demoDataService.getDemoUser() : user;
-  const showPreviewBanner = isPreviewMode || !isAuthenticated;
+  // Dashboard now requires authentication
+  const currentUser = user;
+  const showPreviewBanner = false; // Preview mode removed - always require authentication
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -336,7 +321,7 @@ function DashboardContent() {
                 {showPreviewBanner && <span className="text-sm text-gray-500 ml-2">(Demo Data)</span>}
               </h3>
               <RecentActivity 
-                activities={showPreviewBanner ? demoDataService.getDemoActivity() : []} 
+                activities={[]} // Real activity data would be loaded from API 
               />
             </div>
           </div>
