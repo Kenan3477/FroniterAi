@@ -15,7 +15,123 @@ function DashboardContent() {
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   
   // Get authenticated user - dashboard now requires authentication
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDashboardStats();
+    }
+  }, [isAuthenticated, user]);
+
+  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+    
+    console.log('🔌 Setting up WebSocket connection for inbound calls...');
+    console.log('👤 User ID:', user.id, 'Username:', user.username);
+    
+    // Get auth token for WebSocket authentication
+    const token = localStorage.getItem('omnivox_token');
+    
+    // Connect to agent socket using user ID (important!)
+    agentSocket.connect(user.id.toString());
+    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
+    
+    // Handle inbound call notifications
+    const handleInboundCallRinging = (data: any) => {
+      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
+      
+      // Extract caller number properly
+      const callerNumber = data.call?.callerNumber || data.call?.from || 'Unknown Number';
+      const callerName = data.call?.callerName || data.callerInfo?.name || null;
+      const displayName = callerName ? `${callerName} (${callerNumber})` : callerNumber;
+      
+      console.log('📞 Caller details:', { callerNumber, callerName, displayName });
+      
+      // Show browser notification
+      if (Notification.permission === 'granted') {
+        new Notification('Incoming Call', {
+          body: `Call from ${displayName}`,
+          icon: '/favicon.ico',
+          tag: 'inbound-call'
+        });
+      }
+      
+      // Add to UI state
+      setInboundCalls(prev => [...prev, {
+        id: data.call?.id || `call-${Date.now()}`,
+        displayName,
+        number: callerNumber,
+        timestamp: new Date().toISOString()
+      }]);
+    };
+    
+    // Listen for inbound call events
+    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
+    
+    // Request browser notification permission
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        console.log('📱 Notification permission:', permission);
+      });
+    }
+    
+    return () => {
+      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
+      agentSocket.disconnect();
+    };
+  }, [user, isAuthenticated]);
+  
+  const loadDashboardStats = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/dashboard/stats', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDashboardStats(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const answerCall = (callId: string) => {
+    console.log('📞 Answering call:', callId);
+    // Remove from inbound calls list
+    setInboundCalls(prev => prev.filter(call => call.id !== callId));
+    // Implement actual call answering logic here
+  };
+
+  // Show loading while authentication is being checked
+  if (authLoading) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Redirect if not authenticated (should be handled by middleware, but adding safety)
+  if (!isAuthenticated || !user) {
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
+    }
+    return null;
+  }
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -133,18 +249,6 @@ function DashboardContent() {
     } catch (error) {
       console.error('❌ Error answering call:', error);
       alert('Error answering call. Please try again.');
-    }
-  };
-
-  const loadDashboardStats = async () => {
-    try {
-      setLoading(true);
-      const stats = await kpiApi.getDashboardStats();
-      setDashboardStats(stats);
-    } catch (error) {
-      console.error('Error loading dashboard stats:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
