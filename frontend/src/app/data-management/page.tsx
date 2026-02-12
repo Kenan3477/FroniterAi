@@ -347,9 +347,9 @@ export default function DataManagementPage() {
           <div className="flex-1 overflow-hidden">
             {renderContent()}
           </div>
+          </div>
         </div>
-      </div>
-    </MainLayout>
+      </MainLayout>
     </AuthGuard>
   );
 }
