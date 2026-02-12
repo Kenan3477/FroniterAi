@@ -283,12 +283,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     const firstContact = contacts[0];
     
     // Check each potential custom field and add to array if it exists
+    // Use intelligent labeling based on field content when possible
     if (firstContact.residentialStatus) customFields.push({ key: 'residentialStatus', label: 'Residential Status' });
-    if (firstContact.custom1) customFields.push({ key: 'custom1', label: 'Custom Field 1' });
-    if (firstContact.custom2) customFields.push({ key: 'custom2', label: 'Custom Field 2' });
-    if (firstContact.custom3) customFields.push({ key: 'custom3', label: 'Custom Field 3' });
-    if (firstContact.custom4) customFields.push({ key: 'custom4', label: 'Custom Field 4' });
-    if (firstContact.custom5) customFields.push({ key: 'custom5', label: 'Custom Field 5' });
     if (firstContact.title) customFields.push({ key: 'title', label: 'Title' });
     if (firstContact.company) customFields.push({ key: 'company', label: 'Company' });
     if (firstContact.jobTitle) customFields.push({ key: 'jobTitle', label: 'Job Title' });
@@ -296,6 +292,22 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     if (firstContact.city) customFields.push({ key: 'city', label: 'City' });
     if (firstContact.state) customFields.push({ key: 'state', label: 'State' });
     if (firstContact.ageRange) customFields.push({ key: 'ageRange', label: 'Age Range' });
+    
+    // Add custom fields with intelligent naming
+    if (firstContact.custom1) {
+      const label = firstContact.custom1.toLowerCase().includes('homeowner') ? 'Homeowner Status' : 'Custom Field 1';
+      customFields.push({ key: 'custom1', label });
+    }
+    if (firstContact.custom2) {
+      const label = firstContact.custom2.toLowerCase().includes('income') ? 'Income Range' : 'Custom Field 2';
+      customFields.push({ key: 'custom2', label });
+    }
+    if (firstContact.custom3) {
+      const label = firstContact.custom3.toLowerCase().includes('education') ? 'Education Level' : 'Custom Field 3';
+      customFields.push({ key: 'custom3', label });
+    }
+    if (firstContact.custom4) customFields.push({ key: 'custom4', label: 'Custom Field 4' });
+    if (firstContact.custom5) customFields.push({ key: 'custom5', label: 'Custom Field 5' });
     
     return customFields;
   };
@@ -3226,7 +3238,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         </th>
                         {/* Dynamic Custom Fields Headers */}
                         {getAvailableCustomFields(contactsData).map(field => (
-                          <th key={field.key} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th key={field.key} scope="col" className="px-6 py-3 text-left text-xs font-medium text-purple-600 uppercase tracking-wider bg-purple-50 border-l border-purple-200">
                             {field.label}
                           </th>
                         ))}
@@ -3265,8 +3277,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           </td>
                           {/* Dynamic Custom Fields Data */}
                           {getAvailableCustomFields(contactsData).map(field => (
-                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {contact[field.key] || '-'}
+                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-purple-700 bg-purple-25 border-l border-purple-100">
+                              <div className="flex items-center">
+                                <span className="font-medium">{contact[field.key] || '-'}</span>
+                                {contact[field.key] && (
+                                  <div className="ml-2 w-2 h-2 bg-purple-400 rounded-full opacity-60"></div>
+                                )}
+                              </div>
                             </td>
                           ))}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
