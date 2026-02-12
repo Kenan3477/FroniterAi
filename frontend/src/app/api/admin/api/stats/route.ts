@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-p
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin/api/stats`);
+    const response = await fetch(`${BACKEND_URL}/api/admin/stats`);
     const data = await response.json();
     
     return NextResponse.json(data);

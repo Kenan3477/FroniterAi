@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const queryString = searchParams.toString();
     
-    const response = await fetch(`${BACKEND_URL}/api/admin/api/keys${queryString ? '?' + queryString : ''}`);
+    const response = await fetch(`${BACKEND_URL}/api/admin/keys${queryString ? '?' + queryString : ''}`);
     const data = await response.json();
     
     return NextResponse.json(data);
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const response = await fetch(`${BACKEND_URL}/api/admin/api/keys`, {
+    const response = await fetch(`${BACKEND_URL}/api/admin/keys`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

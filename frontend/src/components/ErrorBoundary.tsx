@@ -10,6 +10,8 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
+  errorInfo?: any;
+  errorId?: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -19,11 +21,34 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    const errorId = Date.now().toString();
+    return { 
+      hasError: true, 
+      error, 
+      errorId 
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('🚨 ErrorBoundary caught an error:', error, errorInfo);
+    const errorDetails = {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+    
+    console.error('🚨 OMNIVOX ERROR BOUNDARY - Detailed Error Report:', errorDetails);
+    
+    // Store error details in sessionStorage for debugging
+    try {
+      sessionStorage.setItem(`omnivox_error_${this.state.errorId}`, JSON.stringify(errorDetails));
+    } catch (e) {
+      console.error('Failed to store error details:', e);
+    }
+    
+    this.setState({ errorInfo: errorDetails });
   }
 
   render() {
@@ -52,17 +77,29 @@ export class ErrorBoundary extends Component<Props, State> {
                 </svg>
               </div>
               <h2 className="text-lg font-medium text-gray-900 mb-2">
-                Application Error
+                Something went wrong!
               </h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Something went wrong. Please refresh the page or try again later.
+              <p className="text-sm text-gray-600 mb-4">
+                An error occurred while loading the application. Please try refreshing the page.
               </p>
+              {this.state.error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-left">
+                  <p className="text-xs text-red-800 font-mono">
+                    Error: {this.state.error.message}
+                  </p>
+                  {this.state.errorId && (
+                    <p className="text-xs text-red-600 mt-1">
+                      ID: {this.state.errorId}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-3">
                 <button
                   onClick={() => window.location.reload()}
                   className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  Refresh Page
+                  Try again
                 </button>
                 <button
                   onClick={() => window.location.href = '/login'}
