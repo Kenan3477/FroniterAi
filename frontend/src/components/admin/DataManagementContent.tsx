@@ -73,6 +73,7 @@ interface UploadWizardData {
     longitude: string;
     middleName2: string;
     postalCode: string;
+    residentialStatus: string;
     securityPhrase: string;
     sms: string;
     sortDate: string;
@@ -171,6 +172,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       longitude: '',
       middleName2: '',
       postalCode: '',
+      residentialStatus: '',
       securityPhrase: '',
       sms: '',
       sortDate: '',
@@ -1524,27 +1526,44 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           contact.fullName = rawContact.fullName;
         }
         
-        // Map other common fields
+        // Map other common fields with correct field name mappings
         contact.email = rawContact.email || '';
-        contact.address = rawContact.address1 || rawContact.address || ''; // Fix: use 'address' not 'address1'
+        contact.address = rawContact.address1 || rawContact.address || ''; 
         contact.address2 = rawContact.address2 || '';
-        contact.city = rawContact.city || '';
-        contact.state = rawContact.state || '';
-        contact.zipCode = rawContact.zipCode || '';
-        contact.country = rawContact.country || '';
-        // Note: Remove unsupported fields that don't exist in backend schema
-        // contact.dateOfBirth, contact.gender not in schema
-        contact.title = rawContact.title || '';
-        contact.company = rawContact.company || '';
-        contact.jobTitle = rawContact.jobTitle || '';
+        contact.address3 = rawContact.address3 || '';
         
-        // Map additional phone numbers to backend schema fields
-        // contact.telephone2, contact.telephone3, contact.fax, contact.sms not in schema
+        // Fix field mapping - use correct primaryColumn names
+        contact.city = rawContact.townCity || rawContact.city || '';           // ✅ FIX: Use townCity from primaryColumns
+        contact.state = rawContact.county || rawContact.state || '';           // ✅ FIX: Use county from primaryColumns
+        contact.zipCode = rawContact.postalCode || rawContact.zipCode || '';   // ✅ FIX: Use postalCode from primaryColumns
+        contact.country = rawContact.country || '';
+        
+        // Map professional fields
+        contact.title = rawContact.title || '';
+        contact.company = rawContact.companyName || rawContact.company || '';  // ✅ FIX: Use companyName from primaryColumns
+        contact.jobTitle = rawContact.jobTitle || '';
+        contact.department = rawContact.department || '';
+        contact.industry = rawContact.industry || '';
+        contact.website = rawContact.website || '';
+        
+        // Map contact methods
         contact.mobile = rawContact.mobile || rawContact.telephone2 || '';
         contact.workPhone = rawContact.workPhone || rawContact.telephone3 || '';
-        contact.homePhone = rawContact.homePhone || rawContact.fax || ''; // Map fax to homePhone if needed
+        contact.homePhone = rawContact.homePhone || rawContact.telephone4 || '';
         
-        // Copy any custom fields
+        // Map demographic and custom data - ADD MISSING residentialStatus mapping!
+        contact.residentialStatus = rawContact.residentialStatus || '';         // ✅ ADD: Map residentialStatus
+        contact.ageRange = rawContact.ageRange || '';
+        contact.leadSource = rawContact.leadSource || '';
+        
+        // Map custom fields (custom1-5) from custom columns
+        contact.custom1 = rawContact.custom1 || '';
+        contact.custom2 = rawContact.custom2 || '';
+        contact.custom3 = rawContact.custom3 || '';
+        contact.custom4 = rawContact.custom4 || '';
+        contact.custom5 = rawContact.custom5 || '';
+        
+        // Copy any remaining custom fields that don't conflict
         Object.keys(rawContact).forEach(key => {
           if (!contact.hasOwnProperty(key) && rawContact[key]) {
             contact[key] = rawContact[key];
@@ -2957,6 +2976,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         { field: 'townCity', label: 'City/Town', required: false },
                         { field: 'county', label: 'State/County', required: false },
                         { field: 'postalCode', label: 'Postal Code', required: false },
+                        { field: 'residentialStatus', label: 'Residential Status', required: false },
                         { field: 'country', label: 'Country', required: false },
                         { field: 'telephone2', label: 'Secondary Phone', required: false },
                         { field: 'telephone3', label: 'Mobile Phone', required: false },
