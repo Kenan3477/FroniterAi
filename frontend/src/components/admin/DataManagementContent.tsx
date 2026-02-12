@@ -74,6 +74,8 @@ interface UploadWizardData {
     middleName2: string;
     postalCode: string;
     residentialStatus: string;
+    ageRange: string;
+    deliveryDate: string;
     securityPhrase: string;
     sms: string;
     sortDate: string;
@@ -173,6 +175,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       middleName2: '',
       postalCode: '',
       residentialStatus: '',
+      ageRange: '',
+      deliveryDate: '',
       securityPhrase: '',
       sms: '',
       sortDate: '',
@@ -305,6 +309,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       { key: 'website', label: 'Website' },
       { key: 'linkedIn', label: 'LinkedIn' },
       { key: 'ageRange', label: 'Age Range' },
+      { key: 'deliveryDate', label: 'Delivery Date' },
       { key: 'leadSource', label: 'Lead Source' },
       { key: 'leadScore', label: 'Lead Score' },
       { key: 'tags', label: 'Tags' },
@@ -1509,6 +1514,28 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           }
         });
 
+        // ENHANCED: Auto-detect common CSV column patterns for specific CSV files
+        headers.forEach((header, index) => {
+          if (values[index]) {
+            const lowerHeader = header.toLowerCase().replace(/[_\s-]/g, '');
+            
+            // Map specific column patterns from your CSV
+            if (lowerHeader === 'deliverydate') rawContact.deliveryDate = values[index];
+            if (lowerHeader === 'title') rawContact.title = values[index];
+            if (lowerHeader === 'firstname') rawContact.firstName = values[index];
+            if (lowerHeader === 'lastname') rawContact.lastName = values[index];
+            if (lowerHeader === 'address1') rawContact.address1 = values[index];
+            if (lowerHeader === 'address2') rawContact.address2 = values[index];
+            if (lowerHeader === 'adress3' || lowerHeader === 'address3') rawContact.address3 = values[index]; // Handle typo
+            if (lowerHeader === 'town' || lowerHeader === 'city') rawContact.townCity = values[index];
+            if (lowerHeader === 'county' || lowerHeader === 'state') rawContact.county = values[index];
+            if (lowerHeader === 'postcode' || lowerHeader === 'zipcode' || lowerHeader === 'postalcode') rawContact.postalCode = values[index];
+            if (lowerHeader === 'contactnumber' || lowerHeader === 'phone' || lowerHeader === 'telephone') rawContact.telephone1 = values[index];
+            if (lowerHeader === 'agerange') rawContact.ageRange = values[index];
+            if (lowerHeader === 'residentialstatus' || lowerHeader === 'residential') rawContact.residentialStatus = values[index];
+          }
+        });
+
         // Transform to backend-expected format
         const contact: any = {};
         
@@ -1551,9 +1578,10 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         contact.workPhone = rawContact.workPhone || rawContact.telephone3 || '';
         contact.homePhone = rawContact.homePhone || rawContact.telephone4 || '';
         
-        // Map demographic and custom data - ADD MISSING residentialStatus mapping!
-        contact.residentialStatus = rawContact.residentialStatus || '';         // ✅ ADD: Map residentialStatus
-        contact.ageRange = rawContact.ageRange || '';
+        // Map demographic and custom data - ADD MISSING fields mapping!
+        contact.residentialStatus = rawContact.residentialStatus || '';         // ✅ Map residentialStatus
+        contact.ageRange = rawContact.ageRange || '';                           // ✅ ADD: Map ageRange
+        contact.deliveryDate = rawContact.deliveryDate || '';                   // ✅ ADD: Map deliveryDate
         contact.leadSource = rawContact.leadSource || '';
         
         // Map custom fields (custom1-5) from custom columns
@@ -2977,6 +3005,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         { field: 'county', label: 'State/County', required: false },
                         { field: 'postalCode', label: 'Postal Code', required: false },
                         { field: 'residentialStatus', label: 'Residential Status', required: false },
+                        { field: 'ageRange', label: 'Age Range', required: false },
+                        { field: 'deliveryDate', label: 'Delivery Date', required: false },
                         { field: 'country', label: 'Country', required: false },
                         { field: 'telephone2', label: 'Secondary Phone', required: false },
                         { field: 'telephone3', label: 'Mobile Phone', required: false },
