@@ -459,6 +459,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // Helper function to get authentication headers (cookies handled server-side)
   const getAuthHeaders = (): Record<string, string> => {
     const token = document.cookie.split('auth-token=')[1]?.split(';')[0];
+    console.log('🍪 Cookie check:', document.cookie);
+    console.log('🔑 Extracted token:', token ? 'YES (length: ' + token.length + ')' : 'NO');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -1623,12 +1625,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       console.log('🎯 Upload target list:', uploadTargetList);
       console.log('📍 Upload URL:', `/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`);
 
+      // Get headers with debugging
+      const authHeaders = getAuthHeaders();
+      const uploadHeaders = {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      };
+      console.log('📤 Final upload headers:', uploadHeaders);
+
       const response = await fetch(`/api/admin/campaign-management/data-lists/${uploadTargetList.id}/upload`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
+        headers: uploadHeaders,
         body: JSON.stringify(uploadPayload),
       });
 
