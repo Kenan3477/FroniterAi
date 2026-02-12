@@ -277,38 +277,84 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
   // Helper function to determine available custom fields from contacts data
   const getAvailableCustomFields = (contacts: any[]) => {
-    if (!contacts || contacts.length === 0) return [];
+    if (!contacts || contacts.length === 0) {
+      console.log('🔍 getAvailableCustomFields: No contacts data');
+      return [];
+    }
     
     const customFields = [];
     const firstContact = contacts[0];
+    console.log('🔍 getAvailableCustomFields: Analyzing first contact for custom fields...');
     
     // Check each potential custom field and add to array if it exists
     // Use intelligent labeling based on field content when possible
-    if (firstContact.residentialStatus) customFields.push({ key: 'residentialStatus', label: 'Residential Status' });
-    if (firstContact.title) customFields.push({ key: 'title', label: 'Title' });
-    if (firstContact.company) customFields.push({ key: 'company', label: 'Company' });
-    if (firstContact.jobTitle) customFields.push({ key: 'jobTitle', label: 'Job Title' });
-    if (firstContact.industry) customFields.push({ key: 'industry', label: 'Industry' });
-    if (firstContact.city) customFields.push({ key: 'city', label: 'City' });
-    if (firstContact.state) customFields.push({ key: 'state', label: 'State' });
-    if (firstContact.ageRange) customFields.push({ key: 'ageRange', label: 'Age Range' });
+    if (firstContact.residentialStatus) {
+      customFields.push({ key: 'residentialStatus', label: 'Residential Status' });
+      console.log('✅ Found residentialStatus:', firstContact.residentialStatus);
+    }
+    if (firstContact.title) {
+      customFields.push({ key: 'title', label: 'Title' });
+      console.log('✅ Found title:', firstContact.title);
+    }
+    if (firstContact.company) {
+      customFields.push({ key: 'company', label: 'Company' });
+      console.log('✅ Found company:', firstContact.company);
+    }
+    if (firstContact.jobTitle) {
+      customFields.push({ key: 'jobTitle', label: 'Job Title' });
+      console.log('✅ Found jobTitle:', firstContact.jobTitle);
+    }
+    if (firstContact.industry) {
+      customFields.push({ key: 'industry', label: 'Industry' });
+      console.log('✅ Found industry:', firstContact.industry);
+    }
+    if (firstContact.city) {
+      customFields.push({ key: 'city', label: 'City' });
+      console.log('✅ Found city:', firstContact.city);
+    }
+    if (firstContact.state) {
+      customFields.push({ key: 'state', label: 'State' });
+      console.log('✅ Found state:', firstContact.state);
+    }
+    if (firstContact.zipCode) {
+      customFields.push({ key: 'zipCode', label: 'Zip Code' });
+      console.log('✅ Found zipCode:', firstContact.zipCode);
+    }
+    if (firstContact.address) {
+      customFields.push({ key: 'address', label: 'Address' });
+      console.log('✅ Found address:', firstContact.address);
+    }
+    if (firstContact.ageRange) {
+      customFields.push({ key: 'ageRange', label: 'Age Range' });
+      console.log('✅ Found ageRange:', firstContact.ageRange);
+    }
     
     // Add custom fields with intelligent naming
     if (firstContact.custom1) {
       const label = firstContact.custom1.toLowerCase().includes('homeowner') ? 'Homeowner Status' : 'Custom Field 1';
       customFields.push({ key: 'custom1', label });
+      console.log('✅ Found custom1:', firstContact.custom1, '→ Label:', label);
     }
     if (firstContact.custom2) {
       const label = firstContact.custom2.toLowerCase().includes('income') ? 'Income Range' : 'Custom Field 2';
       customFields.push({ key: 'custom2', label });
+      console.log('✅ Found custom2:', firstContact.custom2, '→ Label:', label);
     }
     if (firstContact.custom3) {
       const label = firstContact.custom3.toLowerCase().includes('education') ? 'Education Level' : 'Custom Field 3';
       customFields.push({ key: 'custom3', label });
+      console.log('✅ Found custom3:', firstContact.custom3, '→ Label:', label);
     }
-    if (firstContact.custom4) customFields.push({ key: 'custom4', label: 'Custom Field 4' });
-    if (firstContact.custom5) customFields.push({ key: 'custom5', label: 'Custom Field 5' });
+    if (firstContact.custom4) {
+      customFields.push({ key: 'custom4', label: 'Custom Field 4' });
+      console.log('✅ Found custom4:', firstContact.custom4);
+    }
+    if (firstContact.custom5) {
+      customFields.push({ key: 'custom5', label: 'Custom Field 5' });
+      console.log('✅ Found custom5:', firstContact.custom5);
+    }
     
+    console.log(`🔍 getAvailableCustomFields: Found ${customFields.length} custom fields:`, customFields.map(f => f.label));
     return customFields;
   };
 
@@ -920,6 +966,46 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       if (result.success) {
         setContactsData(result.data.contacts);
         console.log(`✅ Loaded ${result.data.contacts.length} contacts for "${list.name}"`);
+        
+        // Debug: Log the first contact structure to check custom fields
+        if (result.data.contacts.length > 0) {
+          const firstContact = result.data.contacts[0];
+          console.log('🔍 CONTACT STRUCTURE DEBUG - First contact fields:');
+          console.log('📋 Basic fields:', {
+            id: firstContact.id,
+            firstName: firstContact.firstName,
+            lastName: firstContact.lastName,
+            phone: firstContact.phone,
+            email: firstContact.email
+          });
+          console.log('🏠 Address fields:', {
+            address: firstContact.address,
+            city: firstContact.city,
+            state: firstContact.state,
+            zipCode: firstContact.zipCode,
+            country: firstContact.country
+          });
+          console.log('🔧 Custom fields:', {
+            residentialStatus: firstContact.residentialStatus,
+            custom1: firstContact.custom1,
+            custom2: firstContact.custom2,
+            custom3: firstContact.custom3,
+            custom4: firstContact.custom4,
+            custom5: firstContact.custom5
+          });
+          console.log('💼 Professional fields:', {
+            title: firstContact.title,
+            company: firstContact.company,
+            jobTitle: firstContact.jobTitle,
+            industry: firstContact.industry
+          });
+          console.log('🎯 Other fields:', {
+            ageRange: firstContact.ageRange,
+            leadSource: firstContact.leadSource,
+            tags: firstContact.tags
+          });
+          console.log('📄 Complete contact object:', firstContact);
+        }
         
         // Automatically calculate lead scores for AI analysis
         if (result.data.contacts.length > 0) {
