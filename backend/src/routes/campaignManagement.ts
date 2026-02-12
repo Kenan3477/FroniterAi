@@ -682,7 +682,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             notes: contactData.notes || null,
             tags: contactData.tags || null,
             leadSource: contactData.leadSource || null,
-            leadScore: contactData.leadScore || null,
+            // Remove leadScore field - it's a relationship, not a direct field
             deliveryDate: contactData.deliveryDate || null,
             ageRange: contactData.ageRange || null,
             residentialStatus: contactData.residentialStatus || null,
@@ -702,7 +702,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             }
           };
 
-          console.log(`📝 Creating contact connected to listId: ${existingDataList.listId}`);
+          console.log(`📝 Creating contact connected to listId: ${existingDataList.listId} (${i + 1}/${contacts.length})`);
 
           // Create contact - now with proper relationship connection
           await tx.contact.create({
@@ -711,12 +711,8 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
 
           uploaded++;
         } catch (contactError) {
-          console.error(`❌ Error creating contact ${i + 1}:`, contactError);
-          console.error(`❌ Contact data that failed:`, contactData);
-          console.error(`❌ Error details:`, {
-            message: contactError instanceof Error ? contactError.message : String(contactError),
-            stack: contactError instanceof Error ? contactError.stack : 'No stack trace'
-          });
+          // Reduced logging to prevent Railway rate limiting
+          console.error(`❌ Contact creation failed (${i + 1}):`, contactError instanceof Error ? contactError.message : String(contactError));
           errors.push(`Row ${i + 1}: ${contactError instanceof Error ? contactError.message : String(contactError)}`);
           skipped++;
         }
