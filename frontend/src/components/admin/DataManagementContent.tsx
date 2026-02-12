@@ -300,12 +300,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       { key: 'jobTitle', label: 'Job Title' },
       { key: 'industry', label: 'Industry' },
       { key: 'department', label: 'Department' },
+      { key: 'address', label: 'Address' },
       { key: 'city', label: 'City' },
+      { key: 'town', label: 'Town' },
+      { key: 'county', label: 'County' },
       { key: 'state', label: 'State' },
       { key: 'zipCode', label: 'Zip Code' },
+      { key: 'postcode', label: 'Postcode' },
       { key: 'country', label: 'Country' },
       { key: 'address2', label: 'Address 2' },
       { key: 'address3', label: 'Address 3' },
+      { key: 'contactNumber', label: 'Contact Number' },
       { key: 'website', label: 'Website' },
       { key: 'linkedIn', label: 'LinkedIn' },
       { key: 'ageRange', label: 'Age Range' },
@@ -329,14 +334,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     fieldsToCheck.forEach(fieldDef => {
       const hasData = contacts.some(contact => {
         const value = contact[fieldDef.key];
-        return value && value !== null && value !== undefined && value !== '' && value.toString().trim() !== '';
+        return value && value !== null && value !== undefined && value !== '' && value !== 'null' && value.toString().trim() !== '';
       });
       
-      if (hasData) {
+      // Also check if field exists even with 'null' values - indicates it was mapped from CSV
+      const existsInData = contacts.some(contact => contact.hasOwnProperty(fieldDef.key));
+      
+      if (hasData || existsInData) {
         // Apply intelligent naming for custom fields based on content
         let label = fieldDef.label;
         if (fieldDef.key.startsWith('custom')) {
-          const sampleValue = contacts.find(c => c[fieldDef.key])?.[ fieldDef.key]?.toLowerCase() || '';
+          const sampleValue = contacts.find(c => c[fieldDef.key] && c[fieldDef.key] !== 'null')?.[fieldDef.key]?.toLowerCase() || '';
           if (sampleValue.includes('homeowner') || sampleValue.includes('residential')) {
             label = 'Homeowner Status';
           } else if (sampleValue.includes('income')) {
@@ -351,7 +359,9 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         }
         
         customFields.push({ key: fieldDef.key, label });
-        console.log(`✅ Found ${fieldDef.key}: Sample value:`, contacts.find(c => c[fieldDef.key])?.[fieldDef.key], '→ Label:', label);
+        const sampleValue = contacts.find(c => c[fieldDef.key] && c[fieldDef.key] !== 'null')?.[fieldDef.key] || 
+                          contacts.find(c => c[fieldDef.key])?.[fieldDef.key];
+        console.log(`✅ Found ${fieldDef.key}: Sample value:`, sampleValue, '→ Label:', label);
       }
     });
     
@@ -3356,17 +3366,17 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       {/* Contacts View Modal */}
       {isContactsViewOpen && viewingList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-[1000px] max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="bg-gray-50 px-6 py-4 border-b">
+          <div className="bg-white rounded-lg w-[98vw] h-[95vh] overflow-hidden flex flex-col">
+            <div className="bg-gray-50 px-6 py-4 border-b flex-shrink-0">
               <h2 className="text-xl font-semibold text-gray-900">
                 Contacts in "{viewingList.name}"
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                View and manage all contacts in this data list
+                View and manage all contacts in this data list - Scroll horizontally to see all fields
               </p>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-auto min-h-0">
               {contactsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -3379,42 +3389,43 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   <p className="mt-1 text-sm text-gray-500">This data list doesn't contain any contacts yet.</p>
                 </div>
               ) : (
-                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
+                <div className="w-full">
+                  <div className="overflow-x-auto overflow-y-auto h-full">
+                    <table className="w-max min-w-full divide-y divide-gray-300">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[150px]">
                           Name
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[120px]">
                           Phone
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[150px]">
                           Email
                         </th>
                         {/* Dynamic Custom Fields Headers */}
                         {getAvailableCustomFields(contactsData).map(field => (
-                          <th key={field.key} scope="col" className="px-6 py-3 text-left text-xs font-medium text-purple-600 uppercase tracking-wider bg-purple-50 border-l border-purple-200">
+                          <th key={field.key} scope="col" className="px-6 py-3 text-left text-xs font-medium text-purple-600 uppercase tracking-wider bg-purple-50 border-l border-purple-200 whitespace-nowrap min-w-[120px]">
                             {field.label}
                           </th>
                         ))}
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                           Last Call
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                           Created
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[80px]">
                           Actions
                         </th>
                         {/* AI Analysis Columns - Always Visible */}
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[80px]">
                           AI Score
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[80px]">
                           Priority
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[120px]">
                           Next Action
                         </th>
                       </tr>
@@ -3435,8 +3446,10 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           {getAvailableCustomFields(contactsData).map(field => (
                             <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-purple-700 bg-purple-25 border-l border-purple-100">
                               <div className="flex items-center">
-                                <span className="font-medium">{contact[field.key] || '-'}</span>
-                                {contact[field.key] && (
+                                <span className="font-medium">
+                                  {contact[field.key] && contact[field.key] !== 'null' ? contact[field.key] : '-'}
+                                </span>
+                                {contact[field.key] && contact[field.key] !== 'null' && (
                                   <div className="ml-2 w-2 h-2 bg-purple-400 rounded-full opacity-60"></div>
                                 )}
                               </div>
@@ -3515,6 +3528,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     </tbody>
                   </table>
                 </div>
+              </div>
               )}
             </div>
             
