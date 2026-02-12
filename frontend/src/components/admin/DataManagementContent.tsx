@@ -225,6 +225,30 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   const [queueData, setQueueData] = useState<any[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [queueLoading, setQueueLoading] = useState(false);
+  
+  // Enhanced queue management state
+  const [selectedCampaign, setSelectedCampaign] = useState<string>('');
+  const [queueStats, setQueueStats] = useState<any>(null);
+  const [availableCampaigns, setAvailableCampaigns] = useState<any[]>([]);
+  
+  // Contact editing state
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  
+  // Bulk operations progress tracking
+  const [bulkProgress, setBulkProgress] = useState<{
+    isRunning: boolean;
+    operation: string;
+    progress: number;
+    total: number;
+    current: number;
+  }>({
+    isRunning: false,
+    operation: '',
+    progress: 0,
+    total: 0,
+    current: 0
+  });
 
   // Analytics data state
   const [analyticsData, setAnalyticsData] = useState({
@@ -864,9 +888,11 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     setQueueLoading(true);
     setIsQueueViewOpen(true);
     setOpenDropdown(null);
+    setSelectedCampaign(''); // Reset campaign filter
 
     try {
-      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/queue?page=1&limit=100`, {
+      const campaignParam = selectedCampaign ? `&campaignId=${selectedCampaign}` : '';
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/queue?page=1&limit=100${campaignParam}`, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
@@ -878,6 +904,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       const result = await response.json();
       if (result.success) {
         setQueueData(result.data.queue);
+        setQueueStats(result.data.stats);
+        setAvailableCampaigns(result.data.stats.campaigns || []);
         console.log(`✅ Loaded ${result.data.queue.length} queue entries`);
         console.log(`📊 Queue stats:`, result.data.stats);
       } else {
@@ -891,44 +919,153 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
-  // Delete all contacts in data list
+  // Filter queue by campaign
+  const handleCampaignFilter = async (campaignId: string) => {
+    if (!viewingList) return;
+
+    setSelectedCampaign(campaignId);
+    setQueueLoading(true);
+
+    try {
+      const campaignParam = campaignId ? `&campaignId=${campaignId}` : '';
+      const response = await fetch(`/api/admin/campaign-management/data-lists/${viewingList.id}/queue?page=1&limit=100${campaignParam}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch filtered queue: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setQueueData(result.data.queue);
+        setQueueStats(result.data.stats);
+        console.log(`✅ Filtered queue by campaign: ${campaignId || 'All'}`);
+      } else {
+        throw new Error(result.error?.message || 'Failed to filter queue');
+      }
+    } catch (error) {
+      console.error('❌ Error filtering queue:', error);
+      alert(`Failed to filter queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setQueueLoading(false);
+    }
+  };
+
+  // Edit contact functionality
+  const handleEditContact = (contact: any) => {
+    setEditingContact(contact);
+    setIsEditingContact(true);
+  };
+
+  const handleSaveContact = async (updatedContact: any) => {
+    try {
+      const response = await fetch(`/api/admin/campaign-management/contacts/${updatedContact.contactId}`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedContact)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `Failed to update contact: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update the contact in both contacts and queue data
+        setContactsData(prev => prev.map(contact => 
+          contact.contactId === updatedContact.contactId ? result.data.contact : contact
+        ));
+        setQueueData(prev => prev.map(entry => 
+          entry.contact?.contactId === updatedContact.contactId 
+            ? { ...entry, contact: result.data.contact }
+            : entry
+        ));
+        
+        alert(result.data.message || 'Contact updated successfully');
+        setIsEditingContact(false);
+        setEditingContact(null);
+      } else {
+        throw new Error(result.error?.message || 'Failed to update contact');
+      }
+    } catch (error) {
+      console.error('❌ Error updating contact:', error);
+      alert(`Failed to update contact: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Delete all contacts in data list with progress tracking
   const handleDeleteContacts = async (list: DataList) => {
     if (!confirm(`Are you sure you want to delete ALL contacts in "${list.name}"?\n\nThis will remove ${list.total} contacts but keep the data list. This action cannot be undone.`)) {
       return;
     }
 
+    // Start progress tracking
+    setBulkProgress({
+      isRunning: true,
+      operation: `Deleting contacts from "${list.name}"`,
+      progress: 0,
+      total: list.total,
+      current: 0
+    });
+
     try {
       console.log(`🗑️ Attempting to delete all contacts in: ${list.name}`);
+      setOpenDropdown(null);
+
+      // Simulate progress updates for user feedback
+      const progressInterval = setInterval(() => {
+        setBulkProgress(prev => {
+          if (!prev.isRunning) return prev;
+          const newProgress = Math.min(prev.progress + 10, 90);
+          return { ...prev, progress: newProgress };
+        });
+      }, 100);
 
       const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/contacts`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
 
+      clearInterval(progressInterval);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Delete response error:', response.status, errorText);
         throw new Error(`Failed to delete contacts: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('✅ Delete response:', result);
+
       if (result.success) {
-        // Update local state - reset contact count to 0
-        setDataLists(prev => prev.map(l => 
-          l.id === list.id 
-            ? { ...l, total: 0, available: 0 }
-            : l
-        ));
+        // Complete progress
+        setBulkProgress(prev => ({ ...prev, progress: 100, current: prev.total }));
         
-        setOpenDropdown(null);
-        alert(`Successfully deleted ${result.data.deletedCount} contacts from "${list.name}"`);
-        
-        // Refresh data from backend
         setTimeout(() => {
+          alert(`✅ Successfully deleted ${result.data.deletedCount} contacts from "${list.name}"`);
+          setBulkProgress({ isRunning: false, operation: '', progress: 0, total: 0, current: 0 });
+          
+          // Update local state - reset contact count to 0
+          setDataLists(prev => prev.map(l => 
+            l.id === list.id 
+              ? { ...l, total: 0, available: 0 }
+              : l
+          ));
+          
+          // Refresh data from backend
           fetchDataLists();
         }, 500);
       } else {
         throw new Error(result.error?.message || 'Failed to delete contacts');
       }
     } catch (error) {
+      setBulkProgress({ isRunning: false, operation: '', progress: 0, total: 0, current: 0 });
       console.error('❌ Error deleting contacts:', error);
       alert(`Failed to delete contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -2700,6 +2837,9 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Created
                         </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -2726,6 +2866,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(contact.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => handleEditContact(contact)}
+                              className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                            >
+                              Edit
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -2756,12 +2904,52 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-[1200px] max-h-[90vh] overflow-hidden flex flex-col">
             <div className="bg-gray-50 px-6 py-4 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Outbound Queue for "{viewingList.name}"
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                View contacts queued for outbound dialing
-              </p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Outbound Queue for "{viewingList.name}"
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    View contacts queued for outbound dialing
+                  </p>
+                </div>
+                
+                {/* Campaign Filter */}
+                <div className="flex items-center space-x-4">
+                  <div className="min-w-[200px]">
+                    <label htmlFor="campaign-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                      Filter by Campaign
+                    </label>
+                    <select
+                      id="campaign-filter"
+                      value={selectedCampaign}
+                      onChange={(e) => handleCampaignFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">All Campaigns</option>
+                      {availableCampaigns.map((campaign) => (
+                        <option key={campaign.campaignId} value={campaign.campaignId}>
+                          {campaign.name} ({campaign.status})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Queue Stats */}
+                  {queueStats && (
+                    <div className="text-sm text-gray-600">
+                      <div className="flex space-x-4">
+                        <span>Total: {queueStats.total}</span>
+                        {Object.entries(queueStats.statusBreakdown || {}).map(([status, count]) => (
+                          <span key={status} className="capitalize">
+                            {status}: {String(count)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
@@ -2858,6 +3046,191 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Edit Modal */}
+      {isEditingContact && editingContact && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gray-50 px-6 py-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit Contact
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Update contact information
+              </p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveContact(editingContact);
+              }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="firstName"
+                      value={editingContact.firstName || ''}
+                      onChange={(e) => setEditingContact((prev: any) => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      value={editingContact.lastName || ''}
+                      onChange={(e) => setEditingContact((prev: any) => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={editingContact.phone || ''}
+                    onChange={(e) => setEditingContact((prev: any) => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={editingContact.email || ''}
+                    onChange={(e) => setEditingContact((prev: any) => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    id="company"
+                    value={editingContact.company || ''}
+                    onChange={(e) => setEditingContact((prev: any) => ({ ...prev, company: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      id="city"
+                      value={editingContact.city || ''}
+                      onChange={(e) => setEditingContact((prev: any) => ({ ...prev, city: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                      State/County
+                    </label>
+                    <input
+                      type="text"
+                      id="state"
+                      value={editingContact.state || ''}
+                      onChange={(e) => setEditingContact((prev: any) => ({ ...prev, state: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    rows={3}
+                    value={editingContact.notes || ''}
+                    onChange={(e) => setEditingContact((prev: any) => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </form>
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setIsEditingContact(false);
+                  setEditingContact(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveContact(editingContact)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Progress Modal */}
+      {bulkProgress.isRunning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[500px] p-6">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {bulkProgress.operation}
+              </h3>
+              
+              <div className="mb-4">
+                <div className="bg-gray-200 rounded-full h-4 mb-2">
+                  <div 
+                    className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${bulkProgress.progress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {bulkProgress.progress}% complete
+                  {bulkProgress.total > 0 && (
+                    <span> ({bulkProgress.current} of {bulkProgress.total})</span>
+                  )}
+                </p>
+              </div>
+              
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Processing...</span>
+              </div>
             </div>
           </div>
         </div>
