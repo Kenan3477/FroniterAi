@@ -654,7 +654,7 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             }
           }
 
-          // Create contact
+          // Create contact with comprehensive field mapping
           const contactCreateData = {
             contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             listId: existingDataList.listId,
@@ -668,12 +668,30 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             email: contactData.email || null,
             company: contactData.company || null,
             jobTitle: contactData.jobTitle || null,
+            department: contactData.department || null,
+            industry: contactData.industry || null,
+            title: contactData.title || null,
             address: contactData.address || null,
+            address2: contactData.address2 || null,
+            address3: contactData.address3 || null,
             city: contactData.city || null,
             state: contactData.state || null,
             zipCode: contactData.zipCode || null,
-            country: contactData.country || 'US',
+            country: contactData.country || null, // Don't default to US
+            website: contactData.website || null,
+            linkedIn: contactData.linkedIn || null,
+            notes: contactData.notes || null,
+            tags: contactData.tags || null,
+            leadSource: contactData.leadSource || null,
+            leadScore: contactData.leadScore || null,
+            deliveryDate: contactData.deliveryDate || null,
+            ageRange: contactData.ageRange || null,
+            residentialStatus: contactData.residentialStatus || null,
             custom1: contactData.custom1 || null,
+            custom2: contactData.custom2 || null,
+            custom3: contactData.custom3 || null,
+            custom4: contactData.custom4 || null,
+            custom5: contactData.custom5 || null,
             status: 'New',
             attemptCount: 0,
             maxAttempts: contactData.maxAttempts || 3
