@@ -250,8 +250,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     current: 0
   });
 
-  // Advanced AI capabilities state
-  const [showAdvancedMode, setShowAdvancedMode] = useState(false);
+  // Advanced AI capabilities - always enabled for professional dialler functionality
   const [leadScores, setLeadScores] = useState<any[]>([]);
   const [predictiveMetrics, setPredictiveMetrics] = useState<any>(null);
   const [sentimentAnalysis, setSentimentAnalysis] = useState<any>(null);
@@ -884,6 +883,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       if (result.success) {
         setContactsData(result.data.contacts);
         console.log(`✅ Loaded ${result.data.contacts.length} contacts for "${list.name}"`);
+        
+        // Automatically calculate lead scores for AI analysis
+        if (result.data.contacts.length > 0) {
+          console.log('🤖 Automatically calculating lead scores for contacts...');
+          handleCalculateLeadScores(list);
+        }
       } else {
         throw new Error(result.error?.message || 'Failed to load contacts');
       }
@@ -1149,14 +1154,10 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
-  // Toggle advanced AI mode
-  const handleToggleAdvancedMode = () => {
-    setShowAdvancedMode(!showAdvancedMode);
-    if (!showAdvancedMode) {
-      // Load AI insights when entering advanced mode
-      console.log('🔬 Entering advanced AI mode');
-    }
-  };
+  // Initialize AI capabilities on component mount
+  useEffect(() => {
+    console.log('🤖 AI capabilities initialized - always active for professional dialler');
+  }, []);
 
   // Delete all contacts in data list with progress tracking
   const handleDeleteContacts = async (list: DataList) => {
@@ -1744,11 +1745,11 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </div>
             </div>
 
-            {/* Advanced AI Controls Panel */}
+            {/* Advanced AI Controls Panel - Always Active */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                  <div className="bg-green-100 p-2 rounded-lg mr-3">
                     🤖
                   </div>
                   <div>
@@ -1756,45 +1757,32 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                       AI-Powered Data Intelligence
                     </h3>
                     <p className="text-sm text-blue-700">
-                      {showAdvancedMode 
-                        ? 'Advanced AI features active - predictive scoring and optimization enabled'
-                        : 'Enable advanced AI features for lead scoring, predictive analytics, and automated insights'}
+                      Advanced AI features are active - real-time lead scoring, predictive analytics, and automated insights
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-3">
-                  {showAdvancedMode && (
-                    <>
-                      {/* AI Metrics Summary */}
-                      <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm">
-                        <div className="flex items-center space-x-4 text-gray-600">
-                          <span>Scores: {leadScores.length}</span>
-                          {predictiveMetrics && (
-                            <span>Answer Rate: {(predictiveMetrics.averageAnswerRate * 100).toFixed(1)}%</span>
-                          )}
-                          <span>AI Recommendations: {aiRecommendations.length}</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  {/* AI Metrics Summary - Always Visible */}
+                  <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm">
+                    <div className="flex items-center space-x-4 text-gray-600">
+                      <span>📊 Scores: {leadScores.length}</span>
+                      {predictiveMetrics && (
+                        <span>🎯 Answer Rate: {(predictiveMetrics.averageAnswerRate * 100).toFixed(1)}%</span>
+                      )}
+                      <span>🤖 Recommendations: {aiRecommendations.length}</span>
+                    </div>
+                  </div>
                   
-                  <button
-                    onClick={handleToggleAdvancedMode}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      showAdvancedMode 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                        : 'bg-white text-blue-600 border border-blue-300 hover:bg-blue-50'
-                    }`}
-                  >
-                    {showAdvancedMode ? '🔬 Exit AI Mode' : '🚀 Enable AI Mode'}
-                  </button>
+                  <div className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                    AI Active
+                  </div>
                 </div>
               </div>
               
-              {/* Advanced Actions when enabled */}
-              {showAdvancedMode && (
-                <div className="mt-4 pt-4 border-t border-blue-200">
+              {/* AI Capabilities Dashboard - Always Visible */}
+              <div className="mt-4 pt-4 border-t border-blue-200">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white rounded-lg border border-blue-200 p-4">
                       <h4 className="font-medium text-gray-900 mb-2">🎯 Lead Scoring</h4>
@@ -1917,7 +1905,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     </div>
                   </div>
                 </div>
-              )}
             </div>
 
             {error && (
@@ -2104,10 +2091,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                         View Queue
                                       </button>
                                       
-                                      {/* Advanced AI Actions */}
-                                      {showAdvancedMode && (
-                                        <>
-                                          <hr className="my-1" />
+                                      {/* AI Actions - Always Available */}
+                                      <hr className="my-1" />
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2150,8 +2135,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                               <span className="ml-3">Predictive Analytics</span>
                                             </button>
                                           )}
-                                        </>
-                                      )}
                                       
                                       <hr className="my-1" />
                                       <button
@@ -3225,19 +3208,16 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
-                        {showAdvancedMode && (
-                          <>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              AI Score
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Priority
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Next Action
-                            </th>
-                          </>
-                        )}
+                        {/* AI Analysis Columns - Always Visible */}
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          AI Score
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Priority
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Next Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -3273,9 +3253,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                               Edit
                             </button>
                           </td>
-                          {showAdvancedMode && (
-                            <>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {/* AI Analysis Columns - Always Visible */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {(() => {
                                   const score = leadScores.find(ls => ls.contactId === contact.contactId);
                                   if (score) {
@@ -3321,8 +3300,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                   ) : <span className="text-gray-400">Calculate score</span>;
                                 })()}
                               </td>
-                            </>
-                          )}
                         </tr>
                       ))}
                     </tbody>
