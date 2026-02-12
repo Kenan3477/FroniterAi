@@ -282,79 +282,72 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       return [];
     }
     
-    const customFields = [];
-    const firstContact = contacts[0];
-    console.log('🔍 getAvailableCustomFields: Analyzing first contact for custom fields...');
+    const customFields: { key: string; label: string }[] = [];
+    console.log('🔍 getAvailableCustomFields: Analyzing ALL contacts for custom fields...');
     
-    // Check each potential custom field and add to array if it exists
-    // Use intelligent labeling based on field content when possible
-    if (firstContact.residentialStatus) {
-      customFields.push({ key: 'residentialStatus', label: 'Residential Status' });
-      console.log('✅ Found residentialStatus:', firstContact.residentialStatus);
-    }
-    if (firstContact.title) {
-      customFields.push({ key: 'title', label: 'Title' });
-      console.log('✅ Found title:', firstContact.title);
-    }
-    if (firstContact.company) {
-      customFields.push({ key: 'company', label: 'Company' });
-      console.log('✅ Found company:', firstContact.company);
-    }
-    if (firstContact.jobTitle) {
-      customFields.push({ key: 'jobTitle', label: 'Job Title' });
-      console.log('✅ Found jobTitle:', firstContact.jobTitle);
-    }
-    if (firstContact.industry) {
-      customFields.push({ key: 'industry', label: 'Industry' });
-      console.log('✅ Found industry:', firstContact.industry);
-    }
-    if (firstContact.city) {
-      customFields.push({ key: 'city', label: 'City' });
-      console.log('✅ Found city:', firstContact.city);
-    }
-    if (firstContact.state) {
-      customFields.push({ key: 'state', label: 'State' });
-      console.log('✅ Found state:', firstContact.state);
-    }
-    if (firstContact.zipCode) {
-      customFields.push({ key: 'zipCode', label: 'Zip Code' });
-      console.log('✅ Found zipCode:', firstContact.zipCode);
-    }
-    if (firstContact.address) {
-      customFields.push({ key: 'address', label: 'Address' });
-      console.log('✅ Found address:', firstContact.address);
-    }
-    if (firstContact.ageRange) {
-      customFields.push({ key: 'ageRange', label: 'Age Range' });
-      console.log('✅ Found ageRange:', firstContact.ageRange);
-    }
+    // Check all contacts, not just the first one, to ensure we don't miss fields
+    const fieldsToCheck = [
+      { key: 'residentialStatus', label: 'Residential Status' },
+      { key: 'title', label: 'Title' },
+      { key: 'company', label: 'Company' },
+      { key: 'jobTitle', label: 'Job Title' },
+      { key: 'industry', label: 'Industry' },
+      { key: 'department', label: 'Department' },
+      { key: 'city', label: 'City' },
+      { key: 'state', label: 'State' },
+      { key: 'zipCode', label: 'Zip Code' },
+      { key: 'country', label: 'Country' },
+      { key: 'address2', label: 'Address 2' },
+      { key: 'address3', label: 'Address 3' },
+      { key: 'website', label: 'Website' },
+      { key: 'linkedIn', label: 'LinkedIn' },
+      { key: 'ageRange', label: 'Age Range' },
+      { key: 'leadSource', label: 'Lead Source' },
+      { key: 'leadScore', label: 'Lead Score' },
+      { key: 'tags', label: 'Tags' },
+      { key: 'notes', label: 'Notes' },
+      { key: 'mobile', label: 'Mobile' },
+      { key: 'workPhone', label: 'Work Phone' },
+      { key: 'homePhone', label: 'Home Phone' },
+      { key: 'fullName', label: 'Full Name' },
+      { key: 'custom1', label: 'Custom Field 1' },
+      { key: 'custom2', label: 'Custom Field 2' },
+      { key: 'custom3', label: 'Custom Field 3' },
+      { key: 'custom4', label: 'Custom Field 4' },
+      { key: 'custom5', label: 'Custom Field 5' }
+    ];
     
-    // Add custom fields with intelligent naming
-    if (firstContact.custom1) {
-      const label = firstContact.custom1.toLowerCase().includes('homeowner') ? 'Homeowner Status' : 'Custom Field 1';
-      customFields.push({ key: 'custom1', label });
-      console.log('✅ Found custom1:', firstContact.custom1, '→ Label:', label);
-    }
-    if (firstContact.custom2) {
-      const label = firstContact.custom2.toLowerCase().includes('income') ? 'Income Range' : 'Custom Field 2';
-      customFields.push({ key: 'custom2', label });
-      console.log('✅ Found custom2:', firstContact.custom2, '→ Label:', label);
-    }
-    if (firstContact.custom3) {
-      const label = firstContact.custom3.toLowerCase().includes('education') ? 'Education Level' : 'Custom Field 3';
-      customFields.push({ key: 'custom3', label });
-      console.log('✅ Found custom3:', firstContact.custom3, '→ Label:', label);
-    }
-    if (firstContact.custom4) {
-      customFields.push({ key: 'custom4', label: 'Custom Field 4' });
-      console.log('✅ Found custom4:', firstContact.custom4);
-    }
-    if (firstContact.custom5) {
-      customFields.push({ key: 'custom5', label: 'Custom Field 5' });
-      console.log('✅ Found custom5:', firstContact.custom5);
-    }
+    // Check each field across all contacts
+    fieldsToCheck.forEach(fieldDef => {
+      const hasData = contacts.some(contact => {
+        const value = contact[fieldDef.key];
+        return value && value !== null && value !== undefined && value !== '' && value.toString().trim() !== '';
+      });
+      
+      if (hasData) {
+        // Apply intelligent naming for custom fields based on content
+        let label = fieldDef.label;
+        if (fieldDef.key.startsWith('custom')) {
+          const sampleValue = contacts.find(c => c[fieldDef.key])?.[ fieldDef.key]?.toLowerCase() || '';
+          if (sampleValue.includes('homeowner') || sampleValue.includes('residential')) {
+            label = 'Homeowner Status';
+          } else if (sampleValue.includes('income')) {
+            label = 'Income Range';
+          } else if (sampleValue.includes('education')) {
+            label = 'Education Level';
+          } else if (sampleValue.includes('marital')) {
+            label = 'Marital Status';
+          } else if (sampleValue.includes('employment')) {
+            label = 'Employment Status';
+          }
+        }
+        
+        customFields.push({ key: fieldDef.key, label });
+        console.log(`✅ Found ${fieldDef.key}: Sample value:`, contacts.find(c => c[fieldDef.key])?.[fieldDef.key], '→ Label:', label);
+      }
+    });
     
-    console.log(`🔍 getAvailableCustomFields: Found ${customFields.length} custom fields:`, customFields.map(f => f.label));
+    console.log(`🔍 getAvailableCustomFields: Found ${customFields.length} custom fields:`, customFields.map(f => `${f.key} (${f.label})`));
     return customFields;
   };
 
