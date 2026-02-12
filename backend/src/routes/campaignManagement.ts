@@ -923,7 +923,7 @@ router.delete('/data-lists/:id/contacts', async (req: Request, res: Response) =>
 router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, page = '1', limit = '50' } = req.query;
+    const { status, campaignId, page = '1', limit = '50' } = req.query;
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
@@ -942,8 +942,9 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
       });
     }
 
-    // Build status filter
+    // Build filters
     const statusFilter = status ? { status: status as string } : {};
+    const campaignFilter = campaignId ? { campaignId: campaignId as string } : {};
 
     // Get queue entries with pagination using the listId
     const [queueEntries, totalCount] = await Promise.all([
@@ -952,7 +953,8 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
           contact: {
             listId: dataList.listId  // Use the listId from the DataList
           },
-          ...statusFilter
+          ...statusFilter,
+          ...campaignFilter
         },
         include: {
           contact: {
@@ -977,20 +979,48 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
           contact: {
             listId: dataList.listId  // Use the listId from the DataList
           },
-          ...statusFilter
+          ...statusFilter,
+          ...campaignFilter
         }
       })
     ]);
 
-    // Get status breakdown
+    // Get status breakdown (filtered by campaign if specified)
     const statusBreakdown = await prisma.dialQueueEntry.groupBy({
       by: ['status'],
       where: {
         contact: {
           listId: dataList.listId  // Use the listId from the DataList
+        },
+        ...campaignFilter
+      },
+      _count: {
+        status: true
+      }
+    });
+
+    // Get campaign breakdown for this data list
+    const campaignBreakdown = await prisma.dialQueueEntry.groupBy({
+      by: ['campaignId'],
+      where: {
+        contact: {
+          listId: dataList.listId
         }
       },
       _count: {
+        campaignId: true
+      }
+    });
+
+    // Get campaign details for dropdown
+    const campaignIds = campaignBreakdown.map(item => item.campaignId).filter(Boolean);
+    const campaigns = await prisma.campaign.findMany({
+      where: {
+        campaignId: { in: campaignIds }
+      },
+      select: {
+        campaignId: true,
+        name: true,
         status: true
       }
     });
@@ -1022,7 +1052,12 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
           statusBreakdown: statusBreakdown.reduce((acc, item) => {
             acc[item.status] = item._count.status;
             return acc;
-          }, {} as Record<string, number>)
+          }, {} as Record<string, number>),
+          campaignBreakdown: campaignBreakdown.reduce((acc, item) => {
+            acc[item.campaignId] = item._count.campaignId;
+            return acc;
+          }, {} as Record<string, number>),
+          campaigns
         },
         pagination: {
           currentPage: pageNum,
@@ -1038,6 +1073,97 @@ router.get('/data-lists/:id/queue', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: { message: 'Failed to fetch queue data' }
+    });
+  }
+});
+
+// PUT /api/admin/campaign-management/contacts/:contactId - Update contact details
+router.put('/contacts/:contactId', async (req: Request, res: Response) => {
+  try {
+    const { contactId } = req.params;
+    const updateData = req.body;
+
+    // Validate required fields
+    if (!contactId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Contact ID is required' }
+      });
+    }
+
+    // Check if contact exists
+    const existingContact = await prisma.contact.findUnique({
+      where: { contactId }
+    });
+
+    if (!existingContact) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Contact not found' }
+      });
+    }
+
+    // Validate email format if provided
+    if (updateData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updateData.email)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid email format' }
+      });
+    }
+
+    // Validate phone number format if provided
+    if (updateData.phone && !/^[\+]?[\s\-\(\)]*([0-9][\s\-\(\)]*){10,}$/.test(updateData.phone)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid phone number format' }
+      });
+    }
+
+    // Prepare update data - only include allowed fields
+    const allowedFields = [
+      'firstName', 'lastName', 'title', 'phone', 'mobile', 'workPhone', 'homePhone',
+      'email', 'company', 'jobTitle', 'department', 'industry', 'address', 'address2', 
+      'address3', 'city', 'state', 'zipCode', 'country', 'website', 'linkedIn', 'notes', 
+      'tags', 'leadSource', 'deliveryDate', 'ageRange', 'residentialStatus',
+      'custom1', 'custom2', 'custom3', 'custom4', 'custom5'
+    ];
+
+    const filteredUpdateData = Object.keys(updateData)
+      .filter(key => allowedFields.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updateData[key];
+        return obj;
+      }, {} as any);
+
+    // Generate fullName if names were updated
+    if (filteredUpdateData.firstName || filteredUpdateData.lastName) {
+      const firstName = filteredUpdateData.firstName || existingContact.firstName;
+      const lastName = filteredUpdateData.lastName || existingContact.lastName;
+      filteredUpdateData.fullName = `${firstName} ${lastName}`.trim();
+    }
+
+    // Update contact
+    const updatedContact = await prisma.contact.update({
+      where: { contactId },
+      data: {
+        ...filteredUpdateData,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        contact: updatedContact,
+        message: `Contact ${updatedContact.fullName || updatedContact.firstName} updated successfully`
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating contact:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to update contact' }
     });
   }
 });
