@@ -625,101 +625,116 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
         });
       }
 
-      // Process each contact
-      for (let i = 0; i < contacts.length; i++) {
-        const contactData = contacts[i];
-        
-        try {
-          // Validate required fields
-          if (!contactData.phone || (!contactData.firstName && !contactData.fullName)) {
-            errors.push(`Row ${i + 1}: Missing required fields (phone, firstName/fullName)`);
-            skipped++;
-            continue;
-          }
+      // Process contacts in smaller batches to avoid timeout
+      const BATCH_SIZE = 100;
+      const batches = [];
+      for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+        batches.push(contacts.slice(i, i + BATCH_SIZE));
+      }
 
-          // Process contact (logging removed to prevent rate limiting)
-          // Check for duplicates by phone number in this list
-          if (skipDuplicates && !replaceExisting) {
-            const existingContact = await tx.contact.findFirst({
-              where: {
-                listId: existingDataList.listId,
-                phone: contactData.phone
-              }
-            });
+      console.log(`📦 Processing ${contacts.length} contacts in ${batches.length} batches of ${BATCH_SIZE}`);
 
-            if (existingContact) {
-              console.log(`⏭️ Skipping duplicate contact: ${contactData.phone}`);
+      // Process each batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} contacts)`);
+
+        // Process each contact in the batch
+        for (let i = 0; i < batch.length; i++) {
+          const contactData = batch[i];
+          const globalIndex = batchIndex * BATCH_SIZE + i + 1;
+          
+          try {
+            // Validate required fields
+            if (!contactData.phone || (!contactData.firstName && !contactData.fullName)) {
+              errors.push(`Row ${globalIndex}: Missing required fields (phone, firstName/fullName)`);
               skipped++;
               continue;
             }
-          }
 
-          // Create contact with comprehensive field mapping and proper relationship
-          const contactCreateData = {
-            contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
-            lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
-            fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
-            phone: contactData.phone,
-            mobile: contactData.mobile || null,
-            workPhone: contactData.workPhone || null,
-            homePhone: contactData.homePhone || null,
-            email: contactData.email || null,
-            company: contactData.company || null,
-            jobTitle: contactData.jobTitle || null,
-            department: contactData.department || null,
-            industry: contactData.industry || null,
-            title: contactData.title || null,
-            address: contactData.address || null,
-            address2: contactData.address2 || null,
-            address3: contactData.address3 || null,
-            city: contactData.city || null,
-            state: contactData.state || null,
-            zipCode: contactData.zipCode || null,
-            country: contactData.country || null, // Don't default to US
-            website: contactData.website || null,
-            linkedIn: contactData.linkedIn || null,
-            notes: contactData.notes || null,
-            tags: contactData.tags || null,
-            leadSource: contactData.leadSource || null,
-            // Remove leadScore field - it's a relationship, not a direct field
-            deliveryDate: contactData.deliveryDate || null,
-            ageRange: contactData.ageRange || null,
-            residentialStatus: contactData.residentialStatus || null,
-            custom1: contactData.custom1 || null,
-            custom2: contactData.custom2 || null,
-            custom3: contactData.custom3 || null,
-            custom4: contactData.custom4 || null,
-            custom5: contactData.custom5 || null,
-            status: 'New',
-            attemptCount: 0,
-            maxAttempts: contactData.maxAttempts || 3,
-            // Connect to existing DataList using the relationship
-            list: {
-              connect: {
-                listId: existingDataList.listId
+            // Check for duplicates by phone number in this list
+            if (skipDuplicates && !replaceExisting) {
+              const existingContact = await tx.contact.findFirst({
+                where: {
+                  listId: existingDataList.listId,
+                  phone: contactData.phone
+                }
+              });
+
+              if (existingContact) {
+                skipped++;
+                continue;
               }
             }
-          };
 
-          console.log(`📝 Creating contact connected to listId: ${existingDataList.listId} (${i + 1}/${contacts.length})`);
+            // Create contact with comprehensive field mapping and proper relationship
+            const contactCreateData = {
+              contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
+              lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
+              fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
+              phone: contactData.phone,
+              mobile: contactData.mobile || null,
+              workPhone: contactData.workPhone || null,
+              homePhone: contactData.homePhone || null,
+              email: contactData.email || null,
+              company: contactData.company || null,
+              jobTitle: contactData.jobTitle || null,
+              department: contactData.department || null,
+              industry: contactData.industry || null,
+              title: contactData.title || null,
+              address: contactData.address || null,
+              address2: contactData.address2 || null,
+              address3: contactData.address3 || null,
+              city: contactData.city || null,
+              state: contactData.state || null,
+              zipCode: contactData.zipCode || null,
+              country: contactData.country || null,
+              website: contactData.website || null,
+              linkedIn: contactData.linkedIn || null,
+              notes: contactData.notes || null,
+              tags: contactData.tags || null,
+              leadSource: contactData.leadSource || null,
+              deliveryDate: contactData.deliveryDate || null,
+              ageRange: contactData.ageRange || null,
+              residentialStatus: contactData.residentialStatus || null,
+              custom1: contactData.custom1 || null,
+              custom2: contactData.custom2 || null,
+              custom3: contactData.custom3 || null,
+              custom4: contactData.custom4 || null,
+              custom5: contactData.custom5 || null,
+              status: 'New',
+              attemptCount: 0,
+              maxAttempts: contactData.maxAttempts || 3,
+              // Connect to existing DataList using the relationship
+              list: {
+                connect: {
+                  listId: existingDataList.listId
+                }
+              }
+            };
 
-          // Create contact - now with proper relationship connection
-          await tx.contact.create({
-            data: contactCreateData
-          });
+            // Create contact
+            await tx.contact.create({
+              data: contactCreateData
+            });
 
-          uploaded++;
-        } catch (contactError) {
-          // Reduced logging to prevent Railway rate limiting
-          console.error(`❌ Contact creation failed (${i + 1}):`, contactError instanceof Error ? contactError.message : String(contactError));
-          errors.push(`Row ${i + 1}: ${contactError instanceof Error ? contactError.message : String(contactError)}`);
-          skipped++;
+            uploaded++;
+            
+            // Log progress every 50 contacts to avoid rate limiting
+            if (globalIndex % 50 === 0) {
+              console.log(`📝 Progress: ${uploaded} uploaded, ${skipped} skipped (${globalIndex}/${contacts.length})`);
+            }
+          } catch (contactError) {
+            console.error(`❌ Contact creation failed (${globalIndex}):`, contactError instanceof Error ? contactError.message : String(contactError));
+            errors.push(`Row ${globalIndex}: ${contactError instanceof Error ? contactError.message : String(contactError)}`);
+            skipped++;
+          }
         }
       }
 
       return { uploaded, skipped, errors };
-    }, { timeout: 30000 });
+    }, { timeout: 180000 }); // Increased to 3 minutes
 
     // Get updated list with new contact count
     const updatedDataList = await prisma.dataList.findUnique({
