@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
