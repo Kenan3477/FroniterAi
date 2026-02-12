@@ -1,47 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`📋 Frontend: Simulating queue fetch for campaign ${params.id}`);
+    console.log(`📋 Frontend API: Fetching queue for campaign ${params.id} from Railway backend`);
     
-    // Simulate queue data
-    const mockQueueData = {
-      success: true,
-      data: {
-        campaignId: params.id,
-        queue: [
-          {
-            id: 'queue_1',
-            queueId: 'q_001',
-            contactName: 'John Doe',
-            contactPhone: '+1234567890',
-            status: 'PENDING',
-            priority: 1,
-            scheduledTime: new Date().toISOString()
-          },
-          {
-            id: 'queue_2', 
-            queueId: 'q_002',
-            contactName: 'Jane Smith',
-            contactPhone: '+1234567891',
-            status: 'PENDING',
-            priority: 2,
-            scheduledTime: new Date().toISOString()
-          }
-        ],
-        total: 2
-      }
+    // Forward the request to Railway backend
+    const backendUrl = `${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/queue`;
+    console.log('Backend URL:', backendUrl);
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
     };
     
-    console.log(`✅ Queue data simulated for campaign ${params.id}`);
-    return NextResponse.json(mockQueueData);
+    // Forward any authorization header from the original request
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+    
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers,
+    });
+    
+    console.log('Backend response status:', response.status);
+    console.log('Backend response ok:', response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend error response:', errorText);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            message: `Backend error: ${response.status} ${response.statusText}`,
+            details: errorText 
+          } 
+        },
+        { status: response.status }
+      );
+    }
+    
+    const data = await response.json();
+    console.log('Backend queue response:', data);
+    
+    return NextResponse.json(data, { status: response.status });
+    
   } catch (error) {
-    console.error('❌ Error simulating queue fetch:', error);
+    console.error('Frontend API error fetching queue:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch campaign queue' },
+      { 
+        success: false, 
+        error: { 
+          message: 'Internal server error',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        } 
+      },
       { status: 500 }
     );
   }
