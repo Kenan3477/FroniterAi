@@ -250,6 +250,24 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     current: 0
   });
 
+  // Advanced AI capabilities state
+  const [showAdvancedMode, setShowAdvancedMode] = useState(false);
+  const [leadScores, setLeadScores] = useState<any[]>([]);
+  const [predictiveMetrics, setPredictiveMetrics] = useState<any>(null);
+  const [sentimentAnalysis, setSentimentAnalysis] = useState<any>(null);
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
+  
+  // Progress tracking for AI operations
+  const [aiProgress, setAiProgress] = useState<{
+    isCalculating: boolean;
+    operation: string;
+    progress: number;
+  }>({
+    isCalculating: false,
+    operation: '',
+    progress: 0
+  });
+
   // Analytics data state
   const [analyticsData, setAnalyticsData] = useState({
     totalLists: 0,
@@ -999,6 +1017,147 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     }
   };
 
+  // Advanced AI-Powered Functions
+
+  // Calculate lead scores for all contacts in a data list
+  const handleCalculateLeadScores = async (list: DataList) => {
+    setAiProgress({
+      isCalculating: true,
+      operation: `Calculating AI lead scores for "${list.name}"`,
+      progress: 0
+    });
+
+    try {
+      console.log(`🤖 Calculating lead scores for data list: ${list.name}`);
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setAiProgress(prev => {
+          if (!prev.isCalculating) return prev;
+          const newProgress = Math.min(prev.progress + 15, 90);
+          return { ...prev, progress: newProgress };
+        });
+      }, 200);
+
+      // Get contacts for this data list first
+      const contactsResponse = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/contacts?page=1&limit=100`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!contactsResponse.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+
+      const contactsResult = await contactsResponse.json();
+      if (!contactsResult.success) {
+        throw new Error('Failed to get contact list');
+      }
+
+      const contacts = contactsResult.data.contacts;
+      const contactIds = contacts.map((c: any) => c.contactId);
+
+      // Batch calculate lead scores
+      const scoresResponse = await fetch('/api/admin/lead-scoring/batch-calculate', {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactIds,
+          campaignId: list.campaignId
+        })
+      });
+
+      clearInterval(progressInterval);
+
+      if (!scoresResponse.ok) {
+        throw new Error('Failed to calculate lead scores');
+      }
+
+      const scoresResult = await scoresResponse.json();
+      if (scoresResult.success) {
+        setLeadScores(scoresResult.data.scoredContacts);
+        setAiProgress({ ...aiProgress, progress: 100 });
+        
+        setTimeout(() => {
+          setAiProgress({ isCalculating: false, operation: '', progress: 0 });
+          alert(`✅ Successfully calculated lead scores for ${scoresResult.data.scoredContacts.length} contacts`);
+        }, 500);
+      } else {
+        throw new Error(scoresResult.error?.message || 'Failed to calculate scores');
+      }
+    } catch (error) {
+      setAiProgress({ isCalculating: false, operation: '', progress: 0 });
+      console.error('❌ Error calculating lead scores:', error);
+      alert(`Failed to calculate lead scores: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Get predictive metrics for campaign queue optimization
+  const handleGetPredictiveMetrics = async (campaignId: string) => {
+    try {
+      console.log(`📊 Fetching predictive metrics for campaign: ${campaignId}`);
+
+      const response = await fetch(`/api/auto-dial/predictive-stats/${campaignId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch predictive metrics');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setPredictiveMetrics(result.data.stats);
+        console.log(`✅ Loaded predictive metrics:`, result.data.stats);
+      } else {
+        throw new Error(result.error?.message || 'Failed to load metrics');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching predictive metrics:', error);
+      alert(`Failed to load predictive metrics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Get AI-powered next best actions for contacts
+  const handleGetNextBestActions = async (list: DataList) => {
+    try {
+      console.log(`🎯 Getting next best actions for: ${list.name}`);
+
+      const response = await fetch(`/api/admin/lead-scoring/next-best-contacts?campaignId=${list.campaignId}&limit=20`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get next best actions');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setAiRecommendations(result.data.prioritizedContacts);
+        console.log(`✅ Loaded AI recommendations:`, result.data.prioritizedContacts);
+      } else {
+        throw new Error(result.error?.message || 'Failed to load recommendations');
+      }
+    } catch (error) {
+      console.error('❌ Error getting next best actions:', error);
+      alert(`Failed to get recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Toggle advanced AI mode
+  const handleToggleAdvancedMode = () => {
+    setShowAdvancedMode(!showAdvancedMode);
+    if (!showAdvancedMode) {
+      // Load AI insights when entering advanced mode
+      console.log('🔬 Entering advanced AI mode');
+    }
+  };
+
   // Delete all contacts in data list with progress tracking
   const handleDeleteContacts = async (list: DataList) => {
     if (!confirm(`Are you sure you want to delete ALL contacts in "${list.name}"?\n\nThis will remove ${list.total} contacts but keep the data list. This action cannot be undone.`)) {
@@ -1585,6 +1744,182 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </div>
             </div>
 
+            {/* Advanced AI Controls Panel */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                    🤖
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-blue-900">
+                      AI-Powered Data Intelligence
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      {showAdvancedMode 
+                        ? 'Advanced AI features active - predictive scoring and optimization enabled'
+                        : 'Enable advanced AI features for lead scoring, predictive analytics, and automated insights'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  {showAdvancedMode && (
+                    <>
+                      {/* AI Metrics Summary */}
+                      <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm">
+                        <div className="flex items-center space-x-4 text-gray-600">
+                          <span>Scores: {leadScores.length}</span>
+                          {predictiveMetrics && (
+                            <span>Answer Rate: {(predictiveMetrics.averageAnswerRate * 100).toFixed(1)}%</span>
+                          )}
+                          <span>AI Recommendations: {aiRecommendations.length}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  <button
+                    onClick={handleToggleAdvancedMode}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      showAdvancedMode 
+                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                        : 'bg-white text-blue-600 border border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    {showAdvancedMode ? '🔬 Exit AI Mode' : '🚀 Enable AI Mode'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Advanced Actions when enabled */}
+              {showAdvancedMode && (
+                <div className="mt-4 pt-4 border-t border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg border border-blue-200 p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">🎯 Lead Scoring</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Calculate AI-powered lead scores to prioritize your best prospects
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Analyzes contact data, engagement history, and behavioral patterns
+                      </p>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg border border-blue-200 p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">📊 Predictive Analytics</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Real-time metrics for optimal queue management and dialing strategies
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Answer rates, abandonment prediction, agent utilization forecasts
+                      </p>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg border border-blue-200 p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">🎬 Next Best Actions</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        AI recommendations for optimal contact timing and approach
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Personalized contact strategies based on lead profile analysis
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* AI Metrics Dashboard */}
+                  <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-2 border-dashed border-purple-200 p-4">
+                    <h4 className="font-semibold text-purple-900 mb-4 flex items-center">
+                      <span className="mr-2">🤖</span>
+                      Real-time AI Metrics
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {/* Lead Scores Summary */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
+                          Lead Scores
+                        </div>
+                        <div className="text-lg font-bold text-purple-900">
+                          {leadScores.length > 0 ? leadScores.length : '—'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {leadScores.length > 0 ? 'Contacts analyzed' : 'No data yet'}
+                        </div>
+                      </div>
+
+                      {/* Predictive Metrics Summary */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
+                          Answer Rate
+                        </div>
+                        <div className="text-lg font-bold text-purple-900">
+                          {predictiveMetrics.predictedAnswerRate 
+                            ? `${Math.round(predictiveMetrics.predictedAnswerRate * 100)}%` 
+                            : '—'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Predicted success
+                        </div>
+                      </div>
+
+                      {/* AI Recommendations Summary */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
+                          Recommendations
+                        </div>
+                        <div className="text-lg font-bold text-purple-900">
+                          {aiRecommendations.length}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Next best actions
+                        </div>
+                      </div>
+
+                      {/* Optimal Pacing */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
+                          Pacing Rate
+                        </div>
+                        <div className="text-lg font-bold text-purple-900">
+                          {predictiveMetrics.optimalPacingRate 
+                            ? `${predictiveMetrics.optimalPacingRate.toFixed(1)}/min` 
+                            : '—'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Optimal dialing
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick AI Actions */}
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => console.log('🔄 Auto-refresh AI metrics not implemented yet')}
+                          className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-full transition-colors"
+                        >
+                          🔄 Auto-refresh
+                        </button>
+                        <button
+                          onClick={() => console.log('📈 Advanced analytics not implemented yet')}
+                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-full transition-colors"
+                        >
+                          📈 Analytics
+                        </button>
+                        <button
+                          onClick={() => console.log('⚙️ AI settings not implemented yet')}
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors"
+                        >
+                          ⚙️ Settings
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center">
@@ -1768,6 +2103,56 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                         <QueueListIcon className="h-4 w-4 mr-3" />
                                         View Queue
                                       </button>
+                                      
+                                      {/* Advanced AI Actions */}
+                                      {showAdvancedMode && (
+                                        <>
+                                          <hr className="my-1" />
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              console.log('🤖 Calculate Lead Scores for:', list);
+                                              setOpenDropdown(null);
+                                              handleCalculateLeadScores(list);
+                                            }}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                                          >
+                                            🎯
+                                            <span className="ml-3">Calculate Lead Scores</span>
+                                          </button>
+                                          
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              console.log('🎬 Get Next Best Actions for:', list);
+                                              setOpenDropdown(null);
+                                              handleGetNextBestActions(list);
+                                            }}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                                          >
+                                            🎬
+                                            <span className="ml-3">Get Next Best Actions</span>
+                                          </button>
+                                          
+                                          {list.campaignId && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                console.log('📊 Get Predictive Metrics for:', list);
+                                                setOpenDropdown(null);
+                                                if (list.campaignId) {
+                                                  handleGetPredictiveMetrics(list.campaignId);
+                                                }
+                                              }}
+                                              className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                                            >
+                                              📊
+                                              <span className="ml-3">Predictive Analytics</span>
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
+                                      
                                       <hr className="my-1" />
                                       <button
                                         onClick={(e) => {
@@ -2840,6 +3225,19 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
+                        {showAdvancedMode && (
+                          <>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              AI Score
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Priority
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Next Action
+                            </th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -2875,6 +3273,56 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                               Edit
                             </button>
                           </td>
+                          {showAdvancedMode && (
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {(() => {
+                                  const score = leadScores.find(ls => ls.contactId === contact.contactId);
+                                  if (score) {
+                                    const scoreValue = Math.round(score.score.score * 100);
+                                    const colorClass = scoreValue >= 80 ? 'text-green-600 bg-green-100' :
+                                                      scoreValue >= 60 ? 'text-yellow-600 bg-yellow-100' :
+                                                      scoreValue >= 40 ? 'text-orange-600 bg-orange-100' :
+                                                      'text-red-600 bg-red-100';
+                                    return (
+                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colorClass}`}>
+                                        {scoreValue}%
+                                      </span>
+                                    );
+                                  }
+                                  return <span className="text-gray-400">No score</span>;
+                                })()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {(() => {
+                                  const score = leadScores.find(ls => ls.contactId === contact.contactId);
+                                  if (score) {
+                                    const priority = score.score.priority;
+                                    const colorClass = priority === 'urgent' ? 'text-red-600 bg-red-100' :
+                                                      priority === 'high' ? 'text-orange-600 bg-orange-100' :
+                                                      priority === 'medium' ? 'text-yellow-600 bg-yellow-100' :
+                                                      'text-gray-600 bg-gray-100';
+                                    return (
+                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${colorClass}`}>
+                                        {priority}
+                                      </span>
+                                    );
+                                  }
+                                  return <span className="text-gray-400">-</span>;
+                                })()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {(() => {
+                                  const score = leadScores.find(ls => ls.contactId === contact.contactId);
+                                  return score ? (
+                                    <span className="text-sm text-blue-600 font-medium">
+                                      {score.score.nextBestAction}
+                                    </span>
+                                  ) : <span className="text-gray-400">Calculate score</span>;
+                                })()}
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>
