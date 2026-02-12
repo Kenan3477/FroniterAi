@@ -9,6 +9,7 @@ export function middleware(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
   const isReportsRoute = request.nextUrl.pathname.startsWith('/reports');
+  const isDataManagementRoute = request.nextUrl.pathname.startsWith('/data-management');
   
   // Allow API routes to handle their own auth
   if (isApiRoute) {
@@ -41,7 +42,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Basic token presence check - detailed JWT verification handled in API routes
-  if (token && (isAdminRoute || isReportsRoute)) {
+  if (token && (isAdminRoute || isReportsRoute || isDataManagementRoute)) {
     // For demo tokens, we can do basic role checking
     if (token.value.startsWith('demo-')) {
       const demoUser = token.value.replace('demo-', '');
@@ -53,6 +54,12 @@ export function middleware(request: NextRequest) {
       }
       
       if (isReportsRoute && !['ADMIN', 'SUPERVISOR'].includes(userRole)) {
+        console.log(`🚫 Access denied: ${userRole} tried to access ${request.nextUrl.pathname}`);
+        return NextResponse.redirect(new URL('/dashboard?error=access-denied', request.url));
+      }
+      
+      // Data Management requires admin access
+      if (isDataManagementRoute && userRole !== 'ADMIN') {
         console.log(`🚫 Access denied: ${userRole} tried to access ${request.nextUrl.pathname}`);
         return NextResponse.redirect(new URL('/dashboard?error=access-denied', request.url));
       }

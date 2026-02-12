@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout';
+import { AuthGuard } from '@/components/AuthGuard';
 import DataManagementSidebar from '@/components/data-management/DataManagementSidebar';
 import DataListTable from '@/components/data-management/DataListTable';
 import { 
@@ -33,6 +34,20 @@ export default function DataManagementPage() {
   const [dataLists, setDataLists] = useState<DataList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent SSR hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+      </div>
+    );
+  }
 
   // Fetch data lists from backend
   useEffect(() => {
@@ -270,18 +285,19 @@ export default function DataManagementPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="flex h-full">
-        {/* Data Management Sidebar */}
-        <DataManagementSidebar
-          selectedSection={selectedSection}
-          onSectionChange={setSelectedSection}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
+    <AuthGuard>
+      <MainLayout>
+        <div className="flex h-full">
+          {/* Data Management Sidebar */}
+          <DataManagementSidebar
+            selectedSection={selectedSection}
+            onSectionChange={setSelectedSection}
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0">
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -334,5 +350,6 @@ export default function DataManagementPage() {
         </div>
       </div>
     </MainLayout>
+    </AuthGuard>
   );
 }
