@@ -114,6 +114,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   const [error, setError] = useState<string | null>(null);
   const [searchTerm2, setSearchTerm2] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isAiSectionCollapsed, setIsAiSectionCollapsed] = useState(false);
 
   // Dialog states for edit and upload
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1894,11 +1895,29 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
                     AI Active
                   </div>
+                  
+                  {/* Collapse/Expand Button */}
+                  <button
+                    onClick={() => setIsAiSectionCollapsed(!isAiSectionCollapsed)}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-600 p-2 rounded-lg transition-colors"
+                    title={isAiSectionCollapsed ? 'Expand AI Section' : 'Collapse AI Section'}
+                  >
+                    {isAiSectionCollapsed ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
               </div>
               
-              {/* AI Capabilities Dashboard - Always Visible */}
-              <div className="mt-4 pt-4 border-t border-blue-200">
+              {/* AI Capabilities Dashboard - Collapsible */}
+              {!isAiSectionCollapsed && (
+                <div className="mt-4 pt-4 border-t border-blue-200">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white rounded-lg border border-blue-200 p-4">
                       <h4 className="font-medium text-gray-900 mb-2">🎯 Lead Scoring</h4>
@@ -2021,6 +2040,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     </div>
                   </div>
                 </div>
+              )}
             </div>
 
             {error && (

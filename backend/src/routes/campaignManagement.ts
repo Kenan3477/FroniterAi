@@ -654,10 +654,9 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             }
           }
 
-          // Create contact with comprehensive field mapping
+          // Create contact with comprehensive field mapping and proper relationship
           const contactCreateData = {
             contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            listId: existingDataList.listId,
             firstName: contactData.firstName || contactData.fullName?.split(' ')[0] || '',
             lastName: contactData.lastName || contactData.fullName?.split(' ').slice(1).join(' ') || '',
             fullName: contactData.fullName || `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim(),
@@ -694,10 +693,18 @@ router.post('/data-lists/:id/upload', async (req: Request, res: Response) => {
             custom5: contactData.custom5 || null,
             status: 'New',
             attemptCount: 0,
-            maxAttempts: contactData.maxAttempts || 3
+            maxAttempts: contactData.maxAttempts || 3,
+            // Connect to existing DataList using the relationship
+            list: {
+              connect: {
+                listId: existingDataList.listId
+              }
+            }
           };
 
-          // Create contact (detailed logging removed to prevent rate limiting)
+          console.log(`📝 Creating contact connected to listId: ${existingDataList.listId}`);
+
+          // Create contact - now with proper relationship connection
           await tx.contact.create({
             data: contactCreateData
           });
