@@ -812,31 +812,46 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // View contacts in data list
   const handleViewContacts = async (list: DataList) => {
     console.log(`👥 Opening contacts view for data list: ${list.name}`);
+    console.log(`🔍 List details:`, { id: list.id, listId: list.listId, name: list.name });
     setViewingList(list);
     setContactsLoading(true);
     setIsContactsViewOpen(true);
     setOpenDropdown(null);
 
     try {
-      const response = await fetch(`/api/admin/campaign-management/data-lists/${list.id}/contacts?page=1&limit=100`, {
+      const url = `/api/admin/campaign-management/data-lists/${list.id}/contacts?page=1&limit=100`;
+      console.log(`📡 Making request to: ${url}`);
+      console.log(`🔐 Auth headers:`, getAuthHeaders());
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
 
+      console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch contacts: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`❌ Response error text:`, errorText);
+        throw new Error(`Failed to fetch contacts: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
+      console.log(`✅ Response data:`, result);
+      
       if (result.success) {
         setContactsData(result.data.contacts);
-        console.log(`✅ Loaded ${result.data.contacts.length} contacts`);
+        console.log(`✅ Loaded ${result.data.contacts.length} contacts for "${list.name}"`);
       } else {
         throw new Error(result.error?.message || 'Failed to load contacts');
       }
     } catch (error) {
       console.error('❌ Error fetching contacts:', error);
       alert(`Failed to load contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Close the modal if there's an error
+      setIsContactsViewOpen(false);
+      setViewingList(null);
     } finally {
       setContactsLoading(false);
     }
