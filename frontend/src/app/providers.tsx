@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { EventSystemProvider } from '@/contexts/EventSystemContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { store } from '@/store';
 
 const queryClient = new QueryClient({
@@ -23,16 +24,18 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <ReduxProvider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AuthGuard>
-            <EventSystemProvider>
-              {children}
-            </EventSystemProvider>
-          </AuthGuard>
-        </AuthProvider>
-      </QueryClientProvider>
-    </ReduxProvider>
+    <ErrorBoundary>
+      <ReduxProvider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AuthGuard>
+              <EventSystemProvider>
+                {children}
+              </EventSystemProvider>
+            </AuthGuard>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ReduxProvider>
+    </ErrorBoundary>
   );
 }
