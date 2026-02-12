@@ -1842,7 +1842,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           Answer Rate
                         </div>
                         <div className="text-lg font-bold text-purple-900">
-                          {predictiveMetrics.predictedAnswerRate 
+                          {predictiveMetrics?.predictedAnswerRate 
                             ? `${Math.round(predictiveMetrics.predictedAnswerRate * 100)}%` 
                             : '—'}
                         </div>
@@ -1870,7 +1870,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           Pacing Rate
                         </div>
                         <div className="text-lg font-bold text-purple-900">
-                          {predictiveMetrics.optimalPacingRate 
+                          {predictiveMetrics?.optimalPacingRate 
                             ? `${predictiveMetrics.optimalPacingRate.toFixed(1)}/min` 
                             : '—'}
                         </div>
