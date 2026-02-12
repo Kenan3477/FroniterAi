@@ -275,6 +275,31 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     availableContacts: 0
   });
 
+  // Helper function to determine available custom fields from contacts data
+  const getAvailableCustomFields = (contacts: any[]) => {
+    if (!contacts || contacts.length === 0) return [];
+    
+    const customFields = [];
+    const firstContact = contacts[0];
+    
+    // Check each potential custom field and add to array if it exists
+    if (firstContact.residentialStatus) customFields.push({ key: 'residentialStatus', label: 'Residential Status' });
+    if (firstContact.custom1) customFields.push({ key: 'custom1', label: 'Custom Field 1' });
+    if (firstContact.custom2) customFields.push({ key: 'custom2', label: 'Custom Field 2' });
+    if (firstContact.custom3) customFields.push({ key: 'custom3', label: 'Custom Field 3' });
+    if (firstContact.custom4) customFields.push({ key: 'custom4', label: 'Custom Field 4' });
+    if (firstContact.custom5) customFields.push({ key: 'custom5', label: 'Custom Field 5' });
+    if (firstContact.title) customFields.push({ key: 'title', label: 'Title' });
+    if (firstContact.company) customFields.push({ key: 'company', label: 'Company' });
+    if (firstContact.jobTitle) customFields.push({ key: 'jobTitle', label: 'Job Title' });
+    if (firstContact.industry) customFields.push({ key: 'industry', label: 'Industry' });
+    if (firstContact.city) customFields.push({ key: 'city', label: 'City' });
+    if (firstContact.state) customFields.push({ key: 'state', label: 'State' });
+    if (firstContact.ageRange) customFields.push({ key: 'ageRange', label: 'Age Range' });
+    
+    return customFields;
+  };
+
   // Load templates from localStorage on component mount
   useEffect(() => {
     const savedTemplatesData = localStorage.getItem('omnivox_upload_templates');
@@ -3199,6 +3224,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Email
                         </th>
+                        {/* Dynamic Custom Fields Headers */}
+                        {getAvailableCustomFields(contactsData).map(field => (
+                          <th key={field.key} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {field.label}
+                          </th>
+                        ))}
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Last Call
                         </th>
@@ -3232,6 +3263,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {contact.email || '-'}
                           </td>
+                          {/* Dynamic Custom Fields Data */}
+                          {getAvailableCustomFields(contactsData).map(field => (
+                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {contact[field.key] || '-'}
+                            </td>
+                          ))}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {contact.lastCall ? (
                               <div>
