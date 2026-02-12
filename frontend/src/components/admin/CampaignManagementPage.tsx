@@ -249,7 +249,17 @@ const CampaignManagementPage: React.FC = () => {
         body: JSON.stringify({ maxRecords: 100 }),
       });
       
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ HTTP error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
       const data = await response.json();
+      console.log('📄 Response data:', data);
       
       if (data.success) {
         console.log(`✅ Generated ${data.data.generated} queue entries`);
@@ -257,11 +267,16 @@ const CampaignManagementPage: React.FC = () => {
         await fetchCampaignQueue(campaignId);
         return data.data.generated;
       } else {
-        console.error('Failed to generate queue:', data.error);
-        throw new Error(data.error?.message || 'Queue generation failed');
+        console.error('❌ API returned error:', data.error || data.message);
+        throw new Error(data.error?.message || data.message || 'Queue generation failed');
       }
     } catch (error) {
-      console.error('Error generating campaign queue:', error);
+      console.error('❌ Error in generateCampaignQueue:', error);
+      if (error instanceof Error) {
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       throw error;
     }
   };
@@ -1732,10 +1747,15 @@ const CampaignManagementPage: React.FC = () => {
                               variant="outline"
                               onClick={async () => {
                                 try {
+                                  console.log('🔄 Generate Queue clicked for campaign:', campaign.id);
                                   const generated = await generateCampaignQueue(campaign.id);
+                                  console.log('✅ Generation successful, count:', generated);
                                   alert(`Generated ${generated} queue entries for ${campaign.displayName}`);
                                 } catch (error) {
-                                  alert(`Failed to generate queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                  console.error('❌ Generate Queue failed:', error);
+                                  const errorMessage = error instanceof Error ? error.message : String(error);
+                                  console.error('Error details:', errorMessage);
+                                  alert(`Failed to generate queue: ${errorMessage}`);
                                 }
                               }}
                               className="h-7 px-1 text-xs"
