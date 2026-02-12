@@ -307,12 +307,41 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
                     : 'No eligible contacts found. Check your contact statuses and attempt limits.'}
                 </p>
                 {contacts.length > 0 && (
-                  <button
-                    onClick={loadQueueData}
-                    className="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Refresh Queue
-                  </button>
+                  <div className="mt-4 space-x-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          console.log('🔄 Manually generating queue...');
+                          const generateResponse = await fetch(`/api/admin/campaign-management/campaigns/${campaign.id}/generate-queue`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ maxRecords: 100 })
+                          });
+                          
+                          if (generateResponse.ok) {
+                            const result = await generateResponse.json();
+                            console.log('✅ Queue generation result:', result);
+                            await loadQueueData(); // Reload queue data
+                          } else {
+                            console.error('Queue generation failed');
+                            alert('Failed to generate queue. Check console for details.');
+                          }
+                        } catch (error) {
+                          console.error('Error generating queue:', error);
+                          alert('Error generating queue. Check console for details.');
+                        }
+                      }}
+                      className="inline-flex items-center px-4 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                    >
+                      Generate Queue
+                    </button>
+                    <button
+                      onClick={loadQueueData}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Refresh Queue
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (

@@ -54,7 +54,8 @@ import {
   UserMinus,
   Power,
   Clock,
-  Zap
+  Zap,
+  RefreshCcw
 } from 'lucide-react';
 
 interface CampaignTemplate {
@@ -235,6 +236,33 @@ const CampaignManagementPage: React.FC = () => {
       console.error('Error fetching campaign queue:', error);
       setQueueEntries([]);
       setQueueStats({});
+    }
+  };
+
+  const generateCampaignQueue = async (campaignId: string) => {
+    try {
+      console.log(`🔄 Generating queue for campaign ${campaignId}...`);
+      
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/generate-queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maxRecords: 100 }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Generated ${data.data.generated} queue entries`);
+        // Refresh queue data to show the new entries
+        await fetchCampaignQueue(campaignId);
+        return data.data.generated;
+      } else {
+        console.error('Failed to generate queue:', data.error);
+        throw new Error(data.error?.message || 'Queue generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating campaign queue:', error);
+      throw error;
     }
   };
 
@@ -1698,6 +1726,22 @@ const CampaignManagementPage: React.FC = () => {
                             >
                               <Target className="w-3 h-3 mr-1" />
                               Queue
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const generated = await generateCampaignQueue(campaign.id);
+                                  alert(`Generated ${generated} queue entries for ${campaign.displayName}`);
+                                } catch (error) {
+                                  alert(`Failed to generate queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                }
+                              }}
+                              className="h-7 px-1 text-xs"
+                              title="Generate Queue"
+                            >
+                              <RefreshCcw className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>

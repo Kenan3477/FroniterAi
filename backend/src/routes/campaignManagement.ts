@@ -1738,7 +1738,7 @@ router.post('/campaigns/:id/generate-queue', async (req: Request, res: Response)
     // Get active data lists for this campaign
     const dataLists = await prisma.dataList.findMany({
       where: {
-        campaignId: campaign.campaignId,
+        campaignId: id, // Use the campaign's database ID, not the campaignId field
         active: true
       }
     });

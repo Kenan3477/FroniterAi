@@ -448,27 +448,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     console.log('🔧 Force updating contact counts...');
     
     try {
-      // Direct backend call to trigger contact count recalculation
-      const response = await fetch('https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'recalculate_counts'
-        })
-      });
-      
-      if (response.ok) {
-        console.log('🔧 Contact count recalculation triggered');
-        setTimeout(() => fetchDataLists(), 1000);
-      }
+      // Simply refresh the data lists which will trigger count recalculation
+      setLoading(true);
+      await fetchDataLists();
+      console.log('🔧 Contact counts refreshed successfully');
     } catch (error) {
       console.error('🔧 Force update failed:', error);
-      
-      // Fallback: Just refresh the data lists
-      setTimeout(() => fetchDataLists(), 500);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1884,39 +1871,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
                 >
                   🔄 Refresh
-                </button>
-                
-                <button
-                  onClick={async () => {
-                    console.log('🔍 Direct backend check triggered');
-                    try {
-                      const response = await fetch('https://froniterai-production.up.railway.app/api/admin/campaign-management/data-lists', {
-                        headers: {
-                          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0]}`,
-                          'Content-Type': 'application/json'
-                        }
-                      });
-                      
-                      if (response.ok) {
-                        const result = await response.json();
-                        console.log('🔍 DIRECT BACKEND RESULT:', result);
-                        alert(`Backend check: Found ${result.data?.dataLists?.length || 0} lists. Check console for details.`);
-                      }
-                    } catch (error) {
-                      console.error('🔍 Direct backend check failed:', error);
-                      alert('Backend check failed - see console');
-                    }
-                  }}
-                  className="px-3 py-1 text-xs font-medium text-purple-600 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100"
-                >
-                  🔍 Backend Check
-                </button>
-                
-                <button
-                  onClick={() => forceUpdateContactCounts()}
-                  className="px-3 py-1 text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100"
-                >
-                  🔧 Fix Counts
                 </button>
                 
                 <button className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors flex items-center">
