@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
 import { RestApiDialer } from '@/components/dialer/RestApiDialer';
+import { PreviewContactCard, PreviewContact } from '@/components/work/PreviewContactCard';
 import { RootState } from '@/store';
 import { updateCallDuration, updateCustomerInfo } from '@/store/slices/activeCallSlice';
 import { 
@@ -34,6 +35,13 @@ export default function WorkPage() {
     counts: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
   });
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
+
+  // Preview Dialing State
+  const [agentAvailable, setAgentAvailable] = useState(false);
+  const [currentCampaign, setCurrentCampaign] = useState<any>(null);
+  const [previewContact, setPreviewContact] = useState<PreviewContact | null>(null);
+  const [isLoadingContact, setIsLoadingContact] = useState(false);
+  const [showPreviewCard, setShowPreviewCard] = useState(false);
 
   // Get active call from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
@@ -75,6 +83,164 @@ export default function WorkPage() {
   useEffect(() => {
     loadInteractionData();
   }, [selectedView, agentId]);
+
+  // Preview Dialing Functions - define before useEffect that uses it
+  const fetchNextPreviewContact = useCallback(async () => {
+    if (!currentCampaign) {
+      console.log('❌ No current campaign available for Preview Dialing');
+      return;
+    }
+    
+    console.log('🔍 Fetching next preview contact for campaign:', currentCampaign);
+    setIsLoadingContact(true);
+    
+    try {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${currentCampaign.id}/queue`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
+
+      console.log('📡 Queue fetch response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Queue data received:', data);
+        
+        if (data.success && data.queue?.length > 0) {
+          // Get next contact from queue
+          const nextContact = data.queue[0];
+          console.log('🎯 Next contact from queue:', nextContact);
+          
+          setPreviewContact({
+            id: nextContact.id,
+            contactId: nextContact.contactId,
+            queueId: nextContact.queueId,
+            firstName: nextContact.firstName || '',
+            lastName: nextContact.lastName || '',
+            fullName: nextContact.fullName,
+            phone: nextContact.phone,
+            mobile: nextContact.mobile,
+            workPhone: nextContact.workPhone,
+            homePhone: nextContact.homePhone,
+            email: nextContact.email,
+            company: nextContact.company,
+            jobTitle: nextContact.jobTitle,
+            department: nextContact.department,
+            industry: nextContact.industry,
+            address: nextContact.address,
+            address2: nextContact.address2,
+            city: nextContact.city,
+            state: nextContact.state,
+            zipCode: nextContact.zipCode,
+            country: nextContact.country,
+            website: nextContact.website,
+            linkedIn: nextContact.linkedIn,
+            notes: nextContact.notes,
+            tags: nextContact.tags,
+            leadSource: nextContact.leadSource,
+            leadScore: nextContact.leadScore,
+            deliveryDate: nextContact.deliveryDate,
+            ageRange: nextContact.ageRange,
+            residentialStatus: nextContact.residentialStatus,
+            custom1: nextContact.custom1,
+            custom2: nextContact.custom2,
+            custom3: nextContact.custom3,
+            custom4: nextContact.custom4,
+            custom5: nextContact.custom5,
+            attemptCount: nextContact.attemptCount || 0,
+            maxAttempts: nextContact.maxAttempts || 3,
+            lastAttempt: nextContact.lastAttempt,
+            nextAttempt: nextContact.nextAttempt,
+            lastOutcome: nextContact.lastOutcome,
+            priority: nextContact.priority || 3,
+            status: nextContact.status || 'pending',
+            campaignId: nextContact.campaignId,
+            listId: nextContact.listId
+          });
+          setShowPreviewCard(true);
+          console.log('✅ Preview contact card will be shown');
+        } else {
+          console.log('📭 No contacts available in queue:', data);
+          setAgentAvailable(false); // Auto-disable availability if no contacts
+        }
+      } else {
+        const errorData = await response.text();
+        console.error('❌ Failed to fetch next contact:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching next contact:', error);
+    } finally {
+      setIsLoadingContact(false);
+    }
+  }, [currentCampaign]);
+
+  // Handle agent availability for Preview Dialing
+  useEffect(() => {
+    console.log('🎯 Preview Dialing useEffect triggered:', {
+      agentAvailable,
+      currentCampaign: currentCampaign?.name,
+      dialStrategy: currentCampaign?.dialStrategy,
+      showPreviewCard
+    });
+    
+    if (agentAvailable && currentCampaign?.dialStrategy === 'Preview' && !showPreviewCard) {
+      console.log('🚀 Triggering fetchNextPreviewContact...');
+      fetchNextPreviewContact();
+    }
+  }, [agentAvailable, currentCampaign?.dialStrategy, showPreviewCard, fetchNextPreviewContact]);
+
+  // Get actual campaign data from the user's assigned campaigns  
+  useEffect(() => {
+    const fetchUserCampaign = async () => {
+      try {
+        const response = await fetch('/api/auth/user-campaigns', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data?.length > 0) {
+            // Find a campaign with Preview dial strategy
+            const previewCampaign = result.data.find((campaign: any) => 
+              campaign.dialMethod === 'MANUAL_PREVIEW'
+            );
+            
+            if (previewCampaign) {
+              console.log('🎯 Found Preview campaign:', previewCampaign);
+              setCurrentCampaign({
+                id: previewCampaign.campaignId,
+                name: previewCampaign.name,
+                dialStrategy: 'Preview'
+              });
+            } else {
+              // Fallback to first campaign and check if it's Preview mode
+              const firstCampaign = result.data[0];
+              console.log('🔍 Using first available campaign:', firstCampaign);
+              setCurrentCampaign({
+                id: firstCampaign.campaignId,
+                name: firstCampaign.name,
+                dialStrategy: firstCampaign.dialMethod === 'MANUAL_PREVIEW' ? 'Preview' : 'Manual'
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user campaigns:', error);
+        // Fallback to hardcoded campaign for demo
+        console.log('🎯 Using fallback campaign for demo');
+        setCurrentCampaign({
+          id: 'cmjlwtm260006a49neir3ui93', // DAC campaign ID from console
+          name: 'DAC',
+          dialStrategy: 'Preview'
+        });
+      }
+    };
+    
+    fetchUserCampaign();
+  }, []);
 
   // Load real interaction data from backend
   const loadInteractionData = async () => {
@@ -141,6 +307,65 @@ export default function WorkPage() {
     }
   };
 
+  const handleCallNow = async (contact: PreviewContact, notes?: string) => {
+    try {
+      console.log('🎯 Initiating call to:', contact.phone, 'with notes:', notes);
+      
+      // Update contact notes if provided
+      if (notes && notes.trim()) {
+        // TODO: API call to update contact notes
+      }
+      
+      // Hide preview card
+      setShowPreviewCard(false);
+      
+      // Initiate call via RestApiDialer
+      // The dialer will handle the actual call initiation
+      // For now, simulate the call
+      
+      // TODO: Integrate with actual dialing system
+      alert(`Calling ${contact.firstName} ${contact.lastName} at ${contact.phone}`);
+      
+      // Clear current contact and fetch next one if agent still available
+      setPreviewContact(null);
+      if (agentAvailable) {
+        setTimeout(() => fetchNextPreviewContact(), 1000);
+      }
+      
+    } catch (error) {
+      console.error('Error initiating call:', error);
+    }
+  };
+
+  const handleSkip = async (contact: PreviewContact, skipReason?: string) => {
+    try {
+      console.log('⏭️ Skipping contact:', contact.contactId, 'reason:', skipReason);
+      
+      // TODO: API call to record skip reason and update contact status
+      
+      // Hide preview card
+      setShowPreviewCard(false);
+      
+      // Clear current contact and fetch next one if agent still available
+      setPreviewContact(null);
+      if (agentAvailable) {
+        setTimeout(() => fetchNextPreviewContact(), 500);
+      }
+      
+    } catch (error) {
+      console.error('Error skipping contact:', error);
+    }
+  };
+
+  const handleAgentAvailabilityChange = (available: boolean) => {
+    setAgentAvailable(available);
+    if (!available) {
+      // Agent went unavailable - hide any preview cards
+      setShowPreviewCard(false);
+      setPreviewContact(null);
+    }
+  };
+
   const getCurrentData = () => {
     switch (selectedView) {
       case 'My Interactions':
@@ -174,6 +399,9 @@ export default function WorkPage() {
           queuedInteractionsCount={categorizedInteractions.counts.queued}
           unallocatedInteractionsCount={categorizedInteractions.counts.unallocated}
           tasksCount={0} // Tasks will be implemented with real task management system
+          agentAvailable={agentAvailable}
+          onAgentAvailabilityChange={handleAgentAvailabilityChange}
+          currentCampaign={currentCampaign}
         />
 
         {/* Main Content */}
@@ -189,6 +417,30 @@ export default function WorkPage() {
                     console.log('REST API call result:', result);
                   }}
                 />
+
+                {/* Debug Section for Preview Dialing */}
+                {currentCampaign && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 className="text-sm font-semibold text-blue-800 mb-2">Preview Dialing Debug</h3>
+                    <div className="text-xs text-blue-600 space-y-1">
+                      <p><strong>Campaign:</strong> {currentCampaign.name}</p>
+                      <p><strong>Dial Strategy:</strong> {currentCampaign.dialStrategy}</p>
+                      <p><strong>Agent Available:</strong> {agentAvailable ? 'Yes' : 'No'}</p>
+                      <p><strong>Preview Card Showing:</strong> {showPreviewCard ? 'Yes' : 'No'}</p>
+                      <p><strong>Loading Contact:</strong> {isLoadingContact ? 'Yes' : 'No'}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        console.log('🎯 Manual trigger fetchNextPreviewContact');
+                        fetchNextPreviewContact();
+                      }}
+                      disabled={isLoadingContact}
+                      className="mt-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isLoadingContact ? 'Loading...' : 'Test Fetch Contact'}
+                    </button>
+                  </div>
+                )}
 
                 {/* Show dialing interface only when no active call */}
                 {!activeCall.isActive && (
@@ -371,6 +623,20 @@ export default function WorkPage() {
           )}
         </div>
       </div>
+
+      {/* Preview Contact Card - Overlay */}
+      <PreviewContactCard
+        contact={previewContact}
+        isVisible={showPreviewCard}
+        onCallNow={handleCallNow}
+        onSkip={handleSkip}
+        onClose={() => {
+          setShowPreviewCard(false);
+          setPreviewContact(null);
+        }}
+        campaignName={currentCampaign?.name}
+        isLoading={isLoadingContact}
+      />
     </MainLayout>
   );
 }
