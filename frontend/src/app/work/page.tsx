@@ -89,10 +89,24 @@ export default function WorkPage() {
     };
   }, [activeCall.isActive, activeCall.callStatus, activeCall.callStartTime, dispatch]);
 
+  // Load real interaction data from backend
+  const loadInteractionData = useCallback(async () => {
+    setIsLoadingInteractions(true);
+    try {
+      const categorized = await getCategorizedInteractions(agentId);
+      setCategorizedInteractions(categorized);
+      console.log('🔄 Loaded categorized interactions:', categorized);
+    } catch (error) {
+      console.error('Failed to load interaction data:', error);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  }, [agentId]);
+
   // Load interaction data when view changes or component mounts
   useEffect(() => {
     loadInteractionData();
-  }, [selectedView, agentId]);
+  }, [selectedView, loadInteractionData]);
 
   // Preview Dialing Functions - define before useEffect that uses it
   const fetchNextPreviewContact = useCallback(async () => {
@@ -215,22 +229,8 @@ export default function WorkPage() {
       console.log('🚀 Triggering fetchNextPreviewContact...');
       fetchNextPreviewContact();
     }
-  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard, fetchNextPreviewContact]);
+  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard]);
 
-  // Load real interaction data from backend
-  const loadInteractionData = async () => {
-    setIsLoadingInteractions(true);
-    try {
-      const categorized = await getCategorizedInteractions(agentId);
-      setCategorizedInteractions(categorized);
-      console.log('🔄 Loaded categorized interactions:', categorized);
-    } catch (error) {
-      console.error('Failed to load interaction data:', error);
-    } finally {
-      setIsLoadingInteractions(false);
-    }
-  };
-  
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
     // Update Redux store with new customer information
