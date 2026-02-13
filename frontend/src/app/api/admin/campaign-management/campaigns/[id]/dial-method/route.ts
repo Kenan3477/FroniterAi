@@ -59,12 +59,15 @@ export async function PATCH(
     
     const data = await response.json();
     
+    console.log(`📊 Final response status: ${response.status}, success: ${response.ok}`);
+    console.log(`📊 Final response data:`, JSON.stringify(data, null, 2));
+    
     if (!response.ok) {
       console.error(`❌ Backend dial method update failed: ${response.status}`, data);
       return NextResponse.json(data, { status: response.status });
     }
     
-    console.log(`✅ Campaign dial method updated successfully`);
+    console.log(`✅ Campaign dial method updated successfully to ${body.dialMethod}`);
     return NextResponse.json(data);
   } catch (error) {
     console.error('❌ Error proxying dial method update:', error);
