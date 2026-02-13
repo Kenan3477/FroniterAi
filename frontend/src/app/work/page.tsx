@@ -242,10 +242,14 @@ export default function WorkPage() {
     console.log('🔍 Preview Card State Debug:', {
       hasContact: !!previewContact,
       contactId: previewContact?.id,
+      contactFirstName: previewContact?.firstName,
+      contactPhone: previewContact?.phone,
       showCard: showPreviewCard,
-      shouldRender: previewContact && previewContact.id && previewContact.id !== 'unknown'
+      shouldRender: previewContact && previewContact.id && previewContact.id !== 'unknown',
+      agentAvailable,
+      currentCampaign: currentCampaign?.name
     });
-  }, [previewContact, showPreviewCard]);
+  }, [previewContact, showPreviewCard, agentAvailable, currentCampaign]);
 
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
@@ -383,8 +387,9 @@ export default function WorkPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="flex h-full">
+    <>
+      <MainLayout>
+        <div className="flex h-full">
         {/* Work Sidebar */}
         <WorkSidebar
           selectedView={selectedView}
@@ -633,6 +638,23 @@ export default function WorkPage() {
           isLoading={isLoadingContact}
         />
       )}
-    </MainLayout>
+      </MainLayout>
+
+      {/* Preview Contact Card - Portal Render Outside Main Layout */}
+      {previewContact && previewContact.id && previewContact.id !== 'unknown' && (
+        <PreviewContactCard
+          contact={previewContact}
+          isVisible={showPreviewCard}
+          onCallNow={handleCallNow}
+          onSkip={handleSkip}
+          onClose={() => {
+            setShowPreviewCard(false);
+            setPreviewContact(null);
+          }}
+          campaignName={currentCampaign?.name}
+          isLoading={isLoadingContact}
+        />
+      )}
+    </>
   );
 }
