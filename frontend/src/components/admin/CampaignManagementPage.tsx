@@ -1453,8 +1453,8 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">Pending Calls</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {queueStats?.statusBreakdown?.queued || 0}
+                    <div className="text-2xl font-bold text-blue-600">
+                      {queueStats?.totalQueued || queueEntries?.filter(e => e.status === 'queued')?.length || 0}
                     </div>
                     <div className="text-xs text-gray-500">awaiting dial</div>
                   </CardContent>
@@ -1465,7 +1465,7 @@ const CampaignManagementPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">
-                      {queueStats?.statusBreakdown?.dialing || 0}
+                      {queueStats?.totalDialing || queueEntries?.filter(e => e.status === 'dialing')?.length || 0}
                     </div>
                     <div className="text-xs text-gray-500">in progress</div>
                   </CardContent>
@@ -1475,8 +1475,8 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">Completed Today</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {queueStats?.statusBreakdown?.completed || 0}
+                    <div className="text-2xl font-bold text-gray-600">
+                      {queueStats?.totalCompleted || queueEntries?.filter(e => e.status === 'completed' || e.status === 'disposed')?.length || 0}
                     </div>
                     <div className="text-xs text-gray-500">finished calls</div>
                   </CardContent>
@@ -1486,83 +1486,132 @@ const CampaignManagementPage: React.FC = () => {
                     <CardTitle className="text-sm">CLI Number</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm font-mono">{selectedCampaign.outboundNumber || '+442046343130'}</div>
+                    <div className="text-sm font-mono text-blue-600">{selectedCampaign.outboundNumber || '+442046343130'}</div>
                     <div className="text-xs text-gray-500">outbound number</div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Queue Table */}
-              <div className="border rounded-lg">
-                <div className="p-4 border-b bg-gray-50">
-                  <h3 className="font-medium">Queue Items</h3>
+              <div className="border rounded-lg bg-white">
+                <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-lg text-gray-800">Queue Items</h3>
+                    <div className="text-sm text-gray-600">
+                      {queueEntries?.length || 0} contacts in queue
+                    </div>
+                  </div>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Attempts</TableHead>
-                        <TableHead>Next Attempt</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-semibold">Contact</TableHead>
+                        <TableHead className="font-semibold">Phone Number</TableHead>
+                        <TableHead className="font-semibold">Priority</TableHead>
+                        <TableHead className="font-semibold">Attempts</TableHead>
+                        <TableHead className="font-semibold">Next Attempt</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {queueEntries && queueEntries.length > 0 ? (
-                        queueEntries.map((entry) => (
-                          <TableRow key={entry.id}>
-                            <TableCell>
-                              {entry.contact.fullName || `${entry.contact.firstName} ${entry.contact.lastName}`}
+                        queueEntries.map((entry, index) => (
+                          <TableRow key={entry.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                            <TableCell className="py-3">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <span className="text-xs font-medium text-blue-600">
+                                    {((entry.contact.firstName || entry.contact.fullName || 'U')[0] + 
+                                      (entry.contact.lastName || entry.contact.fullName?.split(' ')[1] || 'N')[0]).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {entry.contact.fullName || `${entry.contact.firstName || ''} ${entry.contact.lastName || ''}`.trim()}
+                                  </div>
+                                  {entry.contact.company && (
+                                    <div className="text-sm text-gray-500">{entry.contact.company}</div>
+                                  )}
+                                </div>
+                              </div>
                             </TableCell>
-                            <TableCell>{entry.contact.phone}</TableCell>
-                            <TableCell>
-                              <Badge variant={entry.priority > 200 ? "default" : entry.priority > 100 ? "secondary" : "outline"}>
-                                {entry.priority > 200 ? "High" : entry.priority > 100 ? "Medium" : "Low"}
+                            <TableCell className="py-3">
+                              <div className="font-mono text-sm font-medium text-gray-900">
+                                {entry.contact.phone}
+                              </div>
+                              {entry.contact.mobile && entry.contact.mobile !== entry.contact.phone && (
+                                <div className="text-xs text-gray-500">Mobile: {entry.contact.mobile}</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <Badge 
+                                variant={entry.priority === 1 ? "default" : entry.priority === 2 ? "secondary" : "outline"}
+                                className={
+                                  entry.priority === 1 ? "bg-red-100 text-red-800" : 
+                                  entry.priority === 2 ? "bg-yellow-100 text-yellow-800" : 
+                                  "bg-green-100 text-green-800"
+                                }
+                              >
+                                {entry.priority === 1 ? "High" : entry.priority === 2 ? "Medium" : "Low"}
                               </Badge>
                             </TableCell>
-                            <TableCell>
-                              {entry.contact.attemptCount}/{entry.contact.maxAttempts}
+                            <TableCell className="py-3">
+                              <div className="text-sm">
+                                <span className="font-medium">{entry.contact.attemptCount || 0}</span>
+                                <span className="text-gray-500">/{entry.contact.maxAttempts || 3}</span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {entry.contact.attemptCount === 0 ? 'First attempt' : `${entry.contact.attemptCount} previous`}
+                              </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-3">
                               <div className="text-sm">
                                 {entry.contact.nextAttempt ? (
                                   <>
-                                    <div>{new Date(entry.contact.nextAttempt).toLocaleDateString()}</div>
+                                    <div className="font-medium">{new Date(entry.contact.nextAttempt).toLocaleDateString()}</div>
                                     <div className="text-gray-500 text-xs">
                                       {new Date(entry.contact.nextAttempt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </div>
                                   </>
                                 ) : (
-                                  <div className="text-gray-500">Not scheduled</div>
+                                  <div className="text-green-600 font-medium">Ready now</div>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant={
-                                entry.status === 'queued' ? "secondary" :
-                                entry.status === 'dialing' ? "default" :
-                                entry.status === 'completed' ? "outline" : "destructive"
-                              }>
-                                {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                            <TableCell className="py-3">
+                              <Badge 
+                                variant={
+                                  entry.status === 'queued' ? "secondary" :
+                                  entry.status === 'dialing' ? "default" :
+                                  entry.status === 'completed' ? "outline" : "destructive"
+                                }
+                                className={
+                                  entry.status === 'queued' ? "bg-blue-100 text-blue-800" :
+                                  entry.status === 'dialing' ? "bg-green-100 text-green-800" :
+                                  entry.status === 'completed' ? "bg-gray-100 text-gray-800" : "bg-red-100 text-red-800"
+                                }
+                              >
+                                {entry.status === 'queued' ? 'Pending' : 
+                                 entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
                               </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-3">
                               {entry.status === 'queued' && (
                                 <Button 
                                   size="sm" 
                                   variant="outline"
                                   onClick={() => handleCallNow(selectedCampaign?.id || '', entry.queueId, entry.id)}
                                   disabled={!selectedCampaign}
+                                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                 >
                                   <Phone className="w-3 h-3 mr-1" />
                                   Call Now
                                 </Button>
                               )}
                               {entry.status === 'completed' && entry.outcome && (
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
                                   {entry.outcome}
                                 </div>
                               )}
@@ -1571,17 +1620,36 @@ const CampaignManagementPage: React.FC = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell className="text-center text-gray-500 py-8">
+                          <TableCell className="text-center text-gray-500 py-12">
+                            <div className="col-span-7">
                             {selectedCampaign ? (
-                              <>
-                                <div className="mb-2">No queue entries found for this campaign</div>
+                              <div className="space-y-2">
+                                <div className="text-lg font-medium">No queue entries found</div>
                                 <div className="text-sm">
                                   Queue entries are created when data lists are assigned to campaigns
                                 </div>
-                              </>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      const generated = await generateCampaignQueue(selectedCampaign.id);
+                                      alert(`Generated ${generated} queue entries for ${selectedCampaign.displayName}`);
+                                    } catch (error) {
+                                      const errorMessage = error instanceof Error ? error.message : String(error);
+                                      alert(`Failed to generate queue: ${errorMessage}`);
+                                    }
+                                  }}
+                                  className="mt-2"
+                                >
+                                  <RefreshCcw className="w-4 h-4 mr-2" />
+                                  Generate Queue
+                                </Button>
+                              </div>
                             ) : (
                               'No campaign selected'
                             )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       )}
