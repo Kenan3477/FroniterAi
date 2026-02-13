@@ -9,16 +9,46 @@ export async function PATCH(
   try {
     const body = await request.json();
     
-    console.log(`📞 Frontend: Proxying dial method update for campaign ${params.id} to backend`);
+    console.log(`📞 Frontend: Attempting dial method update for campaign ${params.id} to ${body.dialMethod}`);
     
-    // Proxy to backend
-    const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/dial-method`, {
+    // Try to proxy to backend with the provided ID first
+    let response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/dial-method`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
+    
+    // If the first attempt fails with 404 (wrong ID format), try to get the correct campaignId
+    if (response.status === 404 && (params.id.includes('-') || params.id.startsWith('cm'))) {
+      console.log('🔍 UUID failed, trying to get campaignId from campaign data...');
+      
+      try {
+        // Fetch the campaign to get its campaignId field
+        const campaignResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}`);
+        
+        if (campaignResponse.ok) {
+          const campaignData = await campaignResponse.json();
+          
+          if (campaignData.success && campaignData.data?.campaignId) {
+            const campaignId = campaignData.data.campaignId;
+            console.log(`✅ Found campaignId: ${campaignId}, retrying dial method update...`);
+            
+            // Retry with the correct campaignId
+            response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(body),
+            });
+          }
+        }
+      } catch (retryError) {
+        console.log('⚠️ Retry attempt failed, using original response');
+      }
+    }
     
     const data = await response.json();
     
@@ -27,7 +57,7 @@ export async function PATCH(
       return NextResponse.json(data, { status: response.status });
     }
     
-    console.log(`✅ Campaign ${params.id} dial method updated successfully via backend`);
+    console.log(`✅ Campaign dial method updated successfully`);
     return NextResponse.json(data);
   } catch (error) {
     console.error('❌ Error proxying dial method update:', error);
