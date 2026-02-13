@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: campaign.name,
                 displayName: campaign.name,
                 type: 'OUTBOUND',
-                dialMethod: 'MANUAL_DIAL', // Default for now
+                dialMethod: campaign.dialMethod || 'MANUAL_DIAL', // Use actual dialMethod from campaign data
                 status: campaign.status
               }));
           }

@@ -430,9 +430,6 @@ export default function WorkPage() {
           queuedInteractionsCount={categorizedInteractions.counts.queued}
           unallocatedInteractionsCount={categorizedInteractions.counts.unallocated}
           tasksCount={0} // Tasks will be implemented with real task management system
-          agentAvailable={agentAvailable}
-          onAgentAvailabilityChange={handleAgentAvailabilityChange}
-          currentCampaign={currentCampaign}
         />
 
         {/* Main Content */}

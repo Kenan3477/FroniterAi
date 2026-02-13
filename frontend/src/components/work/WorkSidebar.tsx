@@ -13,10 +13,6 @@ interface WorkSidebarProps {
   queuedInteractionsCount?: number;
   unallocatedInteractionsCount?: number;
   tasksCount?: number;
-  // New props for agent availability
-  agentAvailable?: boolean;
-  onAgentAvailabilityChange?: (available: boolean) => void;
-  currentCampaign?: string;
 }
 
 export default function WorkSidebar({ 
@@ -29,9 +25,6 @@ export default function WorkSidebar({
   queuedInteractionsCount = 0,
   unallocatedInteractionsCount = 0,
   tasksCount = 0,
-  agentAvailable = false,
-  onAgentAvailabilityChange,
-  currentCampaign
 }: WorkSidebarProps) {
   const [showViewDropdown, setShowViewDropdown] = useState(false);
 
@@ -164,39 +157,21 @@ export default function WorkSidebar({
             </div>
           </div>
 
-          {/* Agent Availability Section */}
-          <div className="border-t border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Agent Status</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Available for calls</span>
-                <button
-                  onClick={() => onAgentAvailabilityChange?.(!agentAvailable)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    agentAvailable ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      agentAvailable ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="text-xs text-gray-500">
+          {/* Collapse Toggle */}
+          <div className="border-t border-gray-200 p-3">
+            <button
+              onClick={onToggle}
+              className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-150"
+            >
+              {collapsed ? (
+                <ChevronRightIcon className="h-5 w-5" />
+              ) : (
                 <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${agentAvailable ? 'bg-green-400' : 'bg-gray-400'}`} />
-                  <span>
-                    {agentAvailable ? 'Ready for preview dialing' : 'Unavailable'}
-                  </span>
+                  <ChevronLeftIcon className="h-5 w-5" />
+                  <span className="text-sm">Collapse</span>
                 </div>
-                {currentCampaign && (
-                  <div className="mt-1 text-xs">
-                    Campaign: <span className="font-medium">{currentCampaign}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+              )}
+            </button>
           </div>
         </>
       )}
