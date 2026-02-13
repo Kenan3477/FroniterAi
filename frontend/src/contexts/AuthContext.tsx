@@ -51,9 +51,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [agentStatus, setAgentStatus] = useState<string>('Away');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false); // Add client-side hydration flag
   const router = useRouter();
 
   const isAuthenticated = !!user;
+
+  // Handle client-side hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const refreshCampaigns = useCallback(async () => {
     try {
@@ -78,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(apiUrl, {
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
         }
       });
 
@@ -174,10 +180,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, user?.role]); // Remove currentCampaign to prevent infinite loop
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   // Load campaign data when user changes
   useEffect(() => {
     if (user) {
@@ -188,7 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, user?.role]); // Use specific user properties instead of refreshCampaigns
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
+    if (!isClient) return; // Don't run auth check until client-side
+    
     try {
       const response = await fetch('/api/auth/profile', {
         credentials: 'include',
@@ -199,11 +203,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.success) {
           setUser(data.user);
           
-          // Restore agent status from localStorage
-          const savedStatus = localStorage.getItem('omnivox-agent-status');
-          if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
-            setAgentStatus(savedStatus);
-            console.log('🔄 Restored agent status from localStorage:', savedStatus);
+          // Restore agent status from localStorage only on client-side
+          if (isClient) {
+            const savedStatus = localStorage.getItem('omnivox-agent-status');
+            if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
+              setAgentStatus(savedStatus);
+              console.log('🔄 Restored agent status from localStorage:', savedStatus);
+            }
           }
         }
       }
@@ -212,7 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isClient]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const joinCampaignQueue = async (campaign: Campaign) => {
     try {
@@ -328,8 +338,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.success) {
         setAgentStatus(newStatus);
         
-        // Store in localStorage for cross-tab persistence
-        localStorage.setItem('omnivox-agent-status', newStatus);
+        // Store in localStorage for cross-tab persistence (only on client-side)
+        if (isClient) {
+          localStorage.setItem('omnivox-agent-status', newStatus);
+        }
         
         console.log(`✅ AuthContext: Agent status updated to: ${newStatus}`);
         return { success: true };
@@ -398,9 +410,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       console.log('🧹 Clearing user session data...');
       
-      // Clear all client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
+      // Clear all client-side storage (only on client-side)
+      if (isClient) {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
       
       // Clear AuthContext state
       setUser(null);
