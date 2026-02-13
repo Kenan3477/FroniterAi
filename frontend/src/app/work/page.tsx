@@ -194,7 +194,8 @@ export default function WorkPage() {
   useEffect(() => {
     const fetchUserCampaign = async () => {
       try {
-        const response = await fetch('/api/auth/user-campaigns', {
+        console.log('🔍 Fetching user campaigns from API...');
+        const response = await fetch('/api/campaigns/user-campaigns', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`
           }
@@ -202,8 +203,31 @@ export default function WorkPage() {
         
         if (response.ok) {
           const result = await response.json();
+          console.log('📊 User campaigns API response:', result);
+          
           if (result.success && result.data?.length > 0) {
-            // Find a campaign with Preview dial strategy
+            console.log('📋 Available campaigns:', result.data.map((c: any) => ({ 
+              name: c.name, 
+              dialMethod: c.dialMethod,
+              campaignId: c.campaignId 
+            })));
+            
+            // Look specifically for DAC campaign first
+            const dacCampaign = result.data.find((campaign: any) => 
+              campaign.name && campaign.name.toLowerCase().includes('dac')
+            );
+            
+            if (dacCampaign) {
+              console.log('🎯 Found DAC campaign:', dacCampaign);
+              setCurrentCampaign({
+                id: dacCampaign.campaignId,
+                name: dacCampaign.name,
+                dialStrategy: dacCampaign.dialMethod === 'MANUAL_PREVIEW' ? 'Preview' : 'Manual'
+              });
+              return;
+            }
+            
+            // Find any campaign with Preview dial strategy
             const previewCampaign = result.data.find((campaign: any) => 
               campaign.dialMethod === 'MANUAL_PREVIEW'
             );
@@ -216,7 +240,7 @@ export default function WorkPage() {
                 dialStrategy: 'Preview'
               });
             } else {
-              // Fallback to first campaign and check if it's Preview mode
+              // Fallback to first campaign
               const firstCampaign = result.data[0];
               console.log('🔍 Using first available campaign:', firstCampaign);
               setCurrentCampaign({
@@ -225,10 +249,14 @@ export default function WorkPage() {
                 dialStrategy: firstCampaign.dialMethod === 'MANUAL_PREVIEW' ? 'Preview' : 'Manual'
               });
             }
+          } else {
+            console.log('❌ No campaigns found in response');
           }
+        } else {
+          console.error('❌ Failed to fetch user campaigns:', response.status);
         }
       } catch (error) {
-        console.error('Error fetching user campaigns:', error);
+        console.error('💥 Error fetching user campaigns:', error);
         // Fallback to hardcoded campaign for demo
         console.log('🎯 Using fallback campaign for demo');
         setCurrentCampaign({
@@ -239,8 +267,11 @@ export default function WorkPage() {
       }
     };
     
-    fetchUserCampaign();
-  }, []);
+    // Only fetch if agent is available (to reduce unnecessary calls)
+    if (agentAvailable) {
+      fetchUserCampaign();
+    }
+  }, [agentAvailable]);
 
   // Load real interaction data from backend
   const loadInteractionData = async () => {

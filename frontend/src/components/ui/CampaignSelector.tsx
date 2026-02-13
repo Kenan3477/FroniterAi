@@ -21,6 +21,27 @@ export default function CampaignSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
+  // Helper function to format dial method for display
+  const formatDialMethod = (dialMethod: string) => {
+    switch (dialMethod) {
+      case 'MANUAL_DIAL':
+        return 'Manual Dial';
+      case 'MANUAL_PREVIEW':
+        return 'Manual Preview';
+      case 'AUTODIAL':
+      case 'AUTO_DIAL':
+        return 'Auto Dial';
+      case 'PREDICTIVE_DIAL':
+        return 'Predictive Dial';
+      case 'PROGRESSIVE_DIAL':
+        return 'Progressive Dial';
+      case 'SKIP':
+        return 'Skip';
+      default:
+        return dialMethod?.replace(/_/g, ' ').toLowerCase() || 'Manual';
+    }
+  };
+
   const handleCampaignSelect = async (campaign: any) => {
     setIsJoining(true);
     setIsOpen(false);
@@ -99,7 +120,7 @@ export default function CampaignSelector() {
                     <div className="flex-1">
                       <div className="font-medium">{campaign.name}</div>
                       <div className="text-xs text-gray-500 capitalize">
-                        {campaign.dialMethod} • {campaign.status}
+                        {formatDialMethod(campaign.dialMethod)} • {campaign.status}
                       </div>
                     </div>
                     {currentCampaign?.campaignId === campaign.campaignId && isInQueue && (
