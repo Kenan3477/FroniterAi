@@ -156,23 +156,6 @@ export default function WorkSidebar({
               </div>
             </div>
           </div>
-
-          {/* Collapse Toggle */}
-          <div className="border-t border-gray-200 p-3">
-            <button
-              onClick={onToggle}
-              className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-150"
-            >
-              {collapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <ChevronLeftIcon className="h-5 w-5" />
-                  <span className="text-sm">Collapse</span>
-                </div>
-              )}
-            </button>
-          </div>
         </>
       )}
 

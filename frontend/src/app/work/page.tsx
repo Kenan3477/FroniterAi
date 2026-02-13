@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
@@ -26,6 +27,9 @@ export default function WorkPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [agentId, setAgentId] = useState('demo-agent');
   
+  // Get auth context data
+  const { currentCampaign, agentStatus, updateAgentStatus } = useAuth();
+  
   // Real interaction data state
   const [categorizedInteractions, setCategorizedInteractions] = useState<CategorizedInteractions>({
     queued: [],
@@ -36,9 +40,8 @@ export default function WorkPage() {
   });
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
 
-  // Preview Dialing State
-  const [agentAvailable, setAgentAvailable] = useState(false);
-  const [currentCampaign, setCurrentCampaign] = useState<any>(null);
+  // Preview Dialing State - use AuthContext agent status instead of local state
+  const agentAvailable = agentStatus === 'Available';
   const [previewContact, setPreviewContact] = useState<PreviewContact | null>(null);
   const [isLoadingContact, setIsLoadingContact] = useState(false);
   const [showPreviewCard, setShowPreviewCard] = useState(false);
@@ -91,11 +94,19 @@ export default function WorkPage() {
       return;
     }
     
+    // Check if current campaign is set to Preview mode
+    const isPreviewMode = currentCampaign.dialMethod === 'MANUAL_PREVIEW';
+    
+    if (!isPreviewMode) {
+      console.log(`❌ Campaign ${currentCampaign.name} is not in Preview mode (${currentCampaign.dialMethod})`);
+      return;
+    }
+    
     console.log('🔍 Fetching next preview contact for campaign:', currentCampaign);
     setIsLoadingContact(true);
     
     try {
-      const response = await fetch(`/api/admin/campaign-management/campaigns/${currentCampaign.id}/queue`, {
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${currentCampaign.campaignId}/queue`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
@@ -162,7 +173,7 @@ export default function WorkPage() {
           console.log('✅ Preview contact card will be shown');
         } else {
           console.log('📭 No contacts available in queue:', data);
-          setAgentAvailable(false); // Auto-disable availability if no contacts
+          // Agent availability is managed by AuthContext, not local state
         }
       } else {
         const errorData = await response.text();
@@ -180,98 +191,15 @@ export default function WorkPage() {
     console.log('🎯 Preview Dialing useEffect triggered:', {
       agentAvailable,
       currentCampaign: currentCampaign?.name,
-      dialStrategy: currentCampaign?.dialStrategy,
+      dialMethod: currentCampaign?.dialMethod,
       showPreviewCard
     });
     
-    if (agentAvailable && currentCampaign?.dialStrategy === 'Preview' && !showPreviewCard) {
+    if (agentAvailable && currentCampaign?.dialMethod === 'MANUAL_PREVIEW' && !showPreviewCard) {
       console.log('🚀 Triggering fetchNextPreviewContact...');
       fetchNextPreviewContact();
     }
-  }, [agentAvailable, currentCampaign?.dialStrategy, showPreviewCard, fetchNextPreviewContact]);
-
-  // Get actual campaign data from the user's assigned campaigns  
-  useEffect(() => {
-    const fetchUserCampaign = async () => {
-      try {
-        console.log('🔍 Fetching user campaigns from API...');
-        const response = await fetch('/api/campaigns/user-campaigns', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          console.log('📊 User campaigns API response:', result);
-          
-          if (result.success && result.data?.length > 0) {
-            console.log('📋 Available campaigns:', result.data.map((c: any) => ({ 
-              name: c.name, 
-              dialMethod: c.dialMethod,
-              campaignId: c.campaignId 
-            })));
-            
-            // Look specifically for DAC campaign first
-            const dacCampaign = result.data.find((campaign: any) => 
-              campaign.name && campaign.name.toLowerCase().includes('dac')
-            );
-            
-            if (dacCampaign) {
-              console.log('🎯 Found DAC campaign:', dacCampaign);
-              setCurrentCampaign({
-                id: dacCampaign.campaignId,
-                name: dacCampaign.name,
-                dialStrategy: dacCampaign.dialMethod === 'MANUAL_PREVIEW' ? 'Preview' : 'Manual'
-              });
-              return;
-            }
-            
-            // Find any campaign with Preview dial strategy
-            const previewCampaign = result.data.find((campaign: any) => 
-              campaign.dialMethod === 'MANUAL_PREVIEW'
-            );
-            
-            if (previewCampaign) {
-              console.log('🎯 Found Preview campaign:', previewCampaign);
-              setCurrentCampaign({
-                id: previewCampaign.campaignId,
-                name: previewCampaign.name,
-                dialStrategy: 'Preview'
-              });
-            } else {
-              // Fallback to first campaign
-              const firstCampaign = result.data[0];
-              console.log('🔍 Using first available campaign:', firstCampaign);
-              setCurrentCampaign({
-                id: firstCampaign.campaignId,
-                name: firstCampaign.name,
-                dialStrategy: firstCampaign.dialMethod === 'MANUAL_PREVIEW' ? 'Preview' : 'Manual'
-              });
-            }
-          } else {
-            console.log('❌ No campaigns found in response');
-          }
-        } else {
-          console.error('❌ Failed to fetch user campaigns:', response.status);
-        }
-      } catch (error) {
-        console.error('💥 Error fetching user campaigns:', error);
-        // Fallback to hardcoded campaign for demo
-        console.log('🎯 Using fallback campaign for demo');
-        setCurrentCampaign({
-          id: 'cmjlwtm260006a49neir3ui93', // DAC campaign ID from console
-          name: 'DAC',
-          dialStrategy: 'Preview'
-        });
-      }
-    };
-    
-    // Only fetch if agent is available (to reduce unnecessary calls)
-    if (agentAvailable) {
-      fetchUserCampaign();
-    }
-  }, [agentAvailable]);
+  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard, fetchNextPreviewContact]);
 
   // Load real interaction data from backend
   const loadInteractionData = async () => {
@@ -388,8 +316,14 @@ export default function WorkPage() {
     }
   };
 
-  const handleAgentAvailabilityChange = (available: boolean) => {
-    setAgentAvailable(available);
+  const handleAgentAvailabilityChange = async (available: boolean) => {
+    // Use AuthContext to update agent status instead of local state
+    try {
+      await updateAgentStatus(available ? 'Available' : 'Away');
+    } catch (error) {
+      console.error('Failed to update agent status:', error);
+    }
+    
     if (!available) {
       // Agent went unavailable - hide any preview cards
       setShowPreviewCard(false);
@@ -452,7 +386,7 @@ export default function WorkPage() {
                     <h3 className="text-sm font-semibold text-blue-800 mb-2">Preview Dialing Debug</h3>
                     <div className="text-xs text-blue-600 space-y-1">
                       <p><strong>Campaign:</strong> {currentCampaign.name}</p>
-                      <p><strong>Dial Strategy:</strong> {currentCampaign.dialStrategy}</p>
+                      <p><strong>Dial Method:</strong> {currentCampaign.dialMethod}</p>
                       <p><strong>Agent Available:</strong> {agentAvailable ? 'Yes' : 'No'}</p>
                       <p><strong>Preview Card Showing:</strong> {showPreviewCard ? 'Yes' : 'No'}</p>
                       <p><strong>Loading Contact:</strong> {isLoadingContact ? 'Yes' : 'No'}</p>
