@@ -160,7 +160,7 @@ router.post('/next', async (req: Request, res: Response) => {
       });
     }
 
-    // Find next queued entry using database service
+    // Find next queued entry using database service  
     const nextEntry = await queueService.getNextContactForAgent(agentId, campaignId);
 
     if (!nextEntry) {
@@ -174,8 +174,7 @@ router.post('/next', async (req: Request, res: Response) => {
       });
     }
 
-    // Update queue entry status to dialing
-    await queueService.updateQueueStatus(nextEntry.id, 'dialing', agentId);
+    // Note: getNextContactForAgent already updates status to 'dialing' and assigns agent
 
     res.json({
       success: true,
@@ -183,9 +182,44 @@ router.post('/next', async (req: Request, res: Response) => {
         queueEntry: nextEntry,
         contact: {
           contactId: nextEntry.contactId,
-          name: nextEntry.contact?.firstName + ' ' + nextEntry.contact?.lastName,
+          firstName: nextEntry.contact?.firstName,
+          lastName: nextEntry.contact?.lastName,
+          fullName: nextEntry.contact?.firstName + ' ' + nextEntry.contact?.lastName,
           phone: nextEntry.contact?.phone,
-          email: nextEntry.contact?.email
+          email: nextEntry.contact?.email,
+          company: nextEntry.contact?.company || '',
+          jobTitle: nextEntry.contact?.jobTitle || '',
+          department: nextEntry.contact?.department || '',
+          industry: nextEntry.contact?.industry || '',
+          address: nextEntry.contact?.address || '',
+          address2: nextEntry.contact?.address2 || '',
+          city: nextEntry.contact?.city || '',
+          state: nextEntry.contact?.state || '',
+          zipCode: nextEntry.contact?.zipCode || '',
+          country: nextEntry.contact?.country || '',
+          website: nextEntry.contact?.website || '',
+          linkedIn: nextEntry.contact?.linkedIn || '',
+          notes: nextEntry.contact?.notes || '',
+          tags: nextEntry.contact?.tags || [],
+          leadSource: nextEntry.contact?.leadSource || '',
+          leadScore: nextEntry.contact?.leadScore || 0,
+          deliveryDate: nextEntry.contact?.deliveryDate || '',
+          ageRange: nextEntry.contact?.ageRange || '',
+          residentialStatus: nextEntry.contact?.residentialStatus || '',
+          custom1: nextEntry.contact?.custom1 || '',
+          custom2: nextEntry.contact?.custom2 || '',
+          custom3: nextEntry.contact?.custom3 || '',
+          custom4: nextEntry.contact?.custom4 || '',
+          custom5: nextEntry.contact?.custom5 || '',
+          attemptCount: nextEntry.contact?.attemptCount || 0,
+          maxAttempts: nextEntry.contact?.maxAttempts || 3,
+          lastAttempt: nextEntry.contact?.lastAttempt || null,
+          nextAttempt: nextEntry.contact?.nextAttempt || null,
+          lastOutcome: nextEntry.contact?.lastOutcome || '',
+          priority: nextEntry.priority || 3,
+          status: nextEntry.contact?.status || 'pending',
+          campaignId: nextEntry.campaignId,
+          listId: nextEntry.listId
         },
         dialAction: 'initiate_call',
         campaignId,
