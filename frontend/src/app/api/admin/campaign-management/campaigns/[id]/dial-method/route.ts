@@ -20,33 +20,40 @@ export async function PATCH(
       body: JSON.stringify(body),
     });
     
-    // If the first attempt fails with 404 (wrong ID format), try to get the correct campaignId
-    if (response.status === 404 && (params.id.includes('-') || params.id.startsWith('cm'))) {
-      console.log('🔍 UUID failed, trying to get campaignId from campaign data...');
+    // If the first attempt fails with 500 or 404 (wrong ID format), try to get the correct campaignId
+    if ((response.status === 404 || response.status === 500) && (params.id.includes('-') || params.id.startsWith('cm'))) {
+      console.log('🔍 UUID failed, trying to get campaignId from campaigns list...');
       
       try {
-        // Fetch the campaign to get its campaignId field
-        const campaignResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}`);
+        // Fetch all campaigns to find the one with matching UUID
+        const campaignsResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`);
         
-        if (campaignResponse.ok) {
-          const campaignData = await campaignResponse.json();
+        if (campaignsResponse.ok) {
+          const campaignsData = await campaignsResponse.json();
           
-          if (campaignData.success && campaignData.data?.campaignId) {
-            const campaignId = campaignData.data.campaignId;
-            console.log(`✅ Found campaignId: ${campaignId}, retrying dial method update...`);
+          if (campaignsData.success && campaignsData.data) {
+            // Find campaign by UUID
+            const matchingCampaign = campaignsData.data.find((c: any) => c.id === params.id);
             
-            // Retry with the correct campaignId
-            response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(body),
-            });
+            if (matchingCampaign && matchingCampaign.campaignId) {
+              const campaignId = matchingCampaign.campaignId;
+              console.log(`✅ Found campaignId: ${campaignId}, retrying dial method update...`);
+              
+              // Retry with the correct campaignId
+              response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${campaignId}/dial-method`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+              });
+            } else {
+              console.log(`❌ Campaign with UUID ${params.id} not found in campaigns list`);
+            }
           }
         }
       } catch (retryError) {
-        console.log('⚠️ Retry attempt failed, using original response');
+        console.log('⚠️ Retry attempt failed, using original response:', retryError);
       }
     }
     
