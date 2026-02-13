@@ -186,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentCampaign(null);
       setAvailableCampaigns([]);
     }
-  }, [user, refreshCampaigns]);
+  }, [user?.id, user?.role]); // Use specific user properties instead of refreshCampaigns
 
   const checkAuth = async () => {
     try {
