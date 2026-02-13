@@ -106,10 +106,18 @@ export default function WorkPage() {
     setIsLoadingContact(true);
     
     try {
-      const response = await fetch(`/api/admin/campaign-management/campaigns/${currentCampaign.campaignId}/queue`, {
+      // For Preview Dialing, we need to use the backend dial queue API
+      // First try to get next contact from dial queue
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/dial-queue/next`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        },
+        body: JSON.stringify({
+          campaignId: currentCampaign.campaignId,
+          agentId: 'agent-1' // TODO: Get actual agent ID from auth context
+        })
       });
 
       console.log('📡 Queue fetch response status:', response.status);
@@ -118,56 +126,57 @@ export default function WorkPage() {
         const data = await response.json();
         console.log('📊 Queue data received:', data);
         
-        if (data.success && data.queue?.length > 0) {
-          // Get next contact from queue
-          const nextContact = data.queue[0];
-          console.log('🎯 Next contact from queue:', nextContact);
+        if (data.success && data.data?.contact) {
+          // Get next contact from dial queue response  
+          const contact = data.data.contact;
+          const queueEntry = data.data.queueEntry;
+          console.log('🎯 Next contact from queue:', contact);
           
           setPreviewContact({
-            id: nextContact.id,
-            contactId: nextContact.contactId,
-            queueId: nextContact.queueId,
-            firstName: nextContact.firstName || '',
-            lastName: nextContact.lastName || '',
-            fullName: nextContact.fullName,
-            phone: nextContact.phone,
-            mobile: nextContact.mobile,
-            workPhone: nextContact.workPhone,
-            homePhone: nextContact.homePhone,
-            email: nextContact.email,
-            company: nextContact.company,
-            jobTitle: nextContact.jobTitle,
-            department: nextContact.department,
-            industry: nextContact.industry,
-            address: nextContact.address,
-            address2: nextContact.address2,
-            city: nextContact.city,
-            state: nextContact.state,
-            zipCode: nextContact.zipCode,
-            country: nextContact.country,
-            website: nextContact.website,
-            linkedIn: nextContact.linkedIn,
-            notes: nextContact.notes,
-            tags: nextContact.tags,
-            leadSource: nextContact.leadSource,
-            leadScore: nextContact.leadScore,
-            deliveryDate: nextContact.deliveryDate,
-            ageRange: nextContact.ageRange,
-            residentialStatus: nextContact.residentialStatus,
-            custom1: nextContact.custom1,
-            custom2: nextContact.custom2,
-            custom3: nextContact.custom3,
-            custom4: nextContact.custom4,
-            custom5: nextContact.custom5,
-            attemptCount: nextContact.attemptCount || 0,
-            maxAttempts: nextContact.maxAttempts || 3,
-            lastAttempt: nextContact.lastAttempt,
-            nextAttempt: nextContact.nextAttempt,
-            lastOutcome: nextContact.lastOutcome,
-            priority: nextContact.priority || 3,
-            status: nextContact.status || 'pending',
-            campaignId: nextContact.campaignId,
-            listId: nextContact.listId
+            id: contact.id,
+            contactId: contact.contactId,
+            queueId: queueEntry?.id,
+            firstName: contact.firstName || '',
+            lastName: contact.lastName || '',
+            fullName: contact.fullName,
+            phone: contact.phone,
+            mobile: contact.mobile,
+            workPhone: contact.workPhone,
+            homePhone: contact.homePhone,
+            email: contact.email,
+            company: contact.company,
+            jobTitle: contact.jobTitle,
+            department: contact.department,
+            industry: contact.industry,
+            address: contact.address,
+            address2: contact.address2,
+            city: contact.city,
+            state: contact.state,
+            zipCode: contact.zipCode,
+            country: contact.country,
+            website: contact.website,
+            linkedIn: contact.linkedIn,
+            notes: contact.notes,
+            tags: contact.tags,
+            leadSource: contact.leadSource,
+            leadScore: contact.leadScore,
+            deliveryDate: contact.deliveryDate,
+            ageRange: contact.ageRange,
+            residentialStatus: contact.residentialStatus,
+            custom1: contact.custom1,
+            custom2: contact.custom2,
+            custom3: contact.custom3,
+            custom4: contact.custom4,
+            custom5: contact.custom5,
+            attemptCount: contact.attemptCount || 0,
+            maxAttempts: contact.maxAttempts || 3,
+            lastAttempt: contact.lastAttempt,
+            nextAttempt: contact.nextAttempt,
+            lastOutcome: contact.lastOutcome,
+            priority: contact.priority || 3,
+            status: contact.status || 'pending',
+            campaignId: contact.campaignId,
+            listId: contact.listId
           });
           setShowPreviewCard(true);
           console.log('✅ Preview contact card will be shown');
