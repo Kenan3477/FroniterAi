@@ -154,13 +154,13 @@ export default function WorkPage() {
           console.log('🎯 Next contact from queue:', contact);
           
           setPreviewContact({
-            id: contact.id,
-            contactId: contact.contactId,
-            queueId: queueEntry?.id,
+            id: contact.id || 'unknown',
+            contactId: contact.contactId || 'unknown',
+            queueId: queueEntry?.id || 'unknown',
             firstName: contact.firstName || '',
             lastName: contact.lastName || '',
-            fullName: contact.fullName,
-            phone: contact.phone,
+            fullName: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+            phone: contact.phone || '',
             mobile: contact.mobile,
             workPhone: contact.workPhone,
             homePhone: contact.homePhone,
@@ -196,11 +196,17 @@ export default function WorkPage() {
             lastOutcome: contact.lastOutcome,
             priority: contact.priority || 3,
             status: contact.status || 'pending',
-            campaignId: contact.campaignId,
-            listId: contact.listId
+            campaignId: contact.campaignId || '',
+            listId: contact.listId || ''
           });
           setShowPreviewCard(true);
-          console.log('✅ Preview contact card will be shown');
+          console.log('✅ Preview contact card will be shown with contact:', {
+            id: contact.id,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            phone: contact.phone,
+            queueId: queueEntry?.id
+          });
         } else {
           console.log('📭 No contacts available in queue:', data);
           // Agent availability is managed by AuthContext, not local state
@@ -603,18 +609,20 @@ export default function WorkPage() {
       </div>
 
       {/* Preview Contact Card - Overlay */}
-      <PreviewContactCard
-        contact={previewContact}
-        isVisible={showPreviewCard}
-        onCallNow={handleCallNow}
-        onSkip={handleSkip}
-        onClose={() => {
-          setShowPreviewCard(false);
-          setPreviewContact(null);
-        }}
-        campaignName={currentCampaign?.name}
-        isLoading={isLoadingContact}
-      />
+      {previewContact && previewContact.id && previewContact.id !== 'unknown' && (
+        <PreviewContactCard
+          contact={previewContact}
+          isVisible={showPreviewCard}
+          onCallNow={handleCallNow}
+          onSkip={handleSkip}
+          onClose={() => {
+            setShowPreviewCard(false);
+            setPreviewContact(null);
+          }}
+          campaignName={currentCampaign?.name}
+          isLoading={isLoadingContact}
+        />
+      )}
     </MainLayout>
   );
 }

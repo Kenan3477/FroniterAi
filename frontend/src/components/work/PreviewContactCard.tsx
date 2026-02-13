@@ -16,7 +16,7 @@ import {
   MapPin, 
   Calendar,
   Clock,
-  NotebookPen,
+  PenTool,
   SkipForward,
   X
 } from 'lucide-react';
@@ -99,6 +99,13 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   }, [contact]);
 
   if (!isVisible || !contact) {
+    return null;
+  }
+
+  try {
+    console.log('🎯 PreviewContactCard rendering with contact:', contact.id, contact.firstName, contact.lastName);
+  } catch (error) {
+    console.error('❌ PreviewContactCard error:', error);
     return null;
   }
 
@@ -378,7 +385,7 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
           <div className="border-t pt-6">
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                <NotebookPen className="w-4 h-4 mr-2" />
+                <PenTool className="w-4 h-4 mr-2" />
                 Call Notes
               </h3>
               <Textarea
