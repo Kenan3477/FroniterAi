@@ -13,9 +13,15 @@ function DashboardContent() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
+  const [isClient, setIsClient] = useState(false);
   
   // Get authenticated user - dashboard now requires authentication
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+
+  // Client-side hydration guard
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && user) {

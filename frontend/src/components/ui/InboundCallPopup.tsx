@@ -19,12 +19,18 @@ interface InboundCall {
 
 export default function InboundCallPopup() {
   const [inboundCalls, setInboundCalls] = useState<InboundCall[]>([]);
+  const [isClient, setIsClient] = useState(false);
   const { user } = useAuth();
   const dispatch = useDispatch();
   const router = useRouter();
 
+  // Client-side hydration guard
   useEffect(() => {
-    if (!user) return;
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !isClient) return;
 
     console.log('🔌 Setting up WebSocket for global inbound call popup...');
     
@@ -94,7 +100,7 @@ export default function InboundCallPopup() {
       agentSocket.off('inbound-call-answered', handleInboundCallAnswered);
       agentSocket.off('inbound-call-ended', handleInboundCallEnded);
     };
-  }, [user]);
+  }, [user, isClient]);
 
   // Handle answering a call
   const handleAnswerCall = async (call: InboundCall) => {
@@ -168,11 +174,11 @@ export default function InboundCallPopup() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${isClient ? localStorage.getItem('authToken') || '' : ''}`
         },
         body: JSON.stringify({
           callId: call.id,
-          agentId: localStorage.getItem('agentId') || 'current-agent',
+          agentId: isClient ? localStorage.getItem('agentId') || 'current-agent' : 'current-agent',
           reason: 'agent_declined',
           timestamp: new Date().toISOString()
         })
@@ -196,14 +202,14 @@ export default function InboundCallPopup() {
     console.log('📞 Transferring call from global popup:', call.id, transferType);
     
     try {
-      const agentId = localStorage.getItem('agentId') || 'current-agent';
+      const agentId = isClient ? localStorage.getItem('agentId') || 'current-agent' : 'current-agent';
       const targetId = transferType === 'queue' ? 'general' : 'available-agent';
       
       const response = await fetch('/api/calls/inbound-transfer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${isClient ? localStorage.getItem('authToken') || '' : ''}`
         },
         body: JSON.stringify({
           callId: call.id,
