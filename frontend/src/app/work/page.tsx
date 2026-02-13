@@ -30,6 +30,13 @@ export default function WorkPage() {
   // Get auth context data
   const { currentCampaign, agentStatus, updateAgentStatus } = useAuth();
   
+  // Client-side hydration state
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   // Real interaction data state
   const [categorizedInteractions, setCategorizedInteractions] = useState<CategorizedInteractions>({
     queued: [],
@@ -112,7 +119,7 @@ export default function WorkPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
         },
         body: JSON.stringify({
           campaignId: currentCampaign.campaignId,
@@ -249,7 +256,7 @@ export default function WorkPage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
         },
         body: JSON.stringify({
           phoneNumber: activeCall.phoneNumber,
