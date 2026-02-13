@@ -237,6 +237,16 @@ export default function WorkPage() {
     }
   }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard]);
 
+  // Debug Preview Card state
+  useEffect(() => {
+    console.log('🔍 Preview Card State Debug:', {
+      hasContact: !!previewContact,
+      contactId: previewContact?.id,
+      showCard: showPreviewCard,
+      shouldRender: previewContact && previewContact.id && previewContact.id !== 'unknown'
+    });
+  }, [previewContact, showPreviewCard]);
+
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
     // Update Redux store with new customer information
