@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -55,47 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  // Load campaign data when user changes
-  useEffect(() => {
-    if (user) {
-      refreshCampaigns();
-    } else {
-      setCurrentCampaign(null);
-      setAvailableCampaigns([]);
-    }
-  }, [user]);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/profile', {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setUser(data.user);
-          
-          // Restore agent status from localStorage
-          const savedStatus = localStorage.getItem('omnivox-agent-status');
-          if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
-            setAgentStatus(savedStatus);
-            console.log('🔄 Restored agent status from localStorage:', savedStatus);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshCampaigns = async () => {
+  const refreshCampaigns = useCallback(async () => {
     try {
       if (!user?.id) {
         console.log('❌ No user ID available for campaign fetch');
@@ -177,24 +137,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('✅ Active user-assigned campaigns:', activeCampaigns);
           setAvailableCampaigns(activeCampaigns);
           
-          // Auto-select current campaign if user has assignments
-          if (activeCampaigns.length > 0) {
-            // If no current campaign is selected, auto-select the first one
-            if (!currentCampaign) {
+          // Auto-select first available campaign if none selected
+          setCurrentCampaign(prevCampaign => {
+            if (!prevCampaign && activeCampaigns.length > 0) {
               console.log('🔄 Auto-selecting first available campaign:', activeCampaigns[0].name);
-              setCurrentCampaign(activeCampaigns[0]);
-            } else {
-              // Check if current campaign is still valid
-              const stillValid = activeCampaigns.find(c => c.campaignId === currentCampaign.campaignId);
-              if (!stillValid) {
+              return activeCampaigns[0];
+            }
+            
+            // Check if current campaign is still valid
+            if (prevCampaign) {
+              const stillValid = activeCampaigns.find(c => c.campaignId === prevCampaign.campaignId);
+              if (!stillValid && activeCampaigns.length > 0) {
                 console.log('🔄 Current campaign no longer available, switching to first available');
-                setCurrentCampaign(activeCampaigns[0]);
+                return activeCampaigns[0];
+              } else if (!stillValid) {
+                return null;
               }
             }
-          } else {
-            // No campaigns available, clear current campaign
-            setCurrentCampaign(null);
-          }
+            
+            return prevCampaign;
+          });
         } else {
           console.log('📭 No campaign assignments found');
           setAvailableCampaigns([]);
@@ -209,6 +171,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('❌ Error fetching user campaigns:', error);
       setAvailableCampaigns([]);
       setCurrentCampaign(null);
+    }
+  }, [user?.id, user?.role]); // Remove currentCampaign to prevent infinite loop
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  // Load campaign data when user changes
+  useEffect(() => {
+    if (user) {
+      refreshCampaigns();
+    } else {
+      setCurrentCampaign(null);
+      setAvailableCampaigns([]);
+    }
+  }, [user, refreshCampaigns]);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/profile', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUser(data.user);
+          
+          // Restore agent status from localStorage
+          const savedStatus = localStorage.getItem('omnivox-agent-status');
+          if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
+            setAgentStatus(savedStatus);
+            console.log('🔄 Restored agent status from localStorage:', savedStatus);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
