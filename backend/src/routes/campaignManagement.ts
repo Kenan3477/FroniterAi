@@ -1738,7 +1738,7 @@ router.post('/campaigns/:id/generate-queue', async (req: Request, res: Response)
     // Get active data lists for this campaign
     const dataLists = await prisma.dataList.findMany({
       where: {
-        campaignId: id, // Use the campaign's database ID, not the campaignId field
+        campaignId: campaign.campaignId, // Use the campaign's campaignId field, not the database id
         active: true
       }
     });
@@ -1856,7 +1856,7 @@ router.get('/campaigns/:id/queue', async (req: Request, res: Response) => {
     // Get queue entries with contact information
     const queueEntries = await prisma.dialQueueEntry.findMany({
       where: { 
-        campaignId: campaignId,
+        campaignId: campaign.campaignId, // Use campaign's campaignId field to match queue entries
         status: { in: ['queued', 'dialing', 'failed'] }  // Active queue entries
       },
       include: {
@@ -1882,28 +1882,28 @@ router.get('/campaigns/:id/queue', async (req: Request, res: Response) => {
     // Calculate queue statistics
     const totalQueued = await prisma.dialQueueEntry.count({
       where: { 
-        campaignId: campaignId,
+        campaignId: campaign.campaignId,
         status: 'queued'
       }
     });
     
     const totalDialing = await prisma.dialQueueEntry.count({
       where: { 
-        campaignId: campaignId,
+        campaignId: campaign.campaignId,
         status: 'dialing'
       }
     });
     
     const totalCompleted = await prisma.dialQueueEntry.count({
       where: { 
-        campaignId: campaignId,
+        campaignId: campaign.campaignId,
         status: { in: ['completed', 'disposed'] }
       }
     });
     
     const totalFailed = await prisma.dialQueueEntry.count({
       where: { 
-        campaignId: campaignId,
+        campaignId: campaign.campaignId,
         status: 'failed'
       }
     });
