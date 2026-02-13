@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { dialMethod } = await request.json();
+    const body = await request.json();
     
-    console.log(`📞 Frontend: Simulating campaign ${params.id} dial method update to ${dialMethod}`);
+    console.log(`📞 Frontend: Proxying dial method update for campaign ${params.id} to backend`);
     
-    // Simulate successful response
-    const mockResponse = {
-      success: true,
-      data: {
-        id: params.id,
-        dialMethod,
-        message: `Dial method updated to ${dialMethod.replace('_', ' ').toLowerCase()}`
-      }
-    };
+    // Proxy to backend
+    const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns/${params.id}/dial-method`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
     
-    console.log(`✅ Campaign ${params.id} dial method simulated as ${dialMethod}`);
-    return NextResponse.json(mockResponse);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error(`❌ Backend dial method update failed: ${response.status}`, data);
+      return NextResponse.json(data, { status: response.status });
+    }
+    
+    console.log(`✅ Campaign ${params.id} dial method updated successfully via backend`);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('❌ Error simulating dial method update:', error);
+    console.error('❌ Error proxying dial method update:', error);
     return NextResponse.json(
       { error: 'Failed to update dial method' },
       { status: 500 }
