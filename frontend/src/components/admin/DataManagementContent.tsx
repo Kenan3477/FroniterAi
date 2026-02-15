@@ -100,6 +100,7 @@ interface UploadWizardData {
   step: 'fileUpload' | 'uploadOptions' | 'primaryColumns' | 'customColumns' | 'uploadReview' | 'upload' | 'complete';
   
   // Validation Results
+  totalRecords: number;
   validContacts: number;
   duplicateContacts: number;
   invalidContacts: number;
@@ -191,6 +192,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     saveAsTemplate: false,
     templateName: '',
     step: 'fileUpload',
+    totalRecords: 0,
     validContacts: 0,
     duplicateContacts: 0,
     invalidContacts: 0,
@@ -474,18 +476,43 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   // Load available campaigns for assignment
   const fetchCampaigns = async () => {
     try {
-      const response = await fetch('/api/campaigns/active');
+      // Use the correct campaign management API endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/admin/campaign-management/campaigns`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       
       if (response.ok) {
         const result = await response.json();
         console.log('🎯 Fetched campaigns:', result); // Debug log
-        if (result.success && result.campaigns) {
-          setCampaigns(result.campaigns);
+        
+        if (result.success && result.data && Array.isArray(result.data)) {
+          // Transform and filter the campaign data to exclude deleted campaigns
+          const transformedCampaigns = result.data
+            .filter((campaign: any) => {
+              // Filter out deleted campaigns
+              const name = campaign.displayName || campaign.name || '';
+              return !name.toLowerCase().includes('[deleted]') && 
+                     !name.toLowerCase().includes('deleted') &&
+                     campaign.status !== 'ARCHIVED' &&
+                     campaign.status !== 'DELETED';
+            })
+            .map((campaign: any) => ({
+              campaignId: campaign.campaignId,
+              name: campaign.name,
+              displayName: campaign.displayName || campaign.name,
+              status: campaign.status
+            }));
+          setCampaigns(transformedCampaigns);
+          console.log('✅ Campaigns loaded (filtered):', transformedCampaigns);
         } else {
           console.warn('No campaigns found in response:', result);
         }
       } else {
-        console.error('Failed to fetch campaigns, status:', response.status);
+        const errorText = await response.text();
+        console.error('Failed to fetch campaigns, status:', response.status, errorText);
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
@@ -618,7 +645,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             listId: list.listId,
             name: list.name,
             description: list.campaignId ? `Assigned to Campaign: ${list.campaignId}` : 'No campaign assigned',
-            campaign: list.campaignId || 'Unassigned',
+            campaign: list.campaignId || 'Unassigned', // Will be updated after campaigns are loaded
             campaignId: list.campaignId,
             total: contactCount,
             available: contactCount,
@@ -646,6 +673,33 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     fetchDataLists();
     fetchCampaigns(); // Load campaigns for data list creation
   }, []);
+
+  // Update campaign names in data lists when campaigns are loaded
+  useEffect(() => {
+    if (campaigns.length > 0 && dataLists.length > 0) {
+      let hasUpdates = false;
+      const updatedDataLists = dataLists.map(list => {
+        if (list.campaignId && (list.campaign === list.campaignId || list.campaign === 'Unassigned')) {
+          // If campaign field still shows the ID or is unassigned, replace with actual name
+          const campaign = campaigns.find(c => c.campaignId === list.campaignId);
+          if (campaign) {
+            hasUpdates = true;
+            return {
+              ...list,
+              campaign: campaign.displayName || campaign.name,
+              description: `Assigned to Campaign: ${campaign.displayName || campaign.name}`
+            };
+          }
+        }
+        return list;
+      });
+      
+      if (hasUpdates) {
+        setDataLists(updatedDataLists);
+        console.log('✅ Updated data lists with campaign names');
+      }
+    }
+  }, [campaigns]);
 
   // Recalculate analytics when data lists change
   useEffect(() => {
@@ -1379,9 +1433,14 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       if (lines.length > 0) {
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         
+        // Calculate total records (excluding header row and empty lines)
+        const dataLines = lines.slice(1).filter(line => line.trim().length > 0);
+        const totalRecords = dataLines.length;
+        
         setUploadData(prev => ({
           ...prev,
           detectedColumns: headers,
+          totalRecords: totalRecords,
           primaryColumns: {
             ...prev.primaryColumns,
             ...detectSmartMappings(headers)
@@ -3088,7 +3147,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                       <h4 className="text-sm font-semibold text-gray-900 mb-2">File Information</h4>
                       <div className="text-sm text-gray-700 space-y-1">
                         <div>📁 <strong>File:</strong> {uploadData.fileName}</div>
-                        <div>📊 <strong>Estimated Records:</strong> ~{uploadData.detectedColumns.length > 0 ? '1,000+' : '0'}</div>
+                        <div>📊 <strong>Estimated Records:</strong> {Math.max(0, uploadData.totalRecords - uploadData.leadingLinesToSkip).toLocaleString()}</div>
                         <div>⚙️ <strong>Skip Lines:</strong> {uploadData.leadingLinesToSkip}</div>
                       </div>
                     </div>
