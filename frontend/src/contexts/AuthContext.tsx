@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);
   const [isInQueue, setIsInQueue] = useState(false);
   const [queueStatus, setQueueStatus] = useState<any | null>(null);
-  const [agentStatus, setAgentStatus] = useState<string>('Away');
+  const [agentStatus, setAgentStatus] = useState<string>('Unavailable');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false); // Add client-side hydration flag
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Restore agent status from localStorage only on client-side
           if (isClient) {
             const savedStatus = localStorage.getItem('omnivox-agent-status');
-            if (savedStatus && ['Available', 'Away', 'Break', 'Training'].includes(savedStatus)) {
+            if (savedStatus && ['Available', 'Unavailable', 'On Call', 'Break', 'Offline'].includes(savedStatus)) {
               setAgentStatus(savedStatus);
               console.log('🔄 Restored agent status from localStorage:', savedStatus);
             }
@@ -443,7 +443,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setCurrentCampaign(null);
       setAvailableCampaigns([]);
-      setAgentStatus('Away');
+      setAgentStatus('Unavailable');
       setIsInQueue(false);
       setQueueStatus(null);
       

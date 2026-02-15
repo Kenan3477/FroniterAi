@@ -368,10 +368,6 @@ export default function WorkPage() {
       // Hide preview card
       setShowPreviewCard(false);
       
-      // Pause auto-fetching to give user control over next action
-      setPreviewDialingPaused(true);
-      console.log('⏸️ Auto-fetch paused after Call Now action');
-      
       // Initiate call via RestApiDialer
       // The dialer will handle the actual call initiation
       // For now, simulate the call
@@ -379,8 +375,10 @@ export default function WorkPage() {
       // TODO: Integrate with actual dialing system
       alert(`Calling ${contact.firstName} ${contact.lastName} at ${contact.phone}`);
       
-      // Clear current contact - user can manually resume auto-fetch or manually fetch next
+      // Clear current contact - auto-fetch will continue if agent is available
       setPreviewContact(null);
+      
+      console.log('✅ Call initiated, auto-fetch will continue after call completion');
       
     } catch (error) {
       console.error('Error initiating call:', error);
@@ -396,12 +394,10 @@ export default function WorkPage() {
       // Hide preview card
       setShowPreviewCard(false);
       
-      // Pause auto-fetching to give user control over next action
-      setPreviewDialingPaused(true);
-      console.log('⏸️ Auto-fetch paused after Skip action');
-      
-      // Clear current contact - user can manually resume auto-fetch or manually fetch next
+      // Clear current contact and allow auto-fetch to continue
       setPreviewContact(null);
+      
+      console.log('✅ Contact skipped, auto-fetch will continue if agent is available');
       
     } catch (error) {
       console.error('Error skipping contact:', error);
@@ -411,7 +407,7 @@ export default function WorkPage() {
   const handleAgentAvailabilityChange = async (available: boolean) => {
     // Use AuthContext to update agent status instead of local state
     try {
-      await updateAgentStatus(available ? 'Available' : 'Away');
+      await updateAgentStatus(available ? 'Available' : 'Unavailable');
     } catch (error) {
       console.error('Failed to update agent status:', error);
     }

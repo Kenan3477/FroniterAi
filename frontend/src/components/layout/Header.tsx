@@ -112,16 +112,19 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
   const userStatuses = [
     'Available',
-    'Away',
-    'Busy',
-    'Do Not Disturb'
+    'Unavailable',
+    'On Call',
+    'Break',
+    'Offline'
   ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Available': return 'bg-green-500';
-      case 'Away': return 'bg-yellow-500';
-      case 'Busy': return 'bg-red-500';
+      case 'Unavailable': return 'bg-yellow-500';
+      case 'On Call': return 'bg-blue-500';
+      case 'Break': return 'bg-orange-500';
+      case 'Offline': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
   };
