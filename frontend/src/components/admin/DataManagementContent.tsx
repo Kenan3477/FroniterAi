@@ -674,6 +674,27 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
     fetchCampaigns(); // Load campaigns for data list creation
   }, []);
 
+  // Periodic refresh of campaigns to catch new additions/deletions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCampaigns();
+      console.log('🔄 Auto-refreshing campaigns...');
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh campaigns when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchCampaigns();
+      console.log('🔄 Refreshing campaigns on window focus...');
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   // Update campaign names in data lists when campaigns are loaded
   useEffect(() => {
     if (campaigns.length > 0 && dataLists.length > 0) {
@@ -1926,6 +1947,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                   onClick={() => {
                     console.log('🔄 Manual refresh triggered');
                     fetchDataLists();
+                    fetchCampaigns(); // Also refresh campaigns
                   }}
                   className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
                 >
