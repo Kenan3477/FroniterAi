@@ -101,14 +101,10 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   });
 
   const [notes, setNotes] = useState('');
-  const [skipReason, setSkipReason] = useState('');
-  const [showSkipReason, setShowSkipReason] = useState(false);
 
   // Reset form when contact changes
   useEffect(() => {
     setNotes(contact?.notes || '');
-    setSkipReason('');
-    setShowSkipReason(false);
   }, [contact]);
 
   console.log('🎯 PreviewContactCard render decision:', {
@@ -431,62 +427,23 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
             </div>
           </div>
 
-          {/* Skip Reason Section (conditionally shown) */}
-          {showSkipReason && (
-            <div className="border-t pt-4">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-900">Skip Reason</Label>
-                <Input
-                  value={skipReason}
-                  onChange={(e) => setSkipReason(e.target.value)}
-                  placeholder="Why are you skipping this contact?"
-                  className="w-full"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="border-t pt-6 flex justify-between items-center">
             <div className="text-xs text-gray-500">
               Contact ID: {contact.contactId} • Queue: {contact.queueId}
             </div>
             <div className="flex space-x-3">
-              {showSkipReason ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowSkipReason(false)}
-                    disabled={isLoading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      onSkip(contact, skipReason);
-                      setShowSkipReason(false);
-                    }}
-                    disabled={isLoading}
-                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                  >
-                    <SkipForward className="w-4 h-4 mr-2" />
-                    Confirm Skip
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowSkipReason(true)}
-                    disabled={isLoading}
-                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                  >
-                    <SkipForward className="w-4 h-4 mr-2" />
-                    Skip
-                  </Button>
-                  
-                  {onPause && (
+              <Button
+                variant="outline"
+                onClick={() => onSkip(contact)}
+                disabled={isLoading}
+                className="text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                <SkipForward className="w-4 h-4 mr-2" />
+                Skip
+              </Button>
+              
+              {onPause && (
                     <Button
                       variant="outline"
                       onClick={() => onPause()}
@@ -519,8 +476,6 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
                     <PhoneCall className="w-4 h-4 mr-2" />
                     {isLoading ? 'Connecting...' : 'Call Now'}
                   </Button>
-                </>
-              )}
             </div>
           </div>
         </CardContent>
