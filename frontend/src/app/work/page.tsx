@@ -52,6 +52,7 @@ export default function WorkPage() {
   const [previewContact, setPreviewContact] = useState<PreviewContact | null>(null);
   const [isLoadingContact, setIsLoadingContact] = useState(false);
   const [showPreviewCard, setShowPreviewCard] = useState(false);
+  const [previewDialingPaused, setPreviewDialingPaused] = useState(false);
   
   // Ref to prevent infinite loops in preview contact fetching
   const fetchingContactRef = useRef(false);
@@ -170,9 +171,25 @@ export default function WorkPage() {
             contactIdString: String(contact.id)
           });
           
+          console.log('🔍 DIRECT CONTACT VALUES:');
+          console.log('   - contact.id:', contact.id);
+          console.log('   - typeof contact.id:', typeof contact.id);
+          console.log('   - contact.firstName:', contact.firstName);
+          console.log('   - contact.lastName:', contact.lastName);
+          console.log('   - contact.phone:', contact.phone);
+          
+          // Generate a proper ID if none exists
+          const effectiveId = contact.id || contact.contactId || `preview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          console.log('🔧 Generating effective ID:', {
+            originalId: contact.id,
+            contactId: contact.contactId,
+            generatedId: effectiveId
+          });
+
           setPreviewContact({
-            id: contact.id || 'unknown',
-            contactId: contact.contactId || 'unknown',
+            id: effectiveId,
+            contactId: contact.contactId || effectiveId,
             queueId: queueEntry?.id || 'unknown',
             firstName: contact.firstName || '',
             lastName: contact.lastName || '',
@@ -254,32 +271,33 @@ export default function WorkPage() {
       dialMethod: currentCampaign?.dialMethod,
       showPreviewCard,
       isLoadingContact,
-      fetchingInProgress: fetchingContactRef.current
+      fetchingInProgress: fetchingContactRef.current,
+      previewDialingPaused
     });
     
-    // Only fetch if agent is available, campaign is preview mode, no card showing, not already loading
+    // Only fetch if agent is available, campaign is preview mode, no card showing, not already loading, and not paused
     if (agentAvailable && 
         currentCampaign?.dialMethod === 'MANUAL_PREVIEW' && 
         !showPreviewCard && 
         !isLoadingContact && 
-        !fetchingContactRef.current) {
+        !fetchingContactRef.current &&
+        !previewDialingPaused) {
       console.log('🚀 Triggering fetchNextPreviewContact...');
       fetchNextPreviewContact();
     }
-  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard, isLoadingContact]);
+  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard, isLoadingContact, previewDialingPaused]);
 
   // Debug Preview Card state
   useEffect(() => {
-    console.log('🔍 Preview Card State Debug:', {
-      hasContact: !!previewContact,
-      contactId: previewContact?.id,
-      contactFirstName: previewContact?.firstName,
-      contactPhone: previewContact?.phone,
-      showCard: showPreviewCard,
-      shouldRender: previewContact && previewContact.id && previewContact.id !== 'unknown',
-      agentAvailable,
-      currentCampaign: currentCampaign?.name
-    });
+    console.log('🔍 Preview Card State Debug - DIRECT VALUES:');
+    console.log('   - previewContact exists:', !!previewContact);
+    console.log('   - previewContact.id:', previewContact?.id);
+    console.log('   - previewContact.firstName:', previewContact?.firstName);
+    console.log('   - previewContact.phone:', previewContact?.phone);
+    console.log('   - showPreviewCard:', showPreviewCard);
+    console.log('   - typeof showPreviewCard:', typeof showPreviewCard);
+    console.log('   - agentAvailable:', agentAvailable);
+    console.log('   - currentCampaign name:', currentCampaign?.name);
   }, [previewContact, showPreviewCard, agentAvailable, currentCampaign]);
 
   // Track showPreviewCard state changes specifically
@@ -350,6 +368,10 @@ export default function WorkPage() {
       // Hide preview card
       setShowPreviewCard(false);
       
+      // Pause auto-fetching to give user control over next action
+      setPreviewDialingPaused(true);
+      console.log('⏸️ Auto-fetch paused after Call Now action');
+      
       // Initiate call via RestApiDialer
       // The dialer will handle the actual call initiation
       // For now, simulate the call
@@ -357,11 +379,8 @@ export default function WorkPage() {
       // TODO: Integrate with actual dialing system
       alert(`Calling ${contact.firstName} ${contact.lastName} at ${contact.phone}`);
       
-      // Clear current contact and fetch next one if agent still available
+      // Clear current contact - user can manually resume auto-fetch or manually fetch next
       setPreviewContact(null);
-      if (agentAvailable) {
-        setTimeout(() => fetchNextPreviewContact(), 1000);
-      }
       
     } catch (error) {
       console.error('Error initiating call:', error);
@@ -377,11 +396,12 @@ export default function WorkPage() {
       // Hide preview card
       setShowPreviewCard(false);
       
-      // Clear current contact and fetch next one if agent still available
+      // Pause auto-fetching to give user control over next action
+      setPreviewDialingPaused(true);
+      console.log('⏸️ Auto-fetch paused after Skip action');
+      
+      // Clear current contact - user can manually resume auto-fetch or manually fetch next
       setPreviewContact(null);
-      if (agentAvailable) {
-        setTimeout(() => fetchNextPreviewContact(), 500);
-      }
       
     } catch (error) {
       console.error('Error skipping contact:', error);
@@ -463,18 +483,35 @@ export default function WorkPage() {
                       <p><strong>Agent Available:</strong> {agentAvailable ? 'Yes' : 'No'}</p>
                       <p><strong>Preview Card Showing:</strong> {showPreviewCard ? 'Yes' : 'No'}</p>
                       <p><strong>Loading Contact:</strong> {isLoadingContact ? 'Yes' : 'No'}</p>
+                      <p><strong>Auto-Fetch:</strong> <span className={previewDialingPaused ? 'text-orange-600 font-semibold' : 'text-green-600 font-semibold'}>{previewDialingPaused ? '⏸️ PAUSED' : '▶️ ACTIVE'}</span></p>
                     </div>
-                    <button
-                      onClick={() => {
-                        console.log('🎯 Manual trigger fetchNextPreviewContact');
-                        fetchingContactRef.current = false; // Reset the ref in case it's stuck
-                        fetchNextPreviewContact();
-                      }}
-                      disabled={isLoadingContact}
-                      className="mt-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isLoadingContact ? 'Loading...' : 'Test Fetch Contact'}
-                    </button>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => {
+                          console.log('🎯 Manual trigger fetchNextPreviewContact');
+                          fetchingContactRef.current = false; // Reset the ref in case it's stuck
+                          fetchNextPreviewContact();
+                        }}
+                        disabled={isLoadingContact}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {isLoadingContact ? 'Loading...' : 'Test Fetch Contact'}
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setPreviewDialingPaused(!previewDialingPaused);
+                          console.log(previewDialingPaused ? '▶️ Preview dialing resumed' : '⏸️ Preview dialing paused');
+                        }}
+                        className={`px-3 py-1 text-xs text-white rounded ${
+                          previewDialingPaused 
+                            ? 'bg-green-600 hover:bg-green-700' 
+                            : 'bg-orange-600 hover:bg-orange-700'
+                        }`}
+                      >
+                        {previewDialingPaused ? '▶️ Resume Auto-Fetch' : '⏸️ Pause Auto-Fetch'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -670,28 +707,16 @@ export default function WorkPage() {
         // TEMPORARY: Force render for testing
         const forceRender = previewContact && previewContact.id && previewContact.id !== 'unknown';
         
-        console.log('🎨 PreviewContactCard render check:', {
-          hasContact: !!previewContact,
-          contactId: previewContact?.id,
-          contactIdType: typeof previewContact?.id,
-          contactFirstName: previewContact?.firstName,
-          contactPhone: previewContact?.phone,
-          showCard: showPreviewCard,
-          shouldRender,
-          
-          // Detailed condition check
-          condition1_hasPreviewContact: !!previewContact,
-          condition2_hasId: !!previewContact?.id,
-          condition3_idNotUnknown: previewContact?.id !== 'unknown',
-          condition4_showPreviewCard: showPreviewCard,
-          
-          // Overall conditions
-          allConditionsMet: previewContact && previewContact.id && previewContact.id !== 'unknown' && showPreviewCard,
-          forceRender,
-          
-          // Raw contact object for debugging
-          previewContactRaw: previewContact
-        });
+        console.log('🎨 PreviewContactCard render check - DIRECT VALUES:');
+        console.log('   - previewContact exists:', !!previewContact);
+        console.log('   - previewContact.id:', previewContact?.id);
+        console.log('   - previewContact.firstName:', previewContact?.firstName);
+        console.log('   - previewContact.phone:', previewContact?.phone);
+        console.log('   - showPreviewCard:', showPreviewCard);
+        console.log('   - typeof showPreviewCard:', typeof showPreviewCard);
+        console.log('   - id !== unknown:', previewContact?.id !== 'unknown');
+        console.log('   - shouldRender result:', shouldRender);
+        console.log('   - forceRender result:', forceRender);
         
         if (forceRender) {
           console.log('🚀 FORCE RENDERING PreviewContactCard with full contact:', previewContact);
