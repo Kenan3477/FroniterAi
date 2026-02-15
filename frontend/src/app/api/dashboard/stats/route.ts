@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 // GET /api/dashboard/stats - Get real-time dashboard statistics
 export const GET = requireAuth(async (request, user) => {
   try {

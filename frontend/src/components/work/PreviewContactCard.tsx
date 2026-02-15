@@ -87,6 +87,13 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   campaignName,
   isLoading = false
 }) => {
+  console.log('🎯🎯🎯 PreviewContactCard component called with props:', {
+    hasContact: !!contact,
+    isVisible,
+    contactId: contact?.id,
+    contactName: contact?.firstName
+  });
+
   const [notes, setNotes] = useState('');
   const [skipReason, setSkipReason] = useState('');
   const [showSkipReason, setShowSkipReason] = useState(false);
@@ -98,7 +105,14 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
     setShowSkipReason(false);
   }, [contact]);
 
+  console.log('🎯 PreviewContactCard render decision:', {
+    isVisible,
+    hasContact: !!contact,
+    willRender: isVisible && contact
+  });
+
   if (!isVisible || !contact) {
+    console.log('❌ PreviewContactCard early return:', { isVisible, hasContact: !!contact });
     return null;
   }
 
@@ -138,8 +152,43 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
 
   const priority = getPriorityLabel();
 
+  console.log('🎯 PreviewContactCard about to render JSX');
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <>
+      {/* Test visibility div */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: '50px',
+          right: '50px',
+          width: '200px',
+          height: '100px',
+          backgroundColor: 'red',
+          color: 'white',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '16px',
+          fontWeight: 'bold'
+        }}
+      >
+        PREVIEW CARD TEST
+      </div>
+      
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 9999
+        }}
+      >
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
           <div className="flex items-center justify-between">
@@ -466,5 +515,6 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
         </CardContent>
       </Card>
     </div>
+    </>
   );
 };

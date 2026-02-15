@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout';
@@ -52,6 +52,9 @@ export default function WorkPage() {
   const [previewContact, setPreviewContact] = useState<PreviewContact | null>(null);
   const [isLoadingContact, setIsLoadingContact] = useState(false);
   const [showPreviewCard, setShowPreviewCard] = useState(false);
+  
+  // Ref to prevent infinite loops in preview contact fetching
+  const fetchingContactRef = useRef(false);
 
   // Get active call from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
@@ -110,6 +113,11 @@ export default function WorkPage() {
 
   // Preview Dialing Functions - define before useEffect that uses it
   const fetchNextPreviewContact = useCallback(async () => {
+    if (fetchingContactRef.current) {
+      console.log('⏳ Already fetching contact, skipping...');
+      return;
+    }
+    
     if (!currentCampaign) {
       console.log('❌ No current campaign available for Preview Dialing');
       return;
@@ -125,6 +133,7 @@ export default function WorkPage() {
     
     console.log('🔍 Fetching next preview contact for campaign:', currentCampaign);
     setIsLoadingContact(true);
+    fetchingContactRef.current = true;
     
     try {
       // For Preview Dialing, we need to use the backend dial queue API
@@ -152,6 +161,14 @@ export default function WorkPage() {
           const contact = data.data.contact;
           const queueEntry = data.data.queueEntry;
           console.log('🎯 Next contact from queue:', contact);
+          console.log('🔍 Contact ID analysis:', {
+            contactId: contact.id,
+            contactIdType: typeof contact.id,
+            contactIdNotUndefined: contact.id !== undefined,
+            contactIdNotNull: contact.id !== null,
+            contactIdNotUnknown: contact.id !== 'unknown',
+            contactIdString: String(contact.id)
+          });
           
           setPreviewContact({
             id: contact.id || 'unknown',
@@ -199,7 +216,12 @@ export default function WorkPage() {
             campaignId: contact.campaignId || '',
             listId: contact.listId || ''
           });
-          setShowPreviewCard(true);
+          
+          // Use startTransition to ensure state updates are batched
+          startTransition(() => {
+            setShowPreviewCard(true);
+          });
+          
           console.log('✅ Preview contact card will be shown with contact:', {
             id: contact.id,
             firstName: contact.firstName,
@@ -207,6 +229,7 @@ export default function WorkPage() {
             phone: contact.phone,
             queueId: queueEntry?.id
           });
+          console.log('🔧 State after setting - note: state updates are async');
         } else {
           console.log('📭 No contacts available in queue:', data);
           // Agent availability is managed by AuthContext, not local state
@@ -219,23 +242,31 @@ export default function WorkPage() {
       console.error('💥 Error fetching next contact:', error);
     } finally {
       setIsLoadingContact(false);
+      fetchingContactRef.current = false;
     }
-  }, [currentCampaign]);
+  }, [currentCampaign, isClient]);
 
-  // Handle agent availability for Preview Dialing
+  // Handle agent availability for Preview Dialing - simplified to avoid infinite loops
   useEffect(() => {
     console.log('🎯 Preview Dialing useEffect triggered:', {
       agentAvailable,
       currentCampaign: currentCampaign?.name,
       dialMethod: currentCampaign?.dialMethod,
-      showPreviewCard
+      showPreviewCard,
+      isLoadingContact,
+      fetchingInProgress: fetchingContactRef.current
     });
     
-    if (agentAvailable && currentCampaign?.dialMethod === 'MANUAL_PREVIEW' && !showPreviewCard) {
+    // Only fetch if agent is available, campaign is preview mode, no card showing, not already loading
+    if (agentAvailable && 
+        currentCampaign?.dialMethod === 'MANUAL_PREVIEW' && 
+        !showPreviewCard && 
+        !isLoadingContact && 
+        !fetchingContactRef.current) {
       console.log('🚀 Triggering fetchNextPreviewContact...');
       fetchNextPreviewContact();
     }
-  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard]);
+  }, [agentAvailable, currentCampaign?.dialMethod, showPreviewCard, isLoadingContact]);
 
   // Debug Preview Card state
   useEffect(() => {
@@ -250,6 +281,11 @@ export default function WorkPage() {
       currentCampaign: currentCampaign?.name
     });
   }, [previewContact, showPreviewCard, agentAvailable, currentCampaign]);
+
+  // Track showPreviewCard state changes specifically
+  useEffect(() => {
+    console.log('🎯 showPreviewCard state changed to:', showPreviewCard);
+  }, [showPreviewCard]);
 
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
@@ -431,6 +467,7 @@ export default function WorkPage() {
                     <button
                       onClick={() => {
                         console.log('🎯 Manual trigger fetchNextPreviewContact');
+                        fetchingContactRef.current = false; // Reset the ref in case it's stuck
                         fetchNextPreviewContact();
                       }}
                       disabled={isLoadingContact}
@@ -623,38 +660,65 @@ export default function WorkPage() {
         </div>
       </div>
 
-      {/* Preview Contact Card - Overlay */}
-      {previewContact && previewContact.id && previewContact.id !== 'unknown' && (
-        <PreviewContactCard
-          contact={previewContact}
-          isVisible={showPreviewCard}
-          onCallNow={handleCallNow}
-          onSkip={handleSkip}
-          onClose={() => {
-            setShowPreviewCard(false);
-            setPreviewContact(null);
-          }}
-          campaignName={currentCampaign?.name}
-          isLoading={isLoadingContact}
-        />
-      )}
-      </MainLayout>
-
       {/* Preview Contact Card - Portal Render Outside Main Layout */}
-      {previewContact && previewContact.id && previewContact.id !== 'unknown' && (
-        <PreviewContactCard
-          contact={previewContact}
-          isVisible={showPreviewCard}
-          onCallNow={handleCallNow}
-          onSkip={handleSkip}
-          onClose={() => {
-            setShowPreviewCard(false);
-            setPreviewContact(null);
-          }}
-          campaignName={currentCampaign?.name}
-          isLoading={isLoadingContact}
-        />
-      )}
+      {(() => {
+        const shouldRender = previewContact && 
+                            previewContact.id && 
+                            previewContact.id !== 'unknown' && 
+                            showPreviewCard;
+        
+        // TEMPORARY: Force render for testing
+        const forceRender = previewContact && previewContact.id && previewContact.id !== 'unknown';
+        
+        console.log('🎨 PreviewContactCard render check:', {
+          hasContact: !!previewContact,
+          contactId: previewContact?.id,
+          contactIdType: typeof previewContact?.id,
+          contactFirstName: previewContact?.firstName,
+          contactPhone: previewContact?.phone,
+          showCard: showPreviewCard,
+          shouldRender,
+          
+          // Detailed condition check
+          condition1_hasPreviewContact: !!previewContact,
+          condition2_hasId: !!previewContact?.id,
+          condition3_idNotUnknown: previewContact?.id !== 'unknown',
+          condition4_showPreviewCard: showPreviewCard,
+          
+          // Overall conditions
+          allConditionsMet: previewContact && previewContact.id && previewContact.id !== 'unknown' && showPreviewCard,
+          forceRender,
+          
+          // Raw contact object for debugging
+          previewContactRaw: previewContact
+        });
+        
+        if (forceRender) {
+          console.log('🚀 FORCE RENDERING PreviewContactCard with full contact:', previewContact);
+        } else if (shouldRender) {
+          console.log('🚀 Rendering PreviewContactCard with full contact:', previewContact);
+        } else {
+          console.log('❌ Not rendering PreviewContactCard - missing conditions');
+        }
+        
+        return forceRender ? (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <PreviewContactCard
+              contact={previewContact}
+              isVisible={true}
+              onCallNow={handleCallNow}
+              onSkip={handleSkip}
+              onClose={() => {
+                setShowPreviewCard(false);
+                setPreviewContact(null);
+              }}
+              campaignName={currentCampaign?.name}
+              isLoading={isLoadingContact}
+            />
+          </div>
+        ) : null;
+      })()}
+      </MainLayout>
     </>
   );
 }
