@@ -18,6 +18,8 @@ import {
   Clock,
   PenTool,
   SkipForward,
+  Pause,
+  Play,
   X
 } from 'lucide-react';
 
@@ -74,8 +76,10 @@ interface PreviewContactCardProps {
   onCallNow: (contact: PreviewContact, notes?: string) => void;
   onSkip: (contact: PreviewContact, skipReason?: string) => void;
   onClose: () => void;
+  onPause?: () => void;
   campaignName?: string;
   isLoading?: boolean;
+  isPreviewPaused?: boolean;
 }
 
 export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
@@ -84,8 +88,10 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   onCallNow,
   onSkip,
   onClose,
+  onPause,
   campaignName,
-  isLoading = false
+  isLoading = false,
+  isPreviewPaused = false
 }) => {
   console.log('🎯🎯🎯 PreviewContactCard component called with props:', {
     hasContact: !!contact,
@@ -156,27 +162,6 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
 
   return (
     <>
-      {/* Test visibility div */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: '50px',
-          right: '50px',
-          width: '200px',
-          height: '100px',
-          backgroundColor: 'red',
-          color: 'white',
-          zIndex: 99999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          fontWeight: 'bold'
-        }}
-      >
-        PREVIEW CARD TEST
-      </div>
-      
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         style={{ 
@@ -500,6 +485,32 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
                     <SkipForward className="w-4 h-4 mr-2" />
                     Skip
                   </Button>
+                  
+                  {onPause && (
+                    <Button
+                      variant="outline"
+                      onClick={() => onPause()}
+                      disabled={isLoading}
+                      className={`${
+                        isPreviewPaused 
+                          ? 'text-green-600 border-green-300 hover:bg-green-50' 
+                          : 'text-blue-600 border-blue-300 hover:bg-blue-50'
+                      }`}
+                    >
+                      {isPreviewPaused ? (
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Resume
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-4 h-4 mr-2" />
+                          Pause
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
                   <Button
                     onClick={() => onCallNow(contact, notes)}
                     disabled={isLoading}

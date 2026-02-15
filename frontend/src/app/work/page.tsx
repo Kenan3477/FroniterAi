@@ -472,49 +472,6 @@ export default function WorkPage() {
                     console.log('REST API call result:', result);
                   }}
                 />
-
-                {/* Debug Section for Preview Dialing */}
-                {currentCampaign && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 className="text-sm font-semibold text-blue-800 mb-2">Preview Dialing Debug</h3>
-                    <div className="text-xs text-blue-600 space-y-1">
-                      <p><strong>Campaign:</strong> {currentCampaign.name}</p>
-                      <p><strong>Dial Method:</strong> {currentCampaign.dialMethod}</p>
-                      <p><strong>Agent Available:</strong> {agentAvailable ? 'Yes' : 'No'}</p>
-                      <p><strong>Preview Card Showing:</strong> {showPreviewCard ? 'Yes' : 'No'}</p>
-                      <p><strong>Loading Contact:</strong> {isLoadingContact ? 'Yes' : 'No'}</p>
-                      <p><strong>Auto-Fetch:</strong> <span className={previewDialingPaused ? 'text-orange-600 font-semibold' : 'text-green-600 font-semibold'}>{previewDialingPaused ? '⏸️ PAUSED' : '▶️ ACTIVE'}</span></p>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => {
-                          console.log('🎯 Manual trigger fetchNextPreviewContact');
-                          fetchingContactRef.current = false; // Reset the ref in case it's stuck
-                          fetchNextPreviewContact();
-                        }}
-                        disabled={isLoadingContact}
-                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {isLoadingContact ? 'Loading...' : 'Test Fetch Contact'}
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setPreviewDialingPaused(!previewDialingPaused);
-                          console.log(previewDialingPaused ? '▶️ Preview dialing resumed' : '⏸️ Preview dialing paused');
-                        }}
-                        className={`px-3 py-1 text-xs text-white rounded ${
-                          previewDialingPaused 
-                            ? 'bg-green-600 hover:bg-green-700' 
-                            : 'bg-orange-600 hover:bg-orange-700'
-                        }`}
-                      >
-                        {previewDialingPaused ? '▶️ Resume Auto-Fetch' : '⏸️ Pause Auto-Fetch'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Show dialing interface only when no active call */}
                 {!activeCall.isActive && (
                   <div className="mt-4">
@@ -737,8 +694,13 @@ export default function WorkPage() {
                 setShowPreviewCard(false);
                 setPreviewContact(null);
               }}
+              onPause={() => {
+                setPreviewDialingPaused(!previewDialingPaused);
+                console.log(previewDialingPaused ? '▶️ Preview dialing resumed from card' : '⏸️ Preview dialing paused from card');
+              }}
               campaignName={currentCampaign?.name}
               isLoading={isLoadingContact}
+              isPreviewPaused={previewDialingPaused}
             />
           </div>
         ) : null;
