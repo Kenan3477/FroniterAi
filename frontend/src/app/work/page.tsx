@@ -305,6 +305,17 @@ export default function WorkPage() {
     console.log('🎯 showPreviewCard state changed to:', showPreviewCard);
   }, [showPreviewCard]);
 
+  // Sync preview dialing pause state with agent status
+  useEffect(() => {
+    if (agentStatus === 'Available' && previewDialingPaused) {
+      console.log('📍 Agent set to Available - resuming preview dialing');
+      setPreviewDialingPaused(false);
+    } else if (agentStatus !== 'Available' && !previewDialingPaused && currentCampaign?.dialMethod === 'MANUAL_PREVIEW') {
+      console.log('📍 Agent set to non-Available - pausing preview dialing');
+      setPreviewDialingPaused(true);
+    }
+  }, [agentStatus, previewDialingPaused, currentCampaign?.dialMethod]);
+
   // Handler for updating customer info
   const handleUpdateCustomerField = (field: keyof CustomerInfoCardData, value: string) => {
     // Update Redux store with new customer information
@@ -690,9 +701,19 @@ export default function WorkPage() {
                 setShowPreviewCard(false);
                 setPreviewContact(null);
               }}
-              onPause={() => {
-                setPreviewDialingPaused(!previewDialingPaused);
-                console.log(previewDialingPaused ? '▶️ Preview dialing resumed from card' : '⏸️ Preview dialing paused from card');
+              onPause={async () => {
+                const newPausedState = !previewDialingPaused;
+                setPreviewDialingPaused(newPausedState);
+                
+                if (newPausedState) {
+                  // Pausing: set status to Unavailable
+                  console.log('⏸️ Preview dialing paused from card - setting status to Unavailable');
+                  await updateAgentStatus('Unavailable');
+                } else {
+                  // Resuming: set status to Available
+                  console.log('▶️ Preview dialing resumed from card - setting status to Available');
+                  await updateAgentStatus('Available');
+                }
               }}
               campaignName={currentCampaign?.name}
               isLoading={isLoadingContact}
