@@ -74,8 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use different endpoints based on user role
       let apiUrl: string;
       if (user.role === 'ADMIN') {
-        // Admin can use the admin endpoint to view their own campaigns
-        apiUrl = `/api/admin/users/${user.id}/campaigns`;
+        // Admin users should see all active campaigns, not just assigned ones
+        apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/admin/campaign-management/campaigns`;
       } else {
         // Regular users use the Next.js proxy to backend endpoint
         apiUrl = '/api/campaigns/my-campaigns';
@@ -84,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(apiUrl, {
         credentials: 'include',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
         }
       });
@@ -95,8 +96,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.success) {
           let activeCampaigns: any[] = [];
 
-          if (user.role === 'ADMIN' && data.data?.assignments) {
-            // Handle admin endpoint response format
+          if (user.role === 'ADMIN' && data.data && Array.isArray(data.data) && !data.data.assignments) {
+            // Handle admin campaign management API response format (all campaigns)
+            console.log('🔍 Processing all campaigns for admin:', data.data.length, 'total campaigns');
+            
+            activeCampaigns = data.data
+              .filter((campaign: any) => {
+                // Filter out deleted campaigns using the same logic as DataManagementContent
+                const name = campaign.displayName || campaign.name || '';
+                const isDeleted = name.toLowerCase().includes('[deleted]') || 
+                                name.toLowerCase().includes('deleted') ||
+                                campaign.status === 'ARCHIVED' ||
+                                campaign.status === 'DELETED';
+                
+                console.log(`🔍 Campaign ${campaign.campaignId}: name="${name}", status="${campaign.status}", isDeleted=${isDeleted}`);
+                return !isDeleted;
+              })
+              .map((campaign: any) => ({
+                campaignId: campaign.campaignId,
+                name: campaign.name,
+                displayName: campaign.displayName || campaign.name,
+                type: 'OUTBOUND',
+                dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
+                status: campaign.status
+              }));
+          } else if (user.role === 'ADMIN' && data.data?.assignments) {
+            // Handle admin endpoint response format (user assignments)
             activeCampaigns = data.data.assignments
               .filter((assignment: any) => assignment.campaignStatus === 'Active')
               .map((assignment: any) => ({
