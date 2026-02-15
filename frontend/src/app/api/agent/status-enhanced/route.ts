@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 // Extract auth token from cookies
 function getAuthToken(request: NextRequest): string | null {
   const authCookie = request.cookies.get('auth-token');
@@ -51,9 +54,14 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error(`❌ Backend request failed: ${response.status}`, errorData);
+      console.error('📍 Backend URL:', endpoint);
+      console.error('📦 Request body:', JSON.stringify(body));
+      console.error('🔑 Auth token present:', !!authToken);
+      
       return NextResponse.json({ 
         success: false, 
-        message: `Failed to update agent status: ${response.status}` 
+        message: `Backend error: ${response.status} - ${errorData}`,
+        error: errorData
       }, { status: response.status });
     }
 
