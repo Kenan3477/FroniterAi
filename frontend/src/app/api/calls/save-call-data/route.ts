@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        console.log('✅ Interaction saved:', interaction.interactionId);
+        console.log('✅ Interaction saved:', interaction.id);
 
         return NextResponse.json({
           success: true,
