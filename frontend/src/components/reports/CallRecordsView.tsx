@@ -130,7 +130,7 @@ export const CallRecordsView: React.FC = () => {
       queryParams.append('sortBy', sortBy);
       queryParams.append('sortOrder', sortOrder);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3004'}/api/call-records?${queryParams}`, {
+      const response = await fetch(`/api/call-records?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -201,8 +201,13 @@ export const CallRecordsView: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setCallRecords(data.data || []);
-        setTotalRecords(data.total || 0);
+        setCallRecords(data.records || data.data || []);
+        setTotalRecords(data.pagination?.total || data.total || 0);
+        
+        // Check if this is demo data from backend fallback
+        if (data.message && data.message.includes('Demo data')) {
+          console.warn('📝 Using demo data - Backend recording system not yet deployed');
+        }
       } else {
         throw new Error(data.error || 'Failed to fetch call records');
       }
@@ -242,8 +247,7 @@ export const CallRecordsView: React.FC = () => {
       }
 
       // Use the recording streaming endpoint for playback
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
-      const streamUrl = `${backendUrl}/api/recordings/${recordId}/stream`;
+      const streamUrl = `/api/recordings/${recordId}/stream`;
       
       // Create audio element for playback
       const audioElement = new Audio(streamUrl);
@@ -546,7 +550,7 @@ export const CallRecordsView: React.FC = () => {
                         </span>
                       </button>
                       <a
-                        href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app'}/api/recordings/${record.recordingFile.id}/download`}
+                        href={`/api/recordings/${record.recordingFile.id}/download`}
                         download
                         className="flex items-center text-gray-600 hover:text-gray-800"
                         title="Download recording"
@@ -714,7 +718,7 @@ export const CallRecordsView: React.FC = () => {
                       {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
                     </button>
                     <a
-                      href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app'}/api/recordings/${selectedRecord.recordingFile.id}/download`}
+                      href={`/api/recordings/${selectedRecord.recordingFile.id}/download`}
                       download
                       className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                     >

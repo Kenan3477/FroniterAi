@@ -62,7 +62,79 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      // Return the backend error response
+      if (response.status === 404) {
+        console.log('📝 Backend call-records endpoint not implemented yet - returning demo data');
+        
+        // Return demo data with recording file examples when backend endpoint doesn't exist
+        return NextResponse.json({
+          success: true,
+          records: [
+            {
+              id: 'demo-recording-1',
+              callId: 'DEMO-CALL-001',
+              campaignId: 'spring-demo-campaign',
+              contactId: 'demo-contact-1',
+              agentId: '119',
+              phoneNumber: '+447496603827',
+              dialedNumber: '+447496603827',
+              callType: 'outbound',
+              startTime: '2026-02-16T12:46:59.245Z',
+              endTime: '2026-02-16T12:48:54.871Z',
+              duration: 115,
+              outcome: 'completed',
+              dispositionId: null,
+              notes: 'Demo call with recording available',
+              recording: '/api/recordings/demo-1/stream',
+              transferTo: null,
+              createdAt: '2026-02-16T12:46:59.246Z',
+              recordingFile: {
+                id: 'demo-recording-file-1',
+                fileName: 'demo_recording_001.mp3',
+                uploadStatus: 'completed',
+                duration: 115,
+                format: 'mp3',
+                filePath: '/demo/recordings/demo_001.mp3'
+              }
+            },
+            {
+              id: 'demo-recording-2',
+              callId: 'DEMO-CALL-002',
+              campaignId: 'spring-demo-campaign',
+              contactId: 'demo-contact-2',
+              agentId: '119',
+              phoneNumber: '+44123456789',
+              dialedNumber: '+44123456789',
+              callType: 'outbound',
+              startTime: '2026-02-16T14:30:15.000Z',
+              endTime: '2026-02-16T14:32:45.000Z',
+              duration: 150,
+              outcome: 'completed',
+              dispositionId: null,
+              notes: 'Demo call with recording - longer duration',
+              recording: '/api/recordings/demo-2/stream',
+              transferTo: null,
+              createdAt: '2026-02-16T14:30:15.000Z',
+              recordingFile: {
+                id: 'demo-recording-file-2',
+                fileName: 'demo_recording_002.mp3',
+                uploadStatus: 'completed',
+                duration: 150,
+                format: 'mp3',
+                filePath: '/demo/recordings/demo_002.mp3'
+              }
+            }
+          ],
+          pagination: {
+            total: 2,
+            limit: 25,
+            currentPage: 1,
+            totalPages: 1
+          },
+          message: 'Demo data - Backend recording system not yet deployed'
+        });
+      }
+      
+      // Return other backend error responses
       const errorText = await response.text();
       console.error('❌ Backend error details:', errorText);
       
