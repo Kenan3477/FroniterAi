@@ -1010,6 +1010,53 @@ model SystemAlert {
   @@map("system_alerts")
 }
 
+model InboundNumber {
+  id            String    @id @default(cuid())
+  phoneNumber   String    @unique
+  displayName   String
+  country       String
+  region        String?
+  numberType    String    @default("LOCAL")
+  provider      String    @default("TWILIO")
+  capabilities  String?   // JSON array of capabilities
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("inbound_numbers")
+}
+
+model InboundQueue {
+  id                      String    @id @default(cuid())
+  name                    String    @unique
+  displayName             String
+  description             String?
+  isActive                Boolean   @default(true)
+  assignedAgents          String?   // JSON array of agent IDs
+  businessHoursEnabled    Boolean   @default(true)
+  businessHoursStart      String    @default("09:00")
+  businessHoursEnd        String    @default("17:00")
+  businessDays            String    @default("Monday,Tuesday,Wednesday,Thursday,Friday")
+  timezone                String    @default("Europe/London")
+  maxQueueSize            Int       @default(50)
+  overflowAction          String    @default("voicemail")
+  overflowDestination     String?
+  outOfHoursAction        String    @default("voicemail")
+  outOfHoursDestination   String?
+  holdMusicUrl            String?
+  welcomeMessageUrl       String?
+  estimatedWaitUrl        String?
+  ringStrategy            String    @default("round_robin")
+  callTimeout             Int       @default(30)
+  maxWaitTime             Int       @default(300)
+  priority                Int       @default(1)
+  skillTags               String?   // JSON array of skill tags
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("inbound_queues")
+}
+
 model AuditLog {
   id                   String   @id @default(cuid())
   action               String
