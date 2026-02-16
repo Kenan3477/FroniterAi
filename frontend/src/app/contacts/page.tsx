@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout';
+import { useContacts, Contact as ContextContact } from '@/contexts/ContactsContext';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -14,28 +15,8 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 
-interface Contact {
-  id: string;
-  contactId: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email?: string;
-  company?: string;
-  status: 'new' | 'contacted' | 'qualified' | 'not_interested' | 'callback' | 'completed';
-  tags: string[];
-  leadScore: number;
-  attemptCount: number;
-  lastAttempt?: Date;
-  lastOutcome?: string;
-  listName: string;
-  campaignId?: string;
-  source: string;
-  createdAt: Date;
-  city?: string;
-  state?: string;
-  industry?: string;
-}
+// Use Contact type from ContactsContext
+type Contact = ContextContact;
 
 interface FilterOptions {
   status: string[];
@@ -71,7 +52,9 @@ export default function ContactsPage() {
 }
 
 function AdvancedContactManagement() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  // Use contacts from context instead of local state
+  const { contacts, isLoading, lastUpdated, loadContacts, deleteContact: contextDeleteContact } = useContacts();
+  
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
     query: '',
@@ -89,11 +72,14 @@ function AdvancedContactManagement() {
     sortBy: 'leadScore',
     sortOrder: 'desc'
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [dataListNames, setDataListNames] = useState<Record<string, string>>({});
   
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Update filtered contacts when context contacts change
+  useEffect(() => {
+    setFilteredContacts(contacts);
+  }, [contacts]);
 
   // Computed smart list counts
   const smartListCounts = useMemo(() => ({
@@ -102,7 +88,7 @@ function AdvancedContactManagement() {
       c.lastAttempt && (Date.now() - c.lastAttempt.getTime()) < 2 * 24 * 60 * 60 * 1000
     ).length,
     neverContacted: filteredContacts.filter(c => c.attemptCount === 0).length,
-    warmLeads: filteredContacts.filter(c => c.attemptCount > 0 && c.status !== 'not_interested').length
+    warmLeads: filteredContacts.filter(c => c.attemptCount > 0 && c.status !== 'not-interested').length
   }), [filteredContacts]);
 
   // Get unique campaign/list info for filtering
@@ -211,9 +197,9 @@ function AdvancedContactManagement() {
   // Load contacts and data lists from backend
   useEffect(() => {
     fetchDataLists();
-    fetchContacts();
+    loadContacts(); // Use context's loadContacts instead
     fetchCampaigns();
-  }, [searchCriteria.query, searchCriteria.filters]);
+  }, [searchCriteria.query, searchCriteria.filters, loadContacts]);
 
   // Retry fetching data lists if they're not loaded and we have contacts
   useEffect(() => {
@@ -240,109 +226,19 @@ function AdvancedContactManagement() {
     }
   };
 
-  const fetchContacts = async () => {
-    try {
-      setIsLoading(true);
-      let allContacts: Contact[] = [];
-      let page = 1;
-      let hasMore = true;
-      
-      console.log('🔍 Starting to fetch all contacts...');
-
-      while (hasMore) {
-        const params = new URLSearchParams();
-        
-        if (searchCriteria.query) {
-          params.append('search', searchCriteria.query);
-        }
-        
-        if (searchCriteria.filters.status.length > 0) {
-          params.append('status', searchCriteria.filters.status[0]);
-        }
-        
-        if (searchCriteria.filters.campaign.length > 0) {
-          params.append('campaignId', searchCriteria.filters.campaign[0]);
-        }
-        
-        params.append('limit', '1000'); // Get maximum contacts allowed per request
-        params.append('page', page.toString());
-
-        console.log(`🔍 Fetching page ${page} with params:`, params.toString());
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/contacts?${params}`, {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`✅ Page ${page} fetched successfully:`, result);
-          
-          if (result.success && result.data && result.data.contacts) {
-            const pageContacts = result.data.contacts.map((contact: any) => ({
-              id: contact.contactId,
-              contactId: contact.contactId,
-              firstName: contact.firstName,
-              lastName: contact.lastName,
-              phone: contact.phone,
-              email: contact.email,
-              company: contact.customFields?.company || '',
-              status: mapBackendStatus(contact.status),
-              tags: contact.customFields?.tags ? contact.customFields.tags.split(',') : [],
-              leadScore: contact.customFields?.leadScore || 0,
-              attemptCount: contact.attemptCount,
-              lastAttempt: contact.lastAttemptAt ? new Date(contact.lastAttemptAt) : undefined,
-              lastOutcome: contact.status,
-              listName: contact.list?.name || getListDisplayName(contact.listId),
-              campaignId: contact.listId,
-              source: contact.customFields?.leadSource || 'Unknown',
-              createdAt: new Date(contact.createdAt),
-              city: contact.customFields?.city,
-              state: contact.customFields?.state,
-              industry: contact.customFields?.industry
-            })) as Contact[];
-            
-            allContacts = [...allContacts, ...pageContacts];
-            
-            // Check if there are more pages
-            const { pagination } = result.data;
-            setLoadingProgress({ current: page, total: pagination.totalPages });
-            hasMore = page < pagination.totalPages;
-            page++;
-            
-            console.log(`📊 Loaded ${pageContacts.length} contacts from page ${page - 1}, total so far: ${allContacts.length}`);
-          } else {
-            hasMore = false;
-          }
-        } else {
-          console.error(`❌ Failed to fetch page ${page}:`, response.status);
-          hasMore = false;
-        }
-      }
-      
-      setContacts(allContacts);
-      setFilteredContacts(allContacts);
-      setIsLoading(false);
-      console.log(`📊 Final result: Loaded ${allContacts.length} total contacts`);
-      
-    } catch (error) {
-      console.error('❌ Error fetching contacts:', error);
-      setContacts([]);
-      setFilteredContacts([]);
-      setIsLoading(false);
-    }
-  };
-
-  // Map backend status to frontend status
+  // Note: fetchContacts removed - now using ContactsContext.loadContacts()
+  
+  // Map backend status to frontend status (keeping for compatibility)
   const mapBackendStatus = (backendStatus: string): Contact['status'] => {
     switch (backendStatus) {
       case 'NotAttempted': return 'new';
-      case 'Answered': return 'contacted';
-      case 'NoAnswer': 
-      case 'Busy': 
-      case 'Voicemail': return 'callback';
+      case 'Answered': return 'qualified';
+      case 'NoAnswer': return 'no-answer';
+      case 'Busy': return 'busy';
+      case 'Voicemail': return 'voicemail';
       case 'MaxAttempts': 
-      case 'DoNotCall': return 'not_interested';
-      case 'Invalid': return 'not_interested';
+      case 'DoNotCall': return 'not-interested';
+      case 'Invalid': return 'not-interested';
       default: return 'new';
     }
   };
@@ -429,6 +325,10 @@ function AdvancedContactManagement() {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // Handle case where DELETE endpoint is not yet deployed
+          throw new Error(`Contact deletion feature is currently being deployed. Please try again in a few minutes. (Status: ${response.status})`);
+        }
         throw new Error(`Failed to delete contact: ${response.status} ${response.statusText}`);
       }
 
@@ -437,8 +337,9 @@ function AdvancedContactManagement() {
       if (result.success) {
         console.log('✅ Contact deleted successfully:', result);
         
-        // Remove the contact from the local state
-        setContacts(prevContacts => prevContacts.filter(c => c.contactId !== contact.contactId));
+        // Remove the contact from context and local filtered state
+        contextDeleteContact(contact.contactId);
+        setFilteredContacts(prev => prev.filter(c => c.contactId !== contact.contactId));
         
         alert(`✅ Contact "${contact.firstName} ${contact.lastName}" has been successfully deleted.`);
       } else {
@@ -486,19 +387,14 @@ function AdvancedContactManagement() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <div className="text-lg font-semibold text-gray-900 mb-2">Loading All Contacts</div>
             <div className="text-gray-600 mb-4">
-              {loadingProgress.total > 0 
-                ? `Loading page ${loadingProgress.current} of ${loadingProgress.total}...`
-                : 'Fetching contact data...'
-              }
+              Fetching contact data from cache or backend...
             </div>
-            {loadingProgress.total > 0 && (
-              <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
-                ></div>
-              </div>
-            )}
+            <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300 animate-pulse"
+                style={{ width: '60%' }}
+              ></div>
+            </div>
           </div>
         </div>
       )}
@@ -604,7 +500,15 @@ function AdvancedContactManagement() {
 
           {/* Quick Stats */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-3">Contact Overview</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900">Contact Overview</h4>
+              {lastUpdated && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                  Cached {Math.floor((new Date().getTime() - lastUpdated.getTime()) / 60000)}m ago
+                </div>
+              )}
+            </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Total Contacts</span>
@@ -834,13 +738,16 @@ function AdvancedContactManagement() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               contact.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                              contact.status === 'contacted' ? 'bg-green-100 text-green-800' :
-                              contact.status === 'qualified' ? 'bg-purple-100 text-purple-800' :
+                              contact.status === 'qualified' ? 'bg-green-100 text-green-800' :
                               contact.status === 'callback' ? 'bg-yellow-100 text-yellow-800' :
-                              contact.status === 'not_interested' ? 'bg-red-100 text-red-800' :
+                              contact.status === 'not-interested' ? 'bg-red-100 text-red-800' :
+                              contact.status === 'no-answer' ? 'bg-orange-100 text-orange-800' :
+                              contact.status === 'busy' ? 'bg-gray-100 text-gray-800' :
+                              contact.status === 'voicemail' ? 'bg-indigo-100 text-indigo-800' :
+                              contact.status === 'do-not-call' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {contact.status.replace('_', ' ')}
+                              {contact.status.replace(/-/g, ' ')}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
