@@ -662,7 +662,7 @@ export default function ReportsPage() {
                     Navigate to detailed call records view:
                   </p>
                   <a
-                    href="/reports/view?category=voice&subcategory=call"
+                    href="/call-records"
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
                   >
                     View Call Records

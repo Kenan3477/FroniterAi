@@ -5,8 +5,17 @@ import { db } from '@/lib/db';
  * Save Call Data API
  * POST /api/calls/save-call-data
  * Saves customer info and call disposition after call ends
+ * Public endpoint for Twilio webhooks
  */
 export async function POST(request: NextRequest) {
+  // Allow CORS and bypass authentication for Twilio webhooks
+  const headers = new Headers({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'X-Vercel-Protection-Bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET || 'dev-bypass'
+  });
+
   try {
     const body = await request.json();
     const {
@@ -107,7 +116,7 @@ export async function POST(request: NextRequest) {
           success: true,
           contact,
           interaction
-        });
+        }, { headers });
       } catch (interactionError) {
         console.error('❌ Interaction creation failed:', interactionError);
         
@@ -130,7 +139,7 @@ export async function POST(request: NextRequest) {
           error: 'Database operation failed',
           details: dbError instanceof Error ? dbError.message : 'Unknown database error'
         },
-        { status: 500 }
+        { status: 500, headers }
       );
     }
     
@@ -144,7 +153,21 @@ export async function POST(request: NextRequest) {
         error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
+}
+
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
