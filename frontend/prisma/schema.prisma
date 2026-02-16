@@ -52,7 +52,6 @@ model Contact {
   notes             String?
   tags              String?
   leadSource        String?
-  leadScore         Int              @default(0)
   deliveryDate      DateTime?
   ageRange          String?
   residentialStatus String?
@@ -77,7 +76,9 @@ model Contact {
   callRecords       CallRecord[]
   list              DataList         @relation(fields: [listId], references: [listId], onDelete: Cascade)
   queueEntries      DialQueueEntry[]
+  inbound_calls     inbound_calls[]
   interactions      Interaction[]
+  lead_scores       lead_scores?
   sales             Sale[]
   tasks             Task[]
   workItems         WorkItem[]
@@ -99,8 +100,8 @@ model DialQueueEntry {
   completedAt     DateTime?
   outcome         String?
   notes           String?
-  list            DataList  @relation(fields: [listId], references: [listId], onDelete: Cascade)
   contact         Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  list            DataList  @relation(fields: [listId], references: [listId], onDelete: Cascade)
 
   @@map("dial_queue")
 }
@@ -128,15 +129,18 @@ model Campaign {
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   createdById          Int?
+  isActive             Boolean                   @default(false)
+  outboundNumber       String?
   agentAssignments     AgentCampaignAssignment[]
+  alerts               alerts[]
   callKPIs             CallKPI[]
   callRecords          CallRecord[]
   campaignDispositions CampaignDisposition[]
   createdBy            User?                     @relation("CampaignCreator", fields: [createdById], references: [id])
   interactions         Interaction[]
   tasks                Task[]
-  workItems            WorkItem[]
   userAssignments      UserCampaignAssignment[]  @relation("CampaignUserAssignments")
+  workItems            WorkItem[]
 
   @@map("campaigns")
 }
@@ -159,9 +163,13 @@ model Agent {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
   campaignAssignments AgentCampaignAssignment[]
+  alerts              alerts[]
+  call_analysis       call_analysis[]
   callKPIs            CallKPI[]
   callRecords         CallRecord[]
+  inbound_calls       inbound_calls[]
   interactions        Interaction[]
+  quality_monitoring  quality_monitoring[]
   sales               Sale[]
   tasks               Task[]
   workItems           WorkItem[]
@@ -202,16 +210,17 @@ model WorkItem {
 }
 
 model Disposition {
-  id                   String                @id @default(cuid())
+  id                   String                 @id @default(cuid())
   name                 String
   description          String?
   category             String?
-  isActive             Boolean               @default(true)
-  retryEligible        Boolean               @default(false)
+  isActive             Boolean                @default(true)
+  retryEligible        Boolean                @default(false)
   retryDelay           Int?
-  createdAt            DateTime              @default(now())
+  createdAt            DateTime               @default(now())
   callRecords          CallRecord[]
   campaignDispositions CampaignDisposition[]
+  disposition_tracking disposition_tracking[]
 
   @@map("dispositions")
 }
@@ -245,36 +254,43 @@ model CallKPI {
   outcome             String
   notes               String?
   createdAt           DateTime @default(now())
-  contact             Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
-  campaign            Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
   agent               Agent    @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  campaign            Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact             Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
 
   @@map("call_kpis")
 }
 
 model CallRecord {
-  id            String       @id @default(cuid())
-  callId        String       @unique
-  campaignId    String
-  contactId     String
-  agentId       String?
-  phoneNumber   String
-  dialedNumber  String?
-  callType      String       @default("outbound")
-  startTime     DateTime
-  endTime       DateTime?
-  duration      Int?
-  outcome       String?
-  dispositionId String?
-  notes         String?
-  recording     String?
-  transferTo    String?
-  createdAt     DateTime     @default(now())
-  campaign      Campaign     @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
-  contact       Contact      @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
-  agent         Agent?       @relation(fields: [agentId], references: [agentId])
-  disposition   Disposition? @relation(fields: [dispositionId], references: [id])
-  recordingFile Recording?
+  id                   String                 @id @default(cuid())
+  callId               String                 @unique
+  campaignId           String
+  contactId            String
+  agentId              String?
+  phoneNumber          String
+  dialedNumber         String?
+  callType             String                 @default("outbound")
+  startTime            DateTime
+  endTime              DateTime?
+  duration             Int?
+  outcome              String?
+  dispositionId        String?
+  notes                String?
+  recording            String?
+  transferTo           String?
+  createdAt            DateTime               @default(now())
+  ai_recommendations   ai_recommendations[]
+  alerts               alerts[]
+  automation_triggers  automation_triggers[]
+  call_analysis        call_analysis?
+  agent                Agent?                 @relation(fields: [agentId], references: [agentId])
+  campaign             Campaign               @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact              Contact                @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  disposition          Disposition?           @relation(fields: [dispositionId], references: [id])
+  disposition_tracking disposition_tracking[]
+  quality_monitoring   quality_monitoring?
+  recordingFile        Recording?
+  sentiment_analysis   sentiment_analysis[]
 
   @@map("call_records")
 }
@@ -292,8 +308,8 @@ model Interaction {
   durationSeconds Int?
   result          String?
   agent           Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
-  contact         Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
   campaign        Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact         Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
   sales           Sale[]
 
   @@map("interactions")
@@ -307,9 +323,9 @@ model Sale {
   amount        Float
   status        String      @default("success")
   createdAt     DateTime    @default(now())
-  interaction   Interaction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
-  contact       Contact     @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
   agent         Agent       @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  contact       Contact     @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  interaction   Interaction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
 
   @@map("sales")
 }
@@ -325,68 +341,74 @@ model Task {
   status         String   @default("open")
   createdAt      DateTime @default(now())
   assignedUser   Agent    @relation(fields: [assignedUserId], references: [agentId], onDelete: Cascade)
-  contact        Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
   campaign       Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact        Contact  @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
 
   @@map("tasks")
 }
 
 model User {
-  id                    Int                    @id @default(autoincrement())
-  username              String                 @unique
-  email                 String                 @unique
-  password              String
-  firstName             String
-  lastName              String
-  name                  String
-  role                  String                 @default("AGENT")
-  isActive              Boolean                @default(true)
-  lastLogin             DateTime?
-  lastLoginAttempt      DateTime?
-  failedLoginAttempts   Int                    @default(0)
-  accountLockedUntil    DateTime?
-  passwordResetToken    String?
-  passwordResetExpires  DateTime?
-  twoFactorSecret       String?
-  twoFactorEnabled      Boolean                @default(false)
-  refreshTokenVersion   Int                    @default(0)
-  preferences           String?
-  status                String                 @default("away")
-  statusSince           DateTime               @default(now())
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  createdCampaigns      Campaign[]             @relation("CampaignCreator")
-  channelActivities     ChannelActivity[]      @relation("ChannelActivityUser")
-  channelAssignments    ChannelAssignment[]    @relation("ChannelUserAssignment")
-  assignedChannels      ChannelAssignment[]    @relation("ChannelAssigner")
-  channelConfigurations ChannelConfiguration[] @relation("ChannelConfigCreator")
-  channelSchedules      ChannelSchedule[]      @relation("ChannelScheduleCreator")
-  createdChannels       Channel[]              @relation("ChannelCreator")
-  updatedChannels       Channel[]              @relation("ChannelUpdater")
-  emailVerifications    EmailVerification[]
-  flows                 Flow[]
-  integrations          Integration[]          @relation("UserIntegrations")
-  notifications         Notification[]         @relation("UserNotifications")
-  refreshTokens         RefreshToken[]
-  resolvedAlerts        SystemAlert[]          @relation("AlertResolver")
-  acknowledgedAlerts    SystemAlert[]          @relation("AlertAcknowledger")
-  webhooks              Webhook[]              @relation("UserWebhooks")
-  campaignAssignments   UserCampaignAssignment[] @relation("UserCampaignAssignments")
-  assignedCampaigns     UserCampaignAssignment[] @relation("CampaignAssigner")
+  id                                                       Int                      @id @default(autoincrement())
+  username                                                 String                   @unique
+  email                                                    String                   @unique
+  password                                                 String
+  firstName                                                String
+  lastName                                                 String
+  name                                                     String
+  role                                                     String                   @default("AGENT")
+  isActive                                                 Boolean                  @default(true)
+  lastLogin                                                DateTime?
+  lastLoginAttempt                                         DateTime?
+  failedLoginAttempts                                      Int                      @default(0)
+  accountLockedUntil                                       DateTime?
+  passwordResetToken                                       String?
+  passwordResetExpires                                     DateTime?
+  twoFactorSecret                                          String?
+  twoFactorEnabled                                         Boolean                  @default(false)
+  refreshTokenVersion                                      Int                      @default(0)
+  preferences                                              String?
+  status                                                   String                   @default("away")
+  statusSince                                              DateTime                 @default(now())
+  createdAt                                                DateTime                 @default(now())
+  updatedAt                                                DateTime                 @updatedAt
+  createdCampaigns                                         Campaign[]               @relation("CampaignCreator")
+  channelActivities                                        ChannelActivity[]        @relation("ChannelActivityUser")
+  assignedChannels                                         ChannelAssignment[]      @relation("ChannelAssigner")
+  channelAssignments                                       ChannelAssignment[]      @relation("ChannelUserAssignment")
+  channelConfigurations                                    ChannelConfiguration[]   @relation("ChannelConfigCreator")
+  channelSchedules                                         ChannelSchedule[]        @relation("ChannelScheduleCreator")
+  createdChannels                                          Channel[]                @relation("ChannelCreator")
+  updatedChannels                                          Channel[]                @relation("ChannelUpdater")
+  emailVerifications                                       EmailVerification[]
+  flow_permissions_flow_permissions_grantedByUserIdTousers flow_permissions[]       @relation("flow_permissions_grantedByUserIdTousers")
+  flow_permissions_flow_permissions_userIdTousers          flow_permissions[]       @relation("flow_permissions_userIdTousers")
+  flow_shares                                              flow_shares[]
+  flow_templates                                           flow_templates[]
+  flow_version_rollbacks                                   flow_version_rollbacks[]
+  flow_versions                                            FlowVersion[]
+  flows                                                    Flow[]
+  integrations                                             Integration[]            @relation("UserIntegrations")
+  notifications                                            Notification[]           @relation("UserNotifications")
+  refreshTokens                                            RefreshToken[]
+  acknowledgedAlerts                                       SystemAlert[]            @relation("AlertAcknowledger")
+  resolvedAlerts                                           SystemAlert[]            @relation("AlertResolver")
+  assignedCampaigns                                        UserCampaignAssignment[] @relation("CampaignAssigner")
+  campaignAssignments                                      UserCampaignAssignment[] @relation("UserCampaignAssignments")
+  webhooks                                                 Webhook[]                @relation("UserWebhooks")
 
   @@map("users")
 }
 
 model UserCampaignAssignment {
-  id         String   @id @default(cuid())
-  userId     Int
-  campaignId String
-  isActive   Boolean  @default(true)
-  assignedAt DateTime @default(now())
-  assignedBy Int? // Admin who assigned this campaign
-  user       User     @relation("UserCampaignAssignments", fields: [userId], references: [id], onDelete: Cascade)
-  campaign   Campaign @relation("CampaignUserAssignments", fields: [campaignId], references: [campaignId], onDelete: Cascade)
-  assignedByUser User? @relation("CampaignAssigner", fields: [assignedBy], references: [id])
+  id             String   @id @default(cuid())
+  userId         Int
+  campaignId     String
+  isActive       Boolean  @default(true)
+  assignedAt     DateTime @default(now())
+  assignedBy     Int?
+  assignedByUser User?    @relation("CampaignAssigner", fields: [assignedBy], references: [id])
+  campaign       Campaign @relation("CampaignUserAssignments", fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  user           User     @relation("UserCampaignAssignments", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, campaignId])
   @@map("user_campaign_assignments")
@@ -408,31 +430,50 @@ model RefreshToken {
 }
 
 model Flow {
-  id              String        @id @default(cuid())
-  name            String
-  description     String
-  status          String        @default("INACTIVE")
-  createdByUserId Int
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  versions        FlowVersion[]
-  createdBy       User          @relation(fields: [createdByUserId], references: [id])
+  id               String             @id @default(cuid())
+  name             String
+  description      String
+  status           String             @default("INACTIVE")
+  createdByUserId  Int
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  isTemplate       Boolean            @default(false)
+  organizationId   String?
+  templateSource   String?
+  visibility       String             @default("PRIVATE")
+  flow_permissions flow_permissions[]
+  flow_shares      flow_shares[]
+  versions         FlowVersion[]
+  createdBy        User               @relation(fields: [createdByUserId], references: [id])
+  organizations    Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inbound_numbers  InboundNumber[]
 
+  @@index([organizationId])
+  @@index([organizationId, visibility])
   @@map("flows")
 }
 
 model FlowVersion {
-  id            String     @id @default(cuid())
-  flowId        String
-  versionNumber Int
-  isActive      Boolean    @default(false)
-  isDraft       Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  publishedAt   DateTime?
-  edges         FlowEdge[]
-  nodes         FlowNode[]
-  runs          FlowRun[]
-  flow          Flow       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id                                                                         String                   @id @default(cuid())
+  flowId                                                                     String
+  versionNumber                                                              Int
+  isActive                                                                   Boolean                  @default(false)
+  isDraft                                                                    Boolean                  @default(true)
+  createdAt                                                                  DateTime                 @default(now())
+  publishedAt                                                                DateTime?
+  approvedAt                                                                 DateTime?
+  approvedBy                                                                 Int?
+  archivedAt                                                                 DateTime?
+  changeLog                                                                  String?
+  performance                                                                String?
+  rollbackReason                                                             String?
+  edges                                                                      FlowEdge[]
+  nodes                                                                      FlowNode[]
+  runs                                                                       FlowRun[]
+  flow_version_rollbacks_flow_version_rollbacks_fromVersionIdToflow_versions flow_version_rollbacks[] @relation("flow_version_rollbacks_fromVersionIdToflow_versions")
+  flow_version_rollbacks_flow_version_rollbacks_toVersionIdToflow_versions   flow_version_rollbacks[] @relation("flow_version_rollbacks_toVersionIdToflow_versions")
+  users                                                                      User?                    @relation(fields: [approvedBy], references: [id])
+  flow                                                                       Flow                     @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@unique([flowId, versionNumber])
   @@map("flow_versions")
@@ -509,17 +550,21 @@ model FlowRunStep {
 }
 
 model Organization {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  displayName String
-  description String?
-  website     String?
-  industry    String?
-  size        String?
-  timezone    String    @default("UTC")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  channels    Channel[]
+  id                     String                   @id @default(cuid())
+  name                   String                   @unique
+  displayName            String
+  description            String?
+  website                String?
+  industry               String?
+  size                   String?
+  timezone               String                   @default("UTC")
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  channels               Channel[]
+  flow_shares            flow_shares[]
+  flow_templates         flow_templates[]
+  flows                  Flow[]
+  organization_analytics organization_analytics[]
 
   @@map("organizations")
 }
@@ -597,8 +642,8 @@ model Channel {
   metrics            ChannelMetrics[]
   routes             ChannelRoute[]
   schedules          ChannelSchedule[]
-  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator            User?                  @relation("ChannelCreator", fields: [createdBy], references: [id])
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   updater            User?                  @relation("ChannelUpdater", fields: [updatedBy], references: [id])
 
   @@index([organizationId])
@@ -747,11 +792,11 @@ model ChannelAssignment {
   userId               Int?
   teamId               String?
   roleId               String?
-  channel              Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  user                 User?    @relation("ChannelUserAssignment", fields: [userId], references: [id], onDelete: Cascade)
-  team                 Team?    @relation("ChannelTeamAssignment", fields: [teamId], references: [id], onDelete: Cascade)
-  role                 Role?    @relation("ChannelRoleAssignment", fields: [roleId], references: [id], onDelete: Cascade)
   assigner             User?    @relation("ChannelAssigner", fields: [assignedBy], references: [id])
+  channel              Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  role                 Role?    @relation("ChannelRoleAssignment", fields: [roleId], references: [id], onDelete: Cascade)
+  team                 Team?    @relation("ChannelTeamAssignment", fields: [teamId], references: [id], onDelete: Cascade)
+  user                 User?    @relation("ChannelUserAssignment", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([channelId])
   @@index([assignmentType])
@@ -891,8 +936,8 @@ model Webhook {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   deliveries    WebhookDelivery[]
-  integration   Integration?      @relation(fields: [integrationId], references: [id])
   creator       User              @relation("UserWebhooks", fields: [createdBy], references: [id])
+  integration   Integration?      @relation(fields: [integrationId], references: [id])
 
   @@map("webhooks")
 }
@@ -1000,8 +1045,8 @@ model SystemAlert {
   resolvedBy     Int?
   resolvedAt     DateTime?
   createdAt      DateTime  @default(now())
-  resolver       User?     @relation("AlertResolver", fields: [resolvedBy], references: [id])
   acknowledger   User?     @relation("AlertAcknowledger", fields: [acknowledgedBy], references: [id])
+  resolver       User?     @relation("AlertResolver", fields: [resolvedBy], references: [id])
 
   @@index([alertType])
   @@index([severity])
@@ -1011,48 +1056,78 @@ model SystemAlert {
 }
 
 model InboundNumber {
-  id            String    @id @default(cuid())
-  phoneNumber   String    @unique
-  displayName   String
-  country       String
-  region        String?
-  numberType    String    @default("LOCAL")
-  provider      String    @default("TWILIO")
-  capabilities  String?   // JSON array of capabilities
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                       String        @id @default(cuid())
+  phoneNumber              String        @unique
+  displayName              String
+  country                  String
+  region                   String?
+  numberType               String        @default("LOCAL")
+  provider                 String        @default("TWILIO")
+  isActive                 Boolean       @default(true)
+  capabilities             String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  assignedFlowId           String?
+  assignedToDefaultList    Boolean?      @default(true)
+  autoRejectAnonymous      Boolean?      @default(true)
+  businessDays             String?       @default("Monday,Tuesday,Wednesday,Thursday,Friday")
+  businessHours            String?       @default("24 Hours")
+  businessHoursEnd         String?       @default("17:00")
+  businessHoursStart       String?       @default("09:00")
+  busyAudioUrl             String?
+  countryCode              String?       @default("United Kingdom Of Great Britain And Northern Ireland (The) (GB)")
+  createContactOnAnonymous Boolean?      @default(true)
+  description              String?
+  greetingAudioUrl         String?
+  integration              String?       @default("None")
+  lookupSearchFilter       String?       @default("All Lists")
+  noAnswerAudioUrl         String?
+  outOfHoursAction         String?       @default("Hangup")
+  outOfHoursAudioUrl       String?
+  outOfHoursTransferNumber String?
+  recordCalls              Boolean?      @default(true)
+  routeTo                  String?       @default("Hangup")
+  routeToQueueId           String?
+  selectedExtension        String?
+  selectedFlowId           String?
+  selectedQueueId          String?
+  selectedRingGroupId      String?
+  timezone                 String?       @default("Europe/London")
+  voicemailAudioUrl        String?
+  flows                    Flow?         @relation(fields: [assignedFlowId], references: [id])
+  inbound_queues           InboundQueue? @relation(fields: [routeToQueueId], references: [id])
 
   @@map("inbound_numbers")
 }
 
 model InboundQueue {
-  id                      String    @id @default(cuid())
-  name                    String    @unique
-  displayName             String
-  description             String?
-  isActive                Boolean   @default(true)
-  assignedAgents          String?   // JSON array of agent IDs
-  businessHoursEnabled    Boolean   @default(true)
-  businessHoursStart      String    @default("09:00")
-  businessHoursEnd        String    @default("17:00")
-  businessDays            String    @default("Monday,Tuesday,Wednesday,Thursday,Friday")
-  timezone                String    @default("Europe/London")
-  maxQueueSize            Int       @default(50)
-  overflowAction          String    @default("voicemail")
-  overflowDestination     String?
-  outOfHoursAction        String    @default("voicemail")
-  outOfHoursDestination   String?
-  holdMusicUrl            String?
-  welcomeMessageUrl       String?
-  estimatedWaitUrl        String?
-  ringStrategy            String    @default("round_robin")
-  callTimeout             Int       @default(30)
-  maxWaitTime             Int       @default(300)
-  priority                Int       @default(1)
-  skillTags               String?   // JSON array of skill tags
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  id                    String          @id @default(cuid())
+  name                  String          @unique
+  displayName           String
+  description           String?
+  isActive              Boolean         @default(true)
+  assignedAgents        String?
+  businessHoursEnabled  Boolean         @default(true)
+  businessHoursStart    String?         @default("09:00")
+  businessHoursEnd      String?         @default("17:00")
+  businessDays          String?         @default("Monday,Tuesday,Wednesday,Thursday,Friday")
+  timezone              String?         @default("Europe/London")
+  maxQueueSize          Int?            @default(50)
+  overflowAction        String          @default("voicemail")
+  overflowDestination   String?
+  outOfHoursAction      String          @default("voicemail")
+  outOfHoursDestination String?
+  holdMusicUrl          String?
+  welcomeMessageUrl     String?
+  estimatedWaitUrl      String?
+  ringStrategy          String          @default("round_robin")
+  callTimeout           Int             @default(30)
+  maxWaitTime           Int             @default(300)
+  priority              Int             @default(1)
+  skillTags             String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  inbound_numbers       InboundNumber[]
 
   @@map("inbound_queues")
 }
@@ -1086,13 +1161,10 @@ model EmailVerification {
   id         String    @id @default(cuid())
   userId     Int
   email      String
-  token      String    @unique
-  tokenHash  String
+  token      String
+  tokenHash  String    @unique
   expiresAt  DateTime
   verifiedAt DateTime?
-  ipAddress  String?
-  userAgent  String?
-  attempts   Int       @default(0)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1101,4 +1173,395 @@ model EmailVerification {
   @@index([email])
   @@index([expiresAt])
   @@map("email_verifications")
+}
+
+model ai_feedback {
+  id                 String             @id
+  recommendationId   String
+  agentId            String
+  correct            Boolean
+  actualOutcome      String?
+  feedback           String?
+  createdAt          DateTime           @default(now())
+  ai_recommendations ai_recommendations @relation(fields: [recommendationId], references: [id])
+
+  @@index([agentId])
+  @@index([correct])
+  @@index([createdAt])
+  @@index([recommendationId])
+}
+
+model ai_recommendations {
+  id               String        @id
+  callId           String
+  agentId          String
+  type             String
+  recommendation   String
+  confidence       Float
+  status           String        @default("PENDING")
+  appliedAt        DateTime?
+  appliedBy        String?
+  feedbackReceived Boolean       @default(false)
+  feedbackScore    Float?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime
+  ai_feedback      ai_feedback[]
+  call_records     CallRecord    @relation(fields: [callId], references: [callId])
+
+  @@index([agentId])
+  @@index([callId])
+  @@index([createdAt])
+  @@index([status])
+  @@index([type])
+}
+
+model alerts {
+  id             String      @id
+  type           String
+  severity       String
+  title          String
+  message        String
+  callId         String?
+  agentId        String?
+  campaignId     String?
+  metadata       String?
+  acknowledged   Boolean     @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime
+  agents         Agent?      @relation(fields: [agentId], references: [id])
+  call_records   CallRecord? @relation(fields: [callId], references: [callId])
+  campaigns      Campaign?   @relation(fields: [campaignId], references: [campaignId])
+
+  @@index([acknowledged])
+  @@index([agentId])
+  @@index([callId])
+  @@index([createdAt])
+  @@index([severity])
+  @@index([type])
+}
+
+model automation_triggers {
+  id           String     @id
+  callId       String
+  triggerType  String
+  triggerData  String
+  status       String     @default("PENDING")
+  scheduledFor DateTime
+  executedAt   DateTime?
+  createdBy    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime
+  call_records CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([callId])
+  @@index([createdAt])
+  @@index([scheduledFor])
+  @@index([status])
+  @@index([triggerType])
+}
+
+model call_analysis {
+  id                      String     @id
+  callId                  String     @unique
+  agentId                 String?
+  sentimentScore          Float
+  sentiment               String
+  confidence              Float
+  emotions                String?
+  urgency                 String?
+  keywords                String?
+  qualityScore            Int?
+  currentMood             String?
+  riskLevel               String?
+  coachingRecommendations String?
+  nextBestActions         String?
+  complianceFlags         String?
+  analyzedAt              DateTime   @default(now())
+  updatedAt               DateTime
+  agents                  Agent?     @relation(fields: [agentId], references: [id])
+  call_records            CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([agentId])
+  @@index([analyzedAt])
+  @@index([callId])
+  @@index([riskLevel])
+  @@index([sentiment])
+}
+
+model coaching_suggestions {
+  id             String    @id
+  callId         String
+  agentId        String
+  type           String
+  message        String
+  priority       String
+  timestamp      DateTime
+  acknowledged   Boolean   @default(false)
+  acknowledgedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([acknowledged])
+  @@index([agentId])
+  @@index([callId])
+  @@index([priority])
+}
+
+model compliance_alerts {
+  id             String    @id
+  callId         String
+  agentId        String
+  alertType      String
+  severity       String
+  description    String
+  context        String?
+  suggestion     String?
+  requiresAction Boolean   @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([callId])
+  @@index([requiresAction])
+  @@index([severity])
+}
+
+model disposition_tracking {
+  id            String      @id
+  callId        String
+  dispositionId String
+  agentId       String
+  timestamp     DateTime
+  method        String
+  confidence    Float?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  call_records  CallRecord  @relation(fields: [callId], references: [callId])
+  dispositions  Disposition @relation(fields: [dispositionId], references: [id])
+
+  @@index([agentId])
+  @@index([callId])
+  @@index([dispositionId])
+  @@index([method])
+  @@index([timestamp])
+}
+
+model dnc_numbers {
+  id             Int      @id @default(autoincrement())
+  phoneNumber    String   @unique @db.VarChar(20)
+  originalFormat String   @db.VarChar(30)
+  reason         String?
+  addedBy        String   @db.VarChar(255)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  @@index([createdAt])
+  @@index([phoneNumber])
+}
+
+model flow_permissions {
+  id                                            String    @id
+  flowId                                        String
+  userId                                        Int
+  permissionType                                String
+  grantedByUserId                               Int
+  grantedAt                                     DateTime  @default(now())
+  expiresAt                                     DateTime?
+  flows                                         Flow      @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  users_flow_permissions_grantedByUserIdTousers User      @relation("flow_permissions_grantedByUserIdTousers", fields: [grantedByUserId], references: [id])
+  users_flow_permissions_userIdTousers          User      @relation("flow_permissions_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, userId, permissionType])
+  @@index([flowId])
+  @@index([userId])
+}
+
+model flow_shares {
+  id              String       @id
+  flowId          String
+  sharedWithOrgId String
+  sharedByUserId  Int
+  accessType      String
+  permissions     String?
+  sharedAt        DateTime     @default(now())
+  expiresAt       DateTime?
+  isActive        Boolean      @default(true)
+  flows           Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  users           User         @relation(fields: [sharedByUserId], references: [id])
+  organizations   Organization @relation(fields: [sharedWithOrgId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, sharedWithOrgId])
+  @@index([flowId])
+  @@index([sharedByUserId])
+  @@index([sharedWithOrgId])
+}
+
+model flow_templates {
+  id              String       @id
+  name            String
+  description     String
+  category        String?
+  tags            String?
+  organizationId  String
+  createdByUserId Int
+  isPublic        Boolean      @default(false)
+  usageCount      Int          @default(0)
+  rating          Float?
+  templateData    String
+  previewImage    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime
+  users           User         @relation(fields: [createdByUserId], references: [id])
+  organizations   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([isPublic])
+  @@index([organizationId])
+}
+
+model flow_version_rollbacks {
+  id                                                                String      @id
+  fromVersionId                                                     String
+  toVersionId                                                       String
+  reason                                                            String
+  performedBy                                                       Int
+  performedAt                                                       DateTime    @default(now())
+  impactAnalysis                                                    String?
+  flow_versions_flow_version_rollbacks_fromVersionIdToflow_versions FlowVersion @relation("flow_version_rollbacks_fromVersionIdToflow_versions", fields: [fromVersionId], references: [id])
+  users                                                             User        @relation(fields: [performedBy], references: [id])
+  flow_versions_flow_version_rollbacks_toVersionIdToflow_versions   FlowVersion @relation("flow_version_rollbacks_toVersionIdToflow_versions", fields: [toVersionId], references: [id])
+}
+
+model inbound_calls {
+  id              String    @id
+  callId          String    @unique
+  callSid         String    @unique
+  callerNumber    String
+  contactId       String?
+  status          String    @default("ringing")
+  assignedAgentId String?
+  assignedQueueId String?
+  routingMetadata String?
+  isCallback      Boolean   @default(false)
+  priority        String    @default("normal")
+  duration        Int?
+  createdAt       DateTime  @default(now())
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  agents          Agent?    @relation(fields: [assignedAgentId], references: [agentId])
+  contacts        Contact?  @relation(fields: [contactId], references: [contactId])
+}
+
+model lead_scores {
+  id                    String   @id
+  contactId             String   @unique
+  score                 Float
+  confidence            Float
+  priority              String
+  factors               String?
+  nextBestAction        String?
+  estimatedRevenue      Float?
+  conversionProbability Float?
+  timeToContact         Int?
+  preferredChannel      String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime
+  contacts              Contact  @relation(fields: [contactId], references: [contactId])
+
+  @@index([contactId])
+  @@index([priority])
+  @@index([score])
+}
+
+model organization_analytics {
+  id                   String       @id
+  organizationId       String
+  period               String
+  periodStart          DateTime
+  periodEnd            DateTime
+  totalFlows           Int          @default(0)
+  activeFlows          Int          @default(0)
+  totalExecutions      Int          @default(0)
+  successfulExecutions Int          @default(0)
+  failedExecutions     Int          @default(0)
+  avgExecutionTime     Float?
+  avgSuccessRate       Float?
+  totalResourceUsage   Float?
+  activeUsers          Int          @default(0)
+  newFlowsCreated      Int          @default(0)
+  templatesUsed        Int          @default(0)
+  createdAt            DateTime     @default(now())
+  organizations        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, period, periodStart])
+  @@index([organizationId])
+  @@index([periodStart])
+  @@index([period])
+}
+
+model quality_monitoring {
+  id                   String     @id
+  callId               String     @unique
+  agentId              String
+  monitoredBy          String?
+  overallQuality       Int
+  communicationSkills  Int?
+  productKnowledge     Int?
+  processAdherence     Int?
+  customerSatisfaction Int?
+  complianceScore      Int?
+  strengths            String?
+  improvementAreas     String?
+  coachingNotes        String?
+  scriptAdherence      Float?
+  sentimentProgression String?
+  complianceViolations String?
+  followUpRequired     Boolean    @default(false)
+  coachingScheduled    Boolean    @default(false)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime
+  agents               Agent      @relation(fields: [agentId], references: [id])
+  call_records         CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([monitoredBy])
+  @@index([overallQuality])
+}
+
+model quality_scores {
+  id                 String   @id
+  callId             String   @unique
+  agentId            String
+  overallScore       Float
+  communicationScore Float
+  empathyScore       Float
+  complianceScore    Float
+  effectivenessScore Float
+  createdAt          DateTime @default(now())
+
+  @@index([agentId])
+  @@index([overallScore])
+}
+
+model sentiment_analysis {
+  id           String     @id
+  callId       String
+  agentId      String
+  timestamp    DateTime
+  sentiment    String
+  confidence   Float
+  transcript   String?
+  emotions     String?
+  intent       String?
+  keywords     String?
+  createdAt    DateTime   @default(now())
+  call_records CallRecord @relation(fields: [callId], references: [callId])
+
+  @@index([agentId])
+  @@index([callId])
+  @@index([sentiment])
+  @@index([timestamp])
 }

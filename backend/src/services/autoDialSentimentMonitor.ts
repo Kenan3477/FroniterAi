@@ -288,8 +288,9 @@ class AutoDialSentimentMonitor {
 
     // Store final metrics in database
     try {
-      await prisma.sentimentAnalysis.create({
+      await prisma.sentiment_analysis.create({
         data: {
+          id: `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           callId,
           agentId: metrics.agentId,
           sentiment: metrics.overallSentiment || 'neutral', // Map to existing field

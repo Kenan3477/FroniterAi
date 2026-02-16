@@ -85,7 +85,7 @@ router.get('/', async (req: Request, res: Response) => {
               name: true
             }
           },
-          leadScore: true
+          lead_scores: true
         }
       }),
       prisma.contact.count({ where })
