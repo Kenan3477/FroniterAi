@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Call Records Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .recording { color: green; font-weight: bold; }
+        .no-recording { color: #999; }
+        .loading { color: blue; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Call Records with Recordings Test</h1>
+    <div id="status" class="loading">Loading call records...</div>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testCallRecords() {
+            const statusEl = document.getElementById('status');
+            const resultsEl = document.getElementById('results');
+            
+            try {
+                // Test direct backend API call
+                statusEl.innerHTML = 'Testing direct backend API...';
+                const response = await fetch('http://localhost:3004/api/call-records?limit=10');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.records || !Array.isArray(data.records)) {
+                    throw new Error('Invalid response format');
+                }
+                
+                statusEl.innerHTML = `✅ Found ${data.records.length} call records`;
+                
+                // Create table
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Call ID</th>
+                                <th>Phone Number</th>
+                                <th>Start Time</th>
+                                <th>Duration</th>
+                                <th>Recording</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.records.forEach(record => {
+                    const hasRecording = record.recordingFile && record.recordingFile.fileName;
+                    const recordingClass = hasRecording ? 'recording' : 'no-recording';
+                    const recordingText = hasRecording ? record.recordingFile.fileName : 'No recording';
+                    
+                    html += `
+                        <tr>
+                            <td>${record.callId}</td>
+                            <td>${record.phoneNumber}</td>
+                            <td>${new Date(record.startTime).toLocaleString()}</td>
+                            <td>${record.duration || 'N/A'}s</td>
+                            <td class="${recordingClass}">${recordingText}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                resultsEl.innerHTML = html;
+                
+                // Count recordings
+                const withRecordings = data.records.filter(r => r.recordingFile && r.recordingFile.fileName);
+                statusEl.innerHTML += ` | ${withRecordings.length} with recordings`;
+                
+            } catch (error) {
+                statusEl.innerHTML = `❌ Error: ${error.message}`;
+                statusEl.className = 'error';
+                console.error('API Test Error:', error);
+            }
+        }
+        
+        // Run test when page loads
+        testCallRecords();
+    </script>
+</body>
+</html>

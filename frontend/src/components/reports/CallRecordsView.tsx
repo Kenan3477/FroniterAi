@@ -130,7 +130,7 @@ export const CallRecordsView: React.FC = () => {
       queryParams.append('sortBy', sortBy);
       queryParams.append('sortOrder', sortOrder);
 
-      const response = await fetch(`/api/call-records?${queryParams}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3004'}/api/call-records?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     
-    const backendUrl = `${BACKEND_URL}/api/call-records/search${queryString ? `?${queryString}` : ''}`;
+    const backendUrl = `${BACKEND_URL}/api/call-records${queryString ? `?${queryString}` : ''}`;
     console.log('Backend URL:', backendUrl);
 
     // Forward the request to the Railway backend with optional auth

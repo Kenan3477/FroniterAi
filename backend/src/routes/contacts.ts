@@ -119,7 +119,7 @@ router.get('/', async (req: Request, res: Response) => {
         notes: contact.notes,
         tags: contact.tags,
         leadSource: contact.leadSource,
-        leadScore: contact.leadScore?.score || null,
+        leadScore: contact.lead_scores?.score || null,
         custom1: contact.custom1,
         custom2: contact.custom2,
         custom3: contact.custom3,
@@ -285,7 +285,7 @@ router.get('/:contactId', async (req: Request, res: Response) => {
             name: true
           }
         },
-        leadScore: true
+        lead_scores: true
       }
     });
 
@@ -324,7 +324,7 @@ router.get('/:contactId', async (req: Request, res: Response) => {
         notes: contact.notes,
         tags: contact.tags,
         leadSource: contact.leadSource,
-        leadScore: contact.leadScore?.score || null,
+        leadScore: contact.lead_scores?.score || null,
         custom1: contact.custom1,
         custom2: contact.custom2,
         custom3: contact.custom3,
@@ -406,7 +406,7 @@ router.put('/:contactId/status', async (req: Request, res: Response) => {
             name: true
           }
         },
-        leadScore: true
+        lead_scores: true
       }
     });
 
@@ -438,7 +438,7 @@ router.put('/:contactId/status', async (req: Request, res: Response) => {
         notes: updatedContact.notes,
         tags: updatedContact.tags,
         leadSource: updatedContact.leadSource,
-        leadScore: updatedContact.leadScore?.score || null,
+        leadScore: updatedContact.lead_scores?.score || null,
         custom1: updatedContact.custom1,
         custom2: updatedContact.custom2,
         custom3: updatedContact.custom3,
@@ -530,7 +530,7 @@ router.post('/', async (req: Request, res: Response) => {
             name: true
           }
         },
-        leadScore: true
+        lead_scores: true
       }
     });
 
@@ -572,7 +572,7 @@ router.post('/', async (req: Request, res: Response) => {
         notes: newContact.notes,
         tags: newContact.tags,
         leadSource: newContact.leadSource,
-        leadScore: newContact.leadScore?.score || null,
+        leadScore: newContact.lead_scores?.score || null,
         custom1: newContact.custom1,
         custom2: newContact.custom2,
         custom3: newContact.custom3,

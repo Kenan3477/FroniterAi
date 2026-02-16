@@ -856,7 +856,7 @@ router.get('/data-lists/:id/contacts', async (req: Request, res: Response) => {
           notes: true,
           tags: true,
           leadSource: true,
-          leadScore: true,
+          lead_scores: true,
           deliveryDate: true,
           ageRange: true,
           residentialStatus: true,
