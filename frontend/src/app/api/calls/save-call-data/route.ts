@@ -59,8 +59,9 @@ export async function POST(request: NextRequest) {
           contact = await (db as any).contact.create({
             data: {
               contactId: `CONT-${Date.now()}`,
-              firstName: customerInfo.firstName || null,
-              lastName: customerInfo.lastName || null,
+              listId: 'manual-dial-list', // Required field
+              firstName: customerInfo.firstName || 'Unknown',  // Required field
+              lastName: customerInfo.lastName || 'Contact',    // Required field
               phone: safePhoneNumber,
               email: customerInfo.email || null,
               company: null,
@@ -94,12 +95,30 @@ export async function POST(request: NextRequest) {
       }
 
       // Create interaction record with correct schema fields
+      // For now, let's try to create a minimal interaction without foreign key constraints
       try {
+        // First try to find if the agent exists
+        const existingAgent = await (db as any).agent.findFirst({
+          where: { agentId: safeAgentId }
+        });
+        
+        // Try to find if campaign exists  
+        const existingCampaign = await (db as any).campaign.findFirst({
+          where: { campaignId: safeCampaignId }
+        });
+        
+        console.log('🔍 Agent exists:', !!existingAgent, 'Campaign exists:', !!existingCampaign);
+        
+        // Use existing agent ID or create a default one
+        const validAgentId = existingAgent?.agentId || 'system-agent';
+        const validCampaignId = existingCampaign?.campaignId || 'manual-dial';
+        const validContactId = contact?.contactId || 'UNKNOWN';
+        
         const interaction = await (db as any).interaction.create({
           data: {
-            agentId: safeAgentId,
-            contactId: contact?.contactId || 'unknown',
-            campaignId: safeCampaignId,
+            agentId: validAgentId,
+            contactId: validContactId,
+            campaignId: validCampaignId,
             channel: 'voice',
             outcome: disposition?.outcome || 'unknown',
             startedAt: new Date(Date.now() - (safeDuration * 1000)),
@@ -119,25 +138,38 @@ export async function POST(request: NextRequest) {
         }, { headers });
       } catch (interactionError) {
         console.error('❌ Interaction creation failed:', interactionError);
+        console.error('❌ Error details:', {
+          name: (interactionError as any)?.name,
+          message: (interactionError as any)?.message,
+          code: (interactionError as any)?.code,
+          stack: (interactionError as any)?.stack
+        });
         
         // Still return success if contact was saved
         return NextResponse.json({
           success: true,
           contact,
           interaction: null,
-          warning: 'Call data saved but interaction record failed'
+          warning: 'Call data saved but interaction record failed',
+          error: (interactionError as any)?.message || 'Unknown interaction error'
         });
       }
       
     } catch (dbError) {
       console.error('❌ Database error:', dbError);
+      console.error('❌ Database error details:', {
+        name: (dbError as any)?.name,
+        message: (dbError as any)?.message,
+        code: (dbError as any)?.code,
+        stack: (dbError as any)?.stack
+      });
       
       // Return more specific error information
       return NextResponse.json(
         { 
           success: false,
           error: 'Database operation failed',
-          details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+          details: (dbError as any)?.message || 'Unknown database error'
         },
         { status: 500, headers }
       );
