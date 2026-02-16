@@ -118,7 +118,7 @@ export async function syncRecordingForCall(callSid: string, callRecordId: string
 
     return false;
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.message?.includes('not initialized')) {
       console.log(`⚠️ Twilio not configured - skipping recording sync for call ${callSid}`);
       return false;

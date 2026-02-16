@@ -15,7 +15,7 @@ router.get('/', authenticate, async (req, res) => {
   try {
     console.log('📞 Fetching DNC numbers list');
     
-    const dncNumbers = await prisma.dncNumber.findMany({
+    const dncNumbers = await prisma.dnc_numbers.findMany({
       orderBy: { createdAt: 'desc' }
     });
     
@@ -60,7 +60,7 @@ router.post('/', authenticate, async (req, res) => {
     }
     
     // Check if already exists
-    const existing = await prisma.dncNumber.findUnique({
+    const existing = await prisma.dnc_numbers.findUnique({
       where: { phoneNumber: normalizedNumber }
     });
     
@@ -72,12 +72,13 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
     
-    const dncNumber = await prisma.dncNumber.create({
+    const dncNumber = await prisma.dnc_numbers.create({
       data: {
         phoneNumber: normalizedNumber,
         originalFormat: phoneNumber,
         reason: reason || 'Customer request',
-        addedBy: addedBy || 'System'
+        addedBy: addedBy || "System",
+        updatedAt: new Date()
       }
     });
     
@@ -103,7 +104,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     
     console.log('📞 Removing number from DNC:', id);
     
-    await prisma.dncNumber.delete({
+    await prisma.dnc_numbers.delete({
       where: { id: parseInt(id) }
     });
     
@@ -139,7 +140,7 @@ router.post('/check', authenticate, async (req, res) => {
     
     console.log('📞 Checking DNC status for:', normalizedNumber);
     
-    const dncEntry = await prisma.dncNumber.findUnique({
+    const dncEntry = await prisma.dnc_numbers.findUnique({
       where: { phoneNumber: normalizedNumber }
     });
     
@@ -192,7 +193,7 @@ router.post('/bulk-import', authenticate, async (req, res) => {
         }
         
         // Check if already exists
-        const existing = await prisma.dncNumber.findUnique({
+        const existing = await prisma.dnc_numbers.findUnique({
           where: { phoneNumber: normalizedNumber }
         });
         
@@ -201,12 +202,13 @@ router.post('/bulk-import', authenticate, async (req, res) => {
           continue;
         }
         
-        await prisma.dncNumber.create({
+        await prisma.dnc_numbers.create({
           data: {
             phoneNumber: normalizedNumber,
             originalFormat: number,
             reason: reason || 'Bulk import',
-            addedBy: addedBy || 'System'
+            addedBy: addedBy || "System",
+        updatedAt: new Date()
           }
         });
         
@@ -240,7 +242,7 @@ router.get('/stats', authenticate, async (req, res) => {
     console.log('📞 Fetching DNC statistics');
     
     // Total count
-    const totalCount = await prisma.dncNumber.count();
+    const totalCount = await prisma.dnc_numbers.count();
     
     // Today's count (numbers added today)
     const today = new Date();
@@ -248,7 +250,7 @@ router.get('/stats', authenticate, async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    const todayCount = await prisma.dncNumber.count({
+    const todayCount = await prisma.dnc_numbers.count({
       where: {
         createdAt: {
           gte: today,
@@ -258,7 +260,7 @@ router.get('/stats', authenticate, async (req, res) => {
     });
     
     // Recently added numbers (last 10)
-    const recentlyAdded = await prisma.dncNumber.findMany({
+    const recentlyAdded = await prisma.dnc_numbers.findMany({
       select: {
         phoneNumber: true,
         originalFormat: true,

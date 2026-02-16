@@ -124,7 +124,7 @@ export class QualityMonitoringService {
   ): Promise<QualityMetrics> {
     try {
       // Get quality assessments for period
-      const qualityRecords = await prisma.qualityMonitoring.findMany({
+      const qualityRecords = await prisma.quality_monitoring.findMany({
         where: {
           agentId,
           createdAt: {
@@ -229,7 +229,7 @@ export class QualityMonitoringService {
   }>> {
     try {
       // Get recent quality assessments
-      const assessments = await prisma.qualityMonitoring.findMany({
+      const assessments = await prisma.quality_monitoring.findMany({
         where: { agentId },
         orderBy: { createdAt: 'desc' },
         take: recentAssessments
@@ -280,7 +280,7 @@ export class QualityMonitoringService {
       }
       
       // Get quality data
-      const qualityRecords = await prisma.qualityMonitoring.findMany({
+      const qualityRecords = await prisma.quality_monitoring.findMany({
         where: whereClause,
         include: {
           agent: true,
@@ -677,7 +677,7 @@ export class QualityMonitoringService {
    */
   private async storeQualityAssessment(callId: string, assessment: QualityAssessment): Promise<void> {
     try {
-      await prisma.qualityMonitoring.create({
+      await prisma.quality_monitoring.create({
         data: {
           callId,
           agentId: assessment.agentId,

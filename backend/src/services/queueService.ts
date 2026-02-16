@@ -248,7 +248,7 @@ export class QueueService {
               notes: true,
               tags: true,
               leadSource: true,
-              leadScore: true,
+              lead_scores: true,
               deliveryDate: true,
               ageRange: true,
               residentialStatus: true,

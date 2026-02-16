@@ -81,7 +81,7 @@ import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tena
 
 // Phase 3: Advanced AI Dialler Features - NEW
 import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-time sentiment analysis and coaching
-import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition
+// import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 
 // Import socket handlers
@@ -210,7 +210,7 @@ class App {
 
     // Phase 3: Advanced AI Dialler Features - NEW
     this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
-    this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition
+    // this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition - TEMPORARILY DISABLED
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES
     // this.app.use('/api/dialler/agents', diallerAgentRoutes); // Disabled - missing services

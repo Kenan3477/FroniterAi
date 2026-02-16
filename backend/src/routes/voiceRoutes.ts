@@ -46,7 +46,7 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
     
     // Now fetch active inbound numbers from database
     console.log('🔍 Now filtering for isActive: true...');
-    const inboundNumbers = await prisma.inboundNumber.findMany({
+    const inbound_numbers = await prisma.inboundNumber.findMany({
       where: {
         isActive: true
       },
@@ -66,11 +66,11 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       ]
     });
 
-    console.log(`📊 Database returned ${inboundNumbers.length} inbound numbers`);
-    inboundNumbers.forEach((num: any) => console.log(`   - ${num.phoneNumber} (${num.displayName})`));
+    console.log(`📊 Database returned ${inbound_numbers.length} inbound numbers`);
+    inbound_numbers.forEach((num: any) => console.log(`   - ${num.phoneNumber} (${num.displayName})`));
 
     // Parse capabilities field (stored as JSON string) and transform for response
-    const transformedNumbers = inboundNumbers.map((number: any) => ({
+    const transformedNumbers = inbound_numbers.map((number: any) => ({
       id: number.id,
       phoneNumber: number.phoneNumber,
       displayName: number.displayName,

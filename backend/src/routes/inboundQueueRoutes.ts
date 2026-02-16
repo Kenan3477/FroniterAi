@@ -43,7 +43,7 @@ router.get('/inbound-queues', authenticate, async (req: Request, res: Response) 
         { name: 'asc' }
       ],
       include: {
-        inboundNumbers: {
+        inbound_numbers: {
           select: {
             id: true,
             phoneNumber: true,
@@ -58,7 +58,7 @@ router.get('/inbound-queues', authenticate, async (req: Request, res: Response) 
       ...queue,
       assignedAgents: queue.assignedAgents ? JSON.parse(queue.assignedAgents) : [],
       skillTags: queue.skillTags ? JSON.parse(queue.skillTags) : [],
-      inboundNumbersCount: queue.inboundNumbers.length
+      inbound_numbersCount: queue.inbound_numbers.length
     }));
 
     console.log(`✅ Found ${queues.length} inbound queues`);
@@ -254,7 +254,7 @@ router.delete('/inbound-queues/:id', authenticate, async (req: Request, res: Res
     const existingQueue = await prisma.inboundQueue.findUnique({
       where: { id },
       include: {
-        inboundNumbers: true
+        inbound_numbers: true
       }
     });
 
@@ -266,11 +266,11 @@ router.delete('/inbound-queues/:id', authenticate, async (req: Request, res: Res
     }
 
     // Check if queue is still in use by inbound numbers
-    if (existingQueue.inboundNumbers.length > 0) {
+    if (existingQueue.inbound_numbers.length > 0) {
       return res.status(400).json({
         success: false,
         error: 'Cannot delete queue that is still assigned to inbound numbers',
-        inUseBy: existingQueue.inboundNumbers.map(num => num.phoneNumber)
+        inUseBy: existingQueue.inbound_numbers.map(num => num.phoneNumber)
       });
     }
 
@@ -306,7 +306,7 @@ router.get('/inbound-queues/:id', authenticate, async (req: Request, res: Respon
     const queue = await prisma.inboundQueue.findUnique({
       where: { id },
       include: {
-        inboundNumbers: {
+        inbound_numbers: {
           select: {
             id: true,
             phoneNumber: true,

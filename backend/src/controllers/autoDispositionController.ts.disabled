@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import { AutoDispositionService, CallContext, DispositionRecommendation } from '../services/autoDispositionService';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 const autoDispositionService = new AutoDispositionService();
@@ -76,13 +77,15 @@ export class AutoDispositionController {
       const recommendation = await autoDispositionService.generateRecommendation(callContext);
       
       // Store recommendation for tracking
-      const recommendationRecord = await prisma.aiRecommendation.create({
+      const recommendationRecord = await prisma.ai_recommendations.create({
         data: {
+          id: crypto.randomUUID(),
           callId: callRecord.callId,
           agentId: callRecord.agentId || '',
           type: 'DISPOSITION',
           recommendation: JSON.stringify(recommendation),
           confidence: recommendation.confidence,
+          updatedAt: new Date(),
           status: 'PENDING',
           createdAt: new Date()
         }
@@ -124,7 +127,7 @@ export class AutoDispositionController {
       // Get and validate recommendation
       let confidence = 0.5;
       if (recommendationId) {
-        const recommendation = await prisma.aiRecommendation.findUnique({
+        const recommendation = await prisma.ai_recommendations.findUnique({
           where: { id: recommendationId }
         });
         
@@ -132,7 +135,7 @@ export class AutoDispositionController {
           confidence = recommendation.confidence;
           
           // Update recommendation status
-          await prisma.aiRecommendation.update({
+          await prisma.ai_recommendations.update({
             where: { id: recommendationId },
             data: {
               status: agentOverride ? 'OVERRIDDEN' : 'ACCEPTED',
@@ -169,7 +172,7 @@ export class AutoDispositionController {
       });
       
       // Create disposition tracking
-      await prisma.dispositionTracking.create({
+      await prisma.disposition_tracking.create({
         data: {
           callId: callId,
           dispositionId: dispositionRecord.id,
@@ -234,7 +237,7 @@ export class AutoDispositionController {
       });
       
       // Get AI vs manual disposition breakdown
-      const methodStats = await prisma.dispositionTracking.groupBy({
+      const methodStats = await prisma.disposition_tracking.groupBy({
         by: ['method'],
         where: {
           callRecord: whereClause
@@ -286,7 +289,7 @@ export class AutoDispositionController {
       const agentId = req.user?.userId;
       
       // Find the AI recommendation for this call
-      const recommendation = await prisma.aiRecommendation.findFirst({
+      const recommendation = await prisma.ai_recommendations.findFirst({
         where: { 
           callId,
           type: 'DISPOSITION'
@@ -301,7 +304,7 @@ export class AutoDispositionController {
       }
       
       // Create feedback record
-      await prisma.aiFeedback.create({
+      await prisma.ai_feedback.create({
         data: {
           recommendationId: recommendation.id,
           agentId: agentId || '',
@@ -313,7 +316,7 @@ export class AutoDispositionController {
       });
       
       // Update recommendation with feedback
-      await prisma.aiRecommendation.update({
+      await prisma.ai_recommendations.update({
         where: { id: recommendation.id },
         data: {
           feedbackReceived: true,
@@ -376,7 +379,7 @@ export class AutoDispositionController {
       const actionConfig = actionMap[action];
       if (!actionConfig) return;
       
-      await prisma.automationTrigger.create({
+      await prisma.automation_triggers.create({
         data: {
           callId: callId,
           triggerType: actionConfig.type,
@@ -397,7 +400,7 @@ export class AutoDispositionController {
    */
   private static async calculateDispositionAccuracy(whereClause: any): Promise<any> {
     try {
-      const feedbackData = await prisma.aiFeedback.findMany({
+      const feedbackData = await prisma.ai_feedback.findMany({
         where: {
           recommendation: {
             type: 'DISPOSITION',
@@ -430,13 +433,13 @@ export class AutoDispositionController {
    */
   private static async getNextActionAnalytics(whereClause: any): Promise<any> {
     try {
-      const triggers = await prisma.automationTrigger.findMany({
+      const triggers = await prisma.automation_triggers.findMany({
         where: {
           callRecord: whereClause
         }
       });
       
-      const actionCounts = triggers.reduce((acc: any, trigger) => {
+      const actionCounts = triggers.reduce((acc: any, trigger: any) => {
         acc[trigger.triggerType] = (acc[trigger.triggerType] || 0) + 1;
         return acc;
       }, {});

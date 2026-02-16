@@ -18,6 +18,7 @@ import { eventManager } from '../services/eventManager';
 import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
 import { FlowExecutionEngine } from '../services/flowExecutionEngine';
+import crypto from 'crypto';
 
 // Inbound call interface
 export interface InboundCall {
@@ -243,7 +244,7 @@ export const answerInboundCall = async (req: Request, res: Response) => {
     // Try to update call status in database with better error handling
     try {
       // Try using Prisma ORM first (more robust)
-      const updateResult = await prisma.inboundCall.updateMany({
+      const updateResult = await prisma.inbound_calls.updateMany({
         where: { callId: callId },
         data: {
           status: 'answered',
@@ -260,7 +261,7 @@ export const answerInboundCall = async (req: Request, res: Response) => {
     // Try to get call details with fallback
     let callDetails = null;
     try {
-      callDetails = await prisma.inboundCall.findFirst({
+      callDetails = await prisma.inbound_calls.findFirst({
         where: { callId: callId }
       });
     } catch (lookupError: any) {
@@ -469,8 +470,9 @@ async function lookupCallerInformation(phoneNumber: string): Promise<CallerLooku
 async function storeInboundCall(inboundCall: InboundCall, callerInfo: CallerLookupResponse): Promise<void> {
   try {
     // Use Prisma client instead of raw SQL to avoid schema mismatches
-    await prisma.inboundCall.create({
+    await prisma.inbound_calls.create({
       data: {
+        id: crypto.randomUUID(),
         callId: inboundCall.id,
         callSid: inboundCall.callSid,
         callerNumber: inboundCall.callerNumber,
