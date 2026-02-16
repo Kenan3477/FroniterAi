@@ -254,7 +254,7 @@ export const generateCustomerToAgentTwiML = (): string => {
   const dial = twiml.dial({
     timeout: 60, // Increase timeout to 60 seconds for better connection reliability
     record: 'record-from-answer', // Record only one side to prevent echo
-    recordingStatusCallback: `${process.env.FRONTEND_URL}/api/calls/recording-callback`, // Handle recording completion
+    recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-status`, // FIXED: Use backend URL for recording callback
     answerOnBridge: true, // CRITICAL: Only answer customer when agent picks up
     ringTone: 'us', // Ring tone for AGENT to hear (not customer)
     callerId: process.env.TWILIO_PHONE_NUMBER

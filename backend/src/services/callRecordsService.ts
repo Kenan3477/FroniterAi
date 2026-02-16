@@ -159,6 +159,15 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
         select: {
           name: true
         }
+      },
+      recordingFile: {
+        select: {
+          id: true,
+          fileName: true,
+          duration: true,
+          uploadStatus: true,
+          createdAt: true
+        }
       }
     },
     orderBy: { startTime: 'desc' }

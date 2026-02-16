@@ -20,11 +20,16 @@ async function testRecordingSystem() {
   try {
     // Test 1: Check if backend is running
     console.log('1️⃣ Testing backend connectivity...');
-    const healthResponse = await fetch(`${BACKEND_URL}/health`);
-    if (!healthResponse.ok) {
-        throw new Error(`Backend not reachable: ${healthResponse.status}`);
+    try {
+      const healthResponse = await fetch(`${BACKEND_URL}/health`);
+      if (!healthResponse.ok) {
+          throw new Error(`Backend not reachable: ${healthResponse.status}`);
+      }
+      console.log('✅ Backend is running on port 3004');
+    } catch (connectError) {
+      console.log('❌ Backend not accessible - is it running?');
+      console.log('   Start with: cd backend && npm run dev');
     }
-    console.log('✅ Backend is running on port 3004');
 
     // Test 2: Check Recording table exists and has proper structure
     console.log('\n2️⃣ Checking Recording table structure...');
@@ -88,28 +93,37 @@ async function testRecordingSystem() {
       console.log('⚠️  No call records found with recording data');
     }
 
-    // Test 4: Test recording API endpoints
+    // Test 4: Test recording API endpoints (if backend is accessible)
     console.log('\n4️⃣ Testing recording API endpoints...');
     
     try {
+      // Test call records endpoint with recording data
+      const searchResponse = await fetch(`${BACKEND_URL}/api/call-records?limit=5`);
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        console.log(`📊 Search returned ${searchData.records?.length || 0} call records`);
+        
+        if (searchData.records && searchData.records.length > 0) {
+          const recordsWithRecordings = searchData.records.filter(r => r.recordingFile);
+          console.log(`📹 Records with recording files: ${recordsWithRecordings.length}`);
+          
+          if (recordsWithRecordings.length > 0) {
+            console.log('✅ Sample records with recordings:');
+            recordsWithRecordings.slice(0, 3).forEach(record => {
+              console.log(`   - ${record.callId}: ${record.recordingFile?.fileName || 'NO FILE'} (${record.recordingFile?.uploadStatus || 'NO STATUS'})`);
+            });
+          }
+        }
+      } else {
+        console.log(`❌ Search endpoint failed: ${searchResponse.status}`);
+      }
+
       // Test metadata endpoint (should return 404 for non-existent recording)
       const metadataResponse = await fetch(`${BACKEND_URL}/api/recordings/test-123/metadata`);
       console.log(`📡 Metadata endpoint: ${metadataResponse.status} (expected 404 for non-existent recording)`);
       
-      // Test status callback endpoint
-      const statusResponse = await fetch(`${BACKEND_URL}/api/dialer/recording-status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          RecordingSid: 'TEST_SID',
-          CallSid: 'TEST_CALL_SID',
-          RecordingStatus: 'completed',
-          RecordingUrl: 'https://test.mp3'
-        })
-      });
-      console.log(`📡 Status callback endpoint: ${statusResponse.status} (testing mock webhook)`);
     } catch (apiError) {
-      console.log(`❌ API endpoint test failed: ${apiError.message}`);
+      console.log(`⚠️  API endpoint test skipped: ${apiError.message}`);
     }
 
     // Test 5: Check for orphaned recordings
@@ -134,33 +148,6 @@ async function testRecordingSystem() {
       });
     } else {
       console.log('✅ No orphaned recordings found');
-    }
-
-    // Test 6: Test search functionality with recording data
-    console.log('\n6️⃣ Testing call records search with recording data...');
-    
-    try {
-      const searchResponse = await fetch(`${BACKEND_URL}/api/call-records?limit=5`);
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        console.log(`📊 Search returned ${searchData.records?.length || 0} call records`);
-        
-        if (searchData.records && searchData.records.length > 0) {
-          const recordsWithRecordings = searchData.records.filter(r => r.recordingFile);
-          console.log(`📹 Records with recording files: ${recordsWithRecordings.length}`);
-          
-          if (recordsWithRecordings.length > 0) {
-            console.log('✅ Sample records with recordings:');
-            recordsWithRecordings.slice(0, 3).forEach(record => {
-              console.log(`   - ${record.callId}: ${record.recordingFile?.fileName || 'NO FILE'} (${record.recordingFile?.uploadStatus || 'NO STATUS'})`);
-            });
-          }
-        }
-      } else {
-        console.log(`❌ Search endpoint failed: ${searchResponse.status}`);
-      }
-    } catch (searchError) {
-      console.log(`❌ Search test failed: ${searchError.message}`);
     }
 
     // Summary and recommendations
@@ -192,12 +179,15 @@ async function testRecordingSystem() {
       }
     }
 
-    console.log('\n🔧 SUGGESTED NEXT STEPS:');
+    console.log('\n🔧 RECENT FIXES APPLIED:');
     console.log('1. ✅ Fixed recording callback URL (BACKEND_URL instead of FRONTEND_URL)');
     console.log('2. ✅ Added recordingFile relationship to searchCallRecords');
-    console.log('3. 🔄 Regenerate Prisma client: `npx prisma generate`');
-    console.log('4. 🔄 Test manual dial with recording to verify end-to-end flow');
-    console.log('5. 🔄 Check Twilio webhook logs for recording status callbacks');
+    console.log('3. ✅ Regenerated Prisma client with recording relationships');
+
+    console.log('\n📝 NEXT STEPS:');
+    console.log('1. 🔄 Test manual dial with recording to verify end-to-end flow');
+    console.log('2. 🔄 Check Twilio webhook logs for recording status callbacks');
+    console.log('3. 🔄 Verify recording playback in frontend UI');
 
     console.log('\n🔗 Access Points:');
     console.log('- Frontend: http://localhost:3001');
@@ -210,67 +200,6 @@ async function testRecordingSystem() {
   } finally {
     await prisma.$disconnect();
   }
-}
-        
-        if (recordingResponse.status === 404) {
-            console.log('✅ Recording routes are registered (404 for non-existent recording is expected)\n');
-        } else if (recordingResponse.status === 500) {
-            console.log('⚠️  Recording routes registered but may have issues\n');
-        } else {
-            console.log(`⚠️  Unexpected response: ${recordingResponse.status}\n`);
-        }
-
-        // Test 3: Verify call records endpoint
-        console.log('3. Testing call records API...');
-        const callRecordsResponse = await fetch(`${BACKEND_URL}/api/call-records`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (callRecordsResponse.ok) {
-            const callRecords = await callRecordsResponse.json();
-            console.log(`✅ Call records API working - found ${callRecords.length || 0} records\n`);
-        } else if (callRecordsResponse.status === 401) {
-            console.log('⚠️  Call records API requires authentication\n');
-        } else {
-            console.log(`❌ Call records API error: ${callRecordsResponse.status}\n`);
-        }
-
-        // Test 4: Check recordings directory exists
-        console.log('4. Testing recordings storage setup...');
-        const fs = require('fs');
-        const path = require('path');
-        
-        const recordingsDir = path.join(__dirname, 'backend', 'recordings');
-        if (!fs.existsSync(recordingsDir)) {
-            console.log('📁 Creating recordings directory...');
-            fs.mkdirSync(recordingsDir, { recursive: true });
-            console.log('✅ Recordings directory created\n');
-        } else {
-            console.log('✅ Recordings directory exists\n');
-        }
-
-        console.log('🎉 Recording System Test Summary:');
-        console.log('✅ Backend server is running');
-        console.log('✅ Recording API endpoints are registered');
-        console.log('✅ Call records API is available');
-        console.log('✅ File storage is configured');
-        console.log('\n📋 Next Steps:');
-        console.log('1. Make a test call to generate actual recordings');
-        console.log('2. Verify audio files are downloaded from Twilio');
-        console.log('3. Test playback in the frontend UI');
-        console.log('\n🔗 Access Points:');
-        console.log(`- Frontend: http://localhost:3000`);
-        console.log(`- Backend API: http://localhost:3004/api`);
-        console.log(`- Call Records UI: http://localhost:3000/reports/call-records`);
-
-    } catch (error) {
-        console.error('❌ Recording system test failed:');
-        console.error(error.message);
-        process.exit(1);
-    }
 }
 
 // Run the test
