@@ -23,6 +23,78 @@ function DashboardContent() {
     setIsClient(true);
   }, []);
 
+  // Load dashboard stats when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDashboardStats();
+    }
+  }, [isAuthenticated, user]);
+
+  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+    
+    console.log('🔌 Setting up WebSocket connection for inbound calls...');
+    console.log('👤 User ID:', user.id, 'Username:', user.username);
+    
+    // Get auth token for WebSocket authentication
+    const token = localStorage.getItem('omnivox_token');
+    
+    // Connect to agent socket using user ID (important!)
+    agentSocket.connect(user.id.toString());
+    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
+    
+    // Handle inbound call notifications
+    const handleInboundCallRinging = (data: any) => {
+      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
+      
+      // Extract caller number properly
+      let callerNumber = 'Unknown';
+      if (data.from) {
+        callerNumber = data.from;
+      } else if (data.callSid && data.caller) {
+        callerNumber = data.caller;
+      } else if (data.caller_id_number) {
+        callerNumber = data.caller_id_number;
+      }
+      
+      const inboundCall = {
+        id: data.callSid || `call_${Date.now()}`,
+        callerNumber: callerNumber,
+        timestamp: new Date().toLocaleTimeString(),
+        status: 'ringing'
+      };
+      
+      console.log('📋 Adding inbound call to state:', inboundCall);
+      setInboundCalls(prev => [inboundCall, ...prev.slice(0, 4)]); // Keep max 5 calls
+      
+      // Show system notification if permitted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('📞 Incoming Call', {
+          body: `Call from ${callerNumber}`,
+          icon: '/favicon.ico',
+          tag: inboundCall.id
+        });
+      }
+    };
+    
+    // Register the inbound call listener
+    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
+    
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 Notification permission:', permission);
+      });
+    }
+    
+    return () => {
+      console.log('🔌 Cleaning up WebSocket connection...');
+      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
+      agentSocket.disconnect();
+    };
+  }, [user, isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
       loadDashboardStats();
@@ -138,91 +210,6 @@ function DashboardContent() {
     }
     return null;
   }
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardStats();
-    }
-  }, [isAuthenticated, user]);
-
-  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
-  useEffect(() => {
-    if (!user || !isAuthenticated) return;
-    
-    console.log('🔌 Setting up WebSocket connection for inbound calls...');
-    console.log('👤 User ID:', user.id, 'Username:', user.username);
-    
-    // Get auth token for WebSocket authentication
-    const token = localStorage.getItem('omnivox_token');
-    
-    // Connect to agent socket using user ID (important!)
-    agentSocket.connect(user.id.toString());
-    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
-    
-    // Handle inbound call notifications
-    const handleInboundCallRinging = (data: any) => {
-      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
-      
-      // Extract caller number properly
-      const callerNumber = data.call?.callerNumber || data.call?.from || 'Unknown Number';
-      const callerName = data.call?.callerName || data.callerInfo?.name || null;
-      const displayName = callerName ? `${callerName} (${callerNumber})` : callerNumber;
-      
-      console.log('📞 Caller details:', { callerNumber, callerName, displayName });
-      
-      // Show browser notification
-      if (Notification.permission === 'granted') {
-        new Notification('Incoming Call', {
-          body: `Call from ${displayName}`,
-          icon: '/favicon.ico',
-          tag: 'inbound-call'
-        });
-      }
-      
-      // Add to UI state
-      setInboundCalls(prev => {
-        const exists = prev.find(call => call.id === data.call?.id);
-        if (exists) return prev;
-        
-        return [...prev, {
-          ...data.call,
-          callerInfo: data.callerInfo,
-          displayName,
-          timestamp: new Date()
-        }];
-      });
-    };
-
-    const handleInboundCallAnswered = (data: any) => {
-      console.log('📞 Inbound call answered:', data);
-      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
-    };
-
-    const handleInboundCallEnded = (data: any) => {
-      console.log('📞 Inbound call ended:', data);
-      setInboundCalls(prev => prev.filter(call => call.id !== data.callId));
-    };
-
-    // Register event listeners
-    agentSocket.on('inbound-call-ringing', handleInboundCallRinging);
-    agentSocket.on('inbound-call-answered', handleInboundCallAnswered);
-    agentSocket.on('inbound-call-ended', handleInboundCallEnded);
-
-    // Request notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('🔔 Notification permission:', permission);
-      });
-    }
-
-    // Cleanup
-    return () => {
-      agentSocket.off('inbound-call-ringing', handleInboundCallRinging);
-      agentSocket.off('inbound-call-answered', handleInboundCallAnswered);
-      agentSocket.off('inbound-call-ended', handleInboundCallEnded);
-      agentSocket.disconnect();
-    };
-  }, [user]);
 
   // Handle answering an inbound call
   const handleAnswerCall = async (call: any) => {
