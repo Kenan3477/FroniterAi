@@ -106,6 +106,7 @@ export const CallRecordsView: React.FC = () => {
 
   const fetchCallRecords = async () => {
     try {
+      console.log('📞 CallRecordsView - Starting fetchCallRecords...');
       setLoading(true);
       setError(null);
 
@@ -130,6 +131,8 @@ export const CallRecordsView: React.FC = () => {
       queryParams.append('sortBy', sortBy);
       queryParams.append('sortOrder', sortOrder);
 
+      console.log(`📞 CallRecordsView - Making API call to: /api/call-records?${queryParams}`);
+
       const response = await fetch(`/api/call-records?${queryParams}`, {
         method: 'GET',
         headers: {
@@ -137,6 +140,8 @@ export const CallRecordsView: React.FC = () => {
         },
         credentials: 'include',
       });
+
+      console.log(`📞 CallRecordsView - API response status: ${response.status}`);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -199,8 +204,10 @@ export const CallRecordsView: React.FC = () => {
       }
 
       const data = await response.json();
+      console.log(`📞 CallRecordsView - API response data:`, data);
       
       if (data.success) {
+        console.log(`📞 CallRecordsView - Setting ${data.records?.length || 0} call records`);
         setCallRecords(data.records || data.data || []);
         setTotalRecords(data.pagination?.total || data.total || 0);
         
@@ -220,6 +227,7 @@ export const CallRecordsView: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('📞 CallRecordsView - Component mounted, calling fetchCallRecords...');
     fetchCallRecords();
   }, [filters, searchTerm, sortBy, sortOrder, currentPage]);
 
