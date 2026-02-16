@@ -600,4 +600,85 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /api/contacts/:contactId
+router.delete('/:contactId', async (req: Request, res: Response) => {
+  try {
+    const { contactId } = req.params;
+
+    if (!contactId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Contact ID is required' }
+      });
+    }
+
+    console.log(`🗑️ Deleting contact with ID: ${contactId}`);
+
+    // Check if contact exists
+    const existingContact = await prisma.contact.findUnique({
+      where: { contactId },
+      include: {
+        callRecords: true
+      }
+    });
+
+    if (!existingContact) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Contact not found' }
+      });
+    }
+
+    // Delete related records in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Delete dial queue entries first
+      const deletedQueueEntries = await tx.dialQueueEntry.deleteMany({
+        where: { contactId }
+      });
+
+      // Delete call records (if any)
+      const deletedCallRecords = await tx.callRecord.deleteMany({
+        where: { contactId }
+      });
+
+      // Delete the contact
+      const deletedContact = await tx.contact.delete({
+        where: { contactId }
+      });
+
+      return {
+        contact: deletedContact,
+        deletedQueueEntries: deletedQueueEntries.count,
+        deletedCallRecords: deletedCallRecords.count
+      };
+    });
+
+    console.log(`✅ Contact deleted successfully:`, {
+      contactId: result.contact.contactId,
+      name: `${result.contact.firstName} ${result.contact.lastName}`,
+      deletedQueueEntries: result.deletedQueueEntries,
+      deletedCallRecords: result.deletedCallRecords
+    });
+
+    res.json({
+      success: true,
+      data: {
+        message: `Contact "${result.contact.firstName} ${result.contact.lastName}" deleted successfully`,
+        deletedRecords: {
+          contact: 1,
+          callRecords: result.deletedCallRecords,
+          queueEntries: result.deletedQueueEntries
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error deleting contact' }
+    });
+  }
+});
+
 export default router;

@@ -10,7 +10,8 @@ import {
   ArrowDownTrayIcon,
   PlusIcon,
   AdjustmentsHorizontalIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 interface Contact {
@@ -356,7 +357,7 @@ function AdvancedContactManagement() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -407,6 +408,45 @@ function AdvancedContactManagement() {
     } catch (error) {
       console.error('❌ Error with CRM import:', error);
       alert('❌ CRM import failed. Please try again.');
+    }
+  };
+
+  // Handle contact deletion
+  const handleDeleteContact = async (contact: Contact) => {
+    try {
+      const confirmDelete = confirm(`⚠️ Are you sure you want to delete contact "${contact.firstName} ${contact.lastName}"?\n\nThis action cannot be undone and will permanently remove:\n• Contact information\n• Call history\n• All associated data\n\nClick OK to confirm deletion.`);
+      
+      if (!confirmDelete) {
+        return;
+      }
+
+      console.log(`🗑️ Deleting contact: ${contact.firstName} ${contact.lastName} (${contact.contactId})`);
+
+      // Call backend API directly to delete the contact (same pattern as fetch)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/contacts/${contact.contactId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete contact: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Contact deleted successfully:', result);
+        
+        // Remove the contact from the local state
+        setContacts(prevContacts => prevContacts.filter(c => c.contactId !== contact.contactId));
+        
+        alert(`✅ Contact "${contact.firstName} ${contact.lastName}" has been successfully deleted.`);
+      } else {
+        throw new Error(result.data?.message || result.error?.message || 'Failed to delete contact');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting contact:', error);
+      alert(`❌ Failed to delete contact: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -839,6 +879,14 @@ function AdvancedContactManagement() {
                               >
                                 <PhoneIcon className="h-3 w-3 mr-1" />
                                 Call
+                              </button>
+                              <button
+                                onClick={() => handleDeleteContact(contact)}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                title="Delete contact permanently"
+                              >
+                                <TrashIcon className="h-3 w-3 mr-1" />
+                                Delete
                               </button>
                             </div>
                           </td>
