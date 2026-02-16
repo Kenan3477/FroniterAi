@@ -12,6 +12,7 @@ import { DashboardAnalytics } from '@/components/reports/DashboardAnalytics';
 import { ReportBuilder } from '@/components/reports/ReportBuilder';
 import { ReportTemplates } from '@/components/reports/ReportTemplates';
 import { ScheduledReports } from '@/components/reports/ScheduledReports';
+import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
   ChartBarIcon, 
   UsersIcon, 
@@ -172,8 +173,8 @@ const reportCategories: ReportCategory[] = [
       },
       {
         id: 'call',
-        name: 'Call',
-        description: 'Individual call records and analysis',
+        name: 'Call Records',
+        description: 'Individual call records and recordings',
         icon: PhoneIcon
       }
     ]
@@ -652,23 +653,7 @@ export default function ReportsPage() {
             )}
 
             {selectedCategory === 'voice' && selectedSubcategory === 'call' && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Call Records</h2>
-                  <p className="text-gray-600">Comprehensive call history and recordings</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-2">
-                    Navigate to detailed call records view:
-                  </p>
-                  <a
-                    href="/call-records"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
-                  >
-                    View Call Records
-                  </a>
-                </div>
-              </div>
+              <CallRecordsView />
             )}
 
             {selectedCategory === 'users' && !selectedSubcategory && (
