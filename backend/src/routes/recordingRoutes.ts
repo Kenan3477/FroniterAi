@@ -1,252 +1,261 @@
 /**
- * Recording API Routes
- * Handles recording download, streaming, and metadata endpoints
+ * Recording API Routes - Enhanced with Twilio Integration
+ * Handles recording download, streaming, and Twilio sync
  */
 
-import express from 'express';
-import { 
-  getRecordingFilePath, 
-  getRecordingMetadata,
-  getCallRecordingInfo 
-} from '../services/recordingService';
+import express, { Request, Response } from 'express';
+import { authenticate, requireRole } from '../middleware/auth';
+import { prisma } from '../database/index';
+import { syncAllRecordings, getRecordingSyncStatus } from '../services/recordingSyncService';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs/promises';
 
 const router = express.Router();
 
+// Apply authentication to all recording routes
+router.use(authenticate);
+
+const RECORDINGS_DIR = process.env.RECORDINGS_DIR || path.join(process.cwd(), 'recordings');
+
 /**
- * Download recording file
- * GET /api/recordings/:recordingId/download
+ * GET /api/recordings/:id/stream
+ * Stream a recording file for playback
  */
-router.get('/:recordingId/download', async (req, res) => {
+router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
   try {
-    const { recordingId } = req.params;
+    const recordingId = req.params.id;
     
-    console.log(`📥 Recording download requested: ${recordingId}`);
-    
-    // Get recording metadata and file path
-    const [metadata, filePath] = await Promise.all([
-      getRecordingMetadata(recordingId),
-      getRecordingFilePath(recordingId)
-    ]);
-    
-    if (!metadata || !filePath) {
+    // Get recording record from database
+    const recording = await prisma.recording.findFirst({
+      where: { id: recordingId },
+      include: {
+        callRecord: {
+          include: {
+            agent: true
+          }
+        }
+      }
+    });
+
+    if (!recording) {
       return res.status(404).json({
         success: false,
-        error: 'Recording not found or not available'
+        error: 'Recording not found'
       });
     }
-    
-    if (metadata.uploadStatus !== 'completed') {
-      return res.status(400).json({
+
+    // Security: Agents can only access their own recordings
+    if (req.user?.role === 'AGENT' && recording.callRecord.agentId !== req.user.userId) {
+      return res.status(403).json({
         success: false,
-        error: `Recording not ready: ${metadata.uploadStatus}`
+        error: 'Access denied'
       });
     }
-    
+
     // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    const filePath = recording.filePath;
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      console.error(`❌ Recording file not found: ${filePath}`);
       return res.status(404).json({
         success: false,
         error: 'Recording file not found on disk'
       });
     }
-    
-    // Set appropriate headers for audio download
-    const fileName = metadata.fileName || `recording-${recordingId}.mp3`;
-    const fileSize = metadata.fileSize || fs.statSync(filePath).size;
-    
+
+    // Get file stats
+    const stats = await fs.stat(filePath);
+
+    // Set headers for audio streaming
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Length', fileSize.toString());
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-    
+    res.setHeader('Content-Length', stats.size.toString());
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
     // Stream the file
-    const readStream = fs.createReadStream(filePath);
-    
-    readStream.on('error', (error) => {
-      console.error(`Error streaming recording ${recordingId}:`, error);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, error: 'Error streaming recording' });
-      }
-    });
-    
-    readStream.pipe(res);
-    
-    console.log(`✅ Recording download started: ${fileName} (${fileSize} bytes)`);
-    
+    const stream = require('fs').createReadStream(filePath);
+    stream.pipe(res);
+
   } catch (error) {
-    console.error('Error downloading recording:', error);
+    console.error('❌ Error streaming recording:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Failed to stream recording'
     });
   }
 });
 
 /**
- * Stream recording for playback (supports range requests)
- * GET /api/recordings/:recordingId/stream
+ * GET /api/recordings/:id/download
+ * Download a recording file
  */
-router.get('/:recordingId/stream', async (req, res) => {
+router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
   try {
-    const { recordingId } = req.params;
+    const recordingId = req.params.id;
     
-    console.log(`🎵 Recording stream requested: ${recordingId}`);
-    
-    // Get recording metadata and file path
-    const [metadata, filePath] = await Promise.all([
-      getRecordingMetadata(recordingId),
-      getRecordingFilePath(recordingId)
-    ]);
-    
-    if (!metadata || !filePath) {
+    // Get recording record from database
+    const recording = await prisma.recording.findFirst({
+      where: { id: recordingId },
+      include: {
+        callRecord: {
+          include: {
+            agent: true
+          }
+        }
+      }
+    });
+
+    if (!recording) {
       return res.status(404).json({
         success: false,
         error: 'Recording not found'
       });
     }
-    
-    if (metadata.uploadStatus !== 'completed') {
-      return res.status(400).json({
+
+    // Security: Agents can only access their own recordings
+    if (req.user?.role === 'AGENT' && recording.callRecord.agentId !== req.user.userId) {
+      return res.status(403).json({
         success: false,
-        error: `Recording not ready: ${metadata.uploadStatus}`
+        error: 'Access denied'
       });
     }
-    
+
     // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    const filePath = recording.filePath;
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      console.error(`❌ Recording file not found: ${filePath}`);
       return res.status(404).json({
         success: false,
-        error: 'Recording file not found'
+        error: 'Recording file not found on disk'
       });
     }
-    
-    const stat = fs.statSync(filePath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-    
-    if (range) {
-      // Handle range requests for audio seeking
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
-      
-      const readStream = fs.createReadStream(filePath, { start, end });
-      
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize.toString(),
-        'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'private, max-age=3600'
-      });
-      
-      readStream.pipe(res);
-    } else {
-      // Full file stream
-      res.writeHead(200, {
-        'Content-Length': fileSize.toString(),
-        'Content-Type': 'audio/mpeg',
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'private, max-age=3600'
-      });
-      
-      const readStream = fs.createReadStream(filePath);
-      readStream.pipe(res);
-    }
-    
-    console.log(`✅ Recording stream started: ${metadata.fileName}`);
-    
+
+    // Get file stats
+    const stats = await fs.stat(filePath);
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', stats.size.toString());
+    res.setHeader('Content-Disposition', `attachment; filename="${recording.fileName}"`);
+
+    // Stream the file for download
+    const stream = require('fs').createReadStream(filePath);
+    stream.pipe(res);
+
   } catch (error) {
-    console.error('Error streaming recording:', error);
+    console.error('❌ Error downloading recording:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Failed to download recording'
     });
   }
 });
 
 /**
- * Get recording metadata
- * GET /api/recordings/:recordingId/info
+ * GET /api/recordings
+ * List all recordings with metadata
  */
-router.get('/:recordingId/info', async (req, res) => {
+router.get('/', requireRole('SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
   try {
-    const { recordingId } = req.params;
-    
-    const metadata = await getRecordingMetadata(recordingId);
-    
-    if (!metadata) {
-      return res.status(404).json({
-        success: false,
-        error: 'Recording not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        id: metadata.id,
-        fileName: metadata.fileName,
-        fileSize: metadata.fileSize,
-        duration: metadata.duration,
-        format: metadata.format,
-        quality: metadata.quality,
-        uploadStatus: metadata.uploadStatus,
-        createdAt: metadata.createdAt,
-        callRecord: metadata.callRecord ? {
-          callId: metadata.callRecord.callId,
-          phoneNumber: metadata.callRecord.phoneNumber,
-          startTime: metadata.callRecord.startTime,
-          callDuration: metadata.callRecord.duration
-        } : null,
-        downloadUrl: `/api/recordings/${recordingId}/download`,
-        streamUrl: `/api/recordings/${recordingId}/stream`
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const recordings = await prisma.recording.findMany({
+      skip,
+      take: limit,
+      include: {
+        callRecord: {
+          include: {
+            agent: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            contact: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
-    
+
+    const totalRecordings = await prisma.recording.count();
+
+    res.json({
+      success: true,
+      data: recordings,
+      pagination: {
+        total: totalRecordings,
+        page,
+        limit,
+        totalPages: Math.ceil(totalRecordings / limit)
+      }
+    });
+
   } catch (error) {
-    console.error('Error getting recording metadata:', error);
+    console.error('❌ Error listing recordings:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Failed to list recordings'
     });
   }
 });
 
 /**
- * Get recording info for a specific call record
- * GET /api/call-records/:callRecordId/recording
+ * POST /api/recordings/sync
+ * Sync recordings from Twilio for all call records
  */
-router.get('/call/:callRecordId', async (req, res) => {
+router.post('/sync', requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
-    const { callRecordId } = req.params;
+    console.log('🔄 Starting Twilio recording sync from API...');
     
-    const recordingInfo = await getCallRecordingInfo(callRecordId);
-    
-    if (!recordingInfo) {
-      return res.status(404).json({
-        success: false,
-        error: 'No recording found for this call'
-      });
-    }
+    const result = await syncAllRecordings();
     
     res.json({
       success: true,
-      data: {
-        ...recordingInfo,
-        downloadUrl: `/api/recordings/${recordingInfo.id}/download`,
-        streamUrl: `/api/recordings/${recordingInfo.id}/stream`
-      }
+      data: result,
+      message: `Recording sync completed: ${result.synced} recordings synced, ${result.errors} errors`
     });
-    
   } catch (error) {
-    console.error('Error getting call recording info:', error);
+    console.error('❌ Error in recording sync:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Failed to sync recordings',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
+ * GET /api/recordings/sync-status
+ * Get recording sync status
+ */
+router.get('/sync-status', requireRole('SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const status = await getRecordingSyncStatus();
+    
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    console.error('❌ Error getting sync status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync status'
     });
   }
 });

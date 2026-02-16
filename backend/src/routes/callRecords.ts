@@ -19,11 +19,79 @@ import {
   UpdateCallRecordRequest,
   CallSearchFilters
 } from '../services/callRecordsService';
+import { syncAllRecordings, getRecordingSyncStatus } from '../services/recordingSyncService';
 
 const router = express.Router();
 
 // Apply authentication to all call record routes
 router.use(authenticate);
+
+/**
+ * GET /api/call-records
+ * Get call records with optional filtering and pagination
+ * Main endpoint for frontend call records display
+ */
+router.get('/', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    // Parse query parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 25;
+    const sortBy = (req.query.sortBy as string) || 'startTime';
+    const sortOrder = (req.query.sortOrder as string) || 'desc';
+    
+    const filters: CallSearchFilters = {
+      agentId: req.query.agentId as string,
+      campaignId: req.query.campaignId as string,
+      outcome: req.query.outcome as string,
+      phoneNumber: req.query.phoneNumber as string,
+      dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
+      dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
+    };
+
+    // Security: Agents can only see their own call records
+    if (req.user?.role === 'AGENT') {
+      filters.agentId = req.user.userId;
+    }
+
+    // Handle duration filter
+    if (req.query.durationMin || req.query.durationMax) {
+      filters.duration = {
+        min: req.query.durationMin ? parseInt(req.query.durationMin as string) : undefined,
+        max: req.query.durationMax ? parseInt(req.query.durationMax as string) : undefined
+      };
+    }
+
+    // Handle search term
+    if (req.query.search) {
+      filters.phoneNumber = req.query.search as string;
+    }
+
+    const callRecords = await searchCallRecords(filters);
+    
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRecords = callRecords.slice(startIndex, endIndex);
+    
+    res.json({
+      success: true,
+      records: paginatedRecords,
+      pagination: {
+        total: callRecords.length,
+        limit: limit,
+        currentPage: page,
+        totalPages: Math.ceil(callRecords.length / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching call records:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch call records',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
 
 /**
  * POST /api/call-records/start
@@ -215,6 +283,60 @@ router.get('/daily-volume', [
     res.status(500).json({
       success: false,
       error: 'Failed to get daily call volume',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/call-records/sync-recordings
+ * Sync recordings from Twilio for all call records
+ * Requires: ADMIN role
+ */
+router.post('/sync-recordings', [
+  requireRole('ADMIN'),
+  createRateLimiter
+], async (req: Request, res: Response) => {
+  try {
+    console.log('🔄 Starting recording sync from API request...');
+    
+    const result = await syncAllRecordings();
+    
+    res.json({
+      success: true,
+      data: result,
+      message: `Recording sync completed: ${result.synced} recordings synced, ${result.errors} errors`
+    });
+  } catch (error) {
+    console.error('❌ Error in recording sync API:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync recordings',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
+ * GET /api/call-records/sync-status
+ * Get recording sync status and statistics
+ * Requires: SUPERVISOR or ADMIN role
+ */
+router.get('/sync-status', [
+  requireRole('SUPERVISOR', 'ADMIN')
+], async (req: Request, res: Response) => {
+  try {
+    const status = await getRecordingSyncStatus();
+    
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    console.error('❌ Error getting sync status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync status',
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }
