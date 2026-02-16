@@ -224,46 +224,66 @@ export async function DELETE(
 ) {
   return requireAuth(async (req, user) => {
     try {
-      // Only admins and supervisors can delete contacts
-      if (user.role === 'AGENT') {
-        return NextResponse.json(
-          { success: false, message: 'Insufficient permissions' },
-          { status: 403 }
-        );
-      }
-
       const contactId = params.id;
+      console.log(`🗑️ Deleting contact with ID: ${contactId}`);
 
-      // Check if contact exists
-      const contact = await prisma.$queryRaw`
-        SELECT contactId FROM contacts WHERE contactId = ${contactId} LIMIT 1
-      ` as any[];
+      // Get auth token from the request header (already validated by requireAuth)
+      const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
 
-      if (contact.length === 0) {
-        return NextResponse.json(
-          { success: false, message: 'Contact not found' },
-          { status: 404 }
-        );
+      if (!authToken) {
+        return NextResponse.json({
+          success: false,
+          error: {
+            message: 'Authentication token not found',
+            code: 'UNAUTHORIZED'
+          }
+        }, { status: 401 });
       }
 
-      // Soft delete - update status instead of actual deletion
-      await prisma.$executeRaw`
-        UPDATE contacts 
-        SET status = 'deleted', updatedAt = datetime('now')
-        WHERE contactId = ${contactId}
-      `;
+      // Forward request to backend
+      const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/contacts/${contactId}`;
+      console.log(`🔗 Proxying contact deletion to backend: ${backendUrl}`);
 
+      const response = await fetch(backendUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Backend contact deletion failed: ${response.status} - ${errorText}`);
+        
+        return NextResponse.json({
+          success: false,
+          error: {
+            message: `Contact deletion failed: ${response.status} ${response.statusText}`,
+            code: 'BACKEND_ERROR'
+          }
+        }, { status: response.status });
+      }
+
+      const result = await response.json();
+      console.log(`✅ Backend contact deletion response:`, result);
+
+      // Return success response
       return NextResponse.json({
         success: true,
         message: 'Contact deleted successfully'
       });
 
     } catch (error) {
-      console.error('Error deleting contact:', error);
-      return NextResponse.json(
-        { success: false, message: 'Failed to delete contact' },
-        { status: 500 }
-      );
+      console.error('❌ Contact deletion API error:', error);
+      
+      return NextResponse.json({
+        success: false,
+        error: {
+          message: error instanceof Error ? error.message : 'Failed to delete contact',
+          code: 'INTERNAL_ERROR'
+        }
+      }, { status: 500 });
     } finally {
       await prisma.$disconnect();
     }

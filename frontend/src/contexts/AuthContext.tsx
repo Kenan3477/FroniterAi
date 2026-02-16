@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
+          'Authorization': isClient ? `Bearer ${localStorage.getItem('omnivox_token') || ''}` : ''
         }
       });
 

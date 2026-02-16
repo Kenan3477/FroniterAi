@@ -250,19 +250,28 @@ export const generateAgentDialTwiML = (customerNumber: string): string => {
 export const generateCustomerToAgentTwiML = (): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  // NO GREETING - Connect customer directly to agent for immediate two-way audio
+  // Add brief connection message for immediate feedback
+  twiml.say({
+    voice: 'alice',
+    language: 'en-GB'
+  }, 'Connecting...');
+  
   // Connect customer directly to the WebRTC agent
   const dial = twiml.dial({
-    timeout: 45, // Increase timeout to 45 seconds
-    record: 'record-from-answer-dual', // Record both sides
+    timeout: 60, // Increase timeout to 60 seconds for better connection reliability
+    record: 'record-from-answer', // Record only one side to prevent echo
     answerOnBridge: true, // Only answer when agent picks up
+    ringTone: 'at', // Add ring tone for better UX
   });
   
   // Use client dial to connect to the WebRTC agent
   dial.client('agent-browser');
   
-  // If agent doesn't answer or disconnects, just hang up silently
-  twiml.hangup();
+  // If agent doesn't answer or disconnects, provide feedback
+  twiml.say({
+    voice: 'alice', 
+    language: 'en-GB'
+  }, 'Unable to connect. Please try again later.');
 
   return twiml.toString();
 };

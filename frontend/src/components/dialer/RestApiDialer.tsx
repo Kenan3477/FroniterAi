@@ -181,13 +181,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             // If we don't have a stream yet, or permission wasn't granted, try to get one
             if (!stream || !microphonePermissionGranted) {
               console.log('🎤 Requesting microphone access for incoming call...');
-              // Request microphone with high-quality audio settings
+              // Request microphone with enhanced audio settings for echo cancellation
               stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
                   echoCancellation: true,
                   noiseSuppression: true,
-                  autoGainControl: true,
-                  sampleRate: 48000
+                  autoGainControl: false, // Disable AGC to prevent feedback
+                  sampleRate: 16000, // Lower sample rate for better echo cancellation
+                  channelCount: 1    // Mono audio to prevent stereo echo issues
                 }
               });
               setMicrophoneStream(stream);
@@ -238,14 +239,38 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
             call.on('disconnect', async () => {
               console.log('📱 Call disconnected by customer');
               
-              // End call via backend API if we have call info - use activeRestApiCall for REST API calls
+              // Calculate call duration
+              const startTime = activeRestApiCall?.startTime || new Date();
+              const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
+              
+              // End call via backend API if we have call info
               if (activeRestApiCall?.callSid) {
                 await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
+                
+                // Show disposition modal
+                setPendingCallEnd({
+                  callSid: activeRestApiCall.callSid,
+                  duration: duration
+                });
+                setShowDispositionModal(true);
               }
               
               setCurrentCall(null);
-              // Don't clear Redux state immediately - let disposition modal handle it
+              setActiveRestApiCall(null);
+              
               console.log('📱 Customer disconnected - disposition modal should appear');
+            });
+
+            call.on('reject', () => {
+              console.log('📱 Call rejected');
+              setCurrentCall(null);
+              dispatch(endCall());
+            });
+            
+            call.on('cancel', () => {
+              console.log('📱 Call cancelled');
+              setCurrentCall(null);
+              dispatch(endCall());
             });
             
             call.on('cancel', async () => {

@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
   Phone, 
@@ -16,11 +14,11 @@ import {
   MapPin, 
   Calendar,
   Clock,
-  PenTool,
   SkipForward,
   Pause,
   Play,
-  X
+  X,
+  Tag
 } from 'lucide-react';
 
 export interface PreviewContact {
@@ -100,11 +98,9 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
     contactName: contact?.firstName
   });
 
-  const [notes, setNotes] = useState('');
-
   // Reset form when contact changes
   useEffect(() => {
-    setNotes(contact?.notes || '');
+    // No longer need to set notes since we removed the notes section
   }, [contact]);
 
   console.log('🎯 PreviewContactCard render decision:', {
@@ -159,251 +155,187 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         style={{ 
           position: 'fixed', 
           top: 0, 
           left: 0, 
           right: 0, 
           bottom: 0, 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 9999
         }}
       >
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white shadow-xl border rounded-xl">
+        {/* Simplified Header */}
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
+              {/* Compact Avatar */}
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-lg font-semibold text-blue-600">
                   {getInitials().toUpperCase()}
                 </span>
               </div>
               <div>
-                <CardTitle className="text-xl text-gray-900">
+                <CardTitle className="text-xl text-gray-900 mb-1">
                   {contact.fullName || `${contact.firstName} ${contact.lastName}`.trim()}
                 </CardTitle>
-                <div className="flex items-center space-x-3 mt-1">
+                <div className="flex items-center space-x-3 text-sm text-gray-600">
                   {contact.company && (
-                    <span className="text-sm text-gray-600">{contact.company}</span>
+                    <span className="font-medium">{contact.company}</span>
                   )}
                   {contact.jobTitle && (
-                    <span className="text-sm text-gray-500">• {contact.jobTitle}</span>
+                    <span>• {contact.jobTitle}</span>
                   )}
-                  <Badge className={priority.color}>{priority.label}</Badge>
+                  <Badge className={`${priority.color} text-xs`}>{priority.label}</Badge>
+                  {campaignName && (
+                    <Badge variant="outline" className="text-xs">
+                      {campaignName}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {campaignName && (
-                <Badge variant="outline" className="text-xs">
-                  {campaignName}
-                </Badge>
-              )}
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="p-6 space-y-6">
-          {/* Contact Information Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <CardContent className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Compact Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             
             {/* Phone Numbers */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                <Phone className="w-4 h-4 mr-2" />
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-2">
+                <Phone className="w-4 h-4 mr-2 text-blue-600" />
                 Phone Numbers
               </h3>
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-xs text-gray-500">Primary</Label>
-                  <div className="font-mono text-sm font-medium">
+              <div className="space-y-1">
+                <div className="bg-white rounded p-2">
+                  <Label className="text-xs font-medium text-blue-600">PRIMARY</Label>
+                  <div className="font-mono text-sm font-bold text-gray-900">
                     {formatPhoneNumber(contact.phone)}
                   </div>
                 </div>
                 {contact.mobile && contact.mobile !== contact.phone && (
-                  <div>
+                  <div className="bg-white rounded p-2">
                     <Label className="text-xs text-gray-500">Mobile</Label>
-                    <div className="font-mono text-sm">{formatPhoneNumber(contact.mobile)}</div>
+                    <div className="font-mono text-sm text-gray-700">{formatPhoneNumber(contact.mobile)}</div>
                   </div>
                 )}
                 {contact.workPhone && (
-                  <div>
+                  <div className="bg-white rounded p-2">
                     <Label className="text-xs text-gray-500">Work</Label>
-                    <div className="font-mono text-sm">{formatPhoneNumber(contact.workPhone)}</div>
-                  </div>
-                )}
-                {contact.homePhone && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Home</Label>
-                    <div className="font-mono text-sm">{formatPhoneNumber(contact.homePhone)}</div>
+                    <div className="font-mono text-sm text-gray-700">{formatPhoneNumber(contact.workPhone)}</div>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Contact Details */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                <User className="w-4 h-4 mr-2" />
+            <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-2">
+                <Mail className="w-4 h-4 mr-2 text-green-600" />
                 Contact Details
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {contact.email && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Email</Label>
-                    <div className="text-sm">{contact.email}</div>
+                  <div className="bg-white rounded p-2">
+                    <Label className="text-xs text-green-600">Email</Label>
+                    <div className="text-sm font-medium text-gray-900 break-all">{contact.email}</div>
                   </div>
                 )}
                 {contact.website && (
-                  <div>
+                  <div className="bg-white rounded p-2">
                     <Label className="text-xs text-gray-500">Website</Label>
-                    <div className="text-sm">{contact.website}</div>
-                  </div>
-                )}
-                {contact.linkedIn && (
-                  <div>
-                    <Label className="text-xs text-gray-500">LinkedIn</Label>
-                    <div className="text-sm">{contact.linkedIn}</div>
+                    <div className="text-sm text-blue-600 break-all">{contact.website}</div>
                   </div>
                 )}
                 {contact.leadSource && (
-                  <div>
+                  <div className="bg-white rounded p-2">
                     <Label className="text-xs text-gray-500">Lead Source</Label>
-                    <div className="text-sm">{contact.leadSource}</div>
+                    <div className="text-sm font-medium text-gray-700">{contact.leadSource}</div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Company Information */}
-            {(contact.company || contact.jobTitle || contact.department || contact.industry) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Company
-                </h3>
-                <div className="space-y-2">
-                  {contact.company && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Company</Label>
-                      <div className="text-sm font-medium">{contact.company}</div>
-                    </div>
-                  )}
-                  {contact.jobTitle && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Job Title</Label>
-                      <div className="text-sm">{contact.jobTitle}</div>
-                    </div>
-                  )}
-                  {contact.department && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Department</Label>
-                      <div className="text-sm">{contact.department}</div>
-                    </div>
-                  )}
-                  {contact.industry && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Industry</Label>
-                      <div className="text-sm">{contact.industry}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Address Information */}
-            {(contact.address || contact.city || contact.state || contact.zipCode || contact.country) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Address
-                </h3>
-                <div className="space-y-1">
-                  {contact.address && (
-                    <div className="text-sm">{contact.address}</div>
-                  )}
-                  {contact.address2 && (
-                    <div className="text-sm">{contact.address2}</div>
-                  )}
-                  <div className="text-sm">
-                    {[contact.city, contact.state, contact.zipCode].filter(Boolean).join(', ')}
+            {/* Company & Address Combined */}
+            <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-2">
+                <Building2 className="w-4 h-4 mr-2 text-purple-600" />
+                Company & Location
+              </h3>
+              <div className="space-y-1">
+                {contact.company && (
+                  <div className="bg-white rounded p-2">
+                    <Label className="text-xs text-purple-600">Company</Label>
+                    <div className="text-sm font-bold text-gray-900">{contact.company}</div>
                   </div>
-                  {contact.country && (
-                    <div className="text-sm">{contact.country}</div>
-                  )}
-                </div>
+                )}
+                {contact.jobTitle && (
+                  <div className="bg-white rounded p-2">
+                    <Label className="text-xs text-gray-500">Job Title</Label>
+                    <div className="text-sm text-gray-700">{contact.jobTitle}</div>
+                  </div>
+                )}
+                {(contact.address || contact.city) && (
+                  <div className="bg-white rounded p-2">
+                    <Label className="text-xs text-gray-500">Address</Label>
+                    <div className="text-sm text-gray-700">
+                      {contact.address && <div>{contact.address}</div>}
+                      <div>{[contact.city, contact.state, contact.zipCode].filter(Boolean).join(', ')}</div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          </div>
 
+          {/* Compact Additional Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            
             {/* Call History */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
+            <div className="bg-gray-50 rounded-lg p-3 border">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-2">
+                <Clock className="w-4 h-4 mr-2 text-gray-600" />
                 Call History
               </h3>
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-xs text-gray-500">Attempts</Label>
-                  <div className="text-sm">
-                    <span className="font-medium">{contact.attemptCount}</span>
-                    <span className="text-gray-500"> / {contact.maxAttempts}</span>
-                  </div>
+              <div className="bg-white rounded p-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500">Attempts</span>
+                  <span className="font-mono text-sm font-bold">
+                    {contact.attemptCount} / {contact.maxAttempts}
+                  </span>
                 </div>
                 {contact.lastAttempt && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Last Attempt</Label>
-                    <div className="text-sm">
-                      {new Date(contact.lastAttempt).toLocaleDateString()} at{' '}
-                      {new Date(contact.lastAttempt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                  </div>
-                )}
-                {contact.lastOutcome && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Last Outcome</Label>
-                    <div className="text-sm">{contact.lastOutcome}</div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Last: {new Date(contact.lastAttempt).toLocaleDateString()}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Custom Fields */}
-            {(contact.custom1 || contact.custom2 || contact.custom3 || contact.custom4 || contact.custom5) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">Custom Fields</h3>
-                <div className="space-y-2">
+            {/* Custom Fields (if any) */}
+            {(contact.custom1 || contact.custom2 || contact.custom3) && (
+              <div className="bg-gray-50 rounded-lg p-3 border">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-2">
+                  <Tag className="w-4 h-4 mr-2 text-gray-600" />
+                  Additional Info
+                </h3>
+                <div className="space-y-1">
                   {contact.custom1 && (
-                    <div>
+                    <div className="bg-white rounded p-2">
                       <Label className="text-xs text-gray-500">Custom 1</Label>
-                      <div className="text-sm">{contact.custom1}</div>
+                      <div className="text-sm text-gray-700">{contact.custom1}</div>
                     </div>
                   )}
                   {contact.custom2 && (
-                    <div>
+                    <div className="bg-white rounded p-2">
                       <Label className="text-xs text-gray-500">Custom 2</Label>
-                      <div className="text-sm">{contact.custom2}</div>
-                    </div>
-                  )}
-                  {contact.custom3 && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Custom 3</Label>
-                      <div className="text-sm">{contact.custom3}</div>
-                    </div>
-                  )}
-                  {contact.custom4 && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Custom 4</Label>
-                      <div className="text-sm">{contact.custom4}</div>
-                    </div>
-                  )}
-                  {contact.custom5 && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Custom 5</Label>
-                      <div className="text-sm">{contact.custom5}</div>
+                      <div className="text-sm text-gray-700">{contact.custom2}</div>
                     </div>
                   )}
                 </div>
@@ -411,71 +343,60 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
             )}
           </div>
 
-          {/* Notes Section */}
-          <div className="border-t pt-6">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                <PenTool className="w-4 h-4 mr-2" />
-                Call Notes
-              </h3>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add notes about this contact or call..."
-                className="min-h-[100px] resize-none"
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="border-t pt-6 flex justify-between items-center">
-            <div className="text-xs text-gray-500">
-              Contact ID: {contact.contactId} • Queue: {contact.queueId}
-            </div>
-            <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => onSkip(contact)}
-                disabled={isLoading}
-                className="text-orange-600 border-orange-300 hover:bg-orange-50"
-              >
-                <SkipForward className="w-4 h-4 mr-2" />
-                Skip
-              </Button>
+          {/* Compact Action Buttons */}
+          <div className="bg-gray-50 rounded-lg p-3 border">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="text-xs text-gray-500 font-mono">
+                ID: {contact.contactId} • Queue: {contact.queueId}
+              </div>
               
-              {onPause && (
-                    <Button
-                      variant="outline"
-                      onClick={() => onPause()}
-                      disabled={isLoading}
-                      className={`${
-                        isPreviewPaused 
-                          ? 'text-green-600 border-green-300 hover:bg-green-50' 
-                          : 'text-blue-600 border-blue-300 hover:bg-blue-50'
-                      }`}
-                    >
-                      {isPreviewPaused ? (
-                        <>
-                          <Play className="w-4 h-4 mr-2" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="w-4 h-4 mr-2" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSkip(contact)}
+                  disabled={isLoading}
+                  className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                >
+                  <SkipForward className="w-4 h-4 mr-1" />
+                  Skip
+                </Button>
+                
+                {onPause && (
                   <Button
-                    onClick={() => onCallNow(contact, notes)}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPause()}
                     disabled={isLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className={`${
+                      isPreviewPaused 
+                        ? 'text-green-600 border-green-300 hover:bg-green-50' 
+                        : 'text-blue-600 border-blue-300 hover:bg-blue-50'
+                    }`}
                   >
-                    <PhoneCall className="w-4 h-4 mr-2" />
-                    {isLoading ? 'Connecting...' : 'Call Now'}
+                    {isPreviewPaused ? (
+                      <>
+                        <Play className="w-4 h-4 mr-1" />
+                        Resume
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="w-4 h-4 mr-1" />
+                        Pause
+                      </>
+                    )}
                   </Button>
+                )}
+                
+                <Button
+                  onClick={() => onCallNow(contact, '')}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <PhoneCall className="w-4 h-4 mr-1" />
+                  {isLoading ? 'Connecting...' : 'Call Now'}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

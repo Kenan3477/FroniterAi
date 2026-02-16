@@ -19,84 +19,131 @@ export async function POST(request: NextRequest) {
     } = body;
 
     console.log('💾 Saving call data for:', phoneNumber);
+    console.log('💾 Request body:', JSON.stringify(body, null, 2));
+
+    // Validate required fields with safe defaults
+    const safePhoneNumber = phoneNumber || 'unknown';
+    const safeAgentId = agentId || 'agent-browser';
+    const safeCampaignId = campaignId || 'manual-dial';
+    const safeDuration = parseInt(callDuration) || 0;
 
     try {
-      // Find or create contact
-      let contact = await (db as any).contact.findFirst({
-        where: {
-          OR: [
-            { phone: phoneNumber },
-            { phone: phoneNumber.replace(/\s+/g, '') },
-            { mobile: phoneNumber },
-            { mobile: phoneNumber.replace(/\s+/g, '') }
-          ]
-        }
-      });
-
-      if (!contact && customerInfo) {
-        // Create new contact
-        contact = await (db as any).contact.create({
-          data: {
-            contactId: `CONT-${Date.now()}`,
-            listId: 'manual-dial',
-            firstName: customerInfo.firstName || '',
-            lastName: customerInfo.lastName || '',
-            phone: phoneNumber,
-            email: customerInfo.email || null,
-            address: customerInfo.address || null,
-            notes: customerInfo.notes || null,
-            status: 'contacted'
+      // Find or create contact with better error handling
+      let contact = null;
+      
+      if (safePhoneNumber && safePhoneNumber !== 'unknown') {
+        contact = await (db as any).contact.findFirst({
+          where: {
+            OR: [
+              { phone: safePhoneNumber },
+              { phone: safePhoneNumber.replace(/\s+/g, '') },
+              { mobile: safePhoneNumber },
+              { mobile: safePhoneNumber.replace(/\s+/g, '') }
+            ]
           }
         });
-        console.log('✅ New contact created:', contact.id);
-      } else if (contact && customerInfo) {
-        // Update existing contact
-        contact = await (db as any).contact.update({
-          where: { id: contact.id },
-          data: {
-            firstName: customerInfo.firstName || contact.firstName,
-            lastName: customerInfo.lastName || contact.lastName,
-            email: customerInfo.email || contact.email,
-            address: customerInfo.address || contact.address,
-            notes: customerInfo.notes || contact.notes
-          }
-        });
-        console.log('✅ Contact updated:', contact.id);
       }
 
-      // Create interaction record
-      const interaction = await (db as any).interaction.create({
-        data: {
-          interactionId: `INT-${Date.now()}`,
-          contactId: contact?.id || 'unknown',
-          agentId: agentId || 'unknown',
-          campaignId: campaignId || 'manual-dial',
-          type: 'call',
-          direction: 'outbound',
-          status: 'completed',
-          duration: callDuration || 0,
-          outcome: disposition?.outcome || 'unknown',
-          notes: disposition?.notes || null,
-          startTime: new Date(),
-          endTime: new Date()
+      if (!contact && customerInfo) {
+        // Create new contact with safe field handling
+        try {
+          contact = await (db as any).contact.create({
+            data: {
+              contactId: `CONT-${Date.now()}`,
+              firstName: customerInfo.firstName || null,
+              lastName: customerInfo.lastName || null,
+              phone: safePhoneNumber,
+              email: customerInfo.email || null,
+              company: null,
+              notes: customerInfo.notes || null,
+              status: 'active',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
+          console.log('✅ New contact created:', contact.contactId);
+        } catch (contactError) {
+          console.warn('⚠️ Contact creation failed, continuing without contact:', contactError);
         }
-      });
+      } else if (contact && customerInfo) {
+        // Update existing contact with safe field handling
+        try {
+          contact = await (db as any).contact.update({
+            where: { contactId: contact.contactId },
+            data: {
+              firstName: customerInfo.firstName || contact.firstName,
+              lastName: customerInfo.lastName || contact.lastName,
+              email: customerInfo.email || contact.email,
+              notes: customerInfo.notes || contact.notes,
+              updatedAt: new Date()
+            }
+          });
+          console.log('✅ Contact updated:', contact.contactId);
+        } catch (updateError) {
+          console.warn('⚠️ Contact update failed, continuing:', updateError);
+        }
+      }
 
-      console.log('✅ Interaction saved:', interaction.id);
+      // Create interaction record with correct schema fields
+      try {
+        const interaction = await (db as any).interaction.create({
+          data: {
+            agentId: safeAgentId,
+            contactId: contact?.contactId || 'unknown',
+            campaignId: safeCampaignId,
+            channel: 'voice',
+            outcome: disposition?.outcome || 'unknown',
+            startedAt: new Date(Date.now() - (safeDuration * 1000)),
+            endedAt: new Date(),
+            durationSeconds: safeDuration,
+            result: disposition?.notes || null,
+            isDmc: false
+          }
+        });
 
-      return NextResponse.json({
-        success: true,
-        contact,
-        interaction
-      });
+        console.log('✅ Interaction saved:', interaction.interactionId);
+
+        return NextResponse.json({
+          success: true,
+          contact,
+          interaction
+        });
+      } catch (interactionError) {
+        console.error('❌ Interaction creation failed:', interactionError);
+        
+        // Still return success if contact was saved
+        return NextResponse.json({
+          success: true,
+          contact,
+          interaction: null,
+          warning: 'Call data saved but interaction record failed'
+        });
+      }
+      
     } catch (dbError) {
       console.error('❌ Database error:', dbError);
-      throw dbError;
+      
+      // Return more specific error information
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Database operation failed',
+          details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        },
+        { status: 500 }
+      );
     }
+    
   } catch (error) {
     console.error('❌ Save call data error:', error);
+    
+    // Return detailed error for debugging
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        success: false,
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

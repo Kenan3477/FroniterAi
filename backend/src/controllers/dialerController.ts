@@ -649,9 +649,9 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to } = req.body;
+    const { to, contactId: existingContactId, contactName, existingContact } = req.body;
     
-    console.log('📞 Making REST API call - original number:', { to });
+    console.log('📞 Making REST API call - original number:', { to, existingContactId, contactName, existingContact });
 
     if (!to) {
       return res.status(400).json({
@@ -711,19 +711,53 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       console.log('✅ Created list:', dataList.listId);
     }
 
-    // Create a basic contact record for manual dial
-    const contactId = `contact-${Date.now()}`;
-    const contact = await prisma.contact.create({
-      data: {
-        contactId: contactId,
-        listId: listId, // Use created list ID
-        firstName: 'Manual',
-        lastName: 'Dial',
-        phone: formattedTo,
-        status: 'new'
+    // Handle contact creation/lookup
+    let contactId: string;
+    let contact: any;
+
+    if (existingContact && existingContactId) {
+      // Use existing contact from the database
+      console.log('🔍 Using existing contact:', existingContactId);
+      contact = await prisma.contact.findUnique({
+        where: { contactId: existingContactId }
+      });
+      
+      if (contact) {
+        contactId = contact.contactId;
+        console.log('✅ Found existing contact:', { contactId: contact.contactId, name: `${contact.firstName} ${contact.lastName}` });
+      } else {
+        // Fallback: create contact with provided information
+        console.log('⚠️ Contact not found in database, creating with provided info');
+        contactId = existingContactId;
+        const nameParts = contactName ? contactName.split(' ') : ['Manual', 'Dial'];
+        contact = await prisma.contact.create({
+          data: {
+            contactId: contactId,
+            listId: listId,
+            firstName: nameParts[0] || 'Manual',
+            lastName: nameParts.slice(1).join(' ') || 'Dial',
+            phone: formattedTo,
+            status: 'new'
+          }
+        });
+        console.log('✅ Created contact with provided info:', contact.contactId);
       }
-    });
-    console.log('✅ Created contact:', contact.contactId);
+    } else {
+      // Create a basic contact record for manual dial (legacy behavior)
+      console.log('📝 Creating new manual dial contact');
+      contactId = `contact-${Date.now()}`;
+      contact = await prisma.contact.create({
+        data: {
+          contactId: contactId,
+          listId: listId, // Use created list ID
+          firstName: 'Manual',
+          lastName: 'Dial',
+          phone: formattedTo,
+          status: 'new'
+        }
+      });
+      console.log('✅ Created contact:', contact.contactId);
+    }
 
     // Start call record in database
     const callRecord = await prisma.callRecord.create({

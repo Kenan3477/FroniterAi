@@ -118,7 +118,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   const [error, setError] = useState<string | null>(null);
   const [searchTerm2, setSearchTerm2] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [isAiSectionCollapsed, setIsAiSectionCollapsed] = useState(false);
 
   // Dialog states for edit and upload
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1961,187 +1960,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               </div>
             </div>
 
-            {/* Advanced AI Controls Panel - Always Active */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="bg-green-100 p-2 rounded-lg mr-3">
-                    🤖
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium text-blue-900">
-                      AI-Powered Data Intelligence
-                    </h3>
-                    <p className="text-sm text-blue-700">
-                      Advanced AI features are active - real-time lead scoring, predictive analytics, and automated insights
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  {/* AI Metrics Summary - Always Visible */}
-                  <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm">
-                    <div className="flex items-center space-x-4 text-gray-600">
-                      <span>📊 Scores: {leadScores.length}</span>
-                      {predictiveMetrics && (
-                        <span>🎯 Answer Rate: {(predictiveMetrics.averageAnswerRate * 100).toFixed(1)}%</span>
-                      )}
-                      <span>🤖 Recommendations: {aiRecommendations.length}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                    AI Active
-                  </div>
-                  
-                  {/* Collapse/Expand Button */}
-                  <button
-                    onClick={() => setIsAiSectionCollapsed(!isAiSectionCollapsed)}
-                    className="bg-blue-100 hover:bg-blue-200 text-blue-600 p-2 rounded-lg transition-colors"
-                    title={isAiSectionCollapsed ? 'Expand AI Section' : 'Collapse AI Section'}
-                  >
-                    {isAiSectionCollapsed ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              {/* AI Capabilities Dashboard - Collapsible */}
-              {!isAiSectionCollapsed && (
-                <div className="mt-4 pt-4 border-t border-blue-200">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-lg border border-blue-200 p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">🎯 Lead Scoring</h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Calculate AI-powered lead scores to prioritize your best prospects
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Analyzes contact data, engagement history, and behavioral patterns
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg border border-blue-200 p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">📊 Predictive Analytics</h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Real-time metrics for optimal queue management and dialing strategies
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Answer rates, abandonment prediction, agent utilization forecasts
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg border border-blue-200 p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">🎬 Next Best Actions</h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        AI recommendations for optimal contact timing and approach
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Personalized contact strategies based on lead profile analysis
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* AI Metrics Dashboard */}
-                  <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-2 border-dashed border-purple-200 p-4">
-                    <h4 className="font-semibold text-purple-900 mb-4 flex items-center">
-                      <span className="mr-2">🤖</span>
-                      Real-time AI Metrics
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {/* Lead Scores Summary */}
-                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
-                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
-                          Lead Scores
-                        </div>
-                        <div className="text-lg font-bold text-purple-900">
-                          {leadScores.length > 0 ? leadScores.length : '—'}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {leadScores.length > 0 ? 'Contacts analyzed' : 'No data yet'}
-                        </div>
-                      </div>
-
-                      {/* Predictive Metrics Summary */}
-                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
-                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
-                          Answer Rate
-                        </div>
-                        <div className="text-lg font-bold text-purple-900">
-                          {predictiveMetrics?.predictedAnswerRate 
-                            ? `${Math.round(predictiveMetrics.predictedAnswerRate * 100)}%` 
-                            : '—'}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Predicted success
-                        </div>
-                      </div>
-
-                      {/* AI Recommendations Summary */}
-                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
-                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
-                          Recommendations
-                        </div>
-                        <div className="text-lg font-bold text-purple-900">
-                          {aiRecommendations.length}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Next best actions
-                        </div>
-                      </div>
-
-                      {/* Optimal Pacing */}
-                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
-                        <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">
-                          Pacing Rate
-                        </div>
-                        <div className="text-lg font-bold text-purple-900">
-                          {predictiveMetrics?.optimalPacingRate 
-                            ? `${predictiveMetrics.optimalPacingRate.toFixed(1)}/min` 
-                            : '—'}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Optimal dialing
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick AI Actions */}
-                    <div className="mt-4 pt-4 border-t border-purple-200">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => console.log('🔄 Auto-refresh AI metrics not implemented yet')}
-                          className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-full transition-colors"
-                        >
-                          🔄 Auto-refresh
-                        </button>
-                        <button
-                          onClick={() => console.log('📈 Advanced analytics not implemented yet')}
-                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-full transition-colors"
-                        >
-                          📈 Analytics
-                        </button>
-                        <button
-                          onClick={() => console.log('⚙️ AI settings not implemented yet')}
-                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors"
-                        >
-                          ⚙️ Settings
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center">
@@ -2214,7 +2032,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                         <tr key={list.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">#{list.id} - {list.name}</div>
+                              <div className="text-sm font-medium text-gray-900">{list.name}</div>
                               <div className="text-sm text-gray-500">{list.description}</div>
                             </div>
                           </td>

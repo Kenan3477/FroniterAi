@@ -22,6 +22,8 @@ interface ManualDialResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<ManualDialResponse>> {
+  console.log('🔥 Manual dial API route called!');
+  
   try {
     const body: ManualDialRequest = await request.json();
     const { contactId, phoneNumber, contactName, campaignId, listId } = body;
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ManualDia
     }
 
     // Forward request to backend
-    const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/voice/manual-dial`;
+    const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/rest-api`;
     
     console.log(`🔗 Proxying manual dial to backend: ${backendUrl}`);
 
@@ -65,22 +67,33 @@ export async function POST(request: NextRequest): Promise<NextResponse<ManualDia
         'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        contactId,
-        phoneNumber,
-        contactName,
-        campaignId: campaignId || 'manual-dial',
-        listId: listId || 'contacts-manual'
+        to: phoneNumber,
+        contactId: contactId,
+        contactName: contactName,
+        existingContact: true
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ Backend manual dial failed: ${response.status} - ${errorText}`);
+      console.error(`❌ Request was:`, JSON.stringify({
+        contactId,
+        phoneNumber,
+        campaignId: campaignId || 'manual-dial',
+        priority: 1,
+        metadata: {
+          contactName,
+          source: listId || 'contacts-manual',
+          manualDial: true,
+          initiatedBy: 'contact-management'
+        }
+      }, null, 2));
       
       return NextResponse.json({
         success: false,
         error: {
-          message: `Manual dial failed: ${response.status} ${response.statusText}`,
+          message: `Manual dial failed: ${response.status} ${response.statusText}. Details: ${errorText}`,
           code: 'BACKEND_ERROR'
         }
       }, { status: response.status });
@@ -121,13 +134,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ManualDia
   }
 }
 
+// Handle GET requests for testing
+export async function GET() {
+  console.log('🔥 Manual dial API route GET called!');
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Manual dial API is working',
+    timestamp: new Date().toISOString()
+  });
+}
+
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
   return NextResponse.json({}, { 
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     }
   });
