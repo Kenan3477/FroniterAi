@@ -57,17 +57,32 @@ export async function GET(request: NextRequest) {
       console.error(`❌ Backend response not ok: ${response.status} ${response.statusText}`);
       
       if (response.status === 401) {
-        console.error('🔑 Authentication failed - token may be expired');
+        console.error('🔑 Authentication failed - token expired');
         const errorData = await response.text();
         console.error('🔑 Backend error details:', errorData);
+        
+        // Check if this is a token expiration (based on backend logs showing "jwt expired")
+        if (errorData.includes('expired') || errorData.includes('Unauthorized')) {
+          console.log('🔄 Token expired - redirecting to login');
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: 'Session expired', 
+              message: 'Your session has expired. Please log out and log back in.',
+              shouldRefreshAuth: true,
+              code: 'SESSION_EXPIRED',
+              redirectToLogin: true
+            },
+            { status: 401 }
+          );
+        }
         
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Session expired', 
-            message: 'Your session has expired. Please log out and log back in.',
-            shouldRefreshAuth: true,
-            code: 'SESSION_EXPIRED'
+            error: 'Authentication required', 
+            message: 'Please log in to access call records.',
+            code: 'AUTH_REQUIRED'
           },
           { status: 401 }
         );

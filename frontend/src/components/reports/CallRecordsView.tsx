@@ -145,6 +145,17 @@ export const CallRecordsView: React.FC = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
+          const errorData = await response.json().catch(() => ({}));
+          
+          if (errorData.redirectToLogin || errorData.code === 'SESSION_EXPIRED') {
+            console.warn('🔄 Session expired - redirecting to login');
+            // Force logout and redirect to login
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/login';
+            return;
+          }
+          
           console.warn('🔒 API authentication required - using demo data');
           
           // Use demo data when API is blocked by authentication
