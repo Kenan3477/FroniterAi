@@ -69,6 +69,24 @@ export async function syncAllTwilioRecordings(): Promise<{
           
           const phoneNumber = await extractPhoneFromTwilioCall(recording.callSid);
           
+          // Ensure TWILIO-IMPORT campaign exists
+          let campaign = await prisma.campaign.findUnique({
+            where: { campaignId: 'TWILIO-IMPORT' }
+          });
+          
+          if (!campaign) {
+            campaign = await prisma.campaign.create({
+              data: {
+                campaignId: 'TWILIO-IMPORT',
+                name: 'Twilio Imported Calls',
+                dialMethod: 'manual',
+                status: 'ACTIVE',
+                isActive: true
+              }
+            });
+            console.log('✅ Created TWILIO-IMPORT campaign');
+          }
+          
           callRecord = await prisma.callRecord.create({
             data: {
               id: `twilio-${recording.callSid}`,
@@ -164,14 +182,32 @@ async function getOrCreateContact(phoneNumber: string | null): Promise<string> {
     });
 
     if (!contact) {
+      // Ensure DataList exists for imported contacts
+      let dataList = await prisma.dataList.findUnique({
+        where: { listId: 'TWILIO-IMPORT' }
+      });
+      
+      if (!dataList) {
+        dataList = await prisma.dataList.create({
+          data: {
+            listId: 'TWILIO-IMPORT',
+            name: 'Twilio Imported Calls',
+            active: true
+          }
+        });
+        console.log('✅ Created TWILIO-IMPORT data list');
+      }
+      
       // Create new contact
       contact = await prisma.contact.create({
         data: {
+          contactId: `imported-${Date.now()}`,
+          listId: 'TWILIO-IMPORT', // Default list for imported contacts
           firstName: 'Imported',
           lastName: 'Contact',
           phone: phoneNumber,
           email: `imported-${Date.now()}@example.com`, // Dummy email
-          status: 'active'
+          status: 'new'
         }
       });
       

@@ -21,11 +21,11 @@ export async function ensureBasicAgents() {
           await prisma.agent.create({
             data: {
               agentId: agentId,
-              name: `Agent ${agentId}`,
+              firstName: 'System',
+              lastName: agentId,
               email: `${agentId}@system.local`,
-              status: 'available',
-              phoneExtension: `${Math.floor(Math.random() * 9000) + 1000}`,
-              sipUser: agentId
+              status: 'Offline',
+              sipUsername: agentId
             }
           });
           console.log(`✅ Created system agent: ${agentId}`);
