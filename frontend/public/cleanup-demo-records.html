@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo Records Cleanup Tool</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 8px; max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #b91c1c; }
+        .success { background: #10b981; }
+        .success:hover { background: #059669; }
+        .status { margin: 20px 0; padding: 15px; background: #f3f4f6; border-radius: 4px; }
+        .success-status { background: #d1fae5; color: #065f46; }
+        .error-status { background: #fee2e2; color: #991b1b; }
+        .loading { background: #fef3c7; color: #92400e; }
+        .code { background: #f9fafb; padding: 15px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
+        .demo-record { background: #fee2e2; padding: 10px; margin: 5px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Demo Records Cleanup Tool</h1>
+        
+        <div class="status">
+            <h3>Current Issue:</h3>
+            <p>You have <strong>4 demo call records</strong> with phone number <code>+1234567890</code> that should be removed from your database.</p>
+            
+            <div class="demo-record">
+                <strong>Demo Records to Delete:</strong>
+                <ul>
+                    <li>+1234567890 - 18:03:26 (Demo Sales Campaign)</li>
+                    <li>+1234567890 - 18:02:49 (Demo Sales Campaign)</li>
+                    <li>+1234567890 - 18:02:20 (Demo Sales Campaign)</li>
+                    <li>+1234567890 - 18:01:45 (Demo Sales Campaign)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <h3>Cleanup Options:</h3>
+        
+        <button onclick="cleanupDemoRecords()">🧹 Clean Demo Records</button>
+        <button onclick="syncTwilioRecordings()" class="success">📥 Sync All Twilio Recordings</button>
+        <button onclick="showCurrentRecords()">📋 Show Current Records</button>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div style="margin-top: 30px;">
+            <h3>Manual Cleanup (Browser Console):</h3>
+            <p>If the buttons don't work, copy and paste this code in your browser console (F12 → Console):</p>
+            <div class="code">
+// Clean demo records
+fetch('/api/debug/cleanup-demo-records', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include'
+})
+.then(res => res.json())
+.then(data => console.log('Cleanup result:', data))
+.catch(err => console.error('Cleanup error:', err));
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = `status ${type}-status`;
+            statusDiv.innerHTML = message;
+        }
+
+        async function cleanupDemoRecords() {
+            showStatus('🔄 Cleaning up demo records...', 'loading');
+            
+            try {
+                const response = await fetch('/api/debug/cleanup-demo-records', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(`✅ Cleanup completed! Deleted: ${data.stats?.totalDeleted || 'unknown'} demo records. Remaining: ${data.stats?.remainingRecords || 'unknown'} records.`, 'success');
+                } else {
+                    showStatus(`❌ Cleanup failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Cleanup error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function syncTwilioRecordings() {
+            showStatus('🔄 Syncing Twilio recordings...', 'loading');
+            
+            try {
+                const response = await fetch('/api/debug/sync-twilio-recordings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(`✅ Twilio sync completed! Synced: ${data.stats?.synced || 'unknown'} recordings. Errors: ${data.stats?.errors || 0}.`, 'success');
+                } else {
+                    showStatus(`❌ Twilio sync failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Sync error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function showCurrentRecords() {
+            showStatus('🔄 Fetching current call records...', 'loading');
+            
+            try {
+                const response = await fetch('/api/call-records?limit=10', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.records) {
+                    let recordsHtml = '<h4>Current Call Records:</h4><ul>';
+                    data.records.forEach(record => {
+                        recordsHtml += `<li>${record.phoneNumber} - ${record.startTime} (${record.campaign?.name || 'Unknown Campaign'})</li>`;
+                    });
+                    recordsHtml += '</ul>';
+                    showStatus(recordsHtml, 'success');
+                } else {
+                    showStatus('❌ Failed to fetch current records', 'error');
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Fetch error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

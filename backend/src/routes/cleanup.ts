@@ -166,4 +166,34 @@ router.post('/cleanup-demo-records', authenticate, requireRole('ADMIN'), async (
   }
 });
 
+/**
+ * ADMIN ONLY: Sync all Twilio recordings
+ * Fetches all recordings from Twilio and creates database entries
+ */
+router.post('/sync-twilio-recordings', authenticate, requireRole('ADMIN'), async (req, res) => {
+  try {
+    console.log('🚨 ADMIN SYNC: Starting Twilio recordings sync...');
+    
+    const { syncAllRecordings } = require('../services/recordingSyncService');
+    
+    const result = await syncAllRecordings();
+    
+    console.log('📊 Twilio sync results:', result);
+    
+    res.json({
+      success: true,
+      message: 'Twilio recordings sync completed',
+      stats: result
+    });
+    
+  } catch (error) {
+    console.error('❌ Twilio sync error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to sync Twilio recordings',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
