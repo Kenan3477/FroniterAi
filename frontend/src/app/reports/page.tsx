@@ -37,6 +37,8 @@ import {
   UserGroupIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   TrashIcon
@@ -372,6 +374,9 @@ export default function ReportsPage() {
 
   // Collapsible Reports state
   const [isReportsCollapsed, setIsReportsCollapsed] = useState(false);
+  
+  // Add state for sub-panel (left sidebar) collapse
+  const [isSubPanelCollapsed, setIsSubPanelCollapsed] = useState(false);
 
   // Check user role authorization
   useEffect(() => {
@@ -560,65 +565,96 @@ export default function ReportsPage() {
       {/* Tab Content */}
       {activeMainTab === 'categories' && (
       <div className="flex h-full bg-gray-50 rounded-lg overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-          {/* Header */}
+        {/* Left Sidebar - Collapsible Sub-Panel */}
+        <div className={`${isSubPanelCollapsed ? 'w-12' : 'w-80'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+          {/* Header with Collapse Button */}
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              {(selectedCategory || selectedSubcategory) && (
-                <button
-                  onClick={handleBack}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <ArrowLeftIcon className="h-5 w-5" />
-                </button>
-              )}
-              <h2 className="text-lg font-semibold text-gray-900">
-                {breadcrumb.join(' / ')}
-              </h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {(selectedCategory || selectedSubcategory) && !isSubPanelCollapsed && (
+                  <button
+                    onClick={handleBack}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <ArrowLeftIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {!isSubPanelCollapsed && (
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {breadcrumb.join(' / ')}
+                  </h2>
+                )}
+              </div>
+              
+              {/* Collapse Toggle Button */}
+              <button
+                onClick={() => setIsSubPanelCollapsed(!isSubPanelCollapsed)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                title={isSubPanelCollapsed ? "Expand sub-panel" : "Collapse sub-panel"}
+              >
+                {isSubPanelCollapsed ? (
+                  <ChevronRightIcon className="h-5 w-5" />
+                ) : (
+                  <ChevronLeftIcon className="h-5 w-5" />
+                )}
+              </button>
             </div>
           </div>
 
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto">
-            {!selectedCategory && (
-              // Main categories
-              <div className="p-4 space-y-2">
-                {reportCategories.map((category) => {
-                  const IconComponent = category.icon;
-                  return (
-                    <div
-                      key={category.id}
-                      className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => handleCategorySelect(category.id, category.name)}
-                    >
-                      <div className={`p-1 rounded ${category.color}`}>
-                        <IconComponent className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium">{category.name}</span>
-                    </div>
-                  );
-                })}
+            {isSubPanelCollapsed ? (
+              // Collapsed state - show minimal content
+              <div className="p-2">
+                <div className="text-center">
+                  <ChartBarIcon className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                  <div className="w-8 h-1 bg-gray-200 rounded mx-auto mb-2"></div>
+                  <div className="w-6 h-1 bg-gray-200 rounded mx-auto mb-2"></div>
+                  <div className="w-8 h-1 bg-gray-200 rounded mx-auto"></div>
+                </div>
               </div>
-            )}
+            ) : (
+              <>
+                {!selectedCategory && (
+                  // Main categories
+                  <div className="p-4 space-y-2">
+                    {reportCategories.map((category) => {
+                      const IconComponent = category.icon;
+                      return (
+                        <div
+                          key={category.id}
+                          className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleCategorySelect(category.id, category.name)}
+                        >
+                          <div className={`p-1 rounded ${category.color}`}>
+                            <IconComponent className="h-4 w-4 text-white" />
+                          </div>
+                          <span className="text-sm font-medium">{category.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-            {selectedCategory && !selectedSubcategory && (
-              // Subcategories
-              <div className="p-4 space-y-2">
-                {reportCategories.find(cat => cat.id === selectedCategory)?.subcategories?.map((subcategory) => {
-                  const IconComponent = subcategory.icon;
-                  return (
-                    <div
-                      key={subcategory.id}
-                      className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => handleSubcategorySelect(subcategory.id, subcategory.name)}
-                    >
-                      <IconComponent className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium">{subcategory.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                {selectedCategory && !selectedSubcategory && (
+                  // Subcategories
+                  <div className="p-4 space-y-2">
+                    {reportCategories.find(cat => cat.id === selectedCategory)?.subcategories?.map((subcategory) => {
+                      const IconComponent = subcategory.icon;
+                      return (
+                        <div
+                          key={subcategory.id}
+                          className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleSubcategorySelect(subcategory.id, subcategory.name)}
+                        >
+                          <IconComponent className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm font-medium">{subcategory.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
