@@ -207,51 +207,6 @@ export const CallRecordsView: React.FC = () => {
     return new Date(dateTime).toLocaleString();
   };
 
-  const playTestRecording = async () => {
-    try {
-      console.log('🎵 Playing test recording...');
-      const testStreamUrl = `/api/recordings/demo-1/stream`;
-      
-      if (audio) {
-        audio.pause();
-        setIsPlaying(null);
-      }
-      
-      const audioElement = new Audio(testStreamUrl);
-      
-      audioElement.onloadstart = () => {
-        console.log('🎵 Test audio loading...');
-      };
-      
-      audioElement.oncanplay = () => {
-        console.log('🎵 Test audio ready');
-      };
-      
-      audioElement.onended = () => {
-        console.log('🎵 Test audio ended');
-        setIsPlaying(null);
-        setAudio(null);
-      };
-      
-      audioElement.onerror = (error) => {
-        console.error('❌ Test audio error:', error);
-        alert('❌ Failed to play test recording');
-        setIsPlaying(null);
-        setAudio(null);
-      };
-
-      setIsPlaying('test-recording');
-      await audioElement.play();
-      setAudio(audioElement);
-      console.log('✅ Test recording playing');
-      
-    } catch (error) {
-      console.error('❌ Test recording error:', error);
-      alert(`❌ Test recording failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setIsPlaying(null);
-    }
-  };
-
   const playRecording = async (recordId: string, filePath?: string) => {
     try {
       if (audio) {
