@@ -265,30 +265,19 @@ export const CallRecordsView: React.FC = () => {
       }
 
       console.log('🎵 Starting recording playback for ID:', recordId);
+      console.log('🎵 File path provided:', filePath);
+
+      // Try using the filePath if it looks like a Twilio recording SID
+      let actualRecordingId = recordId;
+      if (filePath && filePath.startsWith('RE')) {
+        console.log('🎵 Using Twilio SID from filePath:', filePath);
+        actualRecordingId = filePath;
+      }
 
       // Use the recording streaming endpoint for playback
-      const streamUrl = `/api/recordings/${recordId}/stream`;
+      const streamUrl = `/api/recordings/${actualRecordingId}/stream`;
       
-      // First, check if the recording is available
-      console.log('🔍 Checking recording availability...');
-      const checkResponse = await fetch(streamUrl, { method: 'HEAD' });
-      
-      if (!checkResponse.ok) {
-        console.error('❌ Recording not available:', checkResponse.status, checkResponse.statusText);
-        
-        // Offer to play demo recording instead
-        const useDemo = confirm(`❌ Recording not available (${checkResponse.status}). This may be because:
-• The backend is unavailable
-• The recording file doesn't exist  
-• The recording hasn't been synced from Twilio yet
-
-Would you like to play a demo recording instead to test audio functionality?`);
-        
-        if (useDemo) {
-          return await playTestRecording();
-        }
-        return;
-      }
+      console.log('🔍 Testing recording availability at:', streamUrl);
       
       // Create audio element for playback
       const audioElement = new Audio(streamUrl);
@@ -301,17 +290,11 @@ Would you like to play a demo recording instead to test audio functionality?`);
         console.log('🎵 Audio ready to play');
       };
       
-      audioElement.onended = () => {
-        console.log('🎵 Audio playback ended');
-        setIsPlaying(null);
-        setAudio(null);
-      };
-      
       audioElement.onerror = (error) => {
-        console.error('❌ Error playing recording:', error);
+        console.error('❌ Audio element error:', error);
         console.error('❌ Audio error details:', audioElement.error);
         
-        let errorMessage = 'Unknown audio error';
+        let errorMessage = 'Recording playback failed';
         if (audioElement.error) {
           switch (audioElement.error.code) {
             case MediaError.MEDIA_ERR_ABORTED:
@@ -324,17 +307,23 @@ Would you like to play a demo recording instead to test audio functionality?`);
               errorMessage = 'Audio file is corrupted or in unsupported format';
               break;
             case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-              errorMessage = 'Audio format not supported or file not found';
+              errorMessage = 'Recording file not found or format not supported';
               break;
           }
         }
         
-        alert(`❌ Cannot play recording: ${errorMessage}\n\nThis may be because:\n• The recording file doesn't exist\n• The backend service is unavailable\n• The audio format is not supported`);
+        alert(`❌ ${errorMessage}\n\nRecording ID: ${actualRecordingId}\nOriginal ID: ${recordId}\nFile Path: ${filePath}\n\nThis may be because:\n• The recording hasn't been synced from Twilio\n• The recording file has been deleted\n• The backend service is unavailable`);
+        setIsPlaying(null);
+        setAudio(null);
+      };
+      
+      audioElement.onended = () => {
+        console.log('🎵 Audio playback ended');
         setIsPlaying(null);
         setAudio(null);
       };
 
-      setIsPlaying(recordId);
+      setIsPlaying(actualRecordingId);
       console.log('🎵 Starting audio playback...');
       
       try {
@@ -343,13 +332,13 @@ Would you like to play a demo recording instead to test audio functionality?`);
         console.log('✅ Audio playing successfully');
       } catch (playError) {
         console.error('❌ Play error:', playError);
-        alert(`❌ Failed to start audio playback: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
+        alert(`❌ Failed to start audio playback\n\nError: ${playError instanceof Error ? playError.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
         setIsPlaying(null);
       }
       
     } catch (error) {
-      console.error('❌ Error in playRecording:', error);
-      alert(`❌ Recording playback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Error in playRecording function:', error);
+      alert(`❌ Recording playback failed\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
       setIsPlaying(null);
     }
   };
@@ -489,38 +478,11 @@ Would you like to play a demo recording instead to test audio functionality?`);
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
-            <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
-          </div>
-          
-          {/* Additional Sidebar Toggle for Reports Page */}
-          <button
-            onClick={() => {
-              // Find the sidebar toggle function from the parent
-              const headerToggle = document.querySelector('[title="Toggle sidebar for full-screen view"]') as HTMLButtonElement;
-              if (headerToggle) {
-                headerToggle.click();
-              }
-            }}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            title="Toggle sidebar for full-screen viewing"
-          >
-            <Bars3Icon className="h-4 w-4 mr-2" />
-            Toggle Sidebar
-          </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
+          <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={playTestRecording}
-            className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
-            disabled={isPlaying === 'test-recording'}
-          >
-            <PlayIcon className="h-4 w-4 mr-2" />
-            {isPlaying === 'test-recording' ? 'Playing Test...' : '🎵 Test Audio'}
-          </button>
-          
           <button
             onClick={exportToCSV}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -768,20 +730,49 @@ Would you like to play a demo recording instead to test audio functionality?`);
                   {record.recordingFile ? (
                     <div className="flex items-center space-x-3">
                       <button
-                        onClick={() => playRecording(record.recordingFile!.id)}
+                        onClick={() => {
+                          console.log('🎵 Debug - Full record:', record);
+                          console.log('🎵 Debug - Recording file:', record.recordingFile);
+                          
+                          // Use Twilio SID if available, fallback to database ID
+                          const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
+                            ? record.recordingFile.filePath 
+                            : record.recordingFile!.id;
+                            
+                          console.log('🎵 Debug - Using recording ID:', actualRecordingId);
+                          playRecording(actualRecordingId, record.recordingFile?.filePath);
+                        }}
                         className="flex items-center text-blue-600 hover:text-blue-800"
                       >
-                        {isPlaying === record.recordingFile.id ? (
-                          <PauseIcon className="h-4 w-4 mr-1" />
-                        ) : (
-                          <PlayIcon className="h-4 w-4 mr-1" />
-                        )}
+                        {(() => {
+                          // Determine which ID to use for play state
+                          const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
+                            ? record.recordingFile.filePath 
+                            : record.recordingFile.id;
+                          
+                          return isPlaying === actualRecordingId ? (
+                            <PauseIcon className="h-4 w-4 mr-1" />
+                          ) : (
+                            <PlayIcon className="h-4 w-4 mr-1" />
+                          );
+                        })()}
                         <span className="text-sm">
-                          {isPlaying === record.recordingFile.id ? 'Playing' : 'Play'}
+                          {(() => {
+                            // Determine which ID to use for play state
+                            const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
+                              ? record.recordingFile.filePath 
+                              : record.recordingFile.id;
+                            
+                            return isPlaying === actualRecordingId ? 'Playing' : 'Play';
+                          })()}
                         </span>
                       </button>
                       <a
-                        href={`/api/recordings/${record.recordingFile.id}/download`}
+                        href={`/api/recordings/${
+                          record.recordingFile?.filePath?.startsWith('RE') 
+                            ? record.recordingFile.filePath 
+                            : record.recordingFile.id
+                        }/download`}
                         download
                         className="flex items-center text-gray-600 hover:text-gray-800"
                         title="Download recording"
@@ -938,18 +929,44 @@ Would you like to play a demo recording instead to test audio functionality?`);
                   <label className="block text-sm font-medium text-gray-700">Recording</label>
                   <div className="mt-2 flex items-center space-x-3">
                     <button
-                      onClick={() => playRecording(selectedRecord.recordingFile!.id)}
+                      onClick={() => {
+                        // Use Twilio SID if available, fallback to database ID
+                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
+                          ? selectedRecord.recordingFile.filePath 
+                          : selectedRecord.recordingFile!.id;
+                          
+                        console.log('🎵 Modal Debug - Using recording ID:', actualRecordingId);
+                        playRecording(actualRecordingId, selectedRecord.recordingFile?.filePath);
+                      }}
                       className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      {isPlaying === selectedRecord.recordingFile.id ? (
-                        <PauseIcon className="h-4 w-4 mr-1" />
-                      ) : (
-                        <PlayIcon className="h-4 w-4 mr-1" />
-                      )}
-                      {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
+                      {(() => {
+                        // Determine which ID to use for play state
+                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
+                          ? selectedRecord.recordingFile.filePath 
+                          : selectedRecord.recordingFile.id;
+                        
+                        return isPlaying === actualRecordingId ? (
+                          <PauseIcon className="h-4 w-4 mr-1" />
+                        ) : (
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                        );
+                      })()}
+                      {(() => {
+                        // Determine which ID to use for play state
+                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
+                          ? selectedRecord.recordingFile.filePath 
+                          : selectedRecord.recordingFile.id;
+                        
+                        return isPlaying === actualRecordingId ? 'Pause' : 'Play Recording';
+                      })()}
                     </button>
                     <a
-                      href={`/api/recordings/${selectedRecord.recordingFile.id}/download`}
+                      href={`/api/recordings/${
+                        selectedRecord.recordingFile?.filePath?.startsWith('RE') 
+                          ? selectedRecord.recordingFile.filePath 
+                          : selectedRecord.recordingFile.id
+                      }/download`}
                       download
                       className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                     >

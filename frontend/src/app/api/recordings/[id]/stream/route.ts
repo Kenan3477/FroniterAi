@@ -31,16 +31,10 @@ export async function GET(
     // Get auth token from cookies
     const authToken = request.cookies.get('auth-token')?.value;
     
-    if (!authToken) {
-      console.log('🔒 No auth token found for recording stream');
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    console.log('🔒 Auth token found:', authToken ? `${authToken.substring(0, 10)}...` : 'NONE');
 
     const backendUrl = `${BACKEND_URL}/api/recordings/${recordingId}/stream`;
-    console.log('📡 Streaming from backend:', backendUrl);
+    console.log('📡 Attempting to stream from backend:', backendUrl);
 
     // Forward the request to the Railway backend with auth
     const response = await fetch(backendUrl, {
@@ -48,6 +42,9 @@ export async function GET(
       headers: {
         'Authorization': `Bearer ${authToken}`,
       },
+    });
+
+    console.log(`📡 Backend response status: ${response.status} ${response.statusText}`);
     });
 
     if (!response.ok) {
