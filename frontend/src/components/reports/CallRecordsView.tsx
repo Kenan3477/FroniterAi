@@ -15,6 +15,8 @@ import {
   ArrowsUpDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   EyeIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
@@ -85,6 +87,7 @@ export const CallRecordsView: React.FC = () => {
     dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0]
   });
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'startTime' | 'duration' | 'outcome'>('startTime');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -203,6 +206,51 @@ export const CallRecordsView: React.FC = () => {
     return new Date(dateTime).toLocaleString();
   };
 
+  const playTestRecording = async () => {
+    try {
+      console.log('🎵 Playing test recording...');
+      const testStreamUrl = `/api/recordings/demo-1/stream`;
+      
+      if (audio) {
+        audio.pause();
+        setIsPlaying(null);
+      }
+      
+      const audioElement = new Audio(testStreamUrl);
+      
+      audioElement.onloadstart = () => {
+        console.log('🎵 Test audio loading...');
+      };
+      
+      audioElement.oncanplay = () => {
+        console.log('🎵 Test audio ready');
+      };
+      
+      audioElement.onended = () => {
+        console.log('🎵 Test audio ended');
+        setIsPlaying(null);
+        setAudio(null);
+      };
+      
+      audioElement.onerror = (error) => {
+        console.error('❌ Test audio error:', error);
+        alert('❌ Failed to play test recording');
+        setIsPlaying(null);
+        setAudio(null);
+      };
+
+      setIsPlaying('test-recording');
+      await audioElement.play();
+      setAudio(audioElement);
+      console.log('✅ Test recording playing');
+      
+    } catch (error) {
+      console.error('❌ Test recording error:', error);
+      alert(`❌ Test recording failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsPlaying(null);
+    }
+  };
+
   const playRecording = async (recordId: string, filePath?: string) => {
     try {
       if (audio) {
@@ -215,26 +263,80 @@ export const CallRecordsView: React.FC = () => {
         return;
       }
 
+      console.log('🎵 Starting recording playback for ID:', recordId);
+
       // Use the recording streaming endpoint for playback
       const streamUrl = `/api/recordings/${recordId}/stream`;
       
+      // First, check if the recording is available
+      const checkResponse = await fetch(streamUrl, { method: 'HEAD' });
+      if (!checkResponse.ok) {
+        console.error('❌ Recording not available:', checkResponse.status, checkResponse.statusText);
+        alert(`❌ Recording not available (${checkResponse.status}). This may be because:\n• The backend is unavailable\n• The recording file doesn't exist\n• The recording hasn't been synced from Twilio yet`);
+        return;
+      }
+      
       // Create audio element for playback
       const audioElement = new Audio(streamUrl);
+      
+      audioElement.onloadstart = () => {
+        console.log('🎵 Audio loading started...');
+      };
+      
+      audioElement.oncanplay = () => {
+        console.log('🎵 Audio ready to play');
+      };
+      
       audioElement.onended = () => {
+        console.log('🎵 Audio playback ended');
         setIsPlaying(null);
         setAudio(null);
       };
+      
       audioElement.onerror = (error) => {
-        console.error('Error playing recording:', error);
+        console.error('❌ Error playing recording:', error);
+        console.error('❌ Audio error details:', audioElement.error);
+        
+        let errorMessage = 'Unknown audio error';
+        if (audioElement.error) {
+          switch (audioElement.error.code) {
+            case MediaError.MEDIA_ERR_ABORTED:
+              errorMessage = 'Audio playback was aborted';
+              break;
+            case MediaError.MEDIA_ERR_NETWORK:
+              errorMessage = 'Network error occurred during audio loading';
+              break;
+            case MediaError.MEDIA_ERR_DECODE:
+              errorMessage = 'Audio file is corrupted or in unsupported format';
+              break;
+            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+              errorMessage = 'Audio format not supported or file not found';
+              break;
+          }
+        }
+        
+        alert(`❌ Cannot play recording: ${errorMessage}\n\nThis may be because:\n• The recording file doesn't exist\n• The backend service is unavailable\n• The audio format is not supported`);
         setIsPlaying(null);
         setAudio(null);
       };
 
-      audioElement.play();
-      setAudio(audioElement);
       setIsPlaying(recordId);
+      console.log('🎵 Starting audio playback...');
+      
+      try {
+        await audioElement.play();
+        setAudio(audioElement);
+        console.log('✅ Audio playing successfully');
+      } catch (playError) {
+        console.error('❌ Play error:', playError);
+        alert(`❌ Failed to start audio playback: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
+        setIsPlaying(null);
+      }
+      
     } catch (error) {
-      console.error('Error playing recording:', error);
+      console.error('❌ Error in playRecording:', error);
+      alert(`❌ Recording playback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsPlaying(null);
     }
   };
 
@@ -379,6 +481,15 @@ export const CallRecordsView: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={playTestRecording}
+            className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+            disabled={isPlaying === 'test-recording'}
+          >
+            <PlayIcon className="h-4 w-4 mr-2" />
+            {isPlaying === 'test-recording' ? 'Playing Test...' : '🎵 Test Audio'}
+          </button>
+          
+          <button
             onClick={exportToCSV}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
@@ -410,8 +521,46 @@ export const CallRecordsView: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-white rounded-lg shadow">
+        {/* Filter Header */}
+        <div 
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+        >
+          <div className="flex items-center space-x-2">
+            <FunnelIcon className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-medium text-gray-900">Filters</h2>
+            <span className="text-sm text-gray-500">
+              ({Object.values(filters).filter(v => v !== undefined && v !== '').length} active)
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilters({
+                  dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  dateTo: new Date().toISOString().split('T')[0]
+                });
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Clear All
+            </button>
+            {filtersCollapsed ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+            ) : (
+              <ChevronUpIcon className="h-5 w-5 text-gray-400" />
+            )}
+          </div>
+        </div>
+        
+        {/* Filter Content */}
+        <div className={`transition-all duration-200 ease-in-out overflow-hidden ${
+          filtersCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'
+        }`}>
+          <div className="px-6 pb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Date Range */}
           <div>
             <label className="block text-sm font-medium text-gray-700">From Date</label>
@@ -465,6 +614,7 @@ export const CallRecordsView: React.FC = () => {
               <option value="ABANDONED">Abandoned</option>
             </select>
           </div>
+          </div>
         </div>
 
         {/* Search */}
@@ -479,6 +629,7 @@ export const CallRecordsView: React.FC = () => {
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+        </div>
         </div>
       </div>
 

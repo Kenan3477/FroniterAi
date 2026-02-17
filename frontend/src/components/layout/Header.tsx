@@ -135,12 +135,13 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4">
       {/* Left Section */}
       <div className="flex items-center space-x-4">
-        {/* Mobile Menu Button */}
+        {/* Sidebar Toggle Button - Always visible for full-screen viewing */}
         <button
           onClick={onSidebarToggle}
-          className="p-1 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 md:hidden"
+          className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          title="Toggle sidebar for full-screen view"
         >
-          <Bars3Icon className="h-6 w-6" />
+          <Bars3Icon className="h-5 w-5" />
         </button>
 
         {/* Search Bar */}

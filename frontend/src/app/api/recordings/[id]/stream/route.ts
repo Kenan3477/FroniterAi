@@ -52,8 +52,50 @@ export async function GET(
 
     if (!response.ok) {
       console.error(`❌ Backend stream response not ok: ${response.status} ${response.statusText}`);
+      
+      if (response.status === 404) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Recording not found',
+            message: 'This recording file does not exist. It may not have been synced from Twilio yet.',
+            details: {
+              recordingId,
+              backendUrl,
+              status: response.status
+            }
+          },
+          { status: 404 }
+        );
+      }
+      
+      if (response.status >= 500) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Backend service unavailable',
+            message: 'The recording backend service is currently unavailable. Please try again later.',
+            details: {
+              recordingId,
+              backendUrl,
+              status: response.status
+            }
+          },
+          { status: 503 }
+        );
+      }
+      
       return NextResponse.json(
-        { success: false, error: `Recording stream not available` },
+        { 
+          success: false, 
+          error: `Recording stream not available (${response.status})`,
+          message: 'Unable to stream the recording file.',
+          details: {
+            recordingId,
+            backendUrl,
+            status: response.status
+          }
+        },
         { status: response.status }
       );
     }
@@ -83,9 +125,33 @@ export async function GET(
 
   } catch (error) {
     console.error('❌ Recording stream error:', error);
+    
+    // Handle different types of errors
+    let errorMessage = 'Failed to stream recording';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed')) {
+        errorMessage = 'Backend service unavailable - cannot reach recording server';
+        statusCode = 503;
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Recording stream timeout - server took too long to respond';
+        statusCode = 504;
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to stream recording' },
-      { status: 500 }
+      { 
+        success: false, 
+        error: errorMessage,
+        message: 'Unable to stream the recording. The backend service may be unavailable.',
+        details: {
+          recordingId: params.id,
+          backendUrl: BACKEND_URL,
+          errorType: error instanceof Error ? error.constructor.name : 'Unknown'
+        }
+      },
+      { status: statusCode }
     );
   }
 }

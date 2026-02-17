@@ -44,8 +44,9 @@ Claude must prefer incremental, composable changes over large monolithic impleme
 Each change must leave the system in a runnable state.
 
 ### 3. Environment & Deployment Rules
-The frontend must always run locally without special configuration.
+The frontend must be deployed to Vercel for production use.
 The backend must always run on Railway.
+For development, frontend can run locally but must be configured to connect to Railway backend.
 Environment variables must be externalised; no secrets in code.
 Claude must never hardcode:
 - API URLs
