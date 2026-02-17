@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   PhoneIcon,
   PlayIcon,
@@ -76,6 +77,7 @@ interface CallRecordsFilters {
 }
 
 export const CallRecordsView: React.FC = () => {
+  const { user } = useAuth();
   const [callRecords, setCallRecords] = useState<CallRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +238,64 @@ export const CallRecordsView: React.FC = () => {
     }
   };
 
+  const cleanupDemoRecords = async () => {
+    if (!confirm('Are you sure you want to delete all demo records? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/debug/cleanup-demo-records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ Cleanup completed! Deleted: ${data.stats?.totalDeleted || 'unknown'} demo records.`);
+        // Refresh the records
+        fetchCallRecords();
+      } else {
+        alert(`❌ Cleanup failed: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Cleanup error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const syncTwilioRecordings = async () => {
+    if (!confirm('Sync all recordings from Twilio? This may take a few moments.')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/debug/sync-twilio-recordings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ Twilio sync completed! Synced: ${data.stats?.synced || 'unknown'} recordings.`);
+        // Refresh the records
+        fetchCallRecords();
+      } else {
+        alert(`❌ Sync failed: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Sync error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const exportToCSV = () => {
     const headers = [
       'Call ID',
@@ -325,6 +385,27 @@ export const CallRecordsView: React.FC = () => {
             <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
             Export CSV
           </button>
+          
+          {/* Demo Cleanup Button - ADMIN only */}
+          {user?.role === 'ADMIN' && (
+            <>
+              <button
+                onClick={cleanupDemoRecords}
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100"
+                disabled={loading}
+              >
+                🧹 Clean Demo Records
+              </button>
+              
+              <button
+                onClick={syncTwilioRecordings}
+                className="inline-flex items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100"
+                disabled={loading}
+              >
+                📥 Sync Twilio
+              </button>
+            </>
+          )}
         </div>
       </div>
 
