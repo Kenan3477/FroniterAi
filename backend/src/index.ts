@@ -54,6 +54,7 @@ import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue m
 import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoints
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
+import testRoutes from './routes/test'; // Testing and debugging endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -189,6 +190,7 @@ class App {
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
+    this.app.use('/api/test', testRoutes); // Testing and debugging endpoints
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
