@@ -267,15 +267,8 @@ export const CallRecordsView: React.FC = () => {
       console.log('🎵 Starting recording playback for ID:', recordId);
       console.log('🎵 File path provided:', filePath);
 
-      // Try using the filePath if it looks like a Twilio recording SID
-      let actualRecordingId = recordId;
-      if (filePath && filePath.startsWith('RE')) {
-        console.log('🎵 Using Twilio SID from filePath:', filePath);
-        actualRecordingId = filePath;
-      }
-
       // Use the recording streaming endpoint for playback
-      const streamUrl = `/api/recordings/${actualRecordingId}/stream`;
+      const streamUrl = `/api/recordings/${recordId}/stream`;
       
       console.log('🔍 Testing recording availability at:', streamUrl);
       
@@ -312,7 +305,7 @@ export const CallRecordsView: React.FC = () => {
           }
         }
         
-        alert(`❌ ${errorMessage}\n\nRecording ID: ${actualRecordingId}\nOriginal ID: ${recordId}\nFile Path: ${filePath}\n\nThis may be because:\n• The recording hasn't been synced from Twilio\n• The recording file has been deleted\n• The backend service is unavailable`);
+        alert(`❌ ${errorMessage}\n\nRecording ID: ${recordId}\nStream URL: ${streamUrl}\nFile Path: ${filePath}\n\nThis may be because:\n• The recording hasn't been synced from Twilio\n• The recording file has been deleted\n• The backend service is unavailable`);
         setIsPlaying(null);
         setAudio(null);
       };
@@ -323,7 +316,7 @@ export const CallRecordsView: React.FC = () => {
         setAudio(null);
       };
 
-      setIsPlaying(actualRecordingId);
+      setIsPlaying(recordId);
       console.log('🎵 Starting audio playback...');
       
       try {
@@ -733,46 +726,21 @@ export const CallRecordsView: React.FC = () => {
                         onClick={() => {
                           console.log('🎵 Debug - Full record:', record);
                           console.log('🎵 Debug - Recording file:', record.recordingFile);
-                          
-                          // Use Twilio SID if available, fallback to database ID
-                          const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
-                            ? record.recordingFile.filePath 
-                            : record.recordingFile!.id;
-                            
-                          console.log('🎵 Debug - Using recording ID:', actualRecordingId);
-                          playRecording(actualRecordingId, record.recordingFile?.filePath);
+                          playRecording(record.recordingFile!.id, record.recordingFile?.filePath);
                         }}
                         className="flex items-center text-blue-600 hover:text-blue-800"
                       >
-                        {(() => {
-                          // Determine which ID to use for play state
-                          const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
-                            ? record.recordingFile.filePath 
-                            : record.recordingFile.id;
-                          
-                          return isPlaying === actualRecordingId ? (
-                            <PauseIcon className="h-4 w-4 mr-1" />
-                          ) : (
-                            <PlayIcon className="h-4 w-4 mr-1" />
-                          );
-                        })()}
+                        {isPlaying === record.recordingFile.id ? (
+                          <PauseIcon className="h-4 w-4 mr-1" />
+                        ) : (
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                        )}
                         <span className="text-sm">
-                          {(() => {
-                            // Determine which ID to use for play state
-                            const actualRecordingId = record.recordingFile?.filePath?.startsWith('RE') 
-                              ? record.recordingFile.filePath 
-                              : record.recordingFile.id;
-                            
-                            return isPlaying === actualRecordingId ? 'Playing' : 'Play';
-                          })()}
+                          {isPlaying === record.recordingFile.id ? 'Playing' : 'Play'}
                         </span>
                       </button>
                       <a
-                        href={`/api/recordings/${
-                          record.recordingFile?.filePath?.startsWith('RE') 
-                            ? record.recordingFile.filePath 
-                            : record.recordingFile.id
-                        }/download`}
+                        href={`/api/recordings/${record.recordingFile.id}/download`}
                         download
                         className="flex items-center text-gray-600 hover:text-gray-800"
                         title="Download recording"
@@ -930,43 +898,20 @@ export const CallRecordsView: React.FC = () => {
                   <div className="mt-2 flex items-center space-x-3">
                     <button
                       onClick={() => {
-                        // Use Twilio SID if available, fallback to database ID
-                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
-                          ? selectedRecord.recordingFile.filePath 
-                          : selectedRecord.recordingFile!.id;
-                          
-                        console.log('🎵 Modal Debug - Using recording ID:', actualRecordingId);
-                        playRecording(actualRecordingId, selectedRecord.recordingFile?.filePath);
+                        console.log('🎵 Modal Debug - Using recording ID:', selectedRecord.recordingFile!.id);
+                        playRecording(selectedRecord.recordingFile!.id, selectedRecord.recordingFile?.filePath);
                       }}
                       className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      {(() => {
-                        // Determine which ID to use for play state
-                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
-                          ? selectedRecord.recordingFile.filePath 
-                          : selectedRecord.recordingFile.id;
-                        
-                        return isPlaying === actualRecordingId ? (
-                          <PauseIcon className="h-4 w-4 mr-1" />
-                        ) : (
-                          <PlayIcon className="h-4 w-4 mr-1" />
-                        );
-                      })()}
-                      {(() => {
-                        // Determine which ID to use for play state
-                        const actualRecordingId = selectedRecord.recordingFile?.filePath?.startsWith('RE') 
-                          ? selectedRecord.recordingFile.filePath 
-                          : selectedRecord.recordingFile.id;
-                        
-                        return isPlaying === actualRecordingId ? 'Pause' : 'Play Recording';
-                      })()}
+                      {isPlaying === selectedRecord.recordingFile.id ? (
+                        <PauseIcon className="h-4 w-4 mr-1" />
+                      ) : (
+                        <PlayIcon className="h-4 w-4 mr-1" />
+                      )}
+                      {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
                     </button>
                     <a
-                      href={`/api/recordings/${
-                        selectedRecord.recordingFile?.filePath?.startsWith('RE') 
-                          ? selectedRecord.recordingFile.filePath 
-                          : selectedRecord.recordingFile.id
-                      }/download`}
+                      href={`/api/recordings/${selectedRecord.recordingFile.id}/download`}
                       download
                       className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                     >
