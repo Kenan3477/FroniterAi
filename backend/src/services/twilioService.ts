@@ -422,6 +422,32 @@ export const updateCallMetadata = async (callSid: string, metadata: any) => {
   return { success: true };
 };
 
+/**
+ * Get Twilio recording URL for streaming
+ */
+export const getTwilioRecordingUrl = async (recordingSid: string): Promise<string | null> => {
+  if (!twilioClient) {
+    console.error('❌ Twilio client not initialized');
+    return null;
+  }
+
+  try {
+    console.log(`🎵 Fetching Twilio recording URL for SID: ${recordingSid}`);
+    
+    const recording = await twilioClient.recordings(recordingSid).fetch();
+    
+    // Construct the media URL for streaming
+    const mediaUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
+    
+    console.log(`✅ Got Twilio recording URL: ${mediaUrl}`);
+    return mediaUrl;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching Twilio recording URL: ${error}`);
+    return null;
+  }
+};
+
 export default {
   generateAccessToken,
   endCall,
@@ -436,4 +462,5 @@ export default {
   getCallRecordings,
   getAllRecordings,
   updateCallMetadata,
+  getTwilioRecordingUrl,
 };
