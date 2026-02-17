@@ -187,7 +187,7 @@ class App {
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
-    // this.app.use('/api/admin/cleanup', cleanupRoutes); // REMOVED FOR SECURITY - cleanup endpoint disabled
+    this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
