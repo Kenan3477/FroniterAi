@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     const finalToken = authToken || accessToken || token;
     console.log('🔑 Selected token:', finalToken ? `${finalToken.substring(0, 20)}...` : 'NONE');
     
-    // Skip auth check for now - make public for testing
+    // TEMPORARY: Skip authentication entirely for debugging
+    console.log('⚠️ TEMPORARILY SKIPPING AUTHENTICATION FOR DEBUGGING');
     // if (!finalToken) {
     //   console.log('🔒 No auth token found in cookies');
     //   return NextResponse.json(
@@ -44,9 +45,11 @@ export async function GET(request: NextRequest) {
       'Content-Type': 'application/json',
     };
     
-    if (finalToken) {
-      headers['Authorization'] = `Bearer ${finalToken}`;
-    }
+    // TEMPORARY: Skip sending auth headers for debugging
+    console.log('⚠️ TEMPORARILY SKIPPING AUTH HEADERS FOR DEBUGGING');
+    // if (finalToken) {
+    //   headers['Authorization'] = `Bearer ${finalToken}`;
+    // }
 
     const response = await fetch(backendUrl, {
       method: 'GET',
