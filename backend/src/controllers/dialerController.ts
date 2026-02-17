@@ -811,7 +811,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const callRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: null, // Skip agent reference for now to avoid foreign key issues
+        agentId: null, // FIXED: Always use null to avoid foreign key issues
         contactId: contactId, // Use created contact ID
         campaignId: campaignId, // Use existing/created campaign ID
         phoneNumber: formattedTo,

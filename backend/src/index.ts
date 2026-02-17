@@ -13,6 +13,7 @@ import { connectDatabase } from './database';
 import { connectRedis } from './config/redis';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
+import { ensureBasicAgents } from './utils/ensureBasicAgents';
 
 // Import routes
 // Auth routes - enable for frontend integration
@@ -270,6 +271,9 @@ class App {
       // Connect to Redis
       await connectRedis();
       console.log('✅ Redis connected');
+
+      // Ensure basic system agents exist
+      await ensureBasicAgents();
 
       // Start server
       const port = config.server.port;
