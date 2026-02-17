@@ -424,6 +424,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.success) {
         console.log('✅ AuthContext: Login successful, setting user:', data.user);
         setUser(data.user);
+        
+        // Store auth token in localStorage for client-side API calls
+        if (isClient && data.token) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('omnivox_token', data.token); // Some components look for this
+          console.log('💾 AuthContext: Stored auth tokens in localStorage');
+        }
+        
         router.push('/dashboard');
         return { success: true, message: data.message };
       } else {

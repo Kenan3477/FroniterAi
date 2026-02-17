@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
     const backendData = await backendResponse.json();
     console.log('📦 Backend response data:', backendData);
     
-    // Create response using backend data
+    // Create response using backend data with token for localStorage
     const response = NextResponse.json({
       success: true,
       user: backendData.data.user,
+      token: backendData.data.token, // Include token for localStorage storage
       message: 'Authentication successful'
     });
 
