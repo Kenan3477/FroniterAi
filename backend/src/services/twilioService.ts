@@ -373,6 +373,46 @@ export const getCallRecordings = async (callSid: string) => {
 };
 
 /**
+ * Get ALL recordings from Twilio account (not just for specific calls)
+ */
+export const getAllRecordings = async (limit: number = 100, daysBack: number = 30) => {
+  if (!twilioClient) {
+    throw new Error('Twilio client not initialized');
+  }
+
+  try {
+    // Get recordings from the last N days
+    const dateCreatedAfter = new Date();
+    dateCreatedAfter.setDate(dateCreatedAfter.getDate() - daysBack);
+
+    console.log(`📞 Fetching ALL recordings from Twilio (last ${daysBack} days, limit ${limit})...`);
+
+    const recordings = await twilioClient.recordings.list({
+      dateCreatedAfter: dateCreatedAfter,
+      limit: limit,
+    });
+
+    console.log(`📊 Found ${recordings.length} recordings in Twilio`);
+
+    return recordings.map(recording => ({
+      sid: recording.sid,
+      callSid: recording.callSid,
+      duration: recording.duration,
+      url: `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`,
+      dateCreated: recording.dateCreated,
+      accountSid: recording.accountSid,
+      apiVersion: recording.apiVersion,
+      channels: recording.channels,
+      conferenceUid: recording.conferenceSid,
+      status: recording.status,
+    }));
+  } catch (error) {
+    console.error('❌ Error fetching all recordings from Twilio:', error);
+    throw error;
+  }
+};
+
+/**
  * Update call metadata
  */
 export const updateCallMetadata = async (callSid: string, metadata: any) => {
@@ -394,5 +434,6 @@ export default {
   generateCustomerTwiML,
   createRestApiCall,
   getCallRecordings,
+  getAllRecordings,
   updateCallMetadata,
 };

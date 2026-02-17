@@ -167,22 +167,29 @@ router.post('/cleanup-demo-records', authenticate, requireRole('ADMIN'), async (
 });
 
 /**
- * ADMIN ONLY: Sync all Twilio recordings
- * Fetches all recordings from Twilio and creates database entries
+ * ADMIN ONLY: Comprehensive Twilio recordings sync
+ * Fetches ALL recordings from Twilio and creates database entries
  */
 router.post('/sync-twilio-recordings', authenticate, requireRole('ADMIN'), async (req, res) => {
   try {
-    console.log('🚨 ADMIN SYNC: Starting aggressive Twilio recordings sync...');
+    console.log('🚨 ADMIN SYNC: Starting comprehensive Twilio recordings sync...');
     
+    // Import the comprehensive sync function
+    const { syncAllTwilioRecordings } = require('../services/comprehensiveRecordingSync');
     const { syncAllRecordings } = require('../services/recordingSyncService');
     
-    // First try normal sync
+    // First try comprehensive sync (gets ALL Twilio recordings)
+    console.log('🔄 Phase 1: Comprehensive Twilio sync...');
+    const comprehensiveResult = await syncAllTwilioRecordings();
+    console.log('📊 Comprehensive sync results:', comprehensiveResult);
+    
+    // Then try normal sync for any remaining missing recordings
+    console.log('🔄 Phase 2: Normal recording sync...');
     const normalResult = await syncAllRecordings();
     console.log('📊 Normal sync results:', normalResult);
     
     // Then do aggressive sync for missing files
-    console.log('🔍 Checking for call records with missing physical files...');
-    
+    console.log('� Phase 3: Missing file re-download...');
     const callRecordsWithRecordings = await prisma.callRecord.findMany({
       where: {
         recordingFile: {
@@ -243,22 +250,31 @@ router.post('/sync-twilio-recordings', authenticate, requireRole('ADMIN'), async
     }
     
     const totalResult = {
+      comprehensiveSync: comprehensiveResult,
       normalSync: normalResult,
       reDownloaded: reDownloaded,
       errors: errors,
-      total: normalResult.synced + reDownloaded
+      summary: {
+        totalTwilioRecordings: comprehensiveResult.totalTwilioRecordings,
+        newCallRecords: comprehensiveResult.newCallRecords,
+        newRecordingFiles: comprehensiveResult.newRecordingFiles,
+        linkedExisting: comprehensiveResult.linkedExisting,
+        normalSynced: normalResult.synced,
+        reDownloaded: reDownloaded,
+        totalErrors: comprehensiveResult.errors + normalResult.errors + errors
+      }
     };
     
-    console.log('📊 Complete Twilio sync results:', totalResult);
+    console.log('📊 Complete comprehensive Twilio sync results:', totalResult);
     
     res.json({
       success: true,
-      message: 'Twilio recordings sync completed',
+      message: 'Comprehensive Twilio recordings sync completed',
       stats: totalResult
     });
     
   } catch (error) {
-    console.error('❌ Twilio sync error:', error);
+    console.error('❌ Comprehensive Twilio sync error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to sync Twilio recordings',
