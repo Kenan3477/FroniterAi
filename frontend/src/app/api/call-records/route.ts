@@ -11,9 +11,20 @@ export async function GET(request: NextRequest) {
 
     // Get auth token from cookies (optional for development)
     const authToken = request.cookies.get('auth-token')?.value;
+    const accessToken = request.cookies.get('access-token')?.value;
+    const token = request.cookies.get('token')?.value;
+    
+    // Debug: Log all cookies
+    console.log('🍪 Available cookies:');
+    request.cookies.getAll().forEach(cookie => {
+      console.log(`  ${cookie.name}: ${cookie.value?.substring(0, 20)}...`);
+    });
+    
+    const finalToken = authToken || accessToken || token;
+    console.log('🔑 Selected token:', finalToken ? `${finalToken.substring(0, 20)}...` : 'NONE');
     
     // Skip auth check for now - make public for testing
-    // if (!authToken) {
+    // if (!finalToken) {
     //   console.log('🔒 No auth token found in cookies');
     //   return NextResponse.json(
     //     { success: false, error: 'Authentication required' },
@@ -33,8 +44,8 @@ export async function GET(request: NextRequest) {
       'Content-Type': 'application/json',
     };
     
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    if (finalToken) {
+      headers['Authorization'] = `Bearer ${finalToken}`;
     }
 
     const response = await fetch(backendUrl, {
