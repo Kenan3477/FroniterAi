@@ -172,18 +172,89 @@ router.post('/cleanup-demo-records', authenticate, requireRole('ADMIN'), async (
  */
 router.post('/sync-twilio-recordings', authenticate, requireRole('ADMIN'), async (req, res) => {
   try {
-    console.log('🚨 ADMIN SYNC: Starting Twilio recordings sync...');
+    console.log('🚨 ADMIN SYNC: Starting aggressive Twilio recordings sync...');
     
     const { syncAllRecordings } = require('../services/recordingSyncService');
     
-    const result = await syncAllRecordings();
+    // First try normal sync
+    const normalResult = await syncAllRecordings();
+    console.log('📊 Normal sync results:', normalResult);
     
-    console.log('📊 Twilio sync results:', result);
+    // Then do aggressive sync for missing files
+    console.log('🔍 Checking for call records with missing physical files...');
+    
+    const callRecordsWithRecordings = await prisma.callRecord.findMany({
+      where: {
+        recordingFile: {
+          isNot: null
+        }
+      },
+      include: {
+        recordingFile: true
+      }
+    });
+    
+    console.log(`📊 Found ${callRecordsWithRecordings.length} call records with recording links`);
+    
+    let reDownloaded = 0;
+    let errors = 0;
+    
+    for (const record of callRecordsWithRecordings) {
+      if (record.recordingFile) {
+        const filePath = record.recordingFile.filePath;
+        console.log(`🔍 Checking file: ${filePath}`);
+        
+        // Check if physical file exists
+        const fs = require('fs');
+        const path = require('path');
+        const fullPath = path.resolve(filePath);
+        
+        try {
+          await fs.promises.access(fullPath);
+          console.log(`✅ File exists: ${filePath}`);
+        } catch (error) {
+          console.log(`❌ File missing: ${filePath} - attempting re-download`);
+          
+          // Try to extract Twilio SID from filename
+          try {
+            // Example filename: CA223b31bd3d82b81f2869e724936e2ad1_2026-02-16T12-49-00-182Z.mp3
+            const fileName = record.recordingFile.fileName;
+            const twilioSid = fileName.split('_')[0]; // Extract the part before first underscore
+            
+            if (twilioSid && twilioSid.startsWith('CA')) {
+              console.log(`🔄 Re-downloading recording: ${twilioSid}`);
+              
+              // Use the recording service to re-download
+              const { downloadRecordingFromTwilio } = require('../services/recordingService');
+              await downloadRecordingFromTwilio(twilioSid, filePath);
+              
+              reDownloaded++;
+              console.log(`✅ Re-downloaded: ${twilioSid}`);
+            } else {
+              console.log(`❌ Could not extract Twilio SID from filename: ${fileName}`);
+              errors++;
+            }
+          } catch (downloadError) {
+            console.error(`❌ Failed to re-download from filename ${record.recordingFile.fileName}:`, downloadError);
+            errors++;
+          }
+        }
+      }
+    }
+    
+    const totalResult = {
+      normalSync: normalResult,
+      reDownloaded: reDownloaded,
+      errors: errors,
+      total: normalResult.synced + reDownloaded
+    };
+    
+    console.log('📊 Complete Twilio sync results:', totalResult);
     
     res.json({
       success: true,
       message: 'Twilio recordings sync completed',
-      stats: result
+      stats: totalResult
     });
     
   } catch (error) {
