@@ -45,7 +45,6 @@ export async function GET(
     });
 
     console.log(`📡 Backend response status: ${response.status} ${response.statusText}`);
-    });
 
     if (!response.ok) {
       console.error(`❌ Backend stream response not ok: ${response.status} ${response.statusText}`);
