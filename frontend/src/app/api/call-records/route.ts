@@ -23,15 +23,13 @@ export async function GET(request: NextRequest) {
     const finalToken = authToken || accessToken || token;
     console.log('🔑 Selected token:', finalToken ? `${finalToken.substring(0, 20)}...` : 'NONE');
     
-    // TEMPORARY: Skip authentication entirely for debugging
-    console.log('⚠️ TEMPORARILY SKIPPING AUTHENTICATION FOR DEBUGGING');
-    // if (!finalToken) {
-    //   console.log('🔒 No auth token found in cookies');
-    //   return NextResponse.json(
-    //     { success: false, error: 'Authentication required' },
-    //     { status: 401 }
-    //   );
-    // }
+    if (!finalToken) {
+      console.log('🔒 No auth token found in cookies');
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     // Extract query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -40,16 +38,15 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${BACKEND_URL}/api/call-records${queryString ? `?${queryString}` : ''}`;
     console.log('Backend URL:', backendUrl);
 
-    // Forward the request to the Railway backend with optional auth
+    // Forward the request to the Railway backend with auth
     const headers: any = {
       'Content-Type': 'application/json',
     };
     
-    // TEMPORARY: Skip sending auth headers for debugging
-    console.log('⚠️ TEMPORARILY SKIPPING AUTH HEADERS FOR DEBUGGING');
-    // if (finalToken) {
-    //   headers['Authorization'] = `Bearer ${finalToken}`;
-    // }
+    if (finalToken) {
+      headers['Authorization'] = `Bearer ${finalToken}`;
+      console.log('🔑 Sending Authorization header with token');
+    }
 
     const response = await fetch(backendUrl, {
       method: 'GET',
