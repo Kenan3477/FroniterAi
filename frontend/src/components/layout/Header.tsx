@@ -138,10 +138,10 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         {/* Sidebar Toggle Button - Always visible for full-screen viewing */}
         <button
           onClick={onSidebarToggle}
-          className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors border border-gray-300 bg-white shadow-sm"
           title="Toggle sidebar for full-screen view"
         >
-          <Bars3Icon className="h-5 w-5" />
+          <Bars3Icon className="h-6 w-6" />
         </button>
 
         {/* Search Bar */}

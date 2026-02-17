@@ -14,11 +14,11 @@ export async function GET(
     console.log('🎵 Streaming recording:', recordingId);
 
     // Handle demo recordings
-    if (recordingId.startsWith('demo-')) {
+    if (recordingId.startsWith('demo-') || recordingId === 'test-recording') {
       console.log('🎵 Serving demo recording:', recordingId);
       
       // Redirect to specific demo recording endpoints
-      if (recordingId === 'demo-recording-file-1') {
+      if (recordingId === 'demo-recording-file-1' || recordingId === 'test-recording') {
         return NextResponse.redirect(new URL('/api/recordings/demo-1/stream', request.url));
       } else if (recordingId === 'demo-recording-file-2') {
         return NextResponse.redirect(new URL('/api/recordings/demo-2/stream', request.url));

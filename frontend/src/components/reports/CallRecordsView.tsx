@@ -17,6 +17,7 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  Bars3Icon,
   EyeIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
@@ -269,10 +270,23 @@ export const CallRecordsView: React.FC = () => {
       const streamUrl = `/api/recordings/${recordId}/stream`;
       
       // First, check if the recording is available
+      console.log('🔍 Checking recording availability...');
       const checkResponse = await fetch(streamUrl, { method: 'HEAD' });
+      
       if (!checkResponse.ok) {
         console.error('❌ Recording not available:', checkResponse.status, checkResponse.statusText);
-        alert(`❌ Recording not available (${checkResponse.status}). This may be because:\n• The backend is unavailable\n• The recording file doesn't exist\n• The recording hasn't been synced from Twilio yet`);
+        
+        // Offer to play demo recording instead
+        const useDemo = confirm(`❌ Recording not available (${checkResponse.status}). This may be because:
+• The backend is unavailable
+• The recording file doesn't exist  
+• The recording hasn't been synced from Twilio yet
+
+Would you like to play a demo recording instead to test audio functionality?`);
+        
+        if (useDemo) {
+          return await playTestRecording();
+        }
         return;
       }
       
@@ -475,9 +489,27 @@ export const CallRecordsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
-          <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
+        <div className="flex items-center space-x-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
+            <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
+          </div>
+          
+          {/* Additional Sidebar Toggle for Reports Page */}
+          <button
+            onClick={() => {
+              // Find the sidebar toggle function from the parent
+              const headerToggle = document.querySelector('[title="Toggle sidebar for full-screen view"]') as HTMLButtonElement;
+              if (headerToggle) {
+                headerToggle.click();
+              }
+            }}
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            title="Toggle sidebar for full-screen viewing"
+          >
+            <Bars3Icon className="h-4 w-4 mr-2" />
+            Toggle Sidebar
+          </button>
         </div>
         <div className="flex space-x-3">
           <button
