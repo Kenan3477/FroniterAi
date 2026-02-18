@@ -368,6 +368,36 @@ router.post('/import-twilio-recordings', [
     
     console.log(`📊 Found ${twilioRecordings.length} recordings in Twilio`);
     
+    // Step 1.5: Ensure required entities exist BEFORE processing recordings
+    console.log('🔧 Creating required database entities...');
+    
+    // Ensure data list exists for imported contacts
+    await prisma.dataList.upsert({
+      where: { listId: 'IMPORTED-CONTACTS' },
+      update: {},
+      create: {
+        listId: 'IMPORTED-CONTACTS',
+        name: 'Imported Twilio Contacts',
+        active: true,
+        totalContacts: 0
+      }
+    });
+    
+    // Ensure campaign exists for imported recordings
+    await prisma.campaign.upsert({
+      where: { campaignId: 'IMPORTED-TWILIO' },
+      update: {},
+      create: {
+        campaignId: 'IMPORTED-TWILIO',
+        name: 'Imported Twilio Recordings',
+        description: 'Call recordings imported from Twilio',
+        status: 'Active',
+        isActive: true
+      }
+    });
+    
+    console.log('✅ Required entities created successfully');
+    
     let importedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
@@ -424,31 +454,6 @@ router.post('/import-twilio-recordings', [
             lastName: 'Recording',
             phone: 'Unknown',
             email: null
-          }
-        });
-        
-        // Ensure list exists for imported contacts
-        await prisma.dataList.upsert({
-          where: { listId: 'IMPORTED-CONTACTS' },
-          update: {},
-          create: {
-            listId: 'IMPORTED-CONTACTS',
-            name: 'Imported Twilio Contacts',
-            active: true,
-            totalContacts: 0
-          }
-        });
-        
-        // Ensure campaign exists for imported recordings
-        await prisma.campaign.upsert({
-          where: { campaignId: 'IMPORTED-TWILIO' },
-          update: {},
-          create: {
-            campaignId: 'IMPORTED-TWILIO',
-            name: 'Imported Twilio Recordings',
-            description: 'Call recordings imported from Twilio',
-            status: 'Active',
-            isActive: true
           }
         });
         
