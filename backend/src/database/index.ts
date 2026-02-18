@@ -1,27 +1,97 @@
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
 
-// Point to the frontend database since we're using a monorepo setup
+// Database URL with Railway PostgreSQL as primary, SQLite as fallback
 const databaseUrl = process.env.DATABASE_URL || `file:${path.resolve(__dirname, '../../../frontend/prisma/dev.db')}`;
+const isPostgreSQL = databaseUrl.startsWith('postgresql://');
+
+console.log('🔧 Database Configuration:', {
+  url: databaseUrl.replace(/:[^:@]+@/, ':***@'), // Hide password in logs
+  type: isPostgreSQL ? 'PostgreSQL' : 'SQLite',
+  environment: process.env.NODE_ENV || 'development'
+});
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
       url: databaseUrl
     }
-  }
+  },
+  log: ['error', 'warn'],
+  errorFormat: 'pretty'
 });
 
 export const connectDatabase = async () => {
+  let retries = 3;
+  
+  while (retries > 0) {
+    try {
+      console.log(`🔄 Attempting database connection... (${4 - retries}/3)`);
+      
+      await prisma.$connect();
+      
+      // Test the connection with a simple query
+      await prisma.$queryRaw`SELECT 1`;
+      
+      console.log('✅ Database connected successfully');
+      console.log(`📊 Connection type: ${isPostgreSQL ? 'PostgreSQL (Railway)' : 'SQLite (Local)'}`);
+      
+      if (isPostgreSQL) {
+        console.log('🎯 Ready to stream real Twilio recordings from database');
+      }
+      
+      return;
+      
+    } catch (error) {
+      retries--;
+      console.error(`❌ Database connection attempt failed (${4 - retries}/3):`, error.message);
+      
+      if (retries > 0) {
+        console.log(`⏳ Retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.error('💥 All database connection attempts failed');
+        
+        if (isPostgreSQL) {
+          console.error('🔧 PostgreSQL connection failed. This may cause recording streaming issues.');
+          console.error('🎯 Check Railway PostgreSQL service status and environment variables.');
+        }
+        
+        // Don't exit process, let app continue with limited functionality
+        console.warn('⚠️ Continuing without stable database connection');
+      }
+    }
+  }
+};
+
+// Add graceful shutdown handling
+process.on('beforeExit', async () => {
+  console.log('🔄 Gracefully disconnecting database...');
+  await prisma.$disconnect();
+  console.log('✅ Database disconnected');
+});
+
+process.on('SIGINT', async () => {
+  console.log('🔄 Received SIGINT, disconnecting database...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🔄 Received SIGTERM, disconnecting database...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+// Database health check function
+export const checkDatabaseHealth = async (): Promise<boolean> => {
   try {
-    await prisma.$connect();
-    console.log('✅ Database connected successfully');
-    console.log('Database URL:', databaseUrl);
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    console.error('Database URL:', databaseUrl);
-    // Don't exit process, just log the error for now
-    console.warn('Continuing without database connection');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+    console.error('❌ Database health check failed:', errorMessage);
+    return false;
   }
 };
 

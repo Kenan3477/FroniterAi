@@ -149,13 +149,38 @@ class App {
   }
 
   private initializeRoutes(): void {
-    // Health check
-    this.app.get('/health', (req, res) => {
-      res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0',
-      });
+    // Health check with database status
+    this.app.get('/health', async (req, res) => {
+      try {
+        // Import database health check
+        const { checkDatabaseHealth } = await import('./database/index');
+        const dbHealth = await checkDatabaseHealth();
+        
+        res.json({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version || '1.0.0',
+          database: {
+            connected: dbHealth,
+            type: process.env.DATABASE_URL?.startsWith('postgresql://') ? 'PostgreSQL' : 'SQLite'
+          },
+          services: {
+            recordings: 'ready', // Twilio recording streaming ready
+            auth: 'ready',
+            campaigns: 'ready'
+          }
+        });
+      } catch (error) {
+        res.status(503).json({
+          status: 'degraded',
+          timestamp: new Date().toISOString(),
+          error: 'Health check failed',
+          database: {
+            connected: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        });
+      }
     });
 
     // API routes - enable critical routes for frontend integration
