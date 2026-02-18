@@ -44,7 +44,8 @@ export const connectDatabase = async () => {
       
     } catch (error) {
       retries--;
-      console.error(`❌ Database connection attempt failed (${4 - retries}/3):`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Database connection attempt failed (${4 - retries}/3):`, errorMessage);
       
       if (retries > 0) {
         console.log(`⏳ Retrying in 2 seconds...`);
