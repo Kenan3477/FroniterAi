@@ -34,6 +34,7 @@ import userRoutes from './routes/users'; // RE-ENABLED - stats endpoint for admi
 import userManagementRoutes from './routes/userManagement'; // Enterprise user management system
 import callRecordsRoutes from './routes/callRecords'; // Production call records service
 import recordingRoutes from './routes/recordingRoutes'; // Call recording download and streaming
+import { recordingFixRoutes } from './routes/recordingFix'; // ADMIN: Recording system fixes
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
@@ -215,6 +216,7 @@ class App {
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
+    this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
     this.app.use('/api/test', testRoutes); // Testing and debugging endpoints
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
