@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { authenticate, requireRole } from '../middleware/auth';
 import { securityMonitor } from '../middleware/security';
 import { prisma } from '../database';
 
 const router = Router();
 
 // Get security dashboard - ADMIN ONLY
-router.get('/dashboard', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.get('/dashboard', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const securityReport = securityMonitor.getSecurityReport();
     
@@ -54,7 +54,7 @@ router.get('/dashboard', authenticateToken, requireAdmin, async (req: Request, r
 });
 
 // Block IP address - ADMIN ONLY
-router.post('/block-ip', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post('/block-ip', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { ip, reason } = req.body;
     
@@ -81,7 +81,7 @@ router.post('/block-ip', authenticateToken, requireAdmin, async (req: Request, r
 });
 
 // Unblock IP address - ADMIN ONLY
-router.post('/unblock-ip', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post('/unblock-ip', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { ip } = req.body;
     
@@ -108,7 +108,7 @@ router.post('/unblock-ip', authenticateToken, requireAdmin, async (req: Request,
 });
 
 // Get security events - ADMIN ONLY
-router.get('/events', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.get('/events', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { type, severity, limit = 50, offset = 0 } = req.query;
     
@@ -144,7 +144,7 @@ router.get('/events', authenticateToken, requireAdmin, async (req: Request, res:
 });
 
 // Get system security status - ADMIN ONLY
-router.get('/status', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.get('/status', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const securityReport = securityMonitor.getSecurityReport();
     
@@ -183,7 +183,7 @@ router.get('/status', authenticateToken, requireAdmin, async (req: Request, res:
 });
 
 // Clear security events (for testing) - ADMIN ONLY
-router.delete('/events/clear', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.delete('/events/clear', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { type, olderThan } = req.body;
     
