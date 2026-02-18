@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../database/index.js';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -31,22 +32,27 @@ router.post('/emergency-unlock/:email', async (req, res) => {
     
     console.log(`👤 Found user: ${user.name} (${user.email})`);
     
-    // Reset failed login attempts (if that field exists)
+    // Reset failed login attempts and clear account lockout
     const updateData = {
+      accountLockedUntil: null,  // Clear account lockout
+      failedLoginAttempts: 0,    // Reset failed attempts counter
       updatedAt: new Date()
     };
     
-    // Try to reset common lockout fields
+    // Try to reset lockout fields
     try {
       await prisma.user.update({
         where: { id: user.id },
         data: updateData
       });
       
-      console.log(`✅ User record updated for unlock: ${user.email}`);
+      console.log(`✅ Account lockout cleared for: ${user.email}`);
+      console.log(`   - accountLockedUntil: cleared`);
+      console.log(`   - failedLoginAttempts: reset to 0`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.log(`⚠️  Could not update user record: ${errorMessage}`);
+      // If fields don't exist, that's fine - just continue
     }
     
     // Also try to clear any auth-related cache/sessions
@@ -119,6 +125,86 @@ router.get('/user-info/:email', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Lookup failed',
+      message: errorMessage
+    });
+  }
+});
+
+// Emergency password reset endpoint - no auth required for emergencies
+router.post('/reset-password/:email', async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    const { newPassword } = req.body;
+    
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password required',
+        message: 'newPassword field is required'
+      });
+    }
+    
+    console.log(`🔑 Emergency password reset requested for: ${email}`);
+    
+    // Find the user
+    const user = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { email: email },
+          { username: email }
+        ]
+      }
+    });
+    
+    if (!user) {
+      console.log(`❌ User not found: ${email}`);
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+        message: 'No user found with that email or username'
+      });
+    }
+    
+    console.log(`👤 Found user: ${user.name} (${user.email})`);
+    
+    // Hash the new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    
+    // Update password and clear lockout
+    const updateData = {
+      password: hashedPassword,
+      accountLockedUntil: null,  // Clear account lockout
+      failedLoginAttempts: 0,    // Reset failed attempts counter
+      updatedAt: new Date()
+    };
+    
+    await prisma.user.update({
+      where: { id: user.id },
+      data: updateData
+    });
+    
+    console.log(`✅ Password reset successful for: ${user.email}`);
+    
+    res.json({
+      success: true,
+      message: 'Password reset successful',
+      data: {
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        passwordReset: true,
+        unlocked: true,
+        suggestion: 'You can now log in with the new password'
+      }
+    });
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('❌ Emergency password reset error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Password reset failed',
       message: errorMessage
     });
   }
