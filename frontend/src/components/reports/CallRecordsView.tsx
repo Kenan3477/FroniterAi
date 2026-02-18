@@ -322,42 +322,6 @@ export const CallRecordsView: React.FC = () => {
 
   // Removed syncTwilioRecordings and exportToCSV functions as requested
 
-  const playRecording = (recordingId: string, recordingUrl?: string) => {
-    if (isPlaying === recordingId) {
-      // Stop playing
-      if (audio) {
-        audio.pause();
-        setAudio(null);
-      }
-      setIsPlaying(null);
-      return;
-    }
-
-    // Start playing
-    const audioUrl = recordingUrl || `/api/recordings/${recordingId}/stream`;
-    const newAudio = new Audio(audioUrl);
-    
-    newAudio.addEventListener('loadstart', () => setIsPlaying(recordingId));
-    newAudio.addEventListener('ended', () => {
-      setIsPlaying(null);
-      setAudio(null);
-    });
-    newAudio.addEventListener('error', (e) => {
-      console.error('Audio playback error:', e);
-      setIsPlaying(null);
-      setAudio(null);
-      alert('Failed to play recording. Please check your connection.');
-    });
-
-    setAudio(newAudio);
-    newAudio.play().catch(error => {
-      console.error('Audio play error:', error);
-      setIsPlaying(null);
-      setAudio(null);
-      alert('Failed to play recording. Please try again.');
-    });
-  };
-
   const totalPages = Math.ceil(totalRecords / pageSize);
 
   if (loading) {
@@ -367,6 +331,8 @@ export const CallRecordsView: React.FC = () => {
       </div>
     );
   }
+
+  if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-md p-4">
         <div className="flex">
