@@ -422,13 +422,29 @@ router.post('/import-twilio-recordings', [
           continue;
         }
         
-        // Create new call record from Twilio recording
+        const contactId = `imported-${recording.callSid}`;
+        
+        // CRITICAL: Create contact FIRST (foreign key requirement)
+        await prisma.contact.upsert({
+          where: { contactId },
+          update: {},
+          create: {
+            contactId,
+            listId: 'IMPORTED-CONTACTS', // Required field
+            firstName: 'Imported',
+            lastName: 'Recording',
+            phone: 'Unknown',
+            email: null
+          }
+        });
+        
+        // Now create call record (foreign keys will be satisfied)
         const callRecord = await prisma.callRecord.create({
           data: {
             callId: recording.callSid,
             agentId: null, // Unknown agent for imported recordings
-            contactId: `imported-${recording.callSid}`, // Generate contact ID
-            campaignId: 'IMPORTED-TWILIO', // Special campaign for imported records
+            contactId: contactId, // Now this contact exists
+            campaignId: 'IMPORTED-TWILIO', // Campaign already created above
             phoneNumber: 'Unknown', // Phone number not available in recording data
             dialedNumber: 'Unknown',
             callType: 'outbound',
@@ -440,20 +456,6 @@ router.post('/import-twilio-recordings', [
             notes: `Imported from Twilio. Recording SID: ${recording.sid}`,
             recording: recording.url,
             transferTo: null
-          }
-        });
-        
-        // Create contact record if it doesn't exist
-        await prisma.contact.upsert({
-          where: { contactId: `imported-${recording.callSid}` },
-          update: {},
-          create: {
-            contactId: `imported-${recording.callSid}`,
-            listId: 'IMPORTED-CONTACTS', // Required field
-            firstName: 'Imported',
-            lastName: 'Recording',
-            phone: 'Unknown',
-            email: null
           }
         });
         
