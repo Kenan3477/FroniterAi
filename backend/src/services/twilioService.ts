@@ -423,7 +423,7 @@ export const updateCallMetadata = async (callSid: string, metadata: any) => {
 };
 
 /**
- * Get Twilio recording URL for streaming
+ * Get Twilio recording URL for streaming with proper authentication
  */
 export const getTwilioRecordingUrl = async (recordingSid: string): Promise<string | null> => {
   if (!twilioClient) {
@@ -436,14 +436,86 @@ export const getTwilioRecordingUrl = async (recordingSid: string): Promise<strin
     
     const recording = await twilioClient.recordings(recordingSid).fetch();
     
-    // Construct the media URL for streaming
-    const mediaUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
+    // Return the authenticated URL using Twilio credentials
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
     
-    console.log(`✅ Got Twilio recording URL: ${mediaUrl}`);
+    if (!accountSid || !authToken) {
+      console.error('❌ Missing Twilio credentials for authenticated recording access');
+      return null;
+    }
+    
+    // Construct the authenticated media URL for streaming
+    const mediaUrl = `https://${accountSid}:${authToken}@api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
+    
+    console.log(`✅ Got authenticated Twilio recording URL for SID: ${recordingSid}`);
     return mediaUrl;
     
   } catch (error) {
     console.error(`❌ Error fetching Twilio recording URL: ${error}`);
+    return null;
+  }
+};
+
+/**
+ * Stream Twilio recording with authentication
+ */
+export const streamTwilioRecording = async (recordingSid: string): Promise<Buffer | null> => {
+  if (!twilioClient) {
+    console.error('❌ Twilio client not initialized');
+    return null;
+  }
+
+  try {
+    console.log(`🎵 Streaming Twilio recording: ${recordingSid}`);
+    
+    // Use Twilio client to get the recording data directly
+    const recording = await twilioClient.recordings(recordingSid).fetch();
+    
+    // Get the recording content using authenticated request
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    
+    if (!accountSid || !authToken) {
+      console.error('❌ Missing Twilio credentials');
+      return null;
+    }
+    
+    const mediaUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
+    
+    // Use basic auth with Twilio credentials
+    const authString = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    
+    const https = require('https');
+    const response = await new Promise<any>((resolve, reject) => {
+      const req = https.get(mediaUrl, {
+        headers: {
+          'Authorization': `Basic ${authString}`,
+          'User-Agent': 'Omnivox-AI/1.0'
+        }
+      }, resolve);
+      req.on('error', reject);
+    });
+    
+    if (response.statusCode !== 200) {
+      console.error(`❌ Twilio recording stream failed: ${response.statusCode}`);
+      return null;
+    }
+    
+    // Collect the audio data
+    const chunks: Buffer[] = [];
+    response.on('data', (chunk: Buffer) => chunks.push(chunk));
+    
+    return new Promise((resolve) => {
+      response.on('end', () => {
+        const audioBuffer = Buffer.concat(chunks);
+        console.log(`✅ Successfully streamed ${audioBuffer.length} bytes from Twilio`);
+        resolve(audioBuffer);
+      });
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error streaming Twilio recording: ${error}`);
     return null;
   }
 };
@@ -463,4 +535,5 @@ export default {
   getAllRecordings,
   updateCallMetadata,
   getTwilioRecordingUrl,
+  streamTwilioRecording,
 };

@@ -52,48 +52,46 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
       });
     }
 
-    // Check if this is a Twilio SID or local file path
+    // Check if this is a Twilio recording URL
     const filePath = recording.filePath;
     
-    if (filePath && filePath.startsWith('CA')) {
-      // This is a Twilio recording SID - stream directly from Twilio
-      console.log(`🎵 Streaming Twilio recording: ${filePath}`);
+    if (filePath && filePath.includes('api.twilio.com')) {
+      // This is a Twilio recording - extract SID and stream with authentication
+      const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
+      if (!recordingSidMatch) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid Twilio recording URL format'
+        });
+      }
+      
+      const recordingSid = recordingSidMatch[1];
+      console.log(`🎵 Streaming Twilio recording: ${recordingSid}`);
       
       try {
         // Import Twilio service
-        const { getTwilioRecordingUrl } = await import('../services/twilioService');
+        const { streamTwilioRecording } = await import('../services/twilioService');
         
-        // Get the Twilio recording URL
-        const twilioUrl = await getTwilioRecordingUrl(filePath);
+        // Stream the recording with authentication
+        const audioBuffer = await streamTwilioRecording(recordingSid);
         
-        if (!twilioUrl) {
+        if (!audioBuffer) {
           return res.status(404).json({
             success: false,
-            error: 'Twilio recording not found'
-          });
-        }
-        
-        // Fetch from Twilio and stream to client
-        const fetch = require('node-fetch');
-        const twilioResponse = await fetch(twilioUrl);
-        
-        if (!twilioResponse.ok) {
-          console.error(`❌ Twilio recording fetch failed: ${twilioResponse.status}`);
-          return res.status(404).json({
-            success: false,
-            error: 'Failed to fetch recording from Twilio'
+            error: 'Twilio recording not found or inaccessible'
           });
         }
         
         // Set headers for audio streaming
         res.setHeader('Content-Type', 'audio/mpeg');
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Content-Length', audioBuffer.length);
+        res.setHeader('Content-Disposition', `inline; filename="${recording.fileName}"`);
         
-        // Stream from Twilio to client
-        twilioResponse.body.pipe(res);
+        // Stream the audio buffer to client
+        res.send(audioBuffer);
         
-        console.log(`✅ Successfully streaming Twilio recording: ${filePath}`);
+        console.log(`✅ Successfully streaming Twilio recording: ${recordingSid}`);
         return;
         
       } catch (twilioError) {
@@ -174,48 +172,45 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
       });
     }
 
-    // Check if this is a Twilio SID for download
+    // Check if this is a Twilio recording URL for download
     const filePath = recording.filePath;
     
-    if (filePath && filePath.startsWith('CA')) {
-      // This is a Twilio recording SID - download from Twilio
-      console.log(`📥 Downloading Twilio recording: ${filePath}`);
+    if (filePath && filePath.includes('api.twilio.com')) {
+      // This is a Twilio recording - extract SID and download with authentication
+      const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
+      if (!recordingSidMatch) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid Twilio recording URL format'
+        });
+      }
+      
+      const recordingSid = recordingSidMatch[1];
+      console.log(`📥 Downloading Twilio recording: ${recordingSid}`);
       
       try {
         // Import Twilio service
-        const { getTwilioRecordingUrl } = await import('../services/twilioService');
+        const { streamTwilioRecording } = await import('../services/twilioService');
         
-        // Get the Twilio recording URL
-        const twilioUrl = await getTwilioRecordingUrl(filePath);
+        // Download the recording with authentication
+        const audioBuffer = await streamTwilioRecording(recordingSid);
         
-        if (!twilioUrl) {
+        if (!audioBuffer) {
           return res.status(404).json({
             success: false,
-            error: 'Twilio recording not found'
+            error: 'Twilio recording not found or inaccessible'
           });
         }
         
-        // Fetch from Twilio and stream to client
-        const fetch = require('node-fetch');
-        const twilioResponse = await fetch(twilioUrl);
-        
-        if (!twilioResponse.ok) {
-          console.error(`❌ Twilio recording fetch failed: ${twilioResponse.status}`);
-          return res.status(404).json({
-            success: false,
-            error: 'Failed to fetch recording from Twilio'
-          });
-        }
-        
-        // Set headers for download
+        // Set headers for audio download
         res.setHeader('Content-Type', 'audio/mpeg');
         res.setHeader('Content-Disposition', `attachment; filename="${recording.fileName}"`);
-        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Content-Length', audioBuffer.length);
         
-        // Stream from Twilio to client for download
-        twilioResponse.body.pipe(res);
+        // Send the audio buffer for download
+        res.send(audioBuffer);
         
-        console.log(`✅ Successfully downloading Twilio recording: ${filePath}`);
+        console.log(`✅ Successfully downloading Twilio recording: ${recordingSid}`);
         return;
         
       } catch (twilioError) {
