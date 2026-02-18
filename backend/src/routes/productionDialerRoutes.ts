@@ -86,28 +86,121 @@ router.post('/webhook/recording-status', validateTwilioWebhook, async (req, res)
     
     console.log(`🎙️ Recording ${RecordingStatus} for call ${CallSid}: ${RecordingUrl}`);
     
-    // Update call record with recording info
-    await prisma.callRecord.updateMany({
-      where: { callId: CallSid },
-      data: {
-        recording: RecordingUrl,
-        duration: RecordingDuration ? parseInt(RecordingDuration) : undefined
-      }
+    // Check if call record exists
+    let callRecord = await prisma.callRecord.findFirst({
+      where: { callId: CallSid }
     });
     
-    // Emit recording completed event
+    if (!callRecord) {
+      console.log(`📝 No existing call record for ${CallSid}, creating from recording webhook...`);
+      
+      // Ensure required entities exist
+      await prisma.dataList.upsert({
+        where: { listId: 'AUTO-SYNC-CONTACTS' },
+        update: {},
+        create: {
+          listId: 'AUTO-SYNC-CONTACTS',
+          name: 'Auto-Sync Twilio Contacts',
+          active: true,
+          totalContacts: 0
+        }
+      });
+      
+      await prisma.campaign.upsert({
+        where: { campaignId: 'AUTO-SYNC-TWILIO' },
+        update: {},
+        create: {
+          campaignId: 'AUTO-SYNC-TWILIO',
+          name: 'Auto-Sync Twilio Recordings',
+          description: 'Call recordings auto-synced from Twilio webhooks',
+          status: 'Active',
+          isActive: true
+        }
+      });
+      
+      const contactId = `auto-sync-${CallSid}`;
+      
+      // Create contact first (foreign key requirement)
+      await prisma.contact.upsert({
+        where: { contactId },
+        update: {},
+        create: {
+          contactId,
+          listId: 'AUTO-SYNC-CONTACTS',
+          firstName: 'Auto-Sync',
+          lastName: 'Contact',
+          phone: 'Unknown',
+          email: null
+        }
+      });
+      
+      // Create call record
+      callRecord = await prisma.callRecord.create({
+        data: {
+          callId: CallSid,
+          agentId: null,
+          contactId: contactId,
+          campaignId: 'AUTO-SYNC-TWILIO',
+          phoneNumber: 'Unknown',
+          dialedNumber: 'Unknown',
+          callType: 'outbound',
+          startTime: new Date(), // Recording webhook doesn't have call start time
+          endTime: new Date(),
+          duration: RecordingDuration ? parseInt(RecordingDuration) : 0,
+          outcome: 'completed',
+          dispositionId: null,
+          notes: `Auto-synced from Twilio. Recording SID: ${RecordingSid}`,
+          recording: RecordingUrl,
+          transferTo: null
+        }
+      });
+      
+      console.log(`✅ Created call record ${callRecord.id} for call ${CallSid}`);
+    } else {
+      // Update existing call record with recording info
+      await prisma.callRecord.update({
+        where: { id: callRecord.id },
+        data: {
+          recording: RecordingUrl,
+          duration: RecordingDuration ? parseInt(RecordingDuration) : callRecord.duration
+        }
+      });
+      
+      console.log(`📝 Updated existing call record ${callRecord.id} with recording`);
+    }
+    
+    // Create or update recording file entry
     if (RecordingStatus === 'completed' && RecordingUrl) {
+      await prisma.recording.upsert({
+        where: { callRecordId: callRecord.id },
+        update: {
+          filePath: RecordingUrl,
+          duration: RecordingDuration ? parseInt(RecordingDuration) : 0,
+          uploadStatus: 'completed'
+        },
+        create: {
+          callRecordId: callRecord.id,
+          fileName: `auto-sync-${RecordingSid}.mp3`,
+          filePath: RecordingUrl,
+          duration: RecordingDuration ? parseInt(RecordingDuration) : 0,
+          uploadStatus: 'completed'
+        }
+      });
+      
+      // Emit recording completed event
       await callEvents.ended({
         callId: CallSid,
         sipCallId: CallSid,
-        contactId: '',
-        campaignId: '',
-        agentId: '',
-        phoneNumber: '',
+        contactId: callRecord.contactId,
+        campaignId: callRecord.campaignId,
+        agentId: callRecord.agentId || '',
+        phoneNumber: callRecord.phoneNumber,
         direction: 'outbound',
         status: 'completed',
         metadata: { recordingUrl: RecordingUrl }
       });
+      
+      console.log(`🎯 Auto-sync completed for recording ${RecordingSid}`);
     }
     
     res.status(200).send('OK');
