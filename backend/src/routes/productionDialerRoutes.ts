@@ -107,12 +107,12 @@ router.post('/webhook/recording-status', validateTwilioWebhook, async (req, res)
       });
       
       await prisma.campaign.upsert({
-        where: { campaignId: 'AUTO-SYNC-TWILIO' },
+        where: { campaignId: 'LIVE-CALLS' },
         update: {},
         create: {
-          campaignId: 'AUTO-SYNC-TWILIO',
-          name: 'Auto-Sync Twilio Recordings',
-          description: 'Call recordings auto-synced from Twilio webhooks',
+          campaignId: 'LIVE-CALLS',
+          name: 'Live Calls',
+          description: 'Real-time calls auto-synced from Twilio',
           status: 'Active',
           isActive: true
         }
@@ -140,7 +140,7 @@ router.post('/webhook/recording-status', validateTwilioWebhook, async (req, res)
           callId: CallSid,
           agentId: null,
           contactId: contactId,
-          campaignId: 'AUTO-SYNC-TWILIO',
+          campaignId: 'LIVE-CALLS',
           phoneNumber: 'Unknown',
           dialedNumber: 'Unknown',
           callType: 'outbound',

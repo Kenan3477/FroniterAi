@@ -385,12 +385,12 @@ router.post('/import-twilio-recordings', [
     
     // Ensure campaign exists for imported recordings
     await prisma.campaign.upsert({
-      where: { campaignId: 'IMPORTED-TWILIO' },
+      where: { campaignId: 'HISTORICAL-CALLS' },
       update: {},
       create: {
-        campaignId: 'IMPORTED-TWILIO',
-        name: 'Imported Twilio Recordings',
-        description: 'Call recordings imported from Twilio',
+        campaignId: 'HISTORICAL-CALLS',
+        name: 'Historical Calls',
+        description: 'Previously made calls synced from Twilio',
         status: 'Active',
         isActive: true
       }
@@ -444,7 +444,7 @@ router.post('/import-twilio-recordings', [
             callId: recording.callSid,
             agentId: null, // Unknown agent for imported recordings
             contactId: contactId, // Now this contact exists
-            campaignId: 'IMPORTED-TWILIO', // Campaign already created above
+            campaignId: 'HISTORICAL-CALLS', // Campaign for historical calls
             phoneNumber: 'Unknown', // Phone number not available in recording data
             dialedNumber: 'Unknown',
             callType: 'outbound',
@@ -505,6 +505,54 @@ router.post('/import-twilio-recordings', [
     res.status(500).json({
       success: false,
       error: 'Failed to import Twilio recordings',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/call-records/update-campaign-names
+ * Update existing call records to use better campaign names
+ * Requires: ADMIN role
+ */
+router.post('/update-campaign-names', [
+  requireRole('ADMIN'),
+], async (req: Request, res: Response) => {
+  try {
+    console.log('🔄 Updating existing campaign names...');
+    
+    // Update campaign record
+    const updatedCampaign = await prisma.campaign.update({
+      where: { campaignId: 'IMPORTED-TWILIO' },
+      data: {
+        campaignId: 'HISTORICAL-CALLS',
+        name: 'Historical Calls',
+        description: 'Previously made calls synced from Twilio'
+      }
+    });
+    
+    // Update all call records that reference the old campaign
+    const updatedCallRecords = await prisma.callRecord.updateMany({
+      where: { campaignId: 'IMPORTED-TWILIO' },
+      data: { campaignId: 'HISTORICAL-CALLS' }
+    });
+    
+    console.log(`✅ Updated ${updatedCallRecords.count} call records to new campaign`);
+    
+    res.json({
+      success: true,
+      data: {
+        updatedCampaign,
+        updatedCallRecords: updatedCallRecords.count
+      },
+      message: `Successfully updated campaign names for ${updatedCallRecords.count} call records`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating campaign names:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update campaign names',
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }

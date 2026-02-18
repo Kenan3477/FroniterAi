@@ -319,74 +319,43 @@ export const CallRecordsView: React.FC = () => {
       setLoading(false);
     }
   };
-  
-  const syncTwilioRecordings = async () => {
-    if (!confirm('Sync all recordings from Twilio? This may take a few moments.')) {
+
+  // Removed syncTwilioRecordings and exportToCSV functions as requested
+
+  const playRecording = (recordingId: string, recordingUrl?: string) => {
+    if (isPlaying === recordingId) {
+      // Stop playing
+      if (audio) {
+        audio.pause();
+        setAudio(null);
+      }
+      setIsPlaying(null);
       return;
     }
+
+    // Start playing
+    const audioUrl = recordingUrl || `/api/recordings/${recordingId}/stream`;
+    const newAudio = new Audio(audioUrl);
     
-    try {
-      setLoading(true);
-      const response = await fetch('/api/debug/sync-twilio-recordings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert(`✅ Twilio sync completed! Synced: ${data.stats?.synced || 'unknown'} recordings.`);
-        // Refresh the records
-        fetchCallRecords();
-      } else {
-        alert(`❌ Sync failed: ${data.error}`);
-      }
-    } catch (error) {
-      alert(`❌ Sync error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+    newAudio.addEventListener('loadstart', () => setIsPlaying(recordingId));
+    newAudio.addEventListener('ended', () => {
+      setIsPlaying(null);
+      setAudio(null);
+    });
+    newAudio.addEventListener('error', (e) => {
+      console.error('Audio playback error:', e);
+      setIsPlaying(null);
+      setAudio(null);
+      alert('Failed to play recording. Please check your connection.');
+    });
 
-  const exportToCSV = () => {
-    const headers = [
-      'Call ID',
-      'Agent',
-      'Contact',
-      'Phone Number',
-      'Call Type',
-      'Start Time',
-      'Duration',
-      'Outcome',
-      'Campaign',
-      'Notes'
-    ];
-
-    const csvData = callRecords.map(record => [
-      record.callId,
-      record.agent ? `${record.agent.firstName} ${record.agent.lastName}` : 'N/A',
-      record.contact ? `${record.contact.firstName} ${record.contact.lastName}` : 'N/A',
-      record.phoneNumber,
-      record.callType,
-      formatDateTime(record.startTime),
-      formatDuration(record.duration),
-      record.outcome || 'N/A',
-      record.campaign?.name || 'N/A',
-      record.notes || ''
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `call-records-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    setAudio(newAudio);
+    newAudio.play().catch(error => {
+      console.error('Audio play error:', error);
+      setIsPlaying(null);
+      setAudio(null);
+      alert('Failed to play recording. Please try again.');
+    });
   };
 
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -398,8 +367,6 @@ export const CallRecordsView: React.FC = () => {
       </div>
     );
   }
-
-  if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-md p-4">
         <div className="flex">
@@ -430,36 +397,7 @@ export const CallRecordsView: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
           <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
         </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={exportToCSV}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
-            Export CSV
-          </button>
-          
-          {/* Demo Cleanup Button - ADMIN only */}
-          {user?.role === 'ADMIN' && (
-            <>
-              <button
-                onClick={cleanupDemoRecords}
-                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100"
-                disabled={loading}
-              >
-                🧹 Clean Demo Records
-              </button>
-              
-              <button
-                onClick={syncTwilioRecordings}
-                className="inline-flex items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100"
-                disabled={loading}
-              >
-                📥 Sync Twilio
-              </button>
-            </>
-          )}
-        </div>
+        {/* Removed Export CSV, Clean Demo Records, and Sync Twilio buttons as requested */}
       </div>
 
       {/* Filters */}
