@@ -419,10 +419,23 @@ router.post('/import-twilio-recordings', [
           update: {},
           create: {
             contactId: `imported-${recording.callSid}`,
+            listId: 'IMPORTED-CONTACTS', // Required field
             firstName: 'Imported',
             lastName: 'Recording',
             phone: 'Unknown',
             email: null
+          }
+        });
+        
+        // Ensure list exists for imported contacts
+        await prisma.dataList.upsert({
+          where: { listId: 'IMPORTED-CONTACTS' },
+          update: {},
+          create: {
+            listId: 'IMPORTED-CONTACTS',
+            name: 'Imported Twilio Contacts',
+            active: true,
+            totalContacts: 0
           }
         });
         
@@ -435,9 +448,7 @@ router.post('/import-twilio-recordings', [
             name: 'Imported Twilio Recordings',
             description: 'Call recordings imported from Twilio',
             status: 'Active',
-            isDeleted: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            isActive: true
           }
         });
         
@@ -446,9 +457,9 @@ router.post('/import-twilio-recordings', [
           data: {
             callRecordId: callRecord.id,
             fileName: `twilio-${recording.sid}.mp3`,
+            filePath: recording.url, // Use filePath instead of fileUrl
             duration: parseInt(recording.duration) || 0,
-            uploadStatus: 'completed',
-            fileUrl: recording.url
+            uploadStatus: 'completed'
           }
         });
         
