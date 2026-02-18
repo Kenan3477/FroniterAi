@@ -3,6 +3,7 @@ import { prisma } from '../database';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authRateLimiter } from '../middleware/rateLimiter';
+import { securityMonitor } from '../middleware/security'; // SECURITY: Monitor auth events
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -104,6 +105,13 @@ router.post('/login', async (req, res) => {
 
       console.log(`❌ Login failed: Invalid password for user: ${user.username}. Failed attempts: ${updatedUser.failedLoginAttempts}`);
       
+      // SECURITY: Log failed authentication attempt
+      securityMonitor.logFailedAuth(
+        user.email,
+        req.ip || req.connection.remoteAddress || 'unknown',
+        req.get('User-Agent') || 'unknown'
+      );
+      
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -155,6 +163,15 @@ router.post('/login', async (req, res) => {
     });
 
     console.log(`✅ Successful login for user: ${user.username} (${user.email})`);
+
+    // SECURITY: Log admin login specifically
+    if (user.role === 'ADMIN') {
+      securityMonitor.logAdminLogin(
+        user.email,
+        req.ip || req.connection.remoteAddress || 'unknown',
+        req.get('User-Agent') || 'unknown'
+      );
+    }
 
     res.json({
       success: true,
