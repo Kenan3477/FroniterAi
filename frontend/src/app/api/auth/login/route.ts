@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: backendData.data.user,
       token: backendData.data.token, // Include token for localStorage storage
+      sessionId: backendData.data.sessionId, // Include session ID for logout tracking
       message: 'Authentication successful'
     });
 
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🍪 Setting auth-token cookie:', {
       token: backendData.data.token ? 'EXISTS' : 'NULL',
+      sessionId: backendData.data.sessionId || 'NULL',
       isProduction,
       tokenLength: backendData.data.token?.length || 0
     });
@@ -61,6 +63,16 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 // 24 hours
     });
+
+    // Also store sessionId in a cookie for logout tracking
+    if (backendData.data.sessionId) {
+      response.cookies.set('session-id', backendData.data.sessionId, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 // 24 hours
+      });
+    }
 
     console.log('✅ Backend authentication successful for:', backendData.data.user.name);
     return response;

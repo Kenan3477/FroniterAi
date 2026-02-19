@@ -151,6 +151,30 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' } // Longer-lived refresh token
     );
 
+    // Generate session ID
+    const sessionId = `sess_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const userAgent = req.get('User-Agent') || 'unknown';
+
+    // Detect device type
+    const deviceType = userAgent.includes('Mobile') ? 'mobile' : 
+                       userAgent.includes('Tablet') ? 'tablet' : 'desktop';
+
+    // Create user session record
+    await prisma.userSession.create({
+      data: {
+        sessionId,
+        userId: user.id,
+        loginTime: new Date(),
+        ipAddress: clientIP,
+        userAgent,
+        status: 'active',
+        lastActivity: new Date(),
+        browserInfo: userAgent,
+        deviceType
+      }
+    });
+
     // Store refresh token in database
     await prisma.refreshToken.create({
       data: {
@@ -162,7 +186,31 @@ router.post('/login', async (req, res) => {
       }
     });
 
-    console.log(`✅ Successful login for user: ${user.username} (${user.email})`);
+    // Create audit log entry for login
+    await prisma.auditLog.create({
+      data: {
+        action: 'USER_LOGIN',
+        entityType: 'User',
+        entityId: user.id.toString(),
+        performedByUserId: user.id.toString(),
+        performedByUserEmail: user.email,
+        performedByUserName: `${user.firstName} ${user.lastName}`,
+        ipAddress: clientIP,
+        userAgent,
+        sessionId,
+        metadata: JSON.stringify({
+          sessionId,
+          loginMethod: 'password',
+          deviceType,
+          userRole: user.role,
+          browserInfo: userAgent
+        }),
+        severity: 'INFO',
+        timestamp: new Date()
+      }
+    });
+
+    console.log(`✅ Successful login for user: ${user.username} (${user.email}), Session: ${sessionId}`);
 
     // SECURITY: Log admin login specifically
     if (user.role === 'ADMIN') {
@@ -192,6 +240,7 @@ router.post('/login', async (req, res) => {
         token: accessToken, // For backward compatibility
         accessToken: accessToken,
         refreshToken: refreshToken,
+        sessionId: sessionId, // Include session ID for tracking
         expiresIn: 8 * 60 * 60 // 8 hours in seconds
       }
     });
@@ -465,8 +514,57 @@ router.put('/profile', async (req, res) => {
 // Logout endpoint with token revocation
 router.post('/logout', async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, sessionId } = req.body;
     const authHeader = req.headers.authorization;
+    let userId = null;
+    let userInfo = null;
+
+    // Try to get user info from token if available
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        userId = decoded.userId;
+        
+        // Get user info for audit log
+        userInfo = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, email: true, firstName: true, lastName: true, username: true }
+        });
+      } catch (tokenError) {
+        console.log('Token verification failed during logout:', (tokenError as Error).message);
+      }
+    }
+
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const userAgent = req.get('User-Agent') || 'unknown';
+    const logoutTime = new Date();
+
+    // Update user session if sessionId provided
+    if (sessionId && userId) {
+      const session = await prisma.userSession.findFirst({
+        where: { 
+          sessionId: sessionId,
+          userId: userId,
+          status: 'active'
+        }
+      });
+
+      if (session) {
+        const sessionDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
+        
+        await prisma.userSession.update({
+          where: { id: session.id },
+          data: {
+            logoutTime,
+            status: 'logged_out',
+            sessionDuration
+          }
+        });
+        
+        console.log(`📊 Session duration for ${userInfo?.username}: ${sessionDuration} seconds`);
+      }
+    }
 
     // Revoke refresh token if provided
     if (refreshToken) {
@@ -476,8 +574,31 @@ router.post('/logout', async (req, res) => {
       });
     }
 
-    // In a production system with token blacklisting, you would also blacklist the access token
-    // For now, we rely on short token expiry times
+    // Create audit log entry for logout
+    if (userInfo) {
+      await prisma.auditLog.create({
+        data: {
+          action: 'USER_LOGOUT',
+          entityType: 'User',
+          entityId: userId.toString(),
+          performedByUserId: userId.toString(),
+          performedByUserEmail: userInfo.email,
+          performedByUserName: `${userInfo.firstName} ${userInfo.lastName}`,
+          ipAddress: clientIP,
+          userAgent,
+          sessionId: sessionId || null,
+          metadata: JSON.stringify({
+            sessionId: sessionId || null,
+            logoutMethod: 'manual',
+            userAgent
+          }),
+          severity: 'INFO',
+          timestamp: logoutTime
+        }
+      });
+
+      console.log(`✅ Successful logout for user: ${userInfo.username} (${userInfo.email})`);
+    }
 
     res.json({
       success: true,

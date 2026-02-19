@@ -58,6 +58,7 @@ import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue m
 import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoints
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
+import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
@@ -210,6 +211,7 @@ class App {
     this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // RE-ENABLED - Fixed with proper Prisma integration
     this.app.use('/api/admin/business-settings', businessSettingsRoutes); // RE-ENABLED - Needed for frontend business settings
     this.app.use('/api/admin/dnc', dncRoutes); // DNC (Do Not Call) management system
+    this.app.use('/api/admin', auditLogRoutes); // Audit logs and user session tracking for login/logout reports
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts

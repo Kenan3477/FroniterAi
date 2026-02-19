@@ -7,13 +7,14 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔓 Logout request received');
 
-    // Get auth token from cookie  
+    // Get auth token and session ID from cookies  
     const authToken = request.cookies.get('auth-token')?.value;
+    const sessionId = request.cookies.get('session-id')?.value;
 
     if (authToken) {
       console.log('🔑 Found auth token, notifying backend...');
       
-      // Notify backend of logout (optional - for session cleanup)
+      // Notify backend of logout with session tracking
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
       
       try {
@@ -23,10 +24,13 @@ export async function POST(request: NextRequest) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
           },
+          body: JSON.stringify({
+            sessionId: sessionId || null
+          }),
         });
         
         if (backendResponse.ok) {
-          console.log('✅ Backend logout successful');
+          console.log('✅ Backend logout successful with session tracking');
         } else {
           console.log('⚠️ Backend logout failed, but continuing local logout');
         }
@@ -51,6 +55,15 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
 
+    // Clear the session-id cookie
+    response.cookies.set('session-id', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/'
+    });
+
     // Additional clearing with different attributes
     response.cookies.set('auth-token', '', {
       httpOnly: true,
@@ -60,8 +73,25 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
 
+    // Clear session-id with different attributes too
+    response.cookies.set('session-id', '', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/'
+    });
+
     // Clear with expires date in the past
     response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: new Date(0),
+      path: '/'
+    });
+
+    response.cookies.set('session-id', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

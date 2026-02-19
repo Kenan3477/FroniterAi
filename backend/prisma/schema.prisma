@@ -394,6 +394,7 @@ model User {
   resolvedAlerts                                           SystemAlert[]            @relation("AlertResolver")
   assignedCampaigns                                        UserCampaignAssignment[] @relation("CampaignAssigner")
   campaignAssignments                                      UserCampaignAssignment[] @relation("UserCampaignAssignments")
+  sessions                                                 UserSession[]            @relation("UserSessions")
   webhooks                                                 Webhook[]                @relation("UserWebhooks")
 
   @@map("users")
@@ -1583,4 +1584,30 @@ model SecurityEvent {
   @@index([severity])
   @@index([createdAt])
   @@map("security_events")
+}
+
+model UserSession {
+  id               String    @id @default(cuid())
+  sessionId        String    @unique
+  userId           Int
+  loginTime        DateTime  @default(now())
+  logoutTime       DateTime?
+  ipAddress        String?
+  userAgent        String?
+  status           String    @default("active") // 'active', 'logged_out', 'expired', 'forced_logout'
+  lastActivity     DateTime  @default(now())
+  sessionDuration  Int?      // in seconds, calculated on logout
+  browserInfo      String?
+  deviceType       String?
+  locationInfo     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([loginTime])
+  @@index([logoutTime])
+  @@index([sessionId])
+  @@map("user_sessions")
 }

@@ -48,6 +48,72 @@ export async function GET(request: NextRequest) {
     if (campaignId) queryParams.append('campaignId', campaignId);
     if (agentId) queryParams.append('agentId', agentId);
 
+    // Handle login/logout reports differently
+    if (reportType === 'login_logout') {
+      // Fetch user session data for login/logout reports
+      const sessionParams = new URLSearchParams();
+      if (startDate) sessionParams.append('dateFrom', startDate);
+      if (endDate) sessionParams.append('dateTo', endDate);
+      sessionParams.append('limit', '500'); // Get more session data
+
+      const sessionsResponse = await fetch(
+        `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+
+      let sessions = [];
+      if (sessionsResponse.ok) {
+        const sessionData = await sessionsResponse.json();
+        sessions = sessionData.data?.sessions || [];
+      }
+
+      // Also fetch audit logs for login/logout events
+      const auditParams = new URLSearchParams();
+      if (startDate) auditParams.append('dateFrom', startDate);
+      if (endDate) auditParams.append('dateTo', endDate);
+      auditParams.append('action', 'USER_LOGIN,USER_LOGOUT');
+      auditParams.append('limit', '500');
+
+      const auditResponse = await fetch(
+        `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+
+      let auditLogs = [];
+      if (auditResponse.ok) {
+        const auditData = await auditResponse.json();
+        auditLogs = auditData.data?.logs || [];
+      }
+
+      // Generate login/logout specific report data
+      const reportData = generateLoginLogoutReportData(sessions, auditLogs, startDate, endDate);
+      
+      console.log(`📊 Login/logout report generated with ${sessions.length} sessions and ${auditLogs.length} audit events`);
+      
+      return NextResponse.json({
+        success: true,
+        data: reportData,
+        summary: {
+          totalSessions: sessions.length,
+          totalAuditEvents: auditLogs.length,
+          reportType: 'login_logout'
+        }
+      });
+    }
+
+    // Original logic for other report types
     // Fetch call records for the report period
     const callRecordsResponse = await fetch(
       `${BACKEND_URL}/api/call-records?${queryParams.toString()}&limit=1000`,
@@ -241,6 +307,78 @@ function generateTableData(reportType: string, callRecords: any[], agents: any[]
       createdAt: new Date(call.createdAt).toLocaleString()
     }));
   }
+}
+
+// Generate login/logout specific report data
+function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startDate?: string, endDate?: string) {
+  const now = new Date();
+  const period = startDate && endDate ? 
+    `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
+    'Last 7 Days';
+
+  // Calculate metrics
+  const totalSessions = sessions.length;
+  const activeSessions = sessions.filter(s => s.status === 'active').length;
+  const loggedOutSessions = sessions.filter(s => s.status === 'logged_out').length;
+  const uniqueUsers = new Set(sessions.map(s => s.userId)).size;
+
+  // Calculate average session duration
+  const completedSessions = sessions.filter(s => s.sessionDuration);
+  const avgDuration = completedSessions.length > 0 ? 
+    Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
+
+  // Get today's activity
+  const today = new Date().toDateString();
+  const todayLogins = auditLogs.filter(log => 
+    log.action === 'USER_LOGIN' && 
+    new Date(log.timestamp).toDateString() === today
+  ).length;
+
+  const metrics = [
+    { label: 'Total Sessions', value: totalSessions, format: 'number' },
+    { label: 'Active Sessions', value: activeSessions, format: 'number' },
+    { label: 'Unique Users', value: uniqueUsers, format: 'number' },
+    { label: 'Avg Session Duration', value: formatDuration(avgDuration), format: 'duration' },
+    { label: 'Today\'s Logins', value: todayLogins, format: 'number' },
+    { label: 'Logout Rate', value: totalSessions > 0 ? ((loggedOutSessions / totalSessions) * 100) : 0, format: 'percentage' }
+  ];
+
+  // Generate hourly login activity chart
+  const hourlyData = new Array(24).fill(0);
+  auditLogs.forEach(log => {
+    if (log.action === 'USER_LOGIN') {
+      const hour = new Date(log.timestamp).getHours();
+      hourlyData[hour]++;
+    }
+  });
+
+  const chartData = hourlyData.map((count, hour) => ({
+    time: `${hour.toString().padStart(2, '0')}:00`,
+    logins: count
+  }));
+
+  // Generate table data with recent login/logout activities
+  const tableData = auditLogs
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 50)
+    .map(log => {
+      const metadata = log.metadata || {};
+      return {
+        id: log.id,
+        user: log.performedByUserName,
+        email: log.performedByUserEmail,
+        action: log.action,
+        timestamp: new Date(log.timestamp).toLocaleString(),
+        ipAddress: log.ipAddress || 'Unknown',
+        device: metadata.deviceType || 'Unknown',
+        duration: log.action === 'USER_LOGOUT' ? 
+          (sessions.find(s => s.sessionId === log.sessionId)?.sessionDuration ? 
+            formatDuration(sessions.find(s => s.sessionId === log.sessionId)?.sessionDuration) : 'Unknown') :
+          'N/A'
+      };
+    });
+
+  return { metrics, chartData, tableData };
 }
 
 // Helper function to format duration in seconds to MM:SS
