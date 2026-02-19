@@ -39,6 +39,52 @@ export interface CallSearchFilters {
  * Start a new call record
  */
 export async function startCall(data: CreateCallRecordRequest) {
+  // Ensure required campaigns exist
+  if (data.campaignId === 'MANUAL-DIAL') {
+    await prisma.campaign.upsert({
+      where: { campaignId: 'MANUAL-DIAL' },
+      update: {},
+      create: {
+        campaignId: 'MANUAL-DIAL',
+        name: 'Manual Dial',
+        description: 'Manual dialing by agents',
+        status: 'Active',
+        isActive: true
+      }
+    });
+  }
+
+  // Ensure default data list exists for manual contacts
+  await prisma.dataList.upsert({
+    where: { listId: 'MANUAL-DIAL-CONTACTS' },
+    update: {},
+    create: {
+      listId: 'MANUAL-DIAL-CONTACTS',
+      name: 'Manual Dial Contacts',
+      campaignId: data.campaignId,
+      active: true,
+      totalContacts: 0
+    }
+  });
+
+  // If no contactId provided, create a temporary contact
+  if (!data.contactId || data.contactId.startsWith('auto-')) {
+    const contactId = `manual-${Date.now()}`;
+    await prisma.contact.upsert({
+      where: { contactId },
+      update: {},
+      create: {
+        contactId,
+        listId: 'MANUAL-DIAL-CONTACTS',
+        firstName: 'Manual',
+        lastName: 'Contact',
+        phone: data.phoneNumber,
+        status: 'new'
+      }
+    });
+    data.contactId = contactId;
+  }
+
   const callRecord = await prisma.callRecord.create({
     data: {
       callId: data.callId,
@@ -68,7 +114,7 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest, twi
   
   // Calculate duration if not provided
   const callRecord = await prisma.callRecord.findUnique({
-    where: { callId: callId }, // Fixed: Use callId instead of id
+    where: { callId: callId },
     select: { id: true, startTime: true }
   });
 
@@ -79,14 +125,14 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest, twi
   const duration = data.duration || Math.floor((endTime.getTime() - callRecord.startTime.getTime()) / 1000);
 
   const updatedRecord = await prisma.callRecord.update({
-    where: { callId: callId }, // Fixed: Use callId instead of id
+    where: { callId: callId },
     data: {
       endTime,
       duration,
       outcome: data.outcome,
-      dispositionId: data.dispositionId, // Fixed: Use dispositionId
+      dispositionId: data.dispositionId,
       notes: data.notes,
-      recording: data.recording, // Fixed: Use recording
+      recording: data.recording,
       transferTo: data.transferTo
     }
   });
@@ -96,19 +142,24 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest, twi
   // Process recordings asynchronously if we have the Twilio call SID
   if (twilioCallSid) {
     console.log(`📼 Processing recordings for Twilio call: ${twilioCallSid}`);
-    // Don't await this - let it process in the background
     processCallRecordings(twilioCallSid, callRecord.id).catch(error => {
-      console.error(`❌ Error processing recordings for call ${callId}:`, error);
+      console.error(`❌ Error processing recordings for ${twilioCallSid}:`, error);
     });
-  } else {
-    console.log(`⚠️ No Twilio call SID provided for call ${callId}, skipping recording processing`);
+  }
+
+  // Also try to sync recording using the call ID as potential Twilio SID
+  if (callId !== twilioCallSid) {
+    console.log(`📼 Also checking for recordings with callId as SID: ${callId}`);
+    processCallRecordings(callId, callRecord.id).catch(error => {
+      console.log(`ℹ️ No recordings found using callId as SID: ${callId}`);
+    });
   }
 
   return {
-    callId: updatedRecord.callId, // Fixed: Use callId
+    callId: updatedRecord.callId,
+    endTime: updatedRecord.endTime,
     duration: updatedRecord.duration,
-    outcome: updatedRecord.outcome,
-    endTime: updatedRecord.endTime
+    outcome: updatedRecord.outcome
   };
 }
 

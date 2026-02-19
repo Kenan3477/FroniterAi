@@ -22,6 +22,13 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
+interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+  status?: string;
+}
+
 interface CallRecord {
   id: string;
   callId: string;
@@ -98,6 +105,9 @@ export const CallRecordsView: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<CallRecord | null>(null);
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  
+  // Campaign filter data
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
 
   // Outcome color mapping
   const outcomeColors: { [key: string]: string } = {
@@ -191,9 +201,79 @@ export const CallRecordsView: React.FC = () => {
     }
   };
 
+  const fetchAllCampaigns = async () => {
+    try {
+      // Use the same campaign filtering logic as AuthContext
+      const response = await fetch('/api/campaigns/my-campaigns', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch campaigns');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        // Apply the same organizational campaign filtering as AuthContext
+        let campaigns = data.data || data.campaigns || [];
+        
+        // Filter out organizational/internal campaigns (case-insensitive)
+        const filteredCampaigns = campaigns.filter((campaign: any) => {
+          const name = campaign.displayName || campaign.name || '';
+          const campaignId = campaign.campaignId || '';
+          const nameLower = name.toLowerCase();
+          const campaignIdLower = campaignId.toLowerCase();
+          
+          // Filter out deleted campaigns
+          const isDeleted = nameLower.includes('[deleted]') || 
+                          nameLower.includes('deleted') ||
+                          campaign.status === 'ARCHIVED' ||
+                          campaign.status === 'DELETED';
+          
+          // Filter out organizational campaigns
+          const isOrganizationalCampaign = 
+            // Exact campaign ID matches
+            campaignIdLower === 'historical-calls' ||
+            campaignIdLower === 'live-calls' ||
+            campaignIdLower === 'imported-twilio' ||
+            // Name-based filtering (case-insensitive)
+            nameLower.includes('historical calls') ||
+            nameLower.includes('historic calls') ||
+            nameLower.includes('live calls') ||
+            nameLower.includes('imported twilio') ||
+            nameLower.includes('system') ||
+            nameLower.includes('internal') ||
+            // Additional organizational patterns
+            nameLower.startsWith('__') ||
+            nameLower.startsWith('sys_') ||
+            nameLower.startsWith('org_') ||
+            // Filter campaigns that are clearly organizational
+            campaignIdLower.includes('system') ||
+            campaignIdLower.includes('internal') ||
+            campaignIdLower.includes('default') ||
+            campaignIdLower.includes('template');
+          
+          console.log(`🔍 Campaign filter - ${campaignId}: name="${name}", isDeleted=${isDeleted}, isOrganizational=${isOrganizationalCampaign}`);
+          return !isDeleted && !isOrganizationalCampaign;
+        });
+        
+        setAllCampaigns(filteredCampaigns);
+      } else {
+        throw new Error(data.error || 'Failed to fetch campaigns');
+      }
+    } catch (err: any) {
+      console.error('Error fetching campaigns:', err);
+    }
+  };
+
   useEffect(() => {
     console.log('📞 CallRecordsView - Component mounted, calling fetchCallRecords...');
     fetchCallRecords();
+    fetchAllCampaigns();
   }, [filters, searchTerm, sortBy, sortOrder, currentPage]);
 
   const formatDuration = (seconds?: number): string => {
@@ -458,6 +538,23 @@ export const CallRecordsView: React.FC = () => {
               <option value="FAILED">Failed</option>
               <option value="TRANSFERRED">Transferred</option>
               <option value="ABANDONED">Abandoned</option>
+            </select>
+          </div>
+          
+          {/* Campaign Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Campaign</label>
+            <select
+              value={filters.campaignId || ''}
+              onChange={(e) => setFilters({ ...filters, campaignId: e.target.value || undefined })}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Campaigns</option>
+              {allCampaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
             </select>
           </div>
           </div>

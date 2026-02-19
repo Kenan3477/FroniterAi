@@ -214,6 +214,9 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     const callId = await twilioSipClient.makeCall({
       phoneNumber: phoneNumber.trim(),
       callerIdNumber: callerIdNumber,
+      agentId: agentId,
+      contactId: custInfo?.contactId || custInfo?.id,
+      campaignId: 'MANUAL-DIAL', // Default for manual dialing
       recordCall: true
     });
 

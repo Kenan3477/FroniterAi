@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../database/index.js';
+import { prisma } from '../database/index';
 
 interface SecurityEvent {
   type: string;

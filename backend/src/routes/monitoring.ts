@@ -4,7 +4,7 @@ import { healthCheckHandler, healthSummaryHandler } from '../middleware/healthCh
 import { getErrorStatsHandler, getRecentErrorsHandler } from '../utils/logging';
 import { MetricsCollector } from '../utils/metrics';
 import { createSimpleMonitoringDashboard } from '../utils/monitoringIntegration';
-import * as flowMonitoringController from '../controllers/flowMonitoring.js';
+import * as flowMonitoringController from '../controllers/flowMonitoring';
 
 const router = express.Router();
 

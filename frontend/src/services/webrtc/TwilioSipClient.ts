@@ -25,6 +25,7 @@ export interface TwilioSipConfig {
 export interface TwilioCallOptions {
   phoneNumber: string;         // Must be E.164 format (e.g. +447700900123)
   callerIdNumber?: string;     // Override default caller ID
+  agentId?: string;
   campaignId?: string;
   contactId?: string;
   recordCall?: boolean;
@@ -199,6 +200,35 @@ export class TwilioSipClient extends EventEmitter {
         contactId: options.contactId
       };
 
+      // Create call record in backend
+      try {
+        const response = await fetch('/api/call-records/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            callId: callId,
+            agentId: options.agentId,
+            contactId: options.contactId || `auto-${Date.now()}`,
+            campaignId: options.campaignId || 'MANUAL-DIAL',
+            phoneNumber: options.phoneNumber,
+            dialedNumber: callerIdNumber,
+            callType: 'outbound'
+          })
+        });
+
+        if (!response.ok) {
+          console.warn('⚠️ Failed to create call record, continuing with call');
+        } else {
+          console.log('✅ Call record created for SIP call:', callId);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error creating call record:', error);
+        // Continue with call even if record creation fails
+      }
+
       this.activeCalls.set(callId, call);
       this.setupCallEventHandlers(call);
 
@@ -256,6 +286,34 @@ export class TwilioSipClient extends EventEmitter {
     } catch (error) {
       console.error('❌ DTMF failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Update call record in backend when call ends or fails
+   */
+  private async updateCallRecord(callId: string, updateData: {
+    outcome: string;
+    duration: number;
+    notes?: string;
+  }): Promise<void> {
+    try {
+      const response = await fetch(`/api/call-records/${callId}/end`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        console.log('✅ Call record updated:', callId);
+      } else {
+        console.warn('⚠️ Failed to update call record:', response.status);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error updating call record:', error);
     }
   }
 
@@ -337,6 +395,13 @@ export class TwilioSipClient extends EventEmitter {
         call.duration = Math.floor((call.endTime.getTime() - call.answerTime.getTime()) / 1000);
       }
 
+      // Update call record in backend
+      this.updateCallRecord(call.id, {
+        outcome: 'completed',
+        duration: call.duration || 0,
+        notes: 'Call ended normally'
+      });
+
       this.activeCalls.delete(call.id);
       this.emit('callEnded', call);
     });
@@ -345,6 +410,14 @@ export class TwilioSipClient extends EventEmitter {
       console.log(`❌ Call ${call.id} failed:`, e.cause);
       call.status = 'failed';
       call.endTime = new Date();
+      
+      // Update call record in backend with failure
+      this.updateCallRecord(call.id, {
+        outcome: 'failed',
+        duration: 0,
+        notes: `Call failed: ${e.cause}`
+      });
+
       this.activeCalls.delete(call.id);
       this.emit('callFailed', { call, cause: e.cause });
     });

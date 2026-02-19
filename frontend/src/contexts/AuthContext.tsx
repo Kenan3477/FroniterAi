@@ -104,13 +104,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .filter((campaign: any) => {
                 // Filter out deleted campaigns using the same logic as DataManagementContent
                 const name = campaign.displayName || campaign.name || '';
+                const campaignId = campaign.campaignId || '';
+                
                 const isDeleted = name.toLowerCase().includes('[deleted]') || 
                                 name.toLowerCase().includes('deleted') ||
                                 campaign.status === 'ARCHIVED' ||
                                 campaign.status === 'DELETED';
                 
-                console.log(`🔍 Campaign ${campaign.campaignId}: name="${name}", status="${campaign.status}", isDeleted=${isDeleted}`);
-                return !isDeleted;
+                // Filter out organizational/internal campaigns (case-insensitive)
+                const nameLower = name.toLowerCase();
+                const campaignIdLower = campaignId.toLowerCase();
+                
+                const isOrganizationalCampaign = 
+                  // Exact campaign ID matches
+                  campaignIdLower === 'historical-calls' ||
+                  campaignIdLower === 'live-calls' ||
+                  campaignIdLower === 'imported-twilio' ||
+                  // Name-based filtering (case-insensitive)
+                  nameLower.includes('historical calls') ||
+                  nameLower.includes('historic calls') ||
+                  nameLower.includes('live calls') ||
+                  nameLower.includes('imported twilio') ||
+                  nameLower.includes('system') ||
+                  nameLower.includes('internal') ||
+                  // Additional organizational patterns
+                  nameLower.startsWith('__') ||
+                  nameLower.startsWith('sys_') ||
+                  nameLower.startsWith('org_') ||
+                  // Filter campaigns that are clearly organizational
+                  campaignIdLower.includes('system') ||
+                  campaignIdLower.includes('internal') ||
+                  campaignIdLower.includes('default') ||
+                  campaignIdLower.includes('template');
+                
+                console.log(`🔍 Campaign ${campaign.campaignId}: name="${name}", status="${campaign.status}", isDeleted=${isDeleted}, isOrganizational=${isOrganizationalCampaign}`);
+                return !isDeleted && !isOrganizationalCampaign;
               })
               .map((campaign: any) => ({
                 campaignId: campaign.campaignId,
@@ -150,9 +178,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Filter out deleted campaigns and require either Active status OR isActive
                 const isDeleted = campaign.name?.startsWith('[DELETED]');
                 const isActive = campaign.status === 'Active' || campaign.isActive === true;
-                const passes = !isDeleted && isActive;
                 
-                console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, deleted=${isDeleted}, passes filter=${passes}`);
+                // Filter out organizational/internal campaigns
+                const campaignId = campaign.campaignId || '';
+                const name = campaign.name || '';
+                const isOrganizationalCampaign = campaignId === 'HISTORICAL-CALLS' ||
+                                               campaignId === 'LIVE-CALLS' ||
+                                               campaignId === 'IMPORTED-TWILIO' ||
+                                               name.includes('Historical Calls') ||
+                                               name.includes('Live Calls') ||
+                                               name.includes('Imported Twilio');
+                
+                const passes = !isDeleted && isActive && !isOrganizationalCampaign;
+                
+                console.log(`🔍 Campaign ${campaign.campaignId}: status=${campaign.status}, isActive=${campaign.isActive}, deleted=${isDeleted}, organizational=${isOrganizationalCampaign}, passes filter=${passes}`);
                 return passes;
               })
               .map((campaign: any) => ({
