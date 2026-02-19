@@ -174,6 +174,7 @@ export class AutoDispositionController {
       // Create disposition tracking
       await prisma.disposition_tracking.create({
         data: {
+          id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
           callId: callId,
           dispositionId: dispositionRecord.id,
           agentId: agentId || '',
@@ -240,7 +241,7 @@ export class AutoDispositionController {
       const methodStats = await prisma.disposition_tracking.groupBy({
         by: ['method'],
         where: {
-          callRecord: whereClause
+          call_records: whereClause
         },
         _count: {
           method: true
@@ -306,6 +307,7 @@ export class AutoDispositionController {
       // Create feedback record
       await prisma.ai_feedback.create({
         data: {
+          id: `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
           recommendationId: recommendation.id,
           agentId: agentId || '',
           correct: correct,
@@ -381,11 +383,14 @@ export class AutoDispositionController {
       
       await prisma.automation_triggers.create({
         data: {
+          id: `trigger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
           callId: callId,
           triggerType: actionConfig.type,
           triggerData: JSON.stringify(actionConfig.data),
           status: 'PENDING',
           scheduledFor: new Date(),
+          createdBy: agentId || 'system',
+          updatedAt: new Date()
           createdBy: agentId || 'SYSTEM'
         }
       });
@@ -402,7 +407,7 @@ export class AutoDispositionController {
     try {
       const feedbackData = await prisma.ai_feedback.findMany({
         where: {
-          recommendation: {
+          ai_recommendations: {
             type: 'DISPOSITION',
             callRecord: whereClause
           }
@@ -435,7 +440,7 @@ export class AutoDispositionController {
     try {
       const triggers = await prisma.automation_triggers.findMany({
         where: {
-          callRecord: whereClause
+          call_records: whereClause
         }
       });
       
