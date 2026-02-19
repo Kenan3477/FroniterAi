@@ -110,6 +110,17 @@ function ReportViewPageContent() {
 
       const result = await response.json();
       console.log('✅ Real report data loaded:', result);
+      console.log('🔍 Response structure debug:');
+      console.log('  - result.success:', result.success);
+      console.log('  - result.data exists:', !!result.data);
+      console.log('  - result.data keys:', result.data ? Object.keys(result.data) : 'none');
+      console.log('  - result.summary exists:', !!result.summary);
+      console.log('  - result.data.summary exists:', !!(result.data?.summary));
+      if (result.data?.summary) {
+        console.log('  - summary keys:', Object.keys(result.data.summary));
+      } else if (result.summary) {
+        console.log('  - summary keys:', Object.keys(result.summary));
+      }
       
       if (result.success && result.data) {
         setReportData({
@@ -118,7 +129,16 @@ function ReportViewPageContent() {
           tableData: result.data.tableData
         });
         
-        console.log(`📊 Report generated with ${result.data.summary.totalCalls} real call records`);
+        // Handle different report types with different summary structures
+        if (reportType === 'login_logout') {
+          const summary = result.data.summary || result.summary;
+          const sessionCount = summary?.totalSessions || summary?.totalAuditEvents || 0;
+          console.log(`📊 Login/logout report generated with ${sessionCount} sessions/events`);
+        } else {
+          const summary = result.data.summary || result.summary;
+          const callCount = summary?.totalCalls || 0;
+          console.log(`📊 Report generated with ${callCount} real call records`);
+        }
       } else {
         throw new Error(result.error || 'Failed to generate report');
       }
