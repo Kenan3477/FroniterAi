@@ -44,6 +44,14 @@ function ReportViewPageContent() {
   const category = searchParams?.get('category') || '';
   const subcategory = searchParams?.get('subcategory') || '';
 
+  // Debug URL parameters
+  console.log('🔍 Report View Debug - URL Parameters:');
+  console.log('  - reportType:', JSON.stringify(reportType));
+  console.log('  - category:', JSON.stringify(category));
+  console.log('  - subcategory:', JSON.stringify(subcategory));
+  console.log('  - searchParams available:', !!searchParams);
+  console.log('  - Current URL search:', typeof window !== 'undefined' ? window.location.search : 'server-side');
+
   const reportTitles: { [key: string]: string } = {
     'combined_outcome_horizontal': 'Combined Outcome Report (Horizontal)',
     'hour_breakdown': 'Hour Breakdown Report',
@@ -196,16 +204,27 @@ function ReportViewPageContent() {
   };
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered - reportType:', JSON.stringify(reportType));
+    console.log('🔄 useEffect - filters:', filters);
+    
     if (reportType) {
+      console.log('✅ Report type exists, calling loadReportData()');
       loadReportData();
+    } else {
+      console.log('❌ No report type found, skipping loadReportData()');
     }
   }, [reportType, filters]);
 
   if (!reportType) {
+    console.log('🚫 No report specified - showing error message');
     return (
       <MainLayout>
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900">No report specified</h3>
+          <p className="text-gray-600 mt-2">URL Parameters Debug:</p>
+          <p className="text-gray-500 text-sm">Type: {reportType || 'empty'}</p>
+          <p className="text-gray-500 text-sm">Category: {category || 'empty'}</p>
+          <p className="text-gray-500 text-sm">Subcategory: {subcategory || 'empty'}</p>
           <button
             onClick={() => router.back()}
             className="mt-4 text-slate-600 hover:text-slate-800"
@@ -216,6 +235,8 @@ function ReportViewPageContent() {
       </MainLayout>
     );
   }
+
+  console.log('✅ Report page rendering with type:', reportType);
 
   return (
     <MainLayout>
