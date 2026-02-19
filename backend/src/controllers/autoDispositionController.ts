@@ -391,7 +391,6 @@ export class AutoDispositionController {
           scheduledFor: new Date(),
           createdBy: agentId || 'system',
           updatedAt: new Date()
-          createdBy: agentId || 'SYSTEM'
         }
       });
       
