@@ -408,7 +408,7 @@ export class AutoDispositionController {
         where: {
           ai_recommendations: {
             type: 'DISPOSITION',
-            callRecord: whereClause
+            call_records: whereClause
           }
         }
       });
