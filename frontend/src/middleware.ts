@@ -41,35 +41,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Basic token presence check - detailed JWT verification handled in API routes
+  // SECURITY FIX: Remove demo token handling - only allow real JWT tokens
+  // SECURITY FIX: Remove demo token handling - only allow real JWT tokens
+  // All authentication must go through proper backend validation
   if (token && (isAdminRoute || isReportsRoute || isDataManagementRoute)) {
-    // For demo tokens, we can do basic role checking
-    if (token.value.startsWith('demo-')) {
-      const demoUser = token.value.replace('demo-', '');
-      const userRole = demoUser === 'admin' ? 'ADMIN' : 'AGENT';
-      
-      if (isAdminRoute && userRole !== 'ADMIN') {
-        console.log(`🚫 Access denied: ${userRole} tried to access ${request.nextUrl.pathname}`);
-        return NextResponse.redirect(new URL('/dashboard?error=access-denied', request.url));
-      }
-      
-      if (isReportsRoute && !['ADMIN', 'SUPERVISOR'].includes(userRole)) {
-        console.log(`🚫 Access denied: ${userRole} tried to access ${request.nextUrl.pathname}`);
-        return NextResponse.redirect(new URL('/dashboard?error=access-denied', request.url));
-      }
-      
-      // Data Management requires admin access
-      if (isDataManagementRoute && userRole !== 'ADMIN') {
-        console.log(`🚫 Access denied: ${userRole} tried to access ${request.nextUrl.pathname}`);
-        return NextResponse.redirect(new URL('/dashboard?error=access-denied', request.url));
-      }
-      
-      console.log(`✅ Access granted: ${userRole} accessing ${request.nextUrl.pathname}`);
-    } else {
-      // For real JWT tokens, let the API routes handle verification
-      // Just allow access and let backend auth handle permission checks
-      console.log(`✅ Token present, allowing access to ${request.nextUrl.pathname}`);
-    }
+    console.log('🔐 Protected route access with token - backend will validate');
+    return NextResponse.next();
   }
 
   return NextResponse.next();

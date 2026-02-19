@@ -18,46 +18,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('🔑 Auth token found, optimizing for Railway backend...');
+    console.log('🔑 Auth token found, validating with Railway backend...');
     
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
-    // OPTIMIZED: Try fast JWT first, then Railway backend with timeout
-    try {
-      const tokenParts = authToken.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-        
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp && payload.exp > now) {
-          console.log('✅ Fast JWT authentication successful');
-          
-          const userProfile = {
-            id: payload.userId || payload.id || 1,
-            email: payload.email || 'unknown@omnivox-ai.com',
-            username: payload.email?.split('@')[0] || 'user',
-            firstName: payload.firstName || 'User',
-            lastName: payload.lastName || 'Name',
-            name: `${payload.firstName || 'User'} ${payload.lastName || 'Name'}`,
-            role: payload.role || 'AGENT',
-            status: 'active',
-            preferences: {},
-            createdAt: new Date('2024-01-01'),
-            lastLogin: new Date(),
-            isActive: true
-          };
-
-          return NextResponse.json({
-            success: true,
-            user: userProfile
-          });
-        }
-      }
-    } catch (jwtError) {
-      console.log('⚠️ JWT parsing failed, using Railway backend...');
-    }
-    
-    // Railway backend with timeout
+    // SECURITY FIX: Only use Railway backend for authentication - no fallbacks
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -75,69 +40,84 @@ export async function GET(request: NextRequest) {
       
       if (backendResponse.ok) {
         const backendData = await backendResponse.json();
-        console.log('✅ Railway backend success');
+        console.log('✅ Railway backend authentication successful');
         return NextResponse.json({
           success: true,
           user: backendData.data.user
         });
+      } else {
+        console.log('❌ Railway backend rejected authentication');
+        return NextResponse.json(
+          { success: false, message: 'Authentication failed' },
+          { status: 401 }
+        );
       }
     } catch (backendError) {
-      console.log('⚠️ Railway backend error, using fallback');
-    }
-    
-    // Final JWT fallback
-    try {
-      const tokenParts = authToken.split('.');
-      if (tokenParts.length !== 3) {
-        throw new Error('Invalid JWT format');
-      }
-      
-      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-      
-      const userProfile = {
-        id: payload.userId || payload.id || 1,
-        email: payload.email || 'unknown@omnivox-ai.com',
-        username: payload.email?.split('@')[0] || 'user',
-        firstName: payload.firstName || 'User',
-        lastName: payload.lastName || 'Name',
-        name: `${payload.firstName || 'User'} ${payload.lastName || 'Name'}`,
-        role: payload.role || 'AGENT',
-        status: 'active',
-        preferences: {},
-        createdAt: new Date('2024-01-01'),
-        lastLogin: new Date(),
-        isActive: true
-      };
+      console.log('❌ Railway backend authentication error:', backendError);
+      return NextResponse.json(
+        { success: false, message: 'Authentication service unavailable' },
+        { status: 503 }
+      );
+import { NextRequest, NextResponse } from 'next/server';
 
-      return NextResponse.json({
-        success: true,
-        user: userProfile
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    console.log('👤 Profile request received');
+    
+    // Check for auth cookie
+    const authToken = request.cookies.get('auth-token')?.value;
+    
+    if (!authToken) {
+      console.log('🔒 No auth token found');
+      return NextResponse.json(
+        { success: false, message: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    console.log('🔑 Auth token found, validating with Railway backend...');
+    
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    
+    // SECURITY FIX: Only use Railway backend for authentication - no fallbacks
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const backendResponse = await fetch(`${backendUrl}/api/auth/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        signal: controller.signal,
       });
       
-    } catch (parseError) {
-      // Demo token fallback
-      let username = 'user';
-      if (authToken.startsWith('demo-')) {
-        username = authToken.replace('demo-', '');
+      clearTimeout(timeoutId);
+      
+      if (backendResponse.ok) {
+        const backendData = await backendResponse.json();
+        console.log('✅ Railway backend authentication successful');
+        return NextResponse.json({
+          success: true,
+          user: backendData.data.user
+        });
+      } else {
+        console.log('❌ Railway backend rejected authentication');
+        return NextResponse.json(
+          { success: false, message: 'Authentication failed' },
+          { status: 401 }
+        );
       }
-      
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: username === 'admin' ? 1 : 2,
-          email: `${username}@omnivox-ai.com`,
-          username: username,
-          firstName: username === 'admin' ? 'Admin' : 'Demo',
-          lastName: 'User',
-          name: username === 'admin' ? 'Admin User' : 'Demo User',
-          role: username === 'admin' ? 'ADMIN' : 'AGENT',
-          status: 'active',
-          preferences: {},
-          createdAt: new Date('2024-01-01'),
-          lastLogin: new Date(),
-          isActive: true
-        }
-      });
+    } catch (backendError) {
+      console.log('❌ Railway backend authentication error:', backendError);
+      return NextResponse.json(
+        { success: false, message: 'Authentication service unavailable' },
+        { status: 503 }
+      );
     }
     
   } catch (error) {
