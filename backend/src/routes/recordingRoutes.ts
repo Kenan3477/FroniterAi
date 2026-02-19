@@ -52,21 +52,34 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
       });
     }
 
-    // Check if this is a Twilio recording URL
+    // Check if this is a Twilio recording URL or SID
     const filePath = recording.filePath;
     
-    if (filePath && filePath.includes('api.twilio.com')) {
-      // This is a Twilio recording - extract SID and stream with authentication
-      const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
-      if (!recordingSidMatch) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid Twilio recording URL format'
-        });
+    // Handle Twilio recordings in different formats:
+    // 1. Full URL: https://api.twilio.com/.../Recordings/RExxxxx.mp3
+    // 2. Recording SID directly: RExxxxx
+    const isTwilioUrl = filePath && filePath.includes('api.twilio.com');
+    const isTwilioSid = filePath && /^RE[a-zA-Z0-9]{32}$/.test(filePath);
+    
+    if (isTwilioUrl || isTwilioSid) {
+      let recordingSid: string;
+      
+      if (isTwilioUrl) {
+        // Extract SID from URL
+        const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
+        if (!recordingSidMatch) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid Twilio recording URL format'
+          });
+        }
+        recordingSid = recordingSidMatch[1];
+      } else {
+        // Use the SID directly
+        recordingSid = filePath;
       }
       
-      const recordingSid = recordingSidMatch[1];
-      console.log(`🎵 Streaming Twilio recording: ${recordingSid}`);
+      console.log(`🎵 Streaming Twilio recording: ${recordingSid} (from ${isTwilioUrl ? 'URL' : 'SID'})`);
       
       try {
         // Import Twilio service
@@ -172,21 +185,34 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
       });
     }
 
-    // Check if this is a Twilio recording URL for download
+    // Check if this is a Twilio recording URL or SID for download
     const filePath = recording.filePath;
     
-    if (filePath && filePath.includes('api.twilio.com')) {
-      // This is a Twilio recording - extract SID and download with authentication
-      const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
-      if (!recordingSidMatch) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid Twilio recording URL format'
-        });
+    // Handle Twilio recordings in different formats:
+    // 1. Full URL: https://api.twilio.com/.../Recordings/RExxxxx.mp3
+    // 2. Recording SID directly: RExxxxx
+    const isTwilioUrl = filePath && filePath.includes('api.twilio.com');
+    const isTwilioSid = filePath && /^RE[a-zA-Z0-9]{32}$/.test(filePath);
+    
+    if (isTwilioUrl || isTwilioSid) {
+      let recordingSid: string;
+      
+      if (isTwilioUrl) {
+        // Extract SID from URL
+        const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
+        if (!recordingSidMatch) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid Twilio recording URL format'
+          });
+        }
+        recordingSid = recordingSidMatch[1];
+      } else {
+        // Use the SID directly
+        recordingSid = filePath;
       }
       
-      const recordingSid = recordingSidMatch[1];
-      console.log(`📥 Downloading Twilio recording: ${recordingSid}`);
+      console.log(`📥 Downloading Twilio recording: ${recordingSid} (from ${isTwilioUrl ? 'URL' : 'SID'})`);
       
       try {
         // Import Twilio service
