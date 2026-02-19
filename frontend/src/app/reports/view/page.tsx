@@ -88,7 +88,13 @@ function ReportViewPageContent() {
       if (filters?.campaign) params.append('campaignId', filters.campaign);
       if (filters?.agent) params.append('agentId', filters.agent);
       
-      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);
+      console.log('� Date Range Debug:');
+      console.log('  - filters.dateRange.from:', filters.dateRange.from);
+      console.log('  - filters.dateRange.to:', filters.dateRange.to);
+      console.log('  - startDate param:', params.get('startDate'));
+      console.log('  - endDate param:', params.get('endDate'));
+      
+      console.log('�📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);
       console.log('📋 Request headers:', { 'Authorization': `Bearer ${token.substring(0, 20)}...` });
       
       const response = await fetch(`/api/admin/reports/generate?${params.toString()}`, {
