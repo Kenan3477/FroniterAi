@@ -63,6 +63,15 @@ function ReportViewPageContent() {
       // ✅ IMPLEMENTED: Real API call to Railway backend via proxy route
       console.log('📊 Loading real report data for type:', reportType);
       
+      // Debug authentication token
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || '';
+      console.log('🔑 Auth token available:', !!token);
+      console.log('🔑 Token length:', token.length);
+      if (!token) {
+        console.error('❌ No authentication token found in localStorage');
+        throw new Error('No authentication token available. Please log in again.');
+      }
+      
       // Build query parameters
       const params = new URLSearchParams();
       if (reportType) params.append('type', reportType);
@@ -71,16 +80,24 @@ function ReportViewPageContent() {
       if (filters?.campaign) params.append('campaignId', filters.campaign);
       if (filters?.agent) params.append('agentId', filters.agent);
       
+      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);
+      console.log('📋 Request headers:', { 'Authorization': `Bearer ${token.substring(0, 20)}...` });
+      
       const response = await fetch(`/api/admin/reports/generate?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || ''}`
+          'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📋 Response status:', response.status);
+      console.log('📋 Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error(`Failed to generate report: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ API Error Response:', errorText);
+        throw new Error(`Failed to generate report: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
@@ -100,7 +117,16 @@ function ReportViewPageContent() {
       
     } catch (error) {
       console.error('❌ Error loading report data:', error);
-      alert(`Failed to load report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Full error details:', errorMessage);
+      
+      // Set error state to show user-friendly message
+      setReportData({
+        metrics: [],
+        chartData: [],
+        tableData: [],
+        error: errorMessage
+      });
     } finally {
       setLoading(false);
     }
@@ -326,12 +352,38 @@ function ReportViewPageContent() {
                       </tbody>
                     </table>
                   </div>
+                ) : reportData.error ? (
+                  <div className="text-center py-8">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                      <h4 className="text-lg font-medium text-red-800 mb-2">Error Loading Report</h4>
+                      <p className="text-red-600">{reportData.error}</p>
+                      <button
+                        onClick={loadReportData}
+                        className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-gray-500">No detailed data available for this report type.</p>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        ) : reportData?.error ? (
+          <div className="text-center py-12">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Report</h3>
+              <p className="text-red-600 mb-4">{reportData.error}</p>
+              <button
+                onClick={loadReportData}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Retry
+              </button>
             </div>
           </div>
         ) : (
