@@ -75,6 +75,7 @@ function ReportViewPageContent() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || ''}`
         }
       });
 
@@ -142,6 +143,7 @@ function ReportViewPageContent() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || ''}`
         }
       });
 
