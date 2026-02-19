@@ -481,7 +481,15 @@ export default function ReportsPage() {
               key={report.id}
               className="bg-white p-4 rounded-lg border border-gray-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
               onClick={() => {
-                router.push(`/reports/view?type=${report.id}&category=${selectedCategory}&subcategory=${selectedSubcategory}`);
+                const targetUrl = `/reports/view?type=${report.id}&category=${selectedCategory}&subcategory=${selectedSubcategory}`;
+                console.log('🔗 Navigation Debug - Clicking report:', report.name);
+                console.log('🔗 Navigation - Report ID:', report.id);
+                console.log('🔗 Navigation - Target URL:', targetUrl);
+                console.log('🔗 Navigation - selectedCategory:', selectedCategory);
+                console.log('🔗 Navigation - selectedSubcategory:', selectedSubcategory);
+                
+                router.push(targetUrl);
+                console.log('✅ Navigation - router.push called');
               }}
             >
               <div className="flex items-start space-x-3">
@@ -697,6 +705,25 @@ export default function ReportsPage() {
                 reportCategories.find(cat => cat.id === 'users')?.subcategories || [],
                 'User Reports'
               )
+            )}
+
+            {selectedCategory === 'users' && selectedSubcategory && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Navigating to {selectedSubcategory.replace('_', ' ')} Report...
+                  </h3>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+                  {(() => {
+                    // Auto-navigate to report view
+                    console.log('🚀 Auto-navigating to report view for users subcategory:', selectedSubcategory);
+                    const targetUrl = `/reports/view?type=${selectedSubcategory}&category=${selectedCategory}&subcategory=${selectedSubcategory}`;
+                    console.log('🚀 Target URL:', targetUrl);
+                    setTimeout(() => router.push(targetUrl), 500);
+                    return null;
+                  })()}
+                </div>
+              </div>
             )}
 
             {(selectedCategory && !selectedSubcategory && selectedCategory !== 'voice' && selectedCategory !== 'users') && (
