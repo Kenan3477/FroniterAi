@@ -1,27 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { requireRole } from '@/middleware/auth';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// Helper function to get authentication token
-function getAuthToken(request: NextRequest): string | null {
-  // Try authorization header first
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  
-  // Try cookies as fallback
-  const cookieStore = cookies();
-  const tokenFromCookie = cookieStore.get('auth-token')?.value;
-  return tokenFromCookie || null;
-}
-
 // GET - Generate reports with real data from backend
-export async function GET(request: NextRequest) {
+export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any) => {
   try {
     const { searchParams } = new URL(request.url);
     const reportType = searchParams.get('type') || 'summary';
@@ -32,17 +18,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId'); // Add user filter support
 
     console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId, userId });
-    
-    const authToken = getAuthToken(request);
-    console.log('🔑 Reports auth debug - token available:', !!authToken);
-    console.log('🔑 Reports auth debug - token length:', authToken?.length || 0);
-    if (!authToken) {
-      console.log('❌ No auth token found for reports request');
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    console.log('� Authenticated user:', user.userId, user.role);
 
     // Handle login/logout reports differently
     if (reportType === 'login_logout') {
@@ -61,8 +37,9 @@ export async function GET(request: NextRequest) {
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer demo-token`, // Use demo token like other admin endpoints
+            'Authorization': `Bearer demo-token`,
             'Content-Type': 'application/json',
+            'User-ID': user.userId.toString(),
           },
         }
       );
@@ -153,8 +130,9 @@ export async function GET(request: NextRequest) {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer demo-token`,
           'Content-Type': 'application/json',
+          'User-ID': user.userId.toString(),
         },
       }
     );
@@ -247,10 +225,10 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // POST - Generate custom reports with filters
-export async function POST(request: NextRequest) {
+export const POST = requireRole(['ADMIN'])(async (request: NextRequest, user: any) => {
   try {
     const body = await request.json();
     const {
@@ -262,14 +240,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     console.log('📊 Custom report request:', { reportType, dateRange, filters, includeCharts, exportFormat });
-
-    const authToken = getAuthToken(request);
-    if (!authToken) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    console.log('👤 Authenticated user:', user.userId, user.role);
 
     // Build query parameters
     const params = new URLSearchParams();
@@ -302,8 +273,9 @@ export async function POST(request: NextRequest) {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer demo-token`,
           'Content-Type': 'application/json',
+          'User-ID': user.userId.toString(),
         },
       }
     );
@@ -347,4 +319,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
