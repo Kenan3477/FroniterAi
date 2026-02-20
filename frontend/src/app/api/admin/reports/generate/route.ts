@@ -1,6 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/ser      // Handle login/logout reports differently
+    if (reportType === 'login_logout') {
+      // Fetch user session data for login/logout reports
+      const sessionParams = new URLSearchParams();
+      if (startDate) sessionParams.append('dateFrom', startDate);
+      if (endDate) sessionParams.append('dateTo', endDate);
+      if (userId) sessionParams.append('userId', userId); // Add userId parameter
+      sessionParams.append('limit', '500'); // Get more session data
 
-// Force dynamic rendering for this route
+      const sessionsResponse = await fetch(
+        `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`,Force dynamic rendering for this route
 import { cookies } from 'next/headers';
 
 
@@ -79,10 +87,12 @@ export async function GET(request: NextRequest) {
       const auditParams1 = new URLSearchParams();
       auditParams1.append('action', 'USER_LOGIN');
       auditParams1.append('limit', '1000');
+      if (userId) auditParams1.append('performedBy', userId); // Add user filter
 
       const auditParams2 = new URLSearchParams();
       auditParams2.append('action', 'USER_LOGOUT');
       auditParams2.append('limit', '1000');
+      if (userId) auditParams2.append('performedBy', userId); // Add user filter
 
       const [loginAuditResponse, logoutAuditResponse] = await Promise.all([
         fetch(`${BACKEND_URL}/api/admin/audit-logs?${auditParams1.toString()}`, {

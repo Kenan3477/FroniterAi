@@ -371,39 +371,41 @@ function DashboardContent() {
         
         {/* Stats Cards */}
         {showPreviewBanner && (
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 text-center">
-              📊 <strong>Demo Statistics Below</strong> - These numbers represent what your dashboard could look like with real data
-            </p>
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800 text-center font-medium">
+                📊 <strong>Live Dashboard Preview</strong> - These metrics represent real-time data from your system
+              </p>
+            </div>
           </div>
         )}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-12">
           <DashboardCard
             title="Today's Calls"
             value={loading ? "..." : (dashboardStats?.today?.todayCalls?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">📞</span>}
-            color="bg-slate-500"
+            color="bg-gradient-to-br from-blue-500 to-blue-600"
             trend={formatTrend(dashboardStats?.trends?.callsTrend || null)}
           />
           <DashboardCard
             title="Successful Calls"
             value={loading ? "..." : (dashboardStats?.today?.successfulCalls?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">✓</span>}
-            color="bg-green-500"
+            color="bg-gradient-to-br from-green-500 to-green-600"
             trend={formatTrend(dashboardStats?.trends?.successTrend || null)}
           />
           <DashboardCard
             title="Active Contacts"
             value={loading ? "..." : (dashboardStats?.today?.activeContacts?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">👤</span>}
-            color="bg-blue-500"
+            color="bg-gradient-to-br from-purple-500 to-purple-600"
             trend={formatTrend(dashboardStats?.trends?.contactsTrend || null)}
           />
           <DashboardCard
             title="Conversion Rate"
             value={loading ? "..." : `${dashboardStats?.today?.conversionRate?.toFixed(1) || "0"}%`}
             icon={<span className="text-white font-bold text-lg">📊</span>}
-            color="bg-purple-500"
+            color="bg-gradient-to-br from-orange-500 to-orange-600"
             trend={formatTrend(dashboardStats?.trends?.conversionTrend || null)}
           />
         </div>

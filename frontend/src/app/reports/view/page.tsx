@@ -34,6 +34,7 @@ function ReportViewPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
+  const [availableUsers, setAvailableUsers] = useState<{id: string, name: string, email: string}[]>([]);
   const [filters, setFilters] = useState<ReportFilter>({
     dateRange: {
       from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days ago
@@ -65,6 +66,33 @@ function ReportViewPageContent() {
 
   // ✅ REMOVED: Mock data generator replaced with real backend integration
   // All KPI data now comes from loadReportData() function which calls Railway backend
+
+  const loadAvailableUsers = async () => {
+    try {
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || '';
+      if (!token) return;
+      
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.data?.users) {
+          setAvailableUsers(userData.data.users.map((user: any) => ({
+            id: user.id || user.email,
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
+            email: user.email
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    }
+  };
 
   const loadReportData = async () => {
     setLoading(true);
@@ -238,6 +266,11 @@ function ReportViewPageContent() {
     if (reportType) {
       console.log('✅ Report type exists, calling loadReportData()');
       loadReportData();
+      
+      // Load users for login_logout reports
+      if (reportType === 'login_logout') {
+        loadAvailableUsers();
+      }
     } else {
       console.log('❌ No report type found, skipping loadReportData()');
     }
@@ -336,11 +369,14 @@ function ReportViewPageContent() {
                       ...prev,
                       user: e.target.value || undefined
                     }))}
-                    className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+                    className="text-sm border border-gray-300 rounded px-2 py-1 bg-white min-w-[200px]"
                   >
                     <option value="">All Users</option>
-                    <option value="test.admin@omnivox.com">Test Administrator</option>
-                    <option value="admin@omnivox-ai.com">System Administrator</option>
+                    {availableUsers.map(user => (
+                      <option key={user.id} value={user.email}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
