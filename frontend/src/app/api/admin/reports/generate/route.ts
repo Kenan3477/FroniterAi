@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId, userId });
     
     const authToken = getAuthToken(request);
+    console.log('🔑 Reports auth debug - token available:', !!authToken);
+    console.log('🔑 Reports auth debug - token length:', authToken?.length || 0);
     if (!authToken) {
       console.log('❌ No auth token found for reports request');
       return NextResponse.json(
@@ -62,9 +64,14 @@ export async function GET(request: NextRequest) {
         }
       );
 
+      console.log('🔍 Backend request URL:', `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`);
+      console.log('🔍 Backend request headers auth:', `Bearer ${authToken?.substring(0, 10)}...`);
+      console.log('📋 Session response status:', sessionsResponse.status);
+
       if (!sessionsResponse.ok) {
-        console.log('❌ Failed to fetch user sessions:', sessionsResponse.status);
-        throw new Error(`Failed to fetch user sessions: ${sessionsResponse.status}`);
+        const errorText = await sessionsResponse.text();
+        console.log('❌ Failed to fetch user sessions:', sessionsResponse.status, errorText);
+        throw new Error(`Failed to fetch user sessions: ${sessionsResponse.status} - ${errorText}`);
       }
 
       const sessionsData = await sessionsResponse.json();
