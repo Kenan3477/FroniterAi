@@ -1,16 +1,8 @@
-import { NextRequest, NextResponse } from 'next/ser      // Handle login/logout reports differently
-    if (reportType === 'login_logout') {
-      // Fetch user session data for login/logout reports
-      const sessionParams = new URLSearchParams();
-      if (startDate) sessionParams.append('dateFrom', startDate);
-      if (endDate) sessionParams.append('dateTo', endDate);
-      if (userId) sessionParams.append('userId', userId); // Add userId parameter
-      sessionParams.append('limit', '500'); // Get more session data
-
-      const sessionsResponse = await fetch(
-        `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`,Force dynamic rendering for this route
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
@@ -50,19 +42,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query parameters for backend
-    const queryParams = new URLSearchParams();
-    if (startDate) queryParams.append('startDate', startDate);
-    if (endDate) queryParams.append('endDate', endDate);
-    if (campaignId) queryParams.append('campaignId', campaignId);
-    if (agentId) queryParams.append('agentId', agentId);
-
     // Handle login/logout reports differently
     if (reportType === 'login_logout') {
       // Fetch user session data for login/logout reports
       const sessionParams = new URLSearchParams();
       if (startDate) sessionParams.append('dateFrom', startDate);
       if (endDate) sessionParams.append('dateTo', endDate);
+      if (userId) sessionParams.append('userId', userId); // Add userId parameter
       sessionParams.append('limit', '500'); // Get more session data
 
       const sessionsResponse = await fetch(
@@ -70,397 +56,333 @@ export async function GET(request: NextRequest) {
         {
           method: 'GET',
           headers: {
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          }
+          },
         }
       );
 
-      let sessions = [];
-      if (sessionsResponse.ok) {
-        const sessionData = await sessionsResponse.json();
-        sessions = sessionData.data?.sessions || [];
+      if (!sessionsResponse.ok) {
+        console.log('❌ Failed to fetch user sessions:', sessionsResponse.status);
+        throw new Error(`Failed to fetch user sessions: ${sessionsResponse.status}`);
       }
 
-      // Also fetch audit logs for login/logout events
-      // Note: Backend doesn't support comma-separated actions, so we make separate calls
-      const auditParams1 = new URLSearchParams();
-      auditParams1.append('action', 'USER_LOGIN');
-      auditParams1.append('limit', '1000');
-      if (userId) auditParams1.append('performedBy', userId); // Add user filter
+      const sessionsData = await sessionsResponse.json();
+      console.log('✅ Fetched user sessions:', sessionsData.data?.length || 0, 'sessions');
 
-      const auditParams2 = new URLSearchParams();
-      auditParams2.append('action', 'USER_LOGOUT');
-      auditParams2.append('limit', '1000');
-      if (userId) auditParams2.append('performedBy', userId); // Add user filter
+      // Also fetch user audit logs for additional context
+      const auditParams = new URLSearchParams();
+      if (startDate) auditParams.append('startDate', startDate);
+      if (endDate) auditParams.append('endDate', endDate);
+      if (userId) auditParams.append('performedBy', userId); // Add performedBy parameter for audit logs
+      auditParams.append('action', 'login,logout'); // Only get login/logout actions
+      auditParams.append('limit', '500');
 
-      const [loginAuditResponse, logoutAuditResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/audit-logs?${auditParams1.toString()}`, {
+      const auditResponse = await fetch(
+        `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
+        {
           method: 'GET',
           headers: {
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          }
-        }),
-        fetch(`${BACKEND_URL}/api/admin/audit-logs?${auditParams2.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          }
-        })
-      ]);
+          },
+        }
+      );
 
-      let auditLogs = [];
-      if (loginAuditResponse.ok && logoutAuditResponse.ok) {
-        const [loginAuditData, logoutAuditData] = await Promise.all([
-          loginAuditResponse.json(),
-          logoutAuditResponse.json()
-        ]);
-        
-        // Combine both login and logout audit logs
-        const loginLogs = loginAuditData.data?.logs || [];
-        const logoutLogs = logoutAuditData.data?.logs || [];
-        auditLogs = [...loginLogs, ...logoutLogs];
-        
-        console.log(`📋 Audit logs fetched: ${loginLogs.length} login + ${logoutLogs.length} logout = ${auditLogs.length} total`);
+      let auditData = { data: [] };
+      if (auditResponse.ok) {
+        auditData = await auditResponse.json();
+        console.log('✅ Fetched audit logs:', auditData.data?.length || 0, 'logs');
       } else {
-        console.error('Failed to fetch audit logs:', {
-          loginOk: loginAuditResponse.ok,
-          logoutOk: logoutAuditResponse.ok
-        });
+        console.log('⚠️ Failed to fetch audit logs:', auditResponse.status);
       }
 
-      // Generate login/logout specific report data
-      const reportData = generateLoginLogoutReportData(sessions, auditLogs, startDate, endDate, userId);
-      
-      // Count filtered audit logs for accurate reporting
-      let filteredAuditCount = auditLogs.length;
-      if (startDate || endDate) {
-        filteredAuditCount = auditLogs.filter(log => {
-          const logDate = new Date(log.timestamp);
-          const start = startDate ? new Date(startDate) : new Date('1900-01-01');
-          const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date('2100-01-01');
-          return logDate >= start && logDate <= end;
-        }).length;
-      }
-      
-      console.log(`📊 Login/logout report generated with ${sessions.length} sessions and ${filteredAuditCount} filtered audit events (${auditLogs.length} total)`);
-      
+      // Process and combine the data
+      const sessions = sessionsData.data || [];
+      const auditLogs = auditData.data || [];
+
+      // Create login/logout entries from sessions
+      const loginLogoutData = sessions.map((session: any) => ({
+        id: `session-${session.id}`,
+        userId: session.userId,
+        userName: session.user?.name || session.user?.email || 'Unknown',
+        userEmail: session.user?.email || '',
+        action: 'login',
+        timestamp: session.createdAt,
+        ipAddress: session.ipAddress || 'Unknown',
+        userAgent: session.userAgent || 'Unknown',
+        duration: session.expiresAt ? 
+          Math.round((new Date(session.expiresAt).getTime() - new Date(session.createdAt).getTime()) / (1000 * 60)) + ' minutes' : 
+          'Active',
+        source: 'session'
+      }));
+
+      // Add audit log entries
+      const auditEntries = auditLogs.map((log: any) => ({
+        id: `audit-${log.id}`,
+        userId: log.performedBy,
+        userName: log.performedByUser?.name || log.performedByUser?.email || 'Unknown',
+        userEmail: log.performedByUser?.email || '',
+        action: log.action,
+        timestamp: log.createdAt,
+        ipAddress: log.ipAddress || 'Unknown',
+        userAgent: log.userAgent || 'Unknown',
+        duration: '-',
+        source: 'audit'
+      }));
+
+      // Combine and sort by timestamp
+      const combinedData = [...loginLogoutData, ...auditEntries]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      const reportData = {
+        type: 'login_logout',
+        title: 'User Login/Logout Report',
+        generated_at: new Date().toISOString(),
+        date_range: {
+          start: startDate,
+          end: endDate
+        },
+        filters: {
+          userId: userId || 'all',
+          userName: combinedData.length > 0 ? combinedData[0].userName : 'All Users'
+        },
+        summary: {
+          total_entries: combinedData.length,
+          unique_users: [...new Set(combinedData.map(entry => entry.userId))].length,
+          login_count: combinedData.filter(entry => entry.action === 'login').length,
+          logout_count: combinedData.filter(entry => entry.action === 'logout').length
+        },
+        data: combinedData
+      };
+
       return NextResponse.json({
         success: true,
-        data: reportData,
-        summary: {
-          totalSessions: sessions.length,
-          totalAuditEvents: filteredAuditCount,
-          reportType: 'login_logout'
-        }
+        report: reportData
       });
     }
 
-    // Original logic for other report types
-    // Fetch call records for the report period
-    const callRecordsResponse = await fetch(
-      `${BACKEND_URL}/api/call-records?${queryParams.toString()}&limit=1000`,
+    // Handle other report types (calls, campaigns, etc.)
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (campaignId) params.append('campaignId', campaignId);
+    if (agentId) params.append('agentId', agentId);
+    
+    let endpoint = '';
+    switch (reportType) {
+      case 'calls':
+        endpoint = '/api/admin/calls';
+        break;
+      case 'campaigns':
+        endpoint = '/api/admin/campaigns';
+        break;
+      case 'agents':
+        endpoint = '/api/admin/users';
+        params.append('role', 'agent');
+        break;
+      default:
+        endpoint = '/api/admin/dashboard/stats';
+        break;
+    }
+
+    const response = await fetch(
+      `${BACKEND_URL}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        }
+        },
       }
     );
 
-    let callRecords = [];
-    if (callRecordsResponse.ok) {
-      const callData = await callRecordsResponse.json();
-      callRecords = callData.data?.callRecords || [];
+    if (!response.ok) {
+      console.log('❌ Backend request failed:', response.status);
+      throw new Error(`Backend request failed: ${response.status}`);
     }
 
-    // Fetch agent data
-    const agentsResponse = await fetch(`${BACKEND_URL}/api/admin/agents`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
+    const data = await response.json();
+    console.log('✅ Report data fetched successfully');
 
-    let agents = [];
-    if (agentsResponse.ok) {
-      const agentData = await agentsResponse.json();
-      agents = agentData.data?.agents || [];
+    // Format the response based on report type
+    let reportData;
+    switch (reportType) {
+      case 'calls':
+        reportData = {
+          type: 'calls',
+          title: 'Call History Report',
+          generated_at: new Date().toISOString(),
+          date_range: { start: startDate, end: endDate },
+          summary: {
+            total_calls: data.data?.length || 0,
+            successful_calls: data.data?.filter((call: any) => call.status === 'completed')?.length || 0,
+            failed_calls: data.data?.filter((call: any) => call.status === 'failed')?.length || 0,
+            average_duration: data.data?.length > 0 
+              ? Math.round(data.data.reduce((acc: number, call: any) => acc + (call.duration || 0), 0) / data.data.length)
+              : 0
+          },
+          data: data.data || []
+        };
+        break;
+
+      case 'campaigns':
+        reportData = {
+          type: 'campaigns',
+          title: 'Campaign Performance Report',
+          generated_at: new Date().toISOString(),
+          date_range: { start: startDate, end: endDate },
+          summary: {
+            total_campaigns: data.data?.length || 0,
+            active_campaigns: data.data?.filter((campaign: any) => campaign.status === 'active')?.length || 0,
+            paused_campaigns: data.data?.filter((campaign: any) => campaign.status === 'paused')?.length || 0,
+            total_calls: data.data?.reduce((acc: number, campaign: any) => acc + (campaign.calls?.length || 0), 0) || 0
+          },
+          data: data.data || []
+        };
+        break;
+
+      case 'agents':
+        reportData = {
+          type: 'agents',
+          title: 'Agent Performance Report',
+          generated_at: new Date().toISOString(),
+          date_range: { start: startDate, end: endDate },
+          summary: {
+            total_agents: data.data?.length || 0,
+            active_agents: data.data?.filter((agent: any) => agent.status === 'active')?.length || 0,
+            online_agents: data.data?.filter((agent: any) => agent.presence === 'available')?.length || 0,
+            total_calls: data.data?.reduce((acc: number, agent: any) => acc + (agent.calls?.length || 0), 0) || 0
+          },
+          data: data.data || []
+        };
+        break;
+
+      default:
+        reportData = {
+          type: 'summary',
+          title: 'Dashboard Summary Report',
+          generated_at: new Date().toISOString(),
+          date_range: { start: startDate, end: endDate },
+          summary: data,
+          data: []
+        };
+        break;
     }
-
-    // Fetch campaigns
-    const campaignsResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
-
-    let campaigns = [];
-    if (campaignsResponse.ok) {
-      const campaignData = await campaignsResponse.json();
-      campaigns = campaignData.data?.campaigns || [];
-    }
-
-    // Calculate real metrics based on report type
-    const reportData = generateReportData(reportType, callRecords, agents, campaigns);
-
-    console.log('✅ Report generated successfully with real data');
 
     return NextResponse.json({
       success: true,
-      data: {
-        reportType,
-        generatedAt: new Date().toISOString(),
-        parameters: { startDate, endDate, campaignId, agentId },
-        metrics: reportData.metrics,
-        chartData: reportData.chartData,
-        tableData: reportData.tableData,
-        summary: {
-          totalCalls: callRecords.length,
-          totalAgents: agents.length,
-          totalCampaigns: campaigns.length,
-          dataQuality: 'LIVE_DATA'
-        }
-      }
+      report: reportData
     });
 
   } catch (error) {
-    console.error('❌ Error generating report:', error);
+    console.error('❌ Report generation error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to generate report', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Failed to generate report' 
       },
       { status: 500 }
     );
   }
 }
 
-// Generate real report data based on actual call records
-function generateReportData(reportType: string, callRecords: any[], agents: any[], campaigns: any[]) {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayCalls = callRecords.filter(call => new Date(call.createdAt) >= startOfDay);
+// POST - Generate custom reports with filters
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      reportType,
+      dateRange,
+      filters = {},
+      includeCharts = false,
+      exportFormat = 'json'
+    } = body;
 
-  // Calculate real metrics based on actual data
-  const totalCalls = callRecords.length;
-  const completedCalls = callRecords.filter(call => call.status === 'completed').length;
-  const totalDuration = callRecords.reduce((sum, call) => sum + (call.duration || 0), 0);
-  const avgCallDuration = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
+    console.log('📊 Custom report request:', { reportType, dateRange, filters, includeCharts, exportFormat });
 
-  // Calculate success rate from dispositions
-  const successfulCalls = callRecords.filter(call => 
-    call.disposition && ['sale', 'appointment', 'interested', 'callback'].includes(call.disposition.toLowerCase())
-  ).length;
-  const successRate = totalCalls > 0 ? ((successfulCalls / totalCalls) * 100) : 0;
+    const authToken = getAuthToken(request);
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
-  // Base metrics applicable to all report types
-  const baseMetrics = [
-    { label: 'Total Calls', value: totalCalls, format: 'number' },
-    { label: 'Completed Calls', value: completedCalls, format: 'number' },
-    { label: 'Success Rate', value: successRate, format: 'percentage' },
-    { label: 'Avg Call Duration', value: formatDuration(avgCallDuration), format: 'duration' }
-  ];
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (dateRange?.start) params.append('startDate', dateRange.start);
+    if (dateRange?.end) params.append('endDate', dateRange.end);
+    if (filters.campaignId) params.append('campaignId', filters.campaignId);
+    if (filters.agentId) params.append('agentId', filters.agentId);
+    if (filters.userId) params.append('userId', filters.userId);
 
-  // Generate specific metrics based on report type
-  let metrics = baseMetrics;
-  
-  if (reportType === 'outcome' || reportType === 'summary_combined') {
-    metrics = [
-      ...baseMetrics,
-      { label: 'Contact Rate', value: totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0, format: 'percentage' },
-      { label: 'Today\'s Calls', value: todayCalls.length, format: 'number' }
-    ];
-  } else if (reportType === 'activity' || reportType === 'login_logout') {
-    const onlineAgents = agents.filter(agent => agent.status === 'Online').length;
-    metrics = [
-      { label: 'Active Agents', value: onlineAgents, format: 'number' },
-      { label: 'Total Agents', value: agents.length, format: 'number' },
-      { label: 'Utilization Rate', value: agents.length > 0 ? (onlineAgents / agents.length) * 100 : 0, format: 'percentage' },
-      { label: 'Total Talk Time', value: formatDuration(totalDuration), format: 'duration' }
-    ];
-  }
+    let endpoint = '';
+    switch (reportType) {
+      case 'detailed_calls':
+        endpoint = '/api/admin/calls/detailed';
+        break;
+      case 'campaign_analytics':
+        endpoint = '/api/admin/campaigns/analytics';
+        break;
+      case 'agent_performance':
+        endpoint = '/api/admin/users/performance';
+        break;
+      case 'system_usage':
+        endpoint = '/api/admin/system/usage';
+        break;
+      default:
+        throw new Error(`Unsupported report type: ${reportType}`);
+    }
 
-  // Generate chart data (hourly call distribution)
-  const chartData = generateHourlyCallData(callRecords);
+    const response = await fetch(
+      `${BACKEND_URL}${endpoint}?${params.toString()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  // Generate table data based on report type
-  const tableData = generateTableData(reportType, callRecords, agents, campaigns);
+    if (!response.ok) {
+      throw new Error(`Backend request failed: ${response.status}`);
+    }
 
-  return { metrics, chartData, tableData };
-}
+    const data = await response.json();
 
-// Generate hourly call distribution for charts
-function generateHourlyCallData(callRecords: any[]) {
-  const hourlyData = new Array(24).fill(0);
-  
-  callRecords.forEach(call => {
-    const hour = new Date(call.createdAt).getHours();
-    hourlyData[hour]++;
-  });
+    const reportData = {
+      id: `report_${Date.now()}`,
+      type: reportType,
+      title: `Custom ${reportType.replace(/_/g, ' ')} Report`,
+      generated_at: new Date().toISOString(),
+      generated_by: 'System', // Could be enhanced with user info
+      date_range: dateRange,
+      filters,
+      export_format: exportFormat,
+      include_charts: includeCharts,
+      data: data.data || data,
+      metadata: {
+        total_records: Array.isArray(data.data) ? data.data.length : 0,
+        query_time_ms: Date.now() - parseInt(params.get('_start_time') || '0'),
+        backend_version: data.version || '1.0.0'
+      }
+    };
 
-  return hourlyData.map((count, hour) => ({
-    time: `${hour.toString().padStart(2, '0')}:00`,
-    calls: count
-  }));
-}
-
-// Generate table data based on report type
-function generateTableData(reportType: string, callRecords: any[], agents: any[], campaigns: any[]) {
-  if (reportType === 'agent_performance' || reportType === 'activity_breakdown') {
-    // Agent performance table
-    return agents.map(agent => {
-      const agentCalls = callRecords.filter(call => call.agentId === agent.id);
-      const totalDuration = agentCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
-      
-      return {
-        agent: `${agent.firstName} ${agent.lastName}`.trim() || agent.username,
-        calls: agentCalls.length,
-        duration: formatDuration(totalDuration),
-        avgDuration: agentCalls.length > 0 ? formatDuration(Math.round(totalDuration / agentCalls.length)) : '0:00',
-        status: agent.status || 'Offline'
-      };
-    });
-  } else if (reportType === 'outcome') {
-    // Disposition breakdown table
-    const dispositionCounts: { [key: string]: number } = {};
-    callRecords.forEach(call => {
-      const disposition = call.disposition || 'No Disposition';
-      dispositionCounts[disposition] = (dispositionCounts[disposition] || 0) + 1;
+    return NextResponse.json({
+      success: true,
+      report: reportData
     });
 
-    return Object.entries(dispositionCounts).map(([disposition, count]) => ({
-      disposition,
-      count,
-      percentage: callRecords.length > 0 ? ((count / callRecords.length) * 100).toFixed(1) : '0.0'
-    }));
-  } else {
-    // Recent calls table
-    return callRecords.slice(0, 50).map(call => ({
-      id: call.id,
-      phone: call.phoneNumber || 'Unknown',
-      agent: call.agentName || 'System',
-      duration: formatDuration(call.duration || 0),
-      disposition: call.disposition || 'No Disposition',
-      createdAt: new Date(call.createdAt).toLocaleString()
-    }));
-  }
-}
-
-// Generate login/logout specific report data
-function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startDate?: string, endDate?: string, userId?: string) {
-  const now = new Date();
-  const period = startDate && endDate ? 
-    `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
-    'Last 7 Days';
-
-  // Filter audit logs by date range and user (client-side filtering)
-  let filteredAuditLogs = auditLogs;
-  if (startDate || endDate || userId) {
-    filteredAuditLogs = auditLogs.filter(log => {
-      // Date filtering
-      const logDate = new Date(log.timestamp);
-      const start = startDate ? new Date(startDate) : new Date('1900-01-01');
-      const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date('2100-01-01');
-      const dateMatch = logDate >= start && logDate <= end;
-      
-      // User filtering (match by email or username)
-      const userMatch = !userId || 
-        log.performedByUserEmail === userId ||
-        log.performedByUserName === userId ||
-        log.performedByUserId === userId;
-      
-      return dateMatch && userMatch;
-    });
-  }
-
-  // Also filter sessions by user if specified
-  let filteredSessions = sessions;
-  if (userId) {
-    filteredSessions = sessions.filter(session => 
-      session.userId === userId ||
-      session.user?.email === userId ||
-      session.user?.username === userId ||
-      session.user?.id === userId
+  } catch (error) {
+    console.error('❌ Custom report generation error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to generate custom report' 
+      },
+      { status: 500 }
     );
   }
-
-  console.log(`📊 Filtered data: ${filteredAuditLogs.length}/${auditLogs.length} audit logs, ${filteredSessions.length}/${sessions.length} sessions`);
-
-  // Calculate metrics using filtered sessions
-  const totalSessions = filteredSessions.length;
-  const activeSessions = filteredSessions.filter(s => s.status === 'active').length;
-  const loggedOutSessions = filteredSessions.filter(s => s.status === 'logged_out').length;
-  const uniqueUsers = new Set(filteredSessions.map(s => s.userId)).size;
-
-  // Calculate average session duration using filtered sessions
-  const completedSessions = filteredSessions.filter(s => s.sessionDuration);
-  const avgDuration = completedSessions.length > 0 ? 
-    Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
-
-  // Get today's activity (use all audit logs for today's activity, not filtered)
-  const today = new Date().toDateString();
-  const todayLogins = auditLogs.filter(log => 
-    log.action === 'USER_LOGIN' && 
-    new Date(log.timestamp).toDateString() === today
-  ).length;
-
-  const metrics = [
-    { label: 'Total Sessions', value: totalSessions, format: 'number' },
-    { label: 'Active Sessions', value: activeSessions, format: 'number' },
-    { label: 'Unique Users', value: uniqueUsers, format: 'number' },
-    { label: 'Avg Session Duration', value: formatDuration(avgDuration), format: 'duration' },
-    { label: 'Today\'s Logins', value: todayLogins, format: 'number' }
-  ];
-
-  // Generate hourly login activity chart (use filtered audit logs)
-  const hourlyData = new Array(24).fill(0);
-  filteredAuditLogs.forEach(log => {
-    if (log.action === 'USER_LOGIN') {
-      const hour = new Date(log.timestamp).getHours();
-      hourlyData[hour]++;
-    }
-  });
-
-  const chartData = hourlyData.map((count, hour) => ({
-    time: `${hour.toString().padStart(2, '0')}:00`,
-    logins: count
-  }));
-
-  // Generate table data with recent login/logout activities (use filtered audit logs)
-  const tableData = filteredAuditLogs
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 50)
-    .map(log => {
-      const metadata = log.metadata || {};
-      return {
-        id: log.id,
-        user: log.performedByUserName,
-        email: log.performedByUserEmail,
-        action: log.action,
-        timestamp: new Date(log.timestamp).toLocaleString(),
-        ipAddress: log.ipAddress || 'Unknown',
-        device: metadata.deviceType || 'Unknown',
-        duration: log.action === 'USER_LOGOUT' ? 
-          (filteredSessions.find(s => s.sessionId === log.sessionId)?.sessionDuration ? 
-            formatDuration(filteredSessions.find(s => s.sessionId === log.sessionId)?.sessionDuration) : 'Unknown') :
-          'N/A'
-      };
-    });
-
-  return { metrics, chartData, tableData };
-}
-
-// Helper function to format duration in seconds to MM:SS
-function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
