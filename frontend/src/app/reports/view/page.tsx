@@ -1,13 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSe      console.log('📅 Date Range Debug:');
-      console.log('  - filters.dateRange.from:', filters.dateRange.from);
-      console.log('  - filters.dateRange.to:', filters.dateRange.to);
-      console.log('  - startDate param:', params.get('startDate'));
-      console.log('  - endDate param:', params.get('endDate'));
-      
-      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);ams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
