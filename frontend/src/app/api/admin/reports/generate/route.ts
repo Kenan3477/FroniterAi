@@ -52,49 +52,6 @@ export async function GET(request: NextRequest) {
 
     console.log('🔑 Auth token found for reports, length:', authToken.length);
 
-    // Handle login/logout reports differentlyext/server';
-import { cookies } from 'next/headers';
-
-// Force dynamic rendering for this route
-export const dynamic = 'force-dynamic';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
-
-// Helper function to get authentication token (same as profile route)
-function getAuthToken(request: NextRequest): string | null {
-  // Check for auth cookie first (most reliable)
-  const authToken = request.cookies.get('auth-token')?.value;
-  
-  if (authToken) {
-    console.log('✅ Using cookie token for authentication');
-    return authToken;
-  }
-  
-  // Try authorization header as fallback
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    console.log('✅ Using header token for authentication');
-    return authHeader.substring(7);
-  }
-  
-  console.log('❌ No authentication token found');
-  return null;
-}
-
-// GET - Generate reports with real data from backend
-export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any) => {
-  try {
-    const { searchParams } = new URL(request.url);
-    const reportType = searchParams.get('type') || 'summary';
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const campaignId = searchParams.get('campaignId');
-    const agentId = searchParams.get('agentId');
-    const userId = searchParams.get('userId'); // Add user filter support
-
-    console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId, userId });
-    console.log('� Authenticated user:', user.userId, user.role);
-
     // Handle login/logout reports differently
     if (reportType === 'login_logout') {
       // Fetch audit logs for login/logout events (more reliable than user-sessions)
@@ -118,7 +75,7 @@ export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any
         }
       );
 
-      console.log('� Audit logs response status:', auditResponse.status);
+      console.log('📋 Audit logs response status:', auditResponse.status);
 
       if (!auditResponse.ok) {
         const errorText = await auditResponse.text();
