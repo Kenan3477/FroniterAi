@@ -64,8 +64,10 @@ export async function GET(request: NextRequest) {
 
       console.log('🔍 Fetching audit logs with params:', auditParams.toString());
 
+      // Use frontend proxy route instead of direct Railway backend call
+      const frontendUrl = request.url.split('/api/')[0]; // Get base URL
       const auditResponse = await fetch(
-        `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
+        `${frontendUrl}/api/admin/audit-logs?${auditParams.toString()}`,
         {
           method: 'GET',
           headers: {
@@ -152,12 +154,14 @@ export async function GET(request: NextRequest) {
         params.append('role', 'agent');
         break;
       default:
-        endpoint = '/api/admin/dashboard/stats';
+        endpoint = '/api/dashboard/stats'; // Use frontend dashboard route
         break;
     }
 
+    // Use frontend proxy route instead of direct Railway backend call
+    const frontendUrl = request.url.split('/api/')[0]; // Get base URL
     const response = await fetch(
-      `${BACKEND_URL}${endpoint}?${params.toString()}`,
+      `${frontendUrl}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -305,8 +309,10 @@ export async function POST(request: NextRequest) {
         throw new Error(`Unsupported report type: ${reportType}`);
     }
 
+    // Use frontend proxy route instead of direct Railway backend call
+    const frontendUrl = request.url.split('/api/')[0]; // Get base URL
     const response = await fetch(
-      `${BACKEND_URL}${endpoint}?${params.toString()}`,
+      `${frontendUrl}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
