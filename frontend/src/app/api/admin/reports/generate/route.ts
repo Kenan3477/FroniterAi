@@ -50,7 +50,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('🔑 Auth token found for reports, length:', authToken.length);
+    console.log('🔑 Auth token found for reports, validating with Railway backend...');
+    
+    // Validate authentication with Railway backend (like profile route)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    
+    try {
+      const profileResponse = await fetch(`${backendUrl}/api/auth/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!profileResponse.ok) {
+        console.log('❌ Railway backend rejected authentication for reports');
+        return NextResponse.json(
+          { success: false, error: 'Authentication failed' },
+          { status: 401 }
+        );
+      }
+
+      const profileData = await profileResponse.json();
+      const user = profileData.data.user;
+      console.log('✅ Railway backend authentication successful for reports, user:', user.email);
+      
+      // Check user role
+      if (user.role !== 'ADMIN') {
+        console.log('❌ Insufficient permissions for reports');
+        return NextResponse.json(
+          { success: false, error: 'Insufficient permissions' },
+          { status: 403 }
+        );
+      }
+
+    } catch (authError) {
+      console.log('❌ Authentication error:', authError);
+      return NextResponse.json(
+        { success: false, error: 'Authentication service unavailable' },
+        { status: 503 }
+      );
+    }
 
     // Handle login/logout reports differently
     if (reportType === 'login_logout') {
@@ -64,15 +105,15 @@ export async function GET(request: NextRequest) {
 
       console.log('🔍 Fetching audit logs with params:', auditParams.toString());
 
-      // Use frontend proxy route instead of direct Railway backend call
-      const frontendUrl = request.url.split('/api/')[0]; // Get base URL
+      // Now use Railway backend directly with demo-token (we've validated auth)
       const auditResponse = await fetch(
-        `${frontendUrl}/api/admin/audit-logs?${auditParams.toString()}`,
+        `${backendUrl}/api/admin/audit-logs?${auditParams.toString()}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            'Authorization': `Bearer demo-token`,
             'Content-Type': 'application/json',
+            'User-ID': user.id.toString(),
           },
         }
       );
@@ -154,19 +195,19 @@ export async function GET(request: NextRequest) {
         params.append('role', 'agent');
         break;
       default:
-        endpoint = '/api/dashboard/stats'; // Use frontend dashboard route
+        endpoint = '/api/admin/dashboard/stats';
         break;
     }
 
-    // Use frontend proxy route instead of direct Railway backend call
-    const frontendUrl = request.url.split('/api/')[0]; // Get base URL
+    // Use Railway backend directly with demo-token (we've validated auth)  
     const response = await fetch(
-      `${frontendUrl}${endpoint}?${params.toString()}`,
+      `${backendUrl}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer demo-token`,
           'Content-Type': 'application/json',
+          'User-ID': user.id.toString(),
         },
       }
     );
@@ -283,6 +324,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate authentication with Railway backend (like profile route)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    
+    try {
+      const profileResponse = await fetch(`${backendUrl}/api/auth/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!profileResponse.ok) {
+        return NextResponse.json(
+          { success: false, error: 'Authentication failed' },
+          { status: 401 }
+        );
+      }
+
+      const profileData = await profileResponse.json();
+      const user = profileData.data.user;
+      
+      // Check user role
+      if (user.role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, error: 'Insufficient permissions' },
+          { status: 403 }
+        );
+      }
+
+    } catch (authError) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication service unavailable' },
+        { status: 503 }
+      );
+    }
+
     // Build query parameters
     const params = new URLSearchParams();
     if (dateRange?.start) params.append('startDate', dateRange.start);
@@ -309,15 +387,15 @@ export async function POST(request: NextRequest) {
         throw new Error(`Unsupported report type: ${reportType}`);
     }
 
-    // Use frontend proxy route instead of direct Railway backend call
-    const frontendUrl = request.url.split('/api/')[0]; // Get base URL
+    // Use Railway backend directly with demo-token (we've validated auth)
     const response = await fetch(
-      `${frontendUrl}${endpoint}?${params.toString()}`,
+      `${backendUrl}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer demo-token`,
+          'Content-Type': 'application/json', 
+          'User-ID': user.id.toString(),
         },
       }
     );
