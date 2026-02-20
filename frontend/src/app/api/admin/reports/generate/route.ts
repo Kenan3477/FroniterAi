@@ -74,29 +74,50 @@ export async function GET(request: NextRequest) {
       }
 
       // Also fetch audit logs for login/logout events
-      // Note: Backend audit logs date filtering is broken, so we fetch all and filter in frontend
-      const auditParams = new URLSearchParams();
-      // Temporarily remove date filtering for audit logs to work around backend issue
-      // if (startDate) auditParams.append('dateFrom', startDate);
-      // if (endDate) auditParams.append('dateTo', endDate);
-      auditParams.append('action', 'USER_LOGIN,USER_LOGOUT');
-      auditParams.append('limit', '1000'); // Get more data since we're filtering client-side
+      // Note: Backend doesn't support comma-separated actions, so we make separate calls
+      const auditParams1 = new URLSearchParams();
+      auditParams1.append('action', 'USER_LOGIN');
+      auditParams1.append('limit', '1000');
 
-      const auditResponse = await fetch(
-        `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
-        {
+      const auditParams2 = new URLSearchParams();
+      auditParams2.append('action', 'USER_LOGOUT');
+      auditParams2.append('limit', '1000');
+
+      const [loginAuditResponse, logoutAuditResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/admin/audit-logs?${auditParams1.toString()}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`
           }
-        }
-      );
+        }),
+        fetch(`${BACKEND_URL}/api/admin/audit-logs?${auditParams2.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
+        })
+      ]);
 
       let auditLogs = [];
-      if (auditResponse.ok) {
-        const auditData = await auditResponse.json();
-        auditLogs = auditData.data?.logs || [];
+      if (loginAuditResponse.ok && logoutAuditResponse.ok) {
+        const [loginAuditData, logoutAuditData] = await Promise.all([
+          loginAuditResponse.json(),
+          logoutAuditResponse.json()
+        ]);
+        
+        // Combine both login and logout audit logs
+        const loginLogs = loginAuditData.data?.logs || [];
+        const logoutLogs = logoutAuditData.data?.logs || [];
+        auditLogs = [...loginLogs, ...logoutLogs];
+        
+        console.log(`📋 Audit logs fetched: ${loginLogs.length} login + ${logoutLogs.length} logout = ${auditLogs.length} total`);
+      } else {
+        console.error('Failed to fetch audit logs:', {
+          loginOk: loginAuditResponse.ok,
+          logoutOk: logoutAuditResponse.ok
+        });
       }
 
       // Generate login/logout specific report data
