@@ -97,23 +97,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInterval(heartbeatInterval);
       }
     };
-  }, [isAuthenticated, isClient]);ect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+  }, [isAuthenticated, isClient]);
 
-interface User {
-  id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  lastLogin?: string;
-  createdAt?: string;
-}
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-export interface Campaign {
-  campaignId: string;
-  name: string;
+  // Session heartbeat to keep track of active sessions
   status: string;
   dialMethod: string;
 }

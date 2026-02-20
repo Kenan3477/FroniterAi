@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import {       console.log('📅 Date Range Debug:');
+import { useSe      console.log('📅 Date Range Debug:');
       console.log('  - filters.dateRange.from:', filters.dateRange.from);
       console.log('  - filters.dateRange.to:', filters.dateRange.to);
       console.log('  - startDate param:', params.get('startDate'));
       console.log('  - endDate param:', params.get('endDate'));
       
-      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);chParams, useRouter } from 'next/navigation';
+      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);ams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
@@ -23,6 +23,11 @@ interface ReportFilter {
     to: string;
   };
   campaign?: string;
+  agent?: string;
+  outcome?: string;
+  user?: string;
+}
+
 interface KPIMetric {
   label: string;
   value: string | number;
