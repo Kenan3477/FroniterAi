@@ -1,6 +1,63 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useCoexport function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [currentCampaign, setCurrentCampaign] = useState<Campaign | null>(null);
+  const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);
+  const [isInQueue, setIsInQueue] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<any | null>(null);
+  const [agentStatus, setAgentStatus] = useState('Unavailable');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
+
+  const isAuthenticated = !!user;
+
+  // Session heartbeat to keep track of active sessions
+  useEffect(() => {
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+    
+    if (isAuthenticated && isClient) {
+      console.log('💓 Starting session heartbeat...');
+      
+      // Send heartbeat every 5 minutes to update last activity
+      heartbeatInterval = setInterval(async () => {
+        try {
+          const sessionData = localStorage.getItem('sessionData');
+          if (sessionData) {
+            const parsedData = JSON.parse(sessionData);
+            
+            // Update last activity timestamp
+            const response = await fetch('/api/session/heartbeat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                sessionId: parsedData.sessionId,
+                lastActivity: new Date().toISOString()
+              }),
+            });
+            
+            if (response.ok) {
+              console.log('💓 Session heartbeat sent successfully');
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Session heartbeat failed:', error);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+    }
+    
+    return () => {
+      if (heartbeatInterval) {
+        console.log('💔 Stopping session heartbeat...');
+        clearInterval(heartbeatInterval);
+      }
+    };
+  }, [isAuthenticated, isClient]);ect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -447,6 +504,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       console.log('🔐 AuthContext: Attempting login for:', username);
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -464,11 +522,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('✅ AuthContext: Login successful, setting user:', data.user);
         setUser(data.user);
         
-        // Store auth token in localStorage for client-side API calls
-        if (isClient && data.token) {
+        // Store comprehensive session data for tracking
+        if (isClient) {
+          const sessionData = {
+            token: data.token,
+            sessionId: data.sessionId,
+            loginTime: data.loginTime || new Date().toISOString(),
+            userId: data.user.id,
+            userEmail: data.user.email,
+            userName: data.user.username
+          };
+          
+          // Store auth data
           localStorage.setItem('authToken', data.token);
-          localStorage.setItem('omnivox_token', data.token); // Some components look for this
-          console.log('💾 AuthContext: Stored auth tokens in localStorage');
+          localStorage.setItem('omnivox_token', data.token);
+          localStorage.setItem('sessionData', JSON.stringify(sessionData));
+          
+          console.log('💾 AuthContext: Stored session data:', {
+            sessionId: data.sessionId,
+            loginTime: data.loginTime,
+            userId: data.user.id
+          });
+          
+          // Track session start time for duration calculation
+          sessionStorage.setItem('sessionStartTime', new Date().toISOString());
         }
         
         router.push('/dashboard');
@@ -486,6 +563,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       console.log('🔓 Starting logout process...');
+      
+      // Calculate session duration before clearing storage
+      let sessionDurationSeconds = 0;
+      if (isClient) {
+        const sessionStartTime = sessionStorage.getItem('sessionStartTime');
+        const sessionData = localStorage.getItem('sessionData');
+        
+        if (sessionStartTime) {
+          const startTime = new Date(sessionStartTime);
+          const endTime = new Date();
+          sessionDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+          
+          console.log('📊 Session duration calculated:', {
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            durationSeconds: sessionDurationSeconds,
+            durationFormatted: `${Math.floor(sessionDurationSeconds / 3600)}h ${Math.floor((sessionDurationSeconds % 3600) / 60)}m ${sessionDurationSeconds % 60}s`
+          });
+        }
+        
+        if (sessionData) {
+          try {
+            const parsedSessionData = JSON.parse(sessionData);
+            console.log('🔓 Logging out session:', {
+              sessionId: parsedSessionData.sessionId,
+              userId: parsedSessionData.userId,
+              userEmail: parsedSessionData.userEmail,
+              loginTime: parsedSessionData.loginTime,
+              sessionDurationSeconds
+            });
+          } catch (e) {
+            console.warn('⚠️ Could not parse session data for logout tracking');
+          }
+        }
+      }
       
       const response = await fetch('/api/auth/logout', {
         method: 'POST',

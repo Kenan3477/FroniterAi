@@ -11,6 +11,12 @@ export async function POST(request: NextRequest) {
 
     console.log('🔐 Frontend API: Login attempt for:', loginIdentifier);
 
+    // Capture client information for session tracking
+    const userAgent = request.headers.get('user-agent') || 'Unknown';
+    const ip = request.headers.get('x-forwarded-for') || 
+               request.headers.get('x-real-ip') || 
+               'Unknown';
+
     // Connect to backend authentication instead of using demo credentials
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
@@ -22,7 +28,18 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: loginIdentifier, username: loginIdentifier, password }),
+      body: JSON.stringify({ 
+        email: loginIdentifier, 
+        username: loginIdentifier, 
+        password,
+        // Include session metadata for proper tracking
+        sessionMetadata: {
+          userAgent,
+          ipAddress: ip,
+          loginTime: new Date().toISOString(),
+          source: 'frontend'
+        }
+      }),
     });
 
     console.log('📡 Backend response status:', backendResponse.status);
@@ -38,12 +55,16 @@ export async function POST(request: NextRequest) {
     const backendData = await backendResponse.json();
     console.log('📦 Backend response data:', backendData);
     
-    // Create response using backend data with token for localStorage
+    // Generate unique session identifier for this login
+    const sessionId = backendData.data.sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create response using backend data with enhanced session tracking
     const response = NextResponse.json({
       success: true,
       user: backendData.data.user,
       token: backendData.data.token, // Include token for localStorage storage
-      sessionId: backendData.data.sessionId, // Include session ID for logout tracking
+      sessionId: sessionId, // Include session ID for logout tracking
+      loginTime: new Date().toISOString(),
       message: 'Authentication successful'
     });
 

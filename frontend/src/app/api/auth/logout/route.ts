@@ -11,10 +11,23 @@ export async function POST(request: NextRequest) {
     const authToken = request.cookies.get('auth-token')?.value;
     const sessionId = request.cookies.get('session-id')?.value;
 
+    // Capture logout metadata
+    const logoutTime = new Date().toISOString();
+    const userAgent = request.headers.get('user-agent') || 'Unknown';
+    const ip = request.headers.get('x-forwarded-for') || 
+               request.headers.get('x-real-ip') || 
+               'Unknown';
+
     if (authToken) {
-      console.log('🔑 Found auth token, notifying backend...');
+      console.log('🔑 Found auth token, notifying backend with session tracking...');
+      console.log('📊 Session info:', {
+        sessionId: sessionId || 'UNKNOWN',
+        logoutTime,
+        userAgent,
+        ip
+      });
       
-      // Notify backend of logout with session tracking
+      // Notify backend of logout with comprehensive session tracking
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
       
       try {
@@ -25,12 +38,20 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${authToken}`,
           },
           body: JSON.stringify({
-            sessionId: sessionId || null
+            sessionId: sessionId || null,
+            logoutMetadata: {
+              logoutTime,
+              userAgent,
+              ipAddress: ip,
+              logoutMethod: 'manual',
+              source: 'frontend'
+            }
           }),
         });
         
         if (backendResponse.ok) {
-          console.log('✅ Backend logout successful with session tracking');
+          const logoutData = await backendResponse.json();
+          console.log('✅ Backend logout successful with session tracking:', logoutData);
         } else {
           console.log('⚠️ Backend logout failed, but continuing local logout');
         }
@@ -38,6 +59,8 @@ export async function POST(request: NextRequest) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.log('⚠️ Backend not available, continuing local logout:', errorMessage);
       }
+    } else {
+      console.log('⚠️ No auth token found - user may have already logged out');
     }
 
     // Create response
