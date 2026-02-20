@@ -1,4 +1,33 @@
-import { NextRequest, NextRes// GET - Generate reports with real data from backend
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
+// Helper function to get authentication token (same as profile route)
+function getAuthToken(request: NextRequest): string | null {
+  // Check for auth cookie first (most reliable)
+  const authToken = request.cookies.get('auth-token')?.value;
+  
+  if (authToken) {
+    console.log('✅ Using cookie token for authentication');
+    return authToken;
+  }
+  
+  // Try authorization header as fallback
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('✅ Using header token for authentication');
+    return authHeader.substring(7);
+  }
+  
+  console.log('❌ No authentication token found');
+  return null;
+}
+
+// GET - Generate reports with real data from backend
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
