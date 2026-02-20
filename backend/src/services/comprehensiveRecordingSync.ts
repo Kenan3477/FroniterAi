@@ -87,21 +87,28 @@ export async function syncAllTwilioRecordings(): Promise<{
             console.log('✅ Created TWILIO-IMPORT campaign');
           }
           
-          callRecord = await prisma.callRecord.create({
-            data: {
-              id: `twilio-${recording.callSid}`,
-              callId: recording.callSid,
-              campaignId: 'TWILIO-IMPORT', // Default campaign for imported calls
-              contactId: await getExistingContact(phoneNumber), // Allow null for recordings without real contacts
-              phoneNumber: phoneNumber || 'Unknown',
-              callType: 'outbound', // Default to outbound
-              startTime: recording.dateCreated,
-              duration: recording.duration ? parseInt(recording.duration.toString()) : null,
-              outcome: 'COMPLETED', // Assume completed if recording exists
-            }
-          });
-          
-          stats.newCallRecords++;
+        // Check if we have an existing real contact, if not skip this recording
+        const existingContactId = await getExistingContact(phoneNumber);
+        
+        if (!existingContactId) {
+          console.log(`⏭️  Skipping recording ${recording.callSid} - no real contact found for phone ${phoneNumber}`);
+          stats.errors++; // Count as skipped rather than error
+          continue;
+        }
+        
+        callRecord = await prisma.callRecord.create({
+          data: {
+            id: `twilio-${recording.callSid}`,
+            callId: recording.callSid,
+            campaignId: 'TWILIO-IMPORT', // Default campaign for imported calls
+            contactId: existingContactId, // Only create if we have a real contact
+            phoneNumber: phoneNumber || 'Unknown',
+            callType: 'outbound', // Default to outbound
+            startTime: recording.dateCreated,
+            duration: recording.duration ? parseInt(recording.duration.toString()) : null,
+            outcome: 'COMPLETED', // Assume completed if recording exists
+          }
+        });          stats.newCallRecords++;
           console.log(`✅ Created CallRecord: ${callRecord.id}`);
         } else {
           stats.linkedExisting++;

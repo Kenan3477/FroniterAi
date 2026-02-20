@@ -1,6 +1,46 @@
 'use client';
 
-import { createContext, useCoexport function AuthProvider({ children }: { children: React.ReactNode }) {
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+interface Campaign {
+  campaignId: string;
+  name: string;
+  status: string;
+  isActive: boolean;
+}
+
+interface AuthContextType {
+  user: User | null;
+  currentCampaign: Campaign | null;
+  availableCampaigns: Campaign[];
+  isInQueue: boolean;
+  queueStatus: any | null;
+  agentStatus: string;
+  isUpdatingStatus: boolean;
+  loading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  setCurrentCampaign: (campaign: Campaign | null) => void;
+  joinQueue: () => Promise<void>;
+  leaveQueue: () => Promise<void>;
+  updateAgentStatus: (status: string) => Promise<void>;
+  checkAuth: () => Promise<void>;
+  refreshCampaigns: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [currentCampaign, setCurrentCampaign] = useState<Campaign | null>(null);
   const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);

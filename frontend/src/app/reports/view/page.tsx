@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import       const params = new URLSearchParams();
-      if (reportType) params.append('type', reportType);
-      if (filters?.dateRange?.from) params.append('startDate', filters.dateRange.from);
-      if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
-      if (filters?.campaign) params.append('campaignId', filters.campaign);
-      if (filters?.agent) params.append('agentId', filters.agent);
-      if (filters?.user) params.append('userId', filters.user);
+import {       console.log('📅 Date Range Debug:');
+      console.log('  - filters.dateRange.from:', filters.dateRange.from);
+      console.log('  - filters.dateRange.to:', filters.dateRange.to);
+      console.log('  - startDate param:', params.get('startDate'));
+      console.log('  - endDate param:', params.get('endDate'));
       
-      console.log('📅 Date Range Debug:');rchParams, useRouter } from 'next/navigation';
+      console.log('📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);chParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
@@ -25,11 +23,6 @@ interface ReportFilter {
     to: string;
   };
   campaign?: string;
-  agent?: string;
-  outcome?: string;
-  user?: string;
-}
-
 interface KPIMetric {
   label: string;
   value: string | number;

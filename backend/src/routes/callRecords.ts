@@ -447,12 +447,19 @@ router.post('/import-twilio-recordings', [
           });
         }
         
-        // Create call record WITHOUT fake contact (allow contactId to be null)
+        // Skip if no existing real contact found (don't create call records for orphaned recordings)
+        if (!existingContact) {
+          console.log(`⏭️  Skipping recording ${recording.callSid} - no real contact found`);
+          skippedCount++;
+          continue;
+        }
+        
+        // Create call record with real contact link
         const callRecord = await prisma.callRecord.create({
           data: {
             callId: recording.callSid,
             agentId: null, // Unknown agent for imported recordings
-            contactId: existingContact ? existingContact.contactId : null, // Only link if real contact exists
+            contactId: existingContact.contactId, // Use real contact ID only
             campaignId: 'HISTORICAL-CALLS', // Campaign for historical calls
             phoneNumber: 'Unknown', // Phone number not available in recording data
             dialedNumber: 'Unknown',
