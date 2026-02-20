@@ -29,8 +29,9 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const campaignId = searchParams.get('campaignId');
     const agentId = searchParams.get('agentId');
+    const userId = searchParams.get('userId'); // Add user filter support
 
-    console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId });
+    console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId, userId });
     
     const authToken = getAuthToken(request);
     if (!authToken) {
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Generate login/logout specific report data
-      const reportData = generateLoginLogoutReportData(sessions, auditLogs, startDate, endDate);
+      const reportData = generateLoginLogoutReportData(sessions, auditLogs, startDate, endDate, userId);
       
       // Count filtered audit logs for accurate reporting
       let filteredAuditCount = auditLogs.length;
@@ -344,33 +345,53 @@ function generateTableData(reportType: string, callRecords: any[], agents: any[]
 }
 
 // Generate login/logout specific report data
-function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startDate?: string, endDate?: string) {
+function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startDate?: string, endDate?: string, userId?: string) {
   const now = new Date();
   const period = startDate && endDate ? 
     `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
     'Last 7 Days';
 
-  // Filter audit logs by date range client-side (since backend filtering is broken)
+  // Filter audit logs by date range and user (client-side filtering)
   let filteredAuditLogs = auditLogs;
-  if (startDate || endDate) {
+  if (startDate || endDate || userId) {
     filteredAuditLogs = auditLogs.filter(log => {
+      // Date filtering
       const logDate = new Date(log.timestamp);
       const start = startDate ? new Date(startDate) : new Date('1900-01-01');
       const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date('2100-01-01');
-      return logDate >= start && logDate <= end;
+      const dateMatch = logDate >= start && logDate <= end;
+      
+      // User filtering (match by email or username)
+      const userMatch = !userId || 
+        log.performedByUserEmail === userId ||
+        log.performedByUserName === userId ||
+        log.performedByUserId === userId;
+      
+      return dateMatch && userMatch;
     });
   }
 
-  console.log(`📊 Filtered audit logs: ${filteredAuditLogs.length} of ${auditLogs.length} total`);
+  // Also filter sessions by user if specified
+  let filteredSessions = sessions;
+  if (userId) {
+    filteredSessions = sessions.filter(session => 
+      session.userId === userId ||
+      session.user?.email === userId ||
+      session.user?.username === userId ||
+      session.user?.id === userId
+    );
+  }
 
-  // Calculate metrics
-  const totalSessions = sessions.length;
-  const activeSessions = sessions.filter(s => s.status === 'active').length;
-  const loggedOutSessions = sessions.filter(s => s.status === 'logged_out').length;
-  const uniqueUsers = new Set(sessions.map(s => s.userId)).size;
+  console.log(`📊 Filtered data: ${filteredAuditLogs.length}/${auditLogs.length} audit logs, ${filteredSessions.length}/${sessions.length} sessions`);
 
-  // Calculate average session duration
-  const completedSessions = sessions.filter(s => s.sessionDuration);
+  // Calculate metrics using filtered sessions
+  const totalSessions = filteredSessions.length;
+  const activeSessions = filteredSessions.filter(s => s.status === 'active').length;
+  const loggedOutSessions = filteredSessions.filter(s => s.status === 'logged_out').length;
+  const uniqueUsers = new Set(filteredSessions.map(s => s.userId)).size;
+
+  // Calculate average session duration using filtered sessions
+  const completedSessions = filteredSessions.filter(s => s.sessionDuration);
   const avgDuration = completedSessions.length > 0 ? 
     Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
 
@@ -386,8 +407,7 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
     { label: 'Active Sessions', value: activeSessions, format: 'number' },
     { label: 'Unique Users', value: uniqueUsers, format: 'number' },
     { label: 'Avg Session Duration', value: formatDuration(avgDuration), format: 'duration' },
-    { label: 'Today\'s Logins', value: todayLogins, format: 'number' },
-    { label: 'Logout Rate', value: totalSessions > 0 ? ((loggedOutSessions / totalSessions) * 100) : 0, format: 'percentage' }
+    { label: 'Today\'s Logins', value: todayLogins, format: 'number' }
   ];
 
   // Generate hourly login activity chart (use filtered audit logs)
@@ -419,8 +439,8 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
         ipAddress: log.ipAddress || 'Unknown',
         device: metadata.deviceType || 'Unknown',
         duration: log.action === 'USER_LOGOUT' ? 
-          (sessions.find(s => s.sessionId === log.sessionId)?.sessionDuration ? 
-            formatDuration(sessions.find(s => s.sessionId === log.sessionId)?.sessionDuration) : 'Unknown') :
+          (filteredSessions.find(s => s.sessionId === log.sessionId)?.sessionDuration ? 
+            formatDuration(filteredSessions.find(s => s.sessionId === log.sessionId)?.sessionDuration) : 'Unknown') :
           'N/A'
       };
     });

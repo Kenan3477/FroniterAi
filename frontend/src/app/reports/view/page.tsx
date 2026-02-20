@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import       const params = new URLSearchParams();
+      if (reportType) params.append('type', reportType);
+      if (filters?.dateRange?.from) params.append('startDate', filters.dateRange.from);
+      if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
+      if (filters?.campaign) params.append('campaignId', filters.campaign);
+      if (filters?.agent) params.append('agentId', filters.agent);
+      if (filters?.user) params.append('userId', filters.user);
+      
+      console.log('📅 Date Range Debug:');rchParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
 import { 
@@ -19,6 +27,7 @@ interface ReportFilter {
   campaign?: string;
   agent?: string;
   outcome?: string;
+  user?: string;
 }
 
 interface KPIMetric {
@@ -197,6 +206,7 @@ function ReportViewPageContent() {
       if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
       if (filters?.campaign) params.append('campaignId', filters.campaign);
       if (filters?.agent) params.append('agentId', filters.agent);
+      if (filters?.user) params.append('userId', filters.user);
       params.append('format', 'csv'); // Default to CSV export
 
       const response = await fetch(`/api/admin/reports/export?${params.toString()}`, {
@@ -323,6 +333,26 @@ function ReportViewPageContent() {
                   className="text-sm border border-gray-300 rounded px-2 py-1"
                 />
               </div>
+              
+              {/* User Filter - Show for login_logout reports */}
+              {reportType === 'login_logout' && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-gray-700">User:</span>
+                  <select
+                    value={filters.user || ''}
+                    onChange={(e) => setFilters(prev => ({
+                      ...prev,
+                      user: e.target.value || undefined
+                    }))}
+                    className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+                  >
+                    <option value="">All Users</option>
+                    <option value="test.admin@omnivox.com">Test Administrator</option>
+                    <option value="admin@omnivox-ai.com">System Administrator</option>
+                  </select>
+                </div>
+              )}
+              
               <button className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">
                 <FunnelIcon className="h-4 w-4 mr-1" />
                 More Filters
