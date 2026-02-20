@@ -92,7 +92,7 @@ export async function syncAllTwilioRecordings(): Promise<{
               id: `twilio-${recording.callSid}`,
               callId: recording.callSid,
               campaignId: 'TWILIO-IMPORT', // Default campaign for imported calls
-              contactId: await getOrCreateContact(phoneNumber),
+              contactId: await getExistingContact(phoneNumber), // Allow null for recordings without real contacts
               phoneNumber: phoneNumber || 'Unknown',
               callType: 'outbound', // Default to outbound
               startTime: recording.dateCreated,
@@ -163,68 +163,49 @@ async function extractPhoneFromTwilioCall(callSid: string): Promise<string | nul
 }
 
 /**
- * Get or create a contact for the phone number
+ * Get existing contact for phone number or return null
+ * DO NOT create fake contacts for imported recordings
  */
-async function getOrCreateContact(phoneNumber: string | null): Promise<string> {
-  if (!phoneNumber) {
-    phoneNumber = 'Unknown';
+async function getExistingContact(phoneNumber: string | null): Promise<string | null> {
+  if (!phoneNumber || phoneNumber === 'Unknown') {
+    return null;
   }
 
   try {
-    // Look for existing contact
-    let contact = await prisma.contact.findFirst({
+    // Look for existing REAL contact (exclude fake imported contacts)
+    const contact = await prisma.contact.findFirst({
       where: {
-        OR: [
-          { phone: phoneNumber },
-          { mobile: phoneNumber }
+        AND: [
+          {
+            OR: [
+              { phone: phoneNumber },
+              { mobile: phoneNumber }
+            ]
+          },
+          // Exclude fake imported contacts
+          {
+            NOT: {
+              OR: [
+                { firstName: 'Imported' },
+                { listId: 'TWILIO-IMPORT' },
+                { listId: 'IMPORTED-CONTACTS' }
+              ]
+            }
+          }
         ]
       }
     });
 
-    if (!contact) {
-      // Ensure DataList exists for imported contacts
-      let dataList = await prisma.dataList.findUnique({
-        where: { listId: 'TWILIO-IMPORT' }
-      });
-      
-      if (!dataList) {
-        dataList = await prisma.dataList.create({
-          data: {
-            listId: 'TWILIO-IMPORT',
-            name: 'Twilio Imported Calls',
-            active: true
-          }
-        });
-        console.log('✅ Created TWILIO-IMPORT data list');
-      }
-      
-      // Create new contact
-      contact = await prisma.contact.create({
-        data: {
-          contactId: `imported-${Date.now()}`,
-          listId: 'TWILIO-IMPORT', // Default list for imported contacts
-          firstName: 'Imported',
-          lastName: 'Contact',
-          phone: phoneNumber,
-          email: `imported-${Date.now()}@example.com`, // Dummy email
-          status: 'new'
-        }
-      });
-      
-      console.log(`✅ Created new contact: ${contact.id} for ${phoneNumber}`);
+    if (contact) {
+      console.log(`✅ Found existing real contact: ${contact.contactId} for ${phoneNumber}`);
+      return contact.id;
     }
 
-    return contact.id;
+    console.log(`ℹ️  No existing real contact found for ${phoneNumber} - will create call record without contact`);
+    return null;
     
   } catch (error) {
-    console.error(`Error getting/creating contact for ${phoneNumber}:`, error);
-    
-    // Fallback: try to find any contact
-    const anyContact = await prisma.contact.findFirst();
-    if (anyContact) {
-      return anyContact.id;
-    }
-    
-    throw new Error('No contacts available and could not create new one');
+    console.error(`Error finding contact for ${phoneNumber}:`, error);
+    return null;
   }
 }

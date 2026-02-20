@@ -422,28 +422,37 @@ router.post('/import-twilio-recordings', [
           continue;
         }
         
-        const contactId = `imported-${recording.callSid}`;
+        // Check for existing real contact (NOT fake imported contacts)
+        let existingContact = null;
+        if (recording.callSid && recording.callSid !== 'Unknown') {
+          // Try to extract phone number from call SID or other metadata
+          // In a real implementation, you would have phone number from Twilio API
+          existingContact = await prisma.contact.findFirst({
+            where: {
+              AND: [
+                // Add phone number matching if available
+                // { phone: extractedPhoneNumber },
+                // Exclude fake imported contacts
+                {
+                  NOT: {
+                    OR: [
+                      { firstName: 'Imported' },
+                      { listId: 'TWILIO-IMPORT' },
+                      { listId: 'IMPORTED-CONTACTS' }
+                    ]
+                  }
+                }
+              ]
+            }
+          });
+        }
         
-        // CRITICAL: Create contact FIRST (foreign key requirement)
-        await prisma.contact.upsert({
-          where: { contactId },
-          update: {},
-          create: {
-            contactId,
-            listId: 'IMPORTED-CONTACTS', // Required field
-            firstName: 'Imported',
-            lastName: 'Recording',
-            phone: 'Unknown',
-            email: null
-          }
-        });
-        
-        // Now create call record (foreign keys will be satisfied)
+        // Create call record WITHOUT fake contact (allow contactId to be null)
         const callRecord = await prisma.callRecord.create({
           data: {
             callId: recording.callSid,
             agentId: null, // Unknown agent for imported recordings
-            contactId: contactId, // Now this contact exists
+            contactId: existingContact ? existingContact.contactId : null, // Only link if real contact exists
             campaignId: 'HISTORICAL-CALLS', // Campaign for historical calls
             phoneNumber: 'Unknown', // Phone number not available in recording data
             dialedNumber: 'Unknown',

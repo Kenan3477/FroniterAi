@@ -33,7 +33,17 @@ router.get('/', async (req: Request, res: Response) => {
     const { campaignId, status, limit, page, search } = req.query;
     
     // Build where clause for filtering
-    const where: any = {};
+    const where: any = {
+      // EXCLUDE fake imported contacts from contacts display
+      NOT: {
+        OR: [
+          { firstName: 'Imported' },
+          { listId: 'TWILIO-IMPORT' },
+          { listId: 'IMPORTED-CONTACTS' },
+          { contactId: { startsWith: 'imported-' } }
+        ]
+      }
+    };
     
     if (status) {
       where.status = status;

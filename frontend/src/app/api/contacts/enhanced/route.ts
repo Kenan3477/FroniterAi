@@ -40,6 +40,13 @@ export const GET = withRequestLogging(requireAuth(async (request, user) => {
     // Build where conditions
     const whereConditions = [];
     
+    // EXCLUDE fake imported contacts from enhanced contacts API
+    whereConditions.push(`
+      (c.firstName != 'Imported' 
+       AND c.listId NOT IN ('TWILIO-IMPORT', 'IMPORTED-CONTACTS')
+       AND c.contactId NOT LIKE 'imported-%')
+    `);
+    
     // For agents, only show contacts from their assigned campaigns
     if (user.role === 'AGENT') {
       whereConditions.push(`
