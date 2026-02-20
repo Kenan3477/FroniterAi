@@ -74,11 +74,13 @@ export async function GET(request: NextRequest) {
       }
 
       // Also fetch audit logs for login/logout events
+      // Note: Backend audit logs date filtering is broken, so we fetch all and filter in frontend
       const auditParams = new URLSearchParams();
-      if (startDate) auditParams.append('dateFrom', startDate);
-      if (endDate) auditParams.append('dateTo', endDate);
+      // Temporarily remove date filtering for audit logs to work around backend issue
+      // if (startDate) auditParams.append('dateFrom', startDate);
+      // if (endDate) auditParams.append('dateTo', endDate);
       auditParams.append('action', 'USER_LOGIN,USER_LOGOUT');
-      auditParams.append('limit', '500');
+      auditParams.append('limit', '1000'); // Get more data since we're filtering client-side
 
       const auditResponse = await fetch(
         `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
@@ -100,14 +102,25 @@ export async function GET(request: NextRequest) {
       // Generate login/logout specific report data
       const reportData = generateLoginLogoutReportData(sessions, auditLogs, startDate, endDate);
       
-      console.log(`📊 Login/logout report generated with ${sessions.length} sessions and ${auditLogs.length} audit events`);
+      // Count filtered audit logs for accurate reporting
+      let filteredAuditCount = auditLogs.length;
+      if (startDate || endDate) {
+        filteredAuditCount = auditLogs.filter(log => {
+          const logDate = new Date(log.timestamp);
+          const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+          const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date('2100-01-01');
+          return logDate >= start && logDate <= end;
+        }).length;
+      }
+      
+      console.log(`📊 Login/logout report generated with ${sessions.length} sessions and ${filteredAuditCount} filtered audit events (${auditLogs.length} total)`);
       
       return NextResponse.json({
         success: true,
         data: reportData,
         summary: {
           totalSessions: sessions.length,
-          totalAuditEvents: auditLogs.length,
+          totalAuditEvents: filteredAuditCount,
           reportType: 'login_logout'
         }
       });
@@ -316,6 +329,19 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
     `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
     'Last 7 Days';
 
+  // Filter audit logs by date range client-side (since backend filtering is broken)
+  let filteredAuditLogs = auditLogs;
+  if (startDate || endDate) {
+    filteredAuditLogs = auditLogs.filter(log => {
+      const logDate = new Date(log.timestamp);
+      const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+      const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date('2100-01-01');
+      return logDate >= start && logDate <= end;
+    });
+  }
+
+  console.log(`📊 Filtered audit logs: ${filteredAuditLogs.length} of ${auditLogs.length} total`);
+
   // Calculate metrics
   const totalSessions = sessions.length;
   const activeSessions = sessions.filter(s => s.status === 'active').length;
@@ -327,7 +353,7 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
   const avgDuration = completedSessions.length > 0 ? 
     Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
 
-  // Get today's activity
+  // Get today's activity (use all audit logs for today's activity, not filtered)
   const today = new Date().toDateString();
   const todayLogins = auditLogs.filter(log => 
     log.action === 'USER_LOGIN' && 
@@ -343,9 +369,9 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
     { label: 'Logout Rate', value: totalSessions > 0 ? ((loggedOutSessions / totalSessions) * 100) : 0, format: 'percentage' }
   ];
 
-  // Generate hourly login activity chart
+  // Generate hourly login activity chart (use filtered audit logs)
   const hourlyData = new Array(24).fill(0);
-  auditLogs.forEach(log => {
+  filteredAuditLogs.forEach(log => {
     if (log.action === 'USER_LOGIN') {
       const hour = new Date(log.timestamp).getHours();
       hourlyData[hour]++;
@@ -357,8 +383,8 @@ function generateLoginLogoutReportData(sessions: any[], auditLogs: any[], startD
     logins: count
   }));
 
-  // Generate table data with recent login/logout activities
-  const tableData = auditLogs
+  // Generate table data with recent login/logout activities (use filtered audit logs)
+  const tableData = filteredAuditLogs
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 50)
     .map(log => {
