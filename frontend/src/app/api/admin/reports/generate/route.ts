@@ -1,10 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireRole } from '@/middleware/auth';
+import { NextRequest, NextRes// GET - Generate reports with real data from backend
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const reportType = searchParams.get('type') || 'summary';
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const campaignId = searchParams.get('campaignId');
+    const agentId = searchParams.get('agentId');
+    const userId = searchParams.get('userId'); // Add user filter support
+
+    console.log('📊 Generating report:', { reportType, startDate, endDate, campaignId, agentId, userId });
+    
+    // Get authentication token (same pattern as profile route)
+    const authToken = getAuthToken(request);
+    if (!authToken) {
+      console.log('❌ No auth token found for reports request');
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    console.log('🔑 Auth token found for reports, length:', authToken.length);
+
+    // Handle login/logout reports differentlyext/server';
+import { cookies } from 'next/headers';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
+// Helper function to get authentication token (same as profile route)
+function getAuthToken(request: NextRequest): string | null {
+  // Check for auth cookie first (most reliable)
+  const authToken = request.cookies.get('auth-token')?.value;
+  
+  if (authToken) {
+    console.log('✅ Using cookie token for authentication');
+    return authToken;
+  }
+  
+  // Try authorization header as fallback
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('✅ Using header token for authentication');
+    return authHeader.substring(7);
+  }
+  
+  console.log('❌ No authentication token found');
+  return null;
+}
 
 // GET - Generate reports with real data from backend
 export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any) => {
@@ -37,9 +83,8 @@ export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer demo-token`,
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
-            'User-ID': user.userId.toString(),
           },
         }
       );
@@ -130,9 +175,8 @@ export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer demo-token`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
-          'User-ID': user.userId.toString(),
         },
       }
     );
@@ -225,10 +269,10 @@ export const GET = requireRole(['ADMIN'])(async (request: NextRequest, user: any
       { status: 500 }
     );
   }
-});
+}
 
 // POST - Generate custom reports with filters
-export const POST = requireRole(['ADMIN'])(async (request: NextRequest, user: any) => {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -240,7 +284,14 @@ export const POST = requireRole(['ADMIN'])(async (request: NextRequest, user: an
     } = body;
 
     console.log('📊 Custom report request:', { reportType, dateRange, filters, includeCharts, exportFormat });
-    console.log('👤 Authenticated user:', user.userId, user.role);
+    
+    const authToken = getAuthToken(request);
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     // Build query parameters
     const params = new URLSearchParams();
@@ -273,9 +324,8 @@ export const POST = requireRole(['ADMIN'])(async (request: NextRequest, user: an
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer demo-token`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
-          'User-ID': user.userId.toString(),
         },
       }
     );
@@ -319,4 +369,4 @@ export const POST = requireRole(['ADMIN'])(async (request: NextRequest, user: an
       { status: 500 }
     );
   }
-});
+}
