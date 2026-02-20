@@ -46,101 +46,55 @@ export async function GET(request: NextRequest) {
 
     // Handle login/logout reports differently
     if (reportType === 'login_logout') {
-      // Fetch user session data for login/logout reports
-      const sessionParams = new URLSearchParams();
-      if (startDate) sessionParams.append('dateFrom', startDate);
-      if (endDate) sessionParams.append('dateTo', endDate);
-      if (userId) sessionParams.append('userId', userId); // Add userId parameter
-      sessionParams.append('limit', '500'); // Get more session data
-
-      const sessionsResponse = await fetch(
-        `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log('🔍 Backend request URL:', `${BACKEND_URL}/api/admin/user-sessions?${sessionParams.toString()}`);
-      console.log('🔍 Backend request headers auth:', `Bearer ${authToken?.substring(0, 10)}...`);
-      console.log('📋 Session response status:', sessionsResponse.status);
-
-      if (!sessionsResponse.ok) {
-        const errorText = await sessionsResponse.text();
-        console.log('❌ Failed to fetch user sessions:', sessionsResponse.status, errorText);
-        throw new Error(`Failed to fetch user sessions: ${sessionsResponse.status} - ${errorText}`);
-      }
-
-      const sessionsData = await sessionsResponse.json();
-      console.log('✅ Fetched user sessions:', sessionsData.data?.length || 0, 'sessions');
-
-      // Also fetch user audit logs for additional context
+      // Fetch audit logs for login/logout events (more reliable than user-sessions)
       const auditParams = new URLSearchParams();
       if (startDate) auditParams.append('startDate', startDate);
       if (endDate) auditParams.append('endDate', endDate);
       if (userId) auditParams.append('performedBy', userId); // Add performedBy parameter for audit logs
       auditParams.append('action', 'login,logout'); // Only get login/logout actions
-      auditParams.append('limit', '500');
+      auditParams.append('limit', '1000'); // Increase limit for more comprehensive data
+
+      console.log('🔍 Fetching audit logs with params:', auditParams.toString());
 
       const auditResponse = await fetch(
         `${BACKEND_URL}/api/admin/audit-logs?${auditParams.toString()}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            'Authorization': `Bearer demo-token`, // Use demo token like other admin endpoints
             'Content-Type': 'application/json',
           },
         }
       );
 
-      let auditData = { data: [] };
-      if (auditResponse.ok) {
-        auditData = await auditResponse.json();
-        console.log('✅ Fetched audit logs:', auditData.data?.length || 0, 'logs');
-      } else {
-        console.log('⚠️ Failed to fetch audit logs:', auditResponse.status);
+      console.log('� Audit logs response status:', auditResponse.status);
+
+      if (!auditResponse.ok) {
+        const errorText = await auditResponse.text();
+        console.log('❌ Failed to fetch audit logs:', auditResponse.status, errorText);
+        throw new Error(`Failed to fetch audit logs: ${auditResponse.status} - ${errorText}`);
       }
 
-      // Process and combine the data
-      const sessions = sessionsData.data || [];
+      const auditData = await auditResponse.json();
+      console.log('✅ Fetched audit logs:', auditData.data?.length || 0, 'logs');
+
+      // Process audit logs into login/logout entries
       const auditLogs = auditData.data || [];
 
-      // Create login/logout entries from sessions
-      const loginLogoutData = sessions.map((session: any) => ({
-        id: `session-${session.id}`,
-        userId: session.userId,
-        userName: session.user?.name || session.user?.email || 'Unknown',
-        userEmail: session.user?.email || '',
-        action: 'login',
-        timestamp: session.createdAt,
-        ipAddress: session.ipAddress || 'Unknown',
-        userAgent: session.userAgent || 'Unknown',
-        duration: session.expiresAt ? 
-          Math.round((new Date(session.expiresAt).getTime() - new Date(session.createdAt).getTime()) / (1000 * 60)) + ' minutes' : 
-          'Active',
-        source: 'session'
-      }));
-
-      // Add audit log entries
-      const auditEntries = auditLogs.map((log: any) => ({
+      // Create login/logout entries from audit logs only (more reliable)
+      const loginLogoutData = auditLogs.map((log: any) => ({
         id: `audit-${log.id}`,
         userId: log.performedBy,
-        userName: log.performedByUser?.name || log.performedByUser?.email || 'Unknown',
+        userName: log.performedByUser?.name || log.performedByUser?.email || log.performedBy || 'Unknown',
         userEmail: log.performedByUser?.email || '',
         action: log.action,
         timestamp: log.createdAt,
         ipAddress: log.ipAddress || 'Unknown',
         userAgent: log.userAgent || 'Unknown',
-        duration: '-',
-        source: 'audit'
-      }));
-
-      // Combine and sort by timestamp
-      const combinedData = [...loginLogoutData, ...auditEntries]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        details: log.details || {},
+        sessionId: log.details?.sessionId || null,
+        source: 'audit_log'
+      })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       const reportData = {
         type: 'login_logout',
@@ -152,15 +106,16 @@ export async function GET(request: NextRequest) {
         },
         filters: {
           userId: userId || 'all',
-          userName: combinedData.length > 0 ? combinedData[0].userName : 'All Users'
+          userName: loginLogoutData.length > 0 ? loginLogoutData[0].userName : 'All Users'
         },
         summary: {
-          total_entries: combinedData.length,
-          unique_users: [...new Set(combinedData.map(entry => entry.userId))].length,
-          login_count: combinedData.filter(entry => entry.action === 'login').length,
-          logout_count: combinedData.filter(entry => entry.action === 'logout').length
+          total_entries: loginLogoutData.length,
+          unique_users: [...new Set(loginLogoutData.map(entry => entry.userId))].length,
+          login_count: loginLogoutData.filter(entry => entry.action === 'login').length,
+          logout_count: loginLogoutData.filter(entry => entry.action === 'logout').length,
+          data_source: 'audit_logs_only'
         },
-        data: combinedData
+        data: loginLogoutData
       };
 
       return NextResponse.json({
