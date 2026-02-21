@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     // Validate authentication with Railway backend (like profile route)
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
+    let user; // Declare user variable outside try block
     try {
       const profileResponse = await fetch(`${backendUrl}/api/auth/profile`, {
         method: 'GET',
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
       }
 
       const profileData = await profileResponse.json();
-      const user = profileData.data.user;
+      user = profileData.data.user; // Assign to the outer scope variable
       console.log('✅ Railway backend authentication successful for reports, user:', user.email);
       
       // Check user role
@@ -327,6 +328,7 @@ export async function POST(request: NextRequest) {
     // Validate authentication with Railway backend (like profile route)
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
     
+    let user; // Declare user variable outside try block
     try {
       const profileResponse = await fetch(`${backendUrl}/api/auth/profile`, {
         method: 'GET',
@@ -344,7 +346,7 @@ export async function POST(request: NextRequest) {
       }
 
       const profileData = await profileResponse.json();
-      const user = profileData.data.user;
+      user = profileData.data.user; // Assign to the outer scope variable
       
       // Check user role
       if (user.role !== 'ADMIN') {
