@@ -889,9 +889,11 @@ router.put('/profile', authenticate, async (req: Request, res: Response) => {
     const { firstName, lastName, name, email, preferences } = req.body;
 
     console.log(`📝 User ${userId} updating profile`);
+    console.log(`🔍 DEBUG - userId type: ${typeof userId}, value: ${JSON.stringify(userId)}`);
 
     // Validate user ID is provided
     if (!userId) {
+      console.log('❌ DEBUG - userId is falsy:', userId);
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID'
