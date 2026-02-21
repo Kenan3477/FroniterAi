@@ -155,6 +155,143 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
 });
 
 /**
+ * @route   PUT /api/admin/users/:id
+ * @desc    Update a user (Admin only)
+ * @access  Private (requires authentication and admin role)
+ */
+router.put('/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    console.log(`📝 Admin updating user ID: ${userId}`);
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const { 
+      name, 
+      email, 
+      password, 
+      role, 
+      firstName, 
+      lastName, 
+      isActive, 
+      status,
+      department // Will be stored in preferences
+    } = req.body;
+
+    // Prepare update data
+    const updateData: any = {};
+    
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) {
+      // Check email uniqueness if changing
+      if (email !== existingUser.email) {
+        const existingEmail = await prisma.user.findUnique({
+          where: { email }
+        });
+        if (existingEmail) {
+          return res.status(409).json({
+            success: false,
+            message: 'A user with this email already exists'
+          });
+        }
+      }
+      updateData.email = email;
+    }
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (role !== undefined) {
+      if (!['ADMIN', 'MANAGER', 'AGENT', 'SUPERVISOR'].includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role. Must be ADMIN, MANAGER, AGENT, or SUPERVISOR'
+        });
+      }
+      updateData.role = role;
+    }
+    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+    if (status !== undefined) updateData.status = status;
+    if (department !== undefined) {
+      // Note: department field doesn't exist in User schema - storing in preferences
+      const preferences = existingUser.preferences ? JSON.parse(existingUser.preferences) : {};
+      preferences.department = department;
+      updateData.preferences = JSON.stringify(preferences);
+    }
+
+    // Handle password update with proper hashing
+    if (password) {
+      console.log('🔒 Hashing new password for user');
+      updateData.password = await bcrypt.hash(password, 12);
+    }
+
+    updateData.updatedAt = new Date();
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        role: true,
+        isActive: true,
+        status: true,
+        preferences: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    console.log(`✅ User updated successfully: ${updatedUser.name} (${updatedUser.email})`);
+
+    res.json({
+      success: true,
+      message: `User ${updatedUser.name} updated successfully`,
+      data: updatedUser
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating user:', error);
+    
+    // Handle unique constraint violations
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * @route   DELETE /api/admin/users/:id
  * @desc    Delete a user
  * @access  Private (requires authentication)
@@ -657,6 +794,191 @@ router.delete('/:userId/campaigns/:campaignId', authenticate, requireRole('ADMIN
     res.status(500).json({
       success: false,
       message: 'Failed to unassign campaign from user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/users/change-password
+ * @desc    Change user's own password
+ * @access  Private (requires authentication)
+ */
+router.post('/change-password', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    console.log(`🔑 User ${userId} attempting password change`);
+
+    // Validate required fields
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password in database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedNewPassword,
+        updatedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Password changed successfully for user ${user.name} (${user.email})`);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/users/profile
+ * @desc    Update user's own profile
+ * @access  Private (requires authentication)
+ */
+router.put('/profile', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { firstName, lastName, name, email, preferences } = req.body;
+
+    console.log(`📝 User ${userId} updating profile`);
+
+    // Get current user
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (name !== undefined) updateData.name = name;
+    
+    // Auto-generate name from firstName/lastName if both provided
+    if (firstName && lastName) {
+      updateData.name = `${firstName} ${lastName}`;
+    }
+
+    if (email !== undefined) {
+      // Check email uniqueness if changing
+      if (email !== currentUser.email) {
+        const existingEmail = await prisma.user.findUnique({
+          where: { email }
+        });
+        if (existingEmail) {
+          return res.status(409).json({
+            success: false,
+            message: 'A user with this email already exists'
+          });
+        }
+      }
+      updateData.email = email;
+      updateData.username = email; // Keep username in sync with email
+    }
+
+    if (preferences !== undefined) {
+      updateData.preferences = typeof preferences === 'string' ? preferences : JSON.stringify(preferences);
+    }
+
+    updateData.updatedAt = new Date();
+
+    // Update user profile
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        role: true,
+        isActive: true,
+        status: true,
+        preferences: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    console.log(`✅ Profile updated successfully for user ${updatedUser.name} (${updatedUser.email})`);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating profile:', error);
+    
+    // Handle unique constraint violations
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

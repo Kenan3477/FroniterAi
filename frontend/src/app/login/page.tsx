@@ -124,20 +124,13 @@ export default function LoginPage() {
               {/* Voice Wave V replacement - Flipped upside down */}
               <div className="relative mx-2 flex items-start justify-center h-16 space-x-1">
                 {/* Voice wave bars representing the "V" - now pointing downward */}
-                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
-                     style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
-                     style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
-                     style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
-                     style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full animate-pulse" 
-                     style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
-                     style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
-                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
-                     style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full voice-wave-1"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full voice-wave-2"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full voice-wave-3"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full voice-wave-4"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-300 to-cyan-100 rounded-full voice-wave-5"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full voice-wave-6"></div>
+                <div className="w-2 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full voice-wave-7"></div>
               </div>
               
               <span className="relative z-10 bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
@@ -211,6 +204,48 @@ export default function LoginPage() {
               opacity: 0.8;
             }
           }
+
+          .voice-wave-1 {
+            height: 60%;
+            animation: pulse 1.5s infinite;
+            animation-delay: 0s;
+          }
+          
+          .voice-wave-2 {
+            height: 40%;
+            animation: pulse 1.3s infinite;
+            animation-delay: 0.2s;
+          }
+          
+          .voice-wave-3 {
+            height: 80%;
+            animation: pulse 1.7s infinite;
+            animation-delay: 0.4s;
+          }
+          
+          .voice-wave-4 {
+            height: 100%;
+            animation: pulse 1.4s infinite;
+            animation-delay: 0.1s;
+          }
+          
+          .voice-wave-5 {
+            height: 70%;
+            animation: pulse 1.6s infinite;
+            animation-delay: 0.3s;
+          }
+          
+          .voice-wave-6 {
+            height: 50%;
+            animation: pulse 1.2s infinite;
+            animation-delay: 0.5s;
+          }
+          
+          .voice-wave-7 {
+            height: 35%;
+            animation: pulse 1.8s infinite;
+            animation-delay: 0.6s;
+          }
         `}</style>
       </div>
 
@@ -229,20 +264,13 @@ export default function LoginPage() {
                 {/* Voice Wave V replacement - login form header size */}
                 <div className="flex items-start justify-center h-8 space-x-0.5 mx-1">
                   {/* Voice wave bars representing the "V" - pointing downward */}
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
-                       style={{ height: '60%', animationDelay: '0s', animationDuration: '1.5s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
-                       style={{ height: '40%', animationDelay: '0.2s', animationDuration: '1.3s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
-                       style={{ height: '80%', animationDelay: '0.4s', animationDuration: '1.7s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
-                       style={{ height: '100%', animationDelay: '0.1s', animationDuration: '1.4s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full animate-pulse" 
-                       style={{ height: '70%', animationDelay: '0.3s', animationDuration: '1.6s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full animate-pulse" 
-                       style={{ height: '50%', animationDelay: '0.5s', animationDuration: '1.2s' }}></div>
-                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full animate-pulse" 
-                       style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full voice-wave-1"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full voice-wave-2"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full voice-wave-3"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full voice-wave-4"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-400 to-cyan-200 rounded-full voice-wave-5"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-600 to-cyan-400 rounded-full voice-wave-6"></div>
+                  <div className="w-1.5 bg-gradient-to-b from-cyan-500 to-cyan-300 rounded-full voice-wave-7"></div>
                 </div>
                 
                 <span className="text-3xl font-bold text-gray-900">OX-AI</span>
