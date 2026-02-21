@@ -891,12 +891,20 @@ router.put('/profile', authenticate, async (req: Request, res: Response) => {
     console.log(`📝 User ${userId} updating profile`);
     console.log(`🔍 DEBUG - userId type: ${typeof userId}, value: ${JSON.stringify(userId)}`);
 
-    // Validate user ID is provided
+    // TEMPORARY DEBUG: Return user data to debug instead of failing
     if (!userId) {
       console.log('❌ DEBUG - userId is falsy:', userId);
-      return res.status(400).json({
+      return res.json({
         success: false,
-        message: 'Invalid user ID'
+        debug: true,
+        message: 'Debug - Invalid user ID',
+        data: {
+          receivedUserId: userId,
+          userIdType: typeof userId,
+          hasReqUser: !!(req as any).user,
+          fullUser: (req as any).user,
+          requestBody: req.body
+        }
       });
     }
 
