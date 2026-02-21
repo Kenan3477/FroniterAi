@@ -155,6 +155,140 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
 });
 
 /**
+ * @route   PUT /api/users/profile
+ * @desc    Update user's own profile
+ * @access  Private (requires authentication)
+ */
+router.put('/profile', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { firstName, lastName, name, email, preferences } = req.body;
+
+    console.log(`📝 User ${userId} updating profile`);
+    console.log(`🔍 DEBUG - userId type: ${typeof userId}, value: ${JSON.stringify(userId)}`);
+
+    // TEMPORARY DEBUG: Return user data to debug instead of failing
+    if (!userId) {
+      console.log('❌ DEBUG - userId is falsy:', userId);
+      return res.json({
+        success: false,
+        debug: true,
+        message: 'Debug - Invalid user ID',
+        data: {
+          receivedUserId: userId,
+          userIdType: typeof userId,
+          hasReqUser: !!(req as any).user,
+          fullUser: (req as any).user,
+          requestBody: req.body
+        }
+      });
+    }
+
+    // Convert to integer for database lookup
+    const userIdInt = parseInt(userId.toString(), 10);
+    if (isNaN(userIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Get current user
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userIdInt }
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (name !== undefined) updateData.name = name;
+    
+    // Auto-generate name from firstName/lastName if both provided
+    if (firstName && lastName) {
+      updateData.name = `${firstName} ${lastName}`;
+    }
+
+    if (email !== undefined) {
+      // Check email uniqueness if changing
+      if (email !== currentUser.email) {
+        const existingEmail = await prisma.user.findUnique({
+          where: { email }
+        });
+        if (existingEmail) {
+          return res.status(409).json({
+            success: false,
+            message: 'A user with this email already exists'
+          });
+        }
+      }
+      updateData.email = email;
+      updateData.username = email; // Keep username in sync with email
+    }
+
+    if (preferences !== undefined) {
+      updateData.preferences = typeof preferences === 'string' ? preferences : JSON.stringify(preferences);
+    }
+
+    updateData.updatedAt = new Date();
+
+    // Update user profile (using integer ID)
+    const updatedUser = await prisma.user.update({
+      where: { id: userIdInt },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        role: true,
+        isActive: true,
+        status: true,
+        preferences: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    console.log(`✅ Profile updated successfully for user ${updatedUser.name} (${updatedUser.email})`);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating profile:', error);
+    
+    // Handle unique constraint violations
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * @route   PUT /api/admin/users/:id
  * @desc    Update a user (Admin only)
  * @access  Private (requires authentication and admin role)
@@ -873,140 +1007,6 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
     res.status(500).json({
       success: false,
       message: 'Failed to change password',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-/**
- * @route   PUT /api/users/profile
- * @desc    Update user's own profile
- * @access  Private (requires authentication)
- */
-router.put('/profile', authenticate, async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user?.userId;
-    const { firstName, lastName, name, email, preferences } = req.body;
-
-    console.log(`📝 User ${userId} updating profile`);
-    console.log(`🔍 DEBUG - userId type: ${typeof userId}, value: ${JSON.stringify(userId)}`);
-
-    // TEMPORARY DEBUG: Return user data to debug instead of failing
-    if (!userId) {
-      console.log('❌ DEBUG - userId is falsy:', userId);
-      return res.json({
-        success: false,
-        debug: true,
-        message: 'Debug - Invalid user ID',
-        data: {
-          receivedUserId: userId,
-          userIdType: typeof userId,
-          hasReqUser: !!(req as any).user,
-          fullUser: (req as any).user,
-          requestBody: req.body
-        }
-      });
-    }
-
-    // Convert to integer for database lookup
-    const userIdInt = parseInt(userId.toString(), 10);
-    if (isNaN(userIdInt)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID format'
-      });
-    }
-
-    // Get current user
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userIdInt }
-    });
-
-    if (!currentUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Prepare update data
-    const updateData: any = {};
-
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (name !== undefined) updateData.name = name;
-    
-    // Auto-generate name from firstName/lastName if both provided
-    if (firstName && lastName) {
-      updateData.name = `${firstName} ${lastName}`;
-    }
-
-    if (email !== undefined) {
-      // Check email uniqueness if changing
-      if (email !== currentUser.email) {
-        const existingEmail = await prisma.user.findUnique({
-          where: { email }
-        });
-        if (existingEmail) {
-          return res.status(409).json({
-            success: false,
-            message: 'A user with this email already exists'
-          });
-        }
-      }
-      updateData.email = email;
-      updateData.username = email; // Keep username in sync with email
-    }
-
-    if (preferences !== undefined) {
-      updateData.preferences = typeof preferences === 'string' ? preferences : JSON.stringify(preferences);
-    }
-
-    updateData.updatedAt = new Date();
-
-    // Update user profile (using integer ID)
-    const updatedUser = await prisma.user.update({
-      where: { id: userIdInt },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        name: true,
-        role: true,
-        isActive: true,
-        status: true,
-        preferences: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
-
-    console.log(`✅ Profile updated successfully for user ${updatedUser.name} (${updatedUser.email})`);
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: updatedUser
-    });
-
-  } catch (error) {
-    console.error('❌ Error updating profile:', error);
-    
-    // Handle unique constraint violations
-    if (error instanceof Error && error.message.includes('Unique constraint')) {
-      return res.status(409).json({
-        success: false,
-        message: 'A user with this email already exists'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update profile',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
