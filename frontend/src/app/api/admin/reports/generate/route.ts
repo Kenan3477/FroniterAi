@@ -101,10 +101,14 @@ export async function GET(request: NextRequest) {
       if (startDate) auditParams.append('startDate', startDate);
       if (endDate) auditParams.append('endDate', endDate);
       if (userId) auditParams.append('performedBy', userId); // Add performedBy parameter for audit logs
-      auditParams.append('action', 'login,logout'); // Only get login/logout actions
+      
+      // Try broader action search first, then filter
+      auditParams.append('action', 'login,logout,user_login,user_logout,session_start,session_end'); 
       auditParams.append('limit', '1000'); // Increase limit for more comprehensive data
 
       console.log('🔍 Fetching audit logs with params:', auditParams.toString());
+      console.log('🔍 Date range:', startDate, 'to', endDate);
+      console.log('🔍 User filter:', userId || 'all users');
 
       // Use the actual validated JWT token directly (not demo-token)
       const auditResponse = await fetch(
@@ -146,32 +150,29 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('📊 Processing', auditLogs.length, 'audit logs');
-
-      // If no audit logs found, create some sample data to test the UI
+      
+      // If no logs found with filters, try getting all recent audit logs to see what exists
       if (auditLogs.length === 0) {
-        console.log('📝 No audit logs found, creating sample data for testing');
-        auditLogs = [
+        console.log('🔍 No filtered logs found, checking for any recent audit logs...');
+        const fallbackParams = new URLSearchParams();
+        fallbackParams.append('limit', '50'); // Get last 50 logs of any type
+        
+        const fallbackResponse = await fetch(
+          `${backendUrl}/api/admin/audit-logs?${fallbackParams.toString()}`,
           {
-            id: 'sample-1',
-            action: 'login',
-            performedBy: 1,
-            performedByUser: { name: 'admin', email: 'admin@omnivox.com' },
-            createdAt: new Date().toISOString(),
-            ipAddress: '127.0.0.1',
-            userAgent: 'Mozilla/5.0...',
-            details: { sessionId: 'sess_001' }
-          },
-          {
-            id: 'sample-2',
-            action: 'logout',
-            performedBy: 1,
-            performedByUser: { name: 'admin', email: 'admin@omnivox.com' },
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            ipAddress: '127.0.0.1',
-            userAgent: 'Mozilla/5.0...',
-            details: { sessionId: 'sess_001' }
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json',
+            },
           }
-        ];
+        );
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          console.log('📋 Available audit log types:', fallbackData.data?.map((log: any) => log.action).slice(0, 10));
+          console.log('📋 Sample audit log:', fallbackData.data?.[0]);
+        }
       }
 
       // Create login/logout entries from audit logs only (more reliable)
