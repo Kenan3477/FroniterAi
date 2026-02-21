@@ -1021,6 +1021,40 @@ router.get('/debug-auth', authenticate, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     
+    // Test the profile update logic here
+    if (req.query.testProfile === 'true') {
+      console.log(`📝 DEBUG PROFILE TEST: User ${userId} testing profile logic`);
+      
+      // Convert to integer for database lookup (same as profile route)
+      const userIdInt = parseInt(userId.toString(), 10);
+      
+      if (isNaN(userIdInt)) {
+        return res.json({
+          success: false,
+          debug: true,
+          message: 'Profile test - Invalid user ID format',
+          data: { userId, userIdInt, isNaN: isNaN(userIdInt) }
+        });
+      }
+
+      // Try to get current user (same as profile route)
+      const currentUser = await prisma.user.findUnique({
+        where: { id: userIdInt }
+      });
+
+      return res.json({
+        success: true,
+        debug: true,
+        message: 'Profile test successful',
+        data: {
+          originalUserId: userId,
+          convertedUserId: userIdInt,
+          userFound: !!currentUser,
+          userName: currentUser?.name
+        }
+      });
+    }
+    
     res.json({
       success: true,
       message: 'Debug auth endpoint',
