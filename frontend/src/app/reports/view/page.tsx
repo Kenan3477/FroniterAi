@@ -33,7 +33,11 @@ function ReportViewPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<any>({
+    metrics: [],
+    chartData: [],
+    tableData: []
+  });
   const [availableUsers, setAvailableUsers] = useState<{id: string, name: string, email: string}[]>([]);
   const [filters, setFilters] = useState<ReportFilter>({
     dateRange: {
@@ -123,10 +127,23 @@ function ReportViewPageContent() {
       console.log('  - startDate param:', params.get('startDate'));
       console.log('  - endDate param:', params.get('endDate'));
       
-      console.log('�📋 Request URL:', `/api/admin/reports/generate?${params.toString()}`);
+      // Different endpoint for login/logout reports
+      let apiUrl;
+      
+      if (category === 'authentication' && subcategory === 'loginlogout') {
+        // Use user-sessions endpoint for login/logout reports
+        apiUrl = `/api/admin/user-sessions?${params.toString()}`;
+        console.log('� Using user-sessions endpoint for login/logout reports');
+      } else {
+        // Use reports endpoint for other report types
+        apiUrl = `/api/admin/reports/generate?${params.toString()}`;
+        console.log('📊 Using reports endpoint for general reports');
+      }
+      
+      console.log('📋 Request URL:', apiUrl);
       console.log('📋 Request headers:', { 'Authorization': `Bearer ${token.substring(0, 20)}...` });
       
-      const response = await fetch(`/api/admin/reports/generate?${params.toString()}`, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -158,21 +175,55 @@ function ReportViewPageContent() {
       }
       
       if (result.success && result.data) {
-        setReportData({
-          metrics: result.data.metrics,
-          chartData: result.data.chartData,
-          tableData: result.data.tableData
-        });
-        
-        // Handle different report types with different summary structures
-        if (reportType === 'login_logout') {
-          const summary = result.data.summary || result.summary;
-          const sessionCount = summary?.totalSessions || summary?.totalAuditEvents || 0;
-          console.log(`📊 Login/logout report generated with ${sessionCount} sessions/events`);
+        // Handle login/logout reports differently
+        if (category === 'authentication' && subcategory === 'loginlogout') {
+          // Process user-sessions data
+          const sessions = result.data.sessions || [];
+          
+          // Transform sessions into report format
+          const transformedData = {
+            metrics: [
+              { label: 'Total Sessions', value: sessions.length, type: 'number' },
+              { label: 'Active Sessions', value: sessions.filter((s: any) => s.status === 'active').length, type: 'number' },
+              { label: 'Closed Sessions', value: sessions.filter((s: any) => s.status === 'closed').length, type: 'number' },
+              { label: 'Latest Session', value: sessions[0]?.loginTime ? new Date(sessions[0].loginTime).toLocaleDateString() : 'None', type: 'text' }
+            ],
+            chartData: sessions.map((session: any, index: number) => ({
+              name: `Session ${index + 1}`,
+              value: session.status === 'active' ? 1 : 0,
+              user: `${session.user?.firstName || ''} ${session.user?.lastName || ''}`.trim() || session.user?.username,
+              loginTime: session.loginTime,
+              logoutTime: session.logoutTime
+            })),
+            tableData: sessions.map((session: any) => ({
+              user: `${session.user?.firstName || ''} ${session.user?.lastName || ''}`.trim() || session.user?.username || 'Unknown',
+              email: session.user?.email || 'N/A',
+              role: session.user?.role || 'N/A',
+              loginTime: session.loginTime ? new Date(session.loginTime).toLocaleString() : 'N/A',
+              logoutTime: session.logoutTime ? new Date(session.logoutTime).toLocaleString() : 'Active',
+              status: session.status || 'Unknown',
+              ipAddress: session.ipAddress || 'N/A'
+            }))
+          };
+          
+          setReportData(transformedData);
+          console.log(`📊 Login/logout report generated with ${sessions.length} sessions`);
         } else {
+          // Handle other report types
+          setReportData({
+            metrics: result.data.metrics || [],
+            chartData: result.data.chartData || [],
+            tableData: result.data.tableData || []
+          });
+          
           const summary = result.data.summary || result.summary;
-          const callCount = summary?.totalCalls || 0;
-          console.log(`📊 Report generated with ${callCount} real call records`);
+          if (reportType === 'login_logout') {
+            const sessionCount = summary?.totalSessions || summary?.totalAuditEvents || 0;
+            console.log(`📊 Login/logout report generated with ${sessionCount} sessions/events`);
+          } else {
+            const callCount = summary?.totalCalls || 0;
+            console.log(`📊 Report generated with ${callCount} real call records`);
+          }
         }
       } else {
         throw new Error(result.error || 'Failed to generate report');
@@ -183,7 +234,7 @@ function ReportViewPageContent() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('❌ Full error details:', errorMessage);
       
-      // Set error state to show user-friendly message
+      // Set error state to show user-friendly message with proper fallbacks
       setReportData({
         metrics: [],
         chartData: [],
@@ -397,11 +448,21 @@ function ReportViewPageContent() {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
             <p className="mt-2 text-gray-600">Loading report data...</p>
           </div>
-        ) : reportData ? (
+        ) : reportData.error ? (
+          <div className="text-center py-12">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.694-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Report</h3>
+            <p className="text-gray-600">{reportData.error}</p>
+          </div>
+        ) : (
           <div className="space-y-6">
             {/* KPI Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {reportData.metrics.map((metric: KPIMetric, index: number) => (
+              {reportData.metrics && reportData.metrics.map((metric: KPIMetric, index: number) => (
                 <div key={index} className="bg-white p-6 rounded-lg border border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
@@ -426,7 +487,7 @@ function ReportViewPageContent() {
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Detailed Data</h3>
-                {reportData.tableData.length > 0 ? (
+                {reportData.tableData && reportData.tableData.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -477,23 +538,6 @@ function ReportViewPageContent() {
                 )}
               </div>
             </div>
-          </div>
-        ) : reportData?.error ? (
-          <div className="text-center py-12">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
-              <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Report</h3>
-              <p className="text-red-600 mb-4">{reportData.error}</p>
-              <button
-                onClick={loadReportData}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No data available</p>
           </div>
         )}
       </div>
