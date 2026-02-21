@@ -151,14 +151,14 @@ export async function GET(request: NextRequest) {
       
       console.log('📊 Processing', auditLogs.length, 'audit logs');
       
-      // If no logs found with filters, try getting all recent audit logs to see what exists
+      // If no logs found with specific filters, try without date/action filters
       if (auditLogs.length === 0) {
-        console.log('🔍 No filtered logs found, checking for any recent audit logs...');
-        const fallbackParams = new URLSearchParams();
-        fallbackParams.append('limit', '50'); // Get last 50 logs of any type
+        console.log('🔍 No filtered logs found, trying broader search...');
+        const broadParams = new URLSearchParams();
+        broadParams.append('limit', '100'); 
         
-        const fallbackResponse = await fetch(
-          `${backendUrl}/api/admin/audit-logs?${fallbackParams.toString()}`,
+        const broadResponse = await fetch(
+          `${backendUrl}/api/admin/audit-logs?${broadParams.toString()}`,
           {
             method: 'GET',
             headers: {
@@ -168,10 +168,19 @@ export async function GET(request: NextRequest) {
           }
         );
         
-        if (fallbackResponse.ok) {
-          const fallbackData = await fallbackResponse.json();
-          console.log('📋 Available audit log types:', fallbackData.data?.map((log: any) => log.action).slice(0, 10));
-          console.log('📋 Sample audit log:', fallbackData.data?.[0]);
+        if (broadResponse.ok) {
+          const broadData = await broadResponse.json();
+          console.log('📋 Total audit logs found:', broadData.data?.length || 0);
+          
+          // Use the broader data and filter for login/logout manually
+          if (broadData.data && Array.isArray(broadData.data)) {
+            auditLogs = broadData.data.filter((log: any) => {
+              const action = log.action?.toLowerCase() || '';
+              return action.includes('login') || action.includes('logout') || 
+                     action.includes('session') || action.includes('auth');
+            });
+            console.log('📋 Found', auditLogs.length, 'login/logout related logs after filtering');
+          }
         }
       }
 
