@@ -1004,4 +1004,32 @@ router.put('/profile', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @route   GET /api/users/debug-auth
+ * @desc    Debug endpoint to check auth middleware
+ * @access  Private (requires authentication)
+ */
+router.get('/debug-auth', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    
+    res.json({
+      success: true,
+      message: 'Debug auth endpoint',
+      data: {
+        hasUser: !!(req as any).user,
+        userId: userId,
+        userIdType: typeof userId,
+        fullUser: (req as any).user
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Debug endpoint error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
