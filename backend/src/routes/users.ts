@@ -827,9 +827,10 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
       });
     }
 
-    // Get user from database
+    // Get user from database (convert string ID to integer)
+    const userIdInt = parseInt(userId.toString(), 10);
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userIdInt }
     });
 
     if (!user) {
@@ -851,9 +852,9 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
-    // Update password in database
+    // Update password in database (using the integer ID)
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: userIdInt },
       data: {
         password: hashedNewPassword,
         updatedAt: new Date()
@@ -889,9 +890,26 @@ router.put('/profile', authenticate, async (req: Request, res: Response) => {
 
     console.log(`📝 User ${userId} updating profile`);
 
+    // Validate user ID is provided
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    // Convert to integer for database lookup
+    const userIdInt = parseInt(userId.toString(), 10);
+    if (isNaN(userIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
     // Get current user
     const currentUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userIdInt }
     });
 
     if (!currentUser) {
@@ -936,9 +954,9 @@ router.put('/profile', authenticate, async (req: Request, res: Response) => {
 
     updateData.updatedAt = new Date();
 
-    // Update user profile
+    // Update user profile (using integer ID)
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
+      where: { id: userIdInt },
       data: updateData,
       select: {
         id: true,
