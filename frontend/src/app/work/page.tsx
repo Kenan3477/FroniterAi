@@ -142,8 +142,7 @@ export default function WorkPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/dial-queue/next`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           campaignId: currentCampaign.campaignId,

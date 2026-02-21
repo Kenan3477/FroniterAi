@@ -9,13 +9,17 @@ interface User {
   firstName: string;
   lastName: string;
   role: string;
+  username?: string;
 }
 
 interface Campaign {
   campaignId: string;
   name: string;
+  displayName?: string;
+  type?: string;
   status: string;
-  isActive: boolean;
+  isActive?: boolean;
+  dialMethod?: string;
 }
 
 interface AuthContextType {
@@ -28,12 +32,12 @@ interface AuthContextType {
   isUpdatingStatus: boolean;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: any; }>;
   logout: () => void;
   setCurrentCampaign: (campaign: Campaign | null) => void;
-  joinQueue: () => Promise<void>;
-  leaveQueue: () => Promise<void>;
-  updateAgentStatus: (status: string) => Promise<void>;
+  joinCampaignQueue: (campaign: Campaign) => Promise<{ success: boolean; message: string; }>;
+  leaveCampaignQueue: () => Promise<{ success: boolean; message: string; }>;
+  updateAgentStatus: (status: string) => Promise<{ success: boolean; message?: string; }>;
   checkAuth: () => Promise<void>;
   refreshCampaigns: () => Promise<void>;
 }
@@ -640,6 +644,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       leaveCampaignQueue,
       refreshCampaigns,
       updateAgentStatus,
+      checkAuth,
       loading, 
       isAuthenticated 
     }}>
