@@ -76,8 +76,47 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Generate username from email
-    const username = email.split('@')[0];
+    // Generate username from email with uniqueness check
+    let username = email.split('@')[0];
+    let usernameAttempt = 1;
+    let finalUsername = username;
+    
+    // Check if username already exists and generate unique one if needed
+    while (true) {
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: finalUsername }
+      });
+      
+      if (!existingUsername) {
+        break; // Username is unique, we can use it
+      }
+      
+      // Username exists, try with a number suffix
+      finalUsername = `${username}${usernameAttempt}`;
+      usernameAttempt++;
+      
+      // Prevent infinite loop - max 100 attempts
+      if (usernameAttempt > 100) {
+        return res.status(500).json({
+          success: false,
+          message: 'Unable to generate unique username'
+        });
+      }
+    }
+    
+    console.log(`📝 Generated unique username: ${finalUsername}`);
+
+    // Check for email uniqueness
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+    
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
 
     // Debug password before hashing
     console.log('🔍 Password details before hashing:');
@@ -109,7 +148,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
     // Create user
     const user = await prisma.user.create({
       data: {
-        username,
+        username: finalUsername,
         email: email.toLowerCase(), // Ensure email is stored in lowercase
         password: hashedPassword,
         firstName,
@@ -138,7 +177,28 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
   } catch (error) {
     console.error('❌ Error creating user:', error);
     
-    // Handle unique constraint violations
+    // Handle Prisma unique constraint violations
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const target = (error as any).meta?.target;
+      if (target?.includes('email')) {
+        return res.status(409).json({
+          success: false,
+          message: 'A user with this email already exists'
+        });
+      } else if (target?.includes('username')) {
+        return res.status(409).json({
+          success: false,
+          message: 'This username is already taken'
+        });
+      } else {
+        return res.status(409).json({
+          success: false,
+          message: 'A user with these details already exists'
+        });
+      }
+    }
+
+    // Handle other unique constraint violations (legacy check)
     if (error instanceof Error && error.message.includes('Unique constraint')) {
       return res.status(409).json({
         success: false,
