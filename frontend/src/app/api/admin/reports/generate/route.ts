@@ -106,15 +106,14 @@ export async function GET(request: NextRequest) {
 
       console.log('🔍 Fetching audit logs with params:', auditParams.toString());
 
-      // Now use Railway backend directly with demo-token (we've validated auth)
+      // Use the actual validated JWT token directly (not demo-token)
       const auditResponse = await fetch(
         `${backendUrl}/api/admin/audit-logs?${auditParams.toString()}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer demo-token`,
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
-            'User-ID': user.id.toString(),
           },
         }
       );
@@ -389,15 +388,14 @@ export async function POST(request: NextRequest) {
         throw new Error(`Unsupported report type: ${reportType}`);
     }
 
-    // Use Railway backend directly with demo-token (we've validated auth)
+    // Use the actual validated JWT token directly
     const response = await fetch(
       `${backendUrl}${endpoint}?${params.toString()}`,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer demo-token`,
-          'Content-Type': 'application/json', 
-          'User-ID': user.id.toString(),
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
       }
     );
