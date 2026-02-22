@@ -130,12 +130,18 @@ function ReportViewPageContent() {
       // Different endpoint for login/logout reports
       let apiUrl;
       
+      console.log('🔍 URL Parameters Debug:');
+      console.log('  - category:', category);
+      console.log('  - subcategory:', subcategory);
+      console.log('  - reportType:', reportType);
+      
       if ((category === 'authentication' && subcategory === 'loginlogout') || 
           (category === 'users' && subcategory === 'login_logout') ||
           reportType === 'login_logout') {
         // Use user-sessions endpoint for login/logout reports
         apiUrl = `/api/admin/user-sessions?${params.toString()}`;
-        console.log('� Using user-sessions endpoint for login/logout reports');
+        console.log('🔐 ✅ ROUTING TO USER-SESSIONS ENDPOINT for login/logout reports');
+        console.log('🔐 Matched condition: login/logout report detected');
       } else {
         // Use reports endpoint for other report types
         apiUrl = `/api/admin/reports/generate?${params.toString()}`;
