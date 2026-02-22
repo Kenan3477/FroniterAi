@@ -130,7 +130,9 @@ function ReportViewPageContent() {
       // Different endpoint for login/logout reports
       let apiUrl;
       
-      if (category === 'authentication' && subcategory === 'loginlogout') {
+      if ((category === 'authentication' && subcategory === 'loginlogout') || 
+          (category === 'users' && subcategory === 'login_logout') ||
+          reportType === 'login_logout') {
         // Use user-sessions endpoint for login/logout reports
         apiUrl = `/api/admin/user-sessions?${params.toString()}`;
         console.log('� Using user-sessions endpoint for login/logout reports');
