@@ -304,6 +304,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isClient) return; // Don't run auth check until client-side
     
     try {
+      // Check if we have a token before making the request
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      
+      // If no token, skip the auth check and set loading to false
+      if (!token) {
+        console.log('🔐 No auth token found, skipping auth check');
+        setLoading(false);
+        return;
+      }
+
+      // Check if token is expired before making request
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const isExpired = Date.now() >= payload.exp * 1000;
+        
+        if (isExpired) {
+          console.log('🚨 Token is expired, clearing storage and redirecting to login');
+          localStorage.removeItem('omnivox_token');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('sessionData');
+          setLoading(false);
+          router.push('/login');
+          return;
+        }
+      } catch (e) {
+        console.log('❌ Invalid token format, clearing storage');
+        localStorage.removeItem('omnivox_token');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('sessionData');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/auth/profile', {
         credentials: 'include',
       });
@@ -322,13 +355,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         }
+      } else if (response.status === 401) {
+        // Handle 401 responses by clearing auth and redirecting
+        console.log('🚨 401 Unauthorized - clearing auth and redirecting to login');
+        localStorage.removeItem('omnivox_token');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('sessionData');
+        setUser(null);
+        router.push('/login');
       }
     } catch (error) {
       console.error('Auth check error:', error);
+      // On error, also check if it's related to expired tokens
+      if (error instanceof Error && error.message.includes('expired')) {
+        console.log('🚨 Token expired error, clearing auth');
+        localStorage.removeItem('omnivox_token');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('sessionData');
+        setUser(null);
+        router.push('/login');
+      }
     } finally {
       setLoading(false);
     }
-  }, [isClient]);
+  }, [isClient, router]);
 
   useEffect(() => {
     checkAuth();
