@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://omnivox-backend-production.up.railway.app';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 // Temporary fallback while Railway backend is being fixed
 const FALLBACK_ENABLED = true; // Set to false when Railway is fixed
