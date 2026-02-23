@@ -236,7 +236,10 @@ router.get('/user-sessions', authenticateToken, async (req, res) => {
         whereConditions.loginTime.gte = new Date(dateFrom as string);
       }
       if (dateTo) {
-        whereConditions.loginTime.lte = new Date(dateTo as string);
+        // Include the full day by adding 23:59:59 to the dateTo
+        const endDate = new Date(dateTo as string);
+        endDate.setHours(23, 59, 59, 999);
+        whereConditions.loginTime.lte = endDate;
       }
     }
 
