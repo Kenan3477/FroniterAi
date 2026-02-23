@@ -39,6 +39,7 @@ function ReportViewPageContent() {
     tableData: []
   });
   const [availableUsers, setAvailableUsers] = useState<{id: string, name: string, email: string}[]>([]);
+  const [cleaningUp, setCleaningUp] = useState(false);
   const [filters, setFilters] = useState<ReportFilter>({
     dateRange: {
       from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days ago
@@ -95,6 +96,49 @@ function ReportViewPageContent() {
       }
     } catch (error) {
       console.error('Failed to load users:', error);
+    }
+  };
+
+  // Session cleanup function for login/logout reports
+  const cleanupSessions = async () => {
+    setCleaningUp(true);
+    try {
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || '';
+      if (!token) {
+        alert('Please log in again to perform this action.');
+        return;
+      }
+
+      console.log('🧹 Starting session cleanup...');
+      
+      const response = await fetch('/api/admin/cleanup-sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Cleanup failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Session cleanup result:', result);
+
+      if (result.success) {
+        alert(`Session cleanup completed!\n\n${result.data.totalSessionsClosed} sessions closed for ${result.data.usersAffected} users.`);
+        // Reload the report data to show updated session information
+        loadReportData();
+      } else {
+        throw new Error(result.message || 'Cleanup failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Session cleanup error:', error);
+      alert(`Session cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setCleaningUp(false);
     }
   };
 
@@ -382,6 +426,25 @@ function ReportViewPageContent() {
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            {/* Session Cleanup Button - Only for login/logout reports */}
+            {reportType === 'login_logout' && (
+              <button
+                onClick={cleanupSessions}
+                disabled={cleaningUp}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cleaningUp ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    🧹 Clean Sessions
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={exportReport}
               className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"

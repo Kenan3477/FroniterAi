@@ -332,4 +332,113 @@ router.get('/user-sessions', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/admin/cleanup-sessions - Clean up multiple active sessions for users
+router.post('/cleanup-sessions', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has ADMIN role
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    console.log('🧹 Starting session cleanup process...');
+
+    // Find users with multiple active sessions
+    const usersWithMultipleSessions = await prisma.userSession.groupBy({
+      by: ['userId'],
+      where: {
+        status: 'active'
+      },
+      _count: {
+        id: true
+      },
+      having: {
+        id: {
+          _count: {
+            gt: 1
+          }
+        }
+      }
+    });
+
+    let totalCleaned = 0;
+    const cleanupResults = [];
+
+    for (const userGroup of usersWithMultipleSessions) {
+      const userId = userGroup.userId;
+      const sessionCount = userGroup._count.id;
+
+      // Get all active sessions for this user, ordered by most recent first
+      const userSessions = await prisma.userSession.findMany({
+        where: {
+          userId: userId,
+          status: 'active'
+        },
+        orderBy: {
+          lastActivity: 'desc' // Keep the most recently active session
+        },
+        include: {
+          user: {
+            select: { username: true, email: true }
+          }
+        }
+      });
+
+      if (userSessions.length > 1) {
+        // Keep the most recent session, close the rest
+        const sessionsToClose = userSessions.slice(1);
+        const cleanupTime = new Date();
+
+        console.log(`👤 User ${userSessions[0].user.username}: Keeping 1 session, closing ${sessionsToClose.length} old sessions`);
+
+        // Close old sessions
+        for (const session of sessionsToClose) {
+          const sessionDuration = Math.floor((cleanupTime.getTime() - session.loginTime.getTime()) / 1000);
+          
+          await prisma.userSession.update({
+            where: { id: session.id },
+            data: {
+              status: 'logged_out',
+              logoutTime: cleanupTime,
+              sessionDuration
+            }
+          });
+        }
+
+        cleanupResults.push({
+          userId: userId,
+          username: userSessions[0].user.username,
+          email: userSessions[0].user.email,
+          totalSessions: sessionCount,
+          sessionsClosed: sessionsToClose.length,
+          sessionKept: 1
+        });
+
+        totalCleaned += sessionsToClose.length;
+      }
+    }
+
+    console.log(`✅ Session cleanup completed: ${totalCleaned} sessions closed for ${cleanupResults.length} users`);
+
+    res.json({
+      success: true,
+      message: `Session cleanup completed successfully`,
+      data: {
+        totalSessionsClosed: totalCleaned,
+        usersAffected: cleanupResults.length,
+        cleanupResults
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error during session cleanup:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform session cleanup'
+    });
+  }
+});
+
 export default router;
