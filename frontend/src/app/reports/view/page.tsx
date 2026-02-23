@@ -116,16 +116,16 @@ function ReportViewPageContent() {
       // Build query parameters
       const params = new URLSearchParams();
       if (reportType) params.append('type', reportType);
-      if (filters?.dateRange?.from) params.append('startDate', filters.dateRange.from);
-      if (filters?.dateRange?.to) params.append('endDate', filters.dateRange.to);
+      if (filters?.dateRange?.from) params.append('dateFrom', filters.dateRange.from);
+      if (filters?.dateRange?.to) params.append('dateTo', filters.dateRange.to);
       if (filters?.campaign) params.append('campaignId', filters.campaign);
       if (filters?.agent) params.append('agentId', filters.agent);
       
       console.log('� Date Range Debug:');
       console.log('  - filters.dateRange.from:', filters.dateRange.from);
       console.log('  - filters.dateRange.to:', filters.dateRange.to);
-      console.log('  - startDate param:', params.get('startDate'));
-      console.log('  - endDate param:', params.get('endDate'));
+      console.log('  - dateFrom param:', params.get('dateFrom'));
+      console.log('  - dateTo param:', params.get('dateTo'));
       
       // Different endpoint for login/logout reports
       let apiUrl;
