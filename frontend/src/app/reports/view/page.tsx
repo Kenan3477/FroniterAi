@@ -184,7 +184,7 @@ function ReportViewPageContent() {
       
       if (result.success && result.data) {
         // Handle login/logout reports differently
-        if (category === 'authentication' && subcategory === 'loginlogout') {
+        if (category === 'users' && subcategory === 'login_logout') {
           // Process user-sessions data
           const sessions = result.data.sessions || [];
           
