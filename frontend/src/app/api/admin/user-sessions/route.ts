@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const queryString = searchParams.toString();
     
+    console.log(`🔗 Proxying user-sessions request to: ${BACKEND_URL}/api/admin/user-sessions?${queryString}`);
+    console.log(`🔑 Auth header present: ${!!authHeader}`);
+    
     // Forward request to backend
     const backendResponse = await fetch(`${BACKEND_URL}/api/admin/user-sessions?${queryString}`, {
       method: 'GET',
@@ -27,12 +30,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    console.log(`📡 Backend response status: ${backendResponse.status}`);
+    
     const data = await backendResponse.json();
 
     if (!backendResponse.ok) {
-      console.error('❌ Backend error for user-sessions:', data);
+      console.error('❌ Backend error for user-sessions:', {
+        status: backendResponse.status,
+        statusText: backendResponse.statusText,
+        data: data
+      });
       return NextResponse.json(
-        { success: false, error: data.message || 'Backend error' },
+        { success: false, error: data.message || data.error || 'Backend error' },
         { status: backendResponse.status }
       );
     }
@@ -43,8 +52,22 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Error in user-sessions proxy:', error);
+    
+    // Enhanced error response for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Full error details:', {
+      error: errorMessage,
+      backendUrl: BACKEND_URL,
+      timestamp: new Date().toISOString()
+    });
+    
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error', 
+        details: errorMessage,
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
