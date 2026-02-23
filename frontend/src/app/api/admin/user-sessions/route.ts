@@ -40,6 +40,24 @@ export async function GET(request: NextRequest) {
         statusText: backendResponse.statusText,
         data: data
       });
+      
+      // If it's "Application not found", provide a more helpful error and fallback
+      if (data.error === 'Application not found' || data.message === 'Application not found') {
+        console.error('🚨 Railway backend routing issue detected - Application not found');
+        console.error('🔧 This indicates a Railway deployment/routing configuration problem');
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Backend service temporarily unavailable', 
+            message: 'Railway backend is running but not accessible via HTTP. This is a deployment configuration issue.',
+            railwayIssue: true,
+            timestamp: new Date().toISOString()
+          },
+          { status: 503 } // Service Unavailable instead of 404
+        );
+      }
+      
       return NextResponse.json(
         { success: false, error: data.message || data.error || 'Backend error' },
         { status: backendResponse.status }

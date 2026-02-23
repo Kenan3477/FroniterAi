@@ -691,4 +691,21 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Session heartbeat endpoint to keep sessions alive and reduce 404 noise
+router.post('/session/heartbeat', async (req, res) => {
+  try {
+    res.json({ 
+      success: true, 
+      message: 'Session heartbeat received',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Session heartbeat error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Session heartbeat failed' 
+    });
+  }
+});
+
 export default router;
