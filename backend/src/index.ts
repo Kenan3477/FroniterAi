@@ -7,6 +7,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 
 // Force deployment to test schema migration
+// Railway deployment refresh - fixing 404 Application not found
 
 import config from './config';
 import { connectDatabase } from './database';
