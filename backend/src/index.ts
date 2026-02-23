@@ -60,6 +60,7 @@ import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoi
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
+import pauseEventsRoutes from './routes/pauseEvents'; // Agent pause/break reason tracking
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
@@ -205,6 +206,7 @@ class App {
     this.app.use('/api/auth', authRoutes); // Auth routes - enabled and working
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
+    this.app.use('/api/pause-events', pauseEventsRoutes); // Agent pause/break reason tracking system
     this.app.use('/api/auto-dial', autoDialRoutes); // Auto-dial engine management
     this.app.use('/api/campaigns', campaignRoutes); // NEW: Production campaign management service
     this.app.use('/api/interactions', interactionRoutes); // NEW: Production interaction tracking service

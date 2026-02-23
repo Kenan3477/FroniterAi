@@ -13,8 +13,20 @@ import {
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth, Campaign } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import CampaignSelector from '@/components/ui/CampaignSelector';
+import PauseReasonModal from '@/components/agent/PauseReasonModal';
+
+// Define Campaign type locally since it's not exported from AuthContext
+interface Campaign {
+  campaignId: string;
+  name: string;
+  displayName?: string;
+  type?: string;
+  status: string;
+  isActive?: boolean;
+  dialMethod?: string;
+}
 
 interface HeaderProps {
   onSidebarToggle: () => void;
@@ -27,6 +39,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [inboundQueues, setInboundQueues] = useState<any[]>([]);
   const [isLoadingQueues, setIsLoadingQueues] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
+  const [activePauseEvent, setActivePauseEvent] = useState<any>(null);
   
   const { 
     user, 
@@ -59,11 +74,106 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    // Check if this is a status change that requires a pause reason
+    if (newStatus === 'Break') {
+      setPendingStatusChange(newStatus);
+      setShowPauseModal(true);
+      return;
+    }
+
+    // If changing from Break status, end any active pause event
+    if (agentStatus === 'Break' && newStatus !== 'Break') {
+      await endActivePauseEvent();
+    }
+
     const result = await updateAgentStatus(newStatus);
     
     if (!result.success) {
       alert(result.message || 'Failed to update agent status');
     }
+  };
+
+  const handlePauseConfirm = async (reason: string, comment?: string) => {
+    try {
+      if (!user?.id || !pendingStatusChange) return;
+
+      // Start pause event tracking
+      const pauseEventResponse = await fetch('/api/pause-events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          agentId: user.id,
+          eventType: 'break',
+          pauseReason: reason,
+          pauseCategory: getPauseCategory(reason),
+          agentComment: comment,
+          metadata: {
+            previousStatus: agentStatus,
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+
+      if (pauseEventResponse.ok) {
+        const pauseEventData = await pauseEventResponse.json();
+        setActivePauseEvent(pauseEventData.data);
+        console.log('✅ Pause event started:', pauseEventData);
+      }
+
+      // Update agent status
+      const result = await updateAgentStatus(pendingStatusChange);
+      
+      if (!result.success) {
+        alert(result.message || 'Failed to update agent status');
+      }
+
+    } catch (error) {
+      console.error('❌ Error handling pause:', error);
+      alert('Failed to record pause reason. Please try again.');
+    } finally {
+      setShowPauseModal(false);
+      setPendingStatusChange(null);
+    }
+  };
+
+  const handlePauseCancel = () => {
+    setShowPauseModal(false);
+    setPendingStatusChange(null);
+  };
+
+  const endActivePauseEvent = async () => {
+    if (!activePauseEvent) return;
+
+    try {
+      const response = await fetch(`/api/pause-events/${activePauseEvent.id}/end`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          endComment: 'Status changed from Break'
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Pause event ended');
+        setActivePauseEvent(null);
+      }
+    } catch (error) {
+      console.error('❌ Error ending pause event:', error);
+    }
+  };
+
+  const getPauseCategory = (reason: string): string => {
+    if (reason.toLowerCase().includes('toilet') || reason.toLowerCase().includes('personal')) return 'personal';
+    if (reason.toLowerCase().includes('lunch') || reason.toLowerCase().includes('break time') || reason.toLowerCase().includes('home')) return 'scheduled';
+    if (reason.toLowerCase().includes('training') || reason.toLowerCase().includes('meeting')) return 'work';
+    if (reason.toLowerCase().includes('technical') || reason.toLowerCase().includes('system')) return 'technical';
+    return 'other';
   };
 
   const handleLogout = async () => {
@@ -398,6 +508,18 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           )}
         </div>
       </div>
+
+      {/* Pause Reason Modal */}
+      {showPauseModal && (
+        <PauseReasonModal
+          isOpen={showPauseModal}
+          eventType="break"
+          onConfirm={handlePauseConfirm}
+          onClose={handlePauseCancel}
+          title="Break Reason Required"
+          description="Please select the reason for going on break:"
+        />
+      )}
     </header>
   );
 }

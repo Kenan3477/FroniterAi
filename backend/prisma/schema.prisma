@@ -163,6 +163,7 @@ model Agent {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
   campaignAssignments AgentCampaignAssignment[]
+  pauseEvents         AgentPauseEvent[]
   alerts              alerts[]
   call_analysis       call_analysis[]
   callKPIs            CallKPI[]
@@ -175,6 +176,28 @@ model Agent {
   workItems           WorkItem[]
 
   @@map("agents")
+}
+
+model AgentPauseEvent {
+  id              String    @id @default(cuid())
+  agentId         String
+  eventType       String    // 'break', 'auto_dial_pause', 'preview_pause'
+  pauseReason     String    // The selected reason
+  pauseCategory   String?   // Category grouping e.g. 'scheduled', 'personal', 'technical'
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+  duration        Int?      // Duration in seconds (calculated when ended)
+  agentComment    String?   // Optional agent comment
+  metadata        Json?     // Additional context (campaign info, etc.)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  agent           Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([eventType])
+  @@index([pauseReason])
+  @@index([startTime])
+  @@map("agent_pause_events")
 }
 
 model AgentCampaignAssignment {
