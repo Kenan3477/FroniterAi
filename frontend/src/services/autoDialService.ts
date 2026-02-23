@@ -55,7 +55,7 @@ class AutoDialService {
 
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://omnivox-backend-production.up.railway.app'
+      ? 'https://froniterai-production.up.railway.app'
       : 'http://localhost:3001';
   }
 
