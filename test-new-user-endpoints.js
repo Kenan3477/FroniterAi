@@ -5,8 +5,8 @@ const https = require('https');
 const http = require('http');
 
 const BACKEND_URL = 'https://froniterai-production.up.railway.app';
-const ADMIN_EMAIL = 'newadmin@omnivox.com';
-const ADMIN_PASSWORD = 'NewAdmin123!';
+const ADMIN_EMAIL = 'freshadmin@omnivox.com';
+const ADMIN_PASSWORD = 'FreshAdmin123!';
 
 function makeRequest(url, options = {}) {
   return new Promise((resolve, reject) => {

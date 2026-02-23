@@ -55,7 +55,7 @@ interface Config {
 
 const config: Config = {
   server: {
-    port: parseInt(process.env.PORT || process.env.API_PORT || '3001', 10),
+    port: parseInt(process.env.PORT || process.env.API_PORT || '3004', 10), // Use Railway's PORT or fallback to 3004
     env: process.env.NODE_ENV || 'development',
   },
   database: {

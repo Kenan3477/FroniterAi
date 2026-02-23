@@ -155,6 +155,17 @@ class App {
   }
 
   private initializeRoutes(): void {
+    // Root endpoint for Railway health check
+    this.app.get('/', (req, res) => {
+      res.json({
+        service: 'Omnivox-AI Backend',
+        status: 'running',
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: config.server.env
+      });
+    });
+
     // Health check with database status
     this.app.get('/health', async (req, res) => {
       try {
@@ -314,10 +325,14 @@ class App {
 
       // Start server
       const port = config.server.port;
-      this.server.listen(port, () => {
-        console.log(`🚀 Server running on port ${port}`);
-        console.log(`📚 API documentation available at http://localhost:${port}/api`);
-        console.log(`🩺 Health check available at http://localhost:${port}/health`);
+      const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+      
+      this.server.listen(port, host, () => {
+        console.log(`🚀 Server running on ${host}:${port}`);
+        console.log(`📚 API documentation available at http://${host}:${port}/api`);
+        console.log(`🩺 Health check available at http://${host}:${port}/health`);
+        console.log(`🔧 Environment: ${config.server.env}`);
+        console.log(`🌐 Binding to: ${host} (Railway compatible)`);
       });
     } catch (error) {
       console.error('❌ Failed to start server:', error);
