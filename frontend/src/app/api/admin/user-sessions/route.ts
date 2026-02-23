@@ -3,9 +3,6 @@ import { headers } from 'next/headers';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// Temporary fallback while Railway backend is being fixed
-const FALLBACK_ENABLED = true; // Set to false when Railway is fixed
-
 export async function GET(request: NextRequest) {
   try {
     // Extract auth token from header
@@ -24,7 +21,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔗 Proxying user-sessions request to: ${BACKEND_URL}/api/admin/user-sessions?${queryString}`);
     console.log(`🔑 Auth header present: ${!!authHeader}`);
     
-    // Forward request to backend
+    // Forward request to Railway backend - NO MOCK DATA
     const backendResponse = await fetch(`${BACKEND_URL}/api/admin/user-sessions?${queryString}`, {
       method: 'GET',
       headers: {
@@ -33,106 +30,30 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(`📡 Backend response status: ${backendResponse.status}`);
+    console.log(`📡 Railway backend response status: ${backendResponse.status}`);
     
     const data = await backendResponse.json();
 
     if (!backendResponse.ok) {
-      console.error('❌ Backend error for user-sessions:', {
+      console.error('❌ Railway backend error for user-sessions:', {
         status: backendResponse.status,
         statusText: backendResponse.statusText,
         data: data
       });
       
-      // If it's "Application not found" and fallback is enabled, provide mock data
-      if (FALLBACK_ENABLED && (data.error === 'Application not found' || data.message === 'Application not found')) {
-        console.log('� Railway backend unavailable - providing mock data for testing');
-        
-        const mockData = {
-          success: true,
-          data: {
-            sessions: [
-              {
-                id: 'session_1',
-                userId: 'user_123',
-                username: 'ken@simpleemails.co.uk',
-                action: 'login',
-                timestamp: '2026-02-20T10:30:00Z',
-                ipAddress: '192.168.1.100',
-                userAgent: 'Mozilla/5.0 Chrome',
-                success: true,
-                details: 'Successful login'
-              },
-              {
-                id: 'session_2',
-                userId: 'user_123',
-                username: 'ken@simpleemails.co.uk',
-                action: 'logout',
-                timestamp: '2026-02-20T15:45:00Z',
-                ipAddress: '192.168.1.100',
-                userAgent: 'Mozilla/5.0 Chrome',
-                success: true,
-                details: 'Normal logout'
-              },
-              {
-                id: 'session_3',
-                userId: 'user_456',
-                username: 'admin@test.co.uk',
-                action: 'login',
-                timestamp: '2026-02-21T09:15:00Z',
-                ipAddress: '10.0.0.50',
-                userAgent: 'Mozilla/5.0 Firefox',
-                success: true,
-                details: 'Admin login'
-              },
-              {
-                id: 'session_4',
-                userId: 'user_789',
-                username: 'agent@test.co.uk',
-                action: 'failed_login',
-                timestamp: '2026-02-22T11:20:00Z',
-                ipAddress: '172.16.0.25',
-                userAgent: 'Mozilla/5.0 Safari',
-                success: false,
-                details: 'Invalid password attempt'
-              },
-              {
-                id: 'session_5',
-                userId: 'user_456',
-                username: 'admin@test.co.uk',
-                action: 'logout',
-                timestamp: '2026-02-22T17:30:00Z',
-                ipAddress: '10.0.0.50',
-                userAgent: 'Mozilla/5.0 Firefox',
-                success: true,
-                details: 'End of day logout'
-              }
-            ],
-            total: 5
-          },
-          message: 'Mock data provided while Railway backend is being fixed',
-          isMockData: true,
-          timestamp: new Date().toISOString()
-        };
-        
-        console.log('✅ Returning mock user-sessions data:', mockData.data.sessions.length, 'records');
-        return NextResponse.json(mockData, { status: 200 });
-      }
-      
       return NextResponse.json(
-        { success: false, error: data.message || data.error || 'Backend error' },
+        { success: false, error: data.message || data.error || 'Railway backend error' },
         { status: backendResponse.status }
       );
     }
 
-    console.log(`✅ User sessions retrieved: ${data.data?.sessions?.length || 0} sessions`);
+    console.log(`✅ Real user sessions retrieved from Railway: ${data.data?.sessions?.length || 0} sessions`);
     
     return NextResponse.json(data, { status: 200 });
 
   } catch (error) {
-    console.error('❌ Error in user-sessions proxy:', error);
+    console.error('❌ Error connecting to Railway backend:', error);
     
-    // Enhanced error response for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Full error details:', {
       error: errorMessage,
@@ -143,8 +64,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Internal server error', 
+        error: 'Failed to connect to Railway backend', 
         details: errorMessage,
+        backendUrl: BACKEND_URL,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
