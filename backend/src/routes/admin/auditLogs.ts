@@ -243,6 +243,13 @@ router.get('/user-sessions', authenticateToken, async (req, res) => {
       }
     }
 
+    console.log('🔍 User-sessions debug - Query conditions:');
+    console.log('  - whereConditions:', JSON.stringify(whereConditions, null, 2));
+    console.log('  - dateFrom:', dateFrom);
+    console.log('  - dateTo:', dateTo);
+    console.log('  - userId filter:', userId);
+    console.log('  - status filter:', status);
+
     // Get user sessions with user information
     const [sessions, totalCount] = await Promise.all([
       prisma.userSession.findMany({
@@ -280,6 +287,28 @@ router.get('/user-sessions', authenticateToken, async (req, res) => {
     }
 
     console.log(`👥 Retrieved ${filteredSessions.length} user sessions (total: ${totalCount})`);
+    console.log('🔍 Debug - Session summary:');
+    if (sessions.length > 0) {
+      console.log('  - First session user ID:', sessions[0].user?.id);
+      console.log('  - First session login time:', sessions[0].loginTime);
+      console.log('  - First session user email:', sessions[0].user?.email);
+    } else {
+      console.log('  - No sessions found with current filters');
+      
+      // Check if ANY sessions exist in the database
+      const anySessions = await prisma.userSession.count();
+      console.log(`  - Total sessions in database: ${anySessions}`);
+      
+      if (anySessions > 0) {
+        const recentSession = await prisma.userSession.findFirst({
+          orderBy: { loginTime: 'desc' },
+          include: { user: { select: { email: true, id: true } } }
+        });
+        console.log('  - Most recent session:', recentSession?.loginTime);
+        console.log('  - Most recent session user:', recentSession?.user?.email);
+        console.log('  - Most recent session user ID:', recentSession?.user?.id);
+      }
+    }
 
     res.json({
       success: true,
