@@ -208,7 +208,9 @@ function ReportViewPageContent() {
               email: session.user?.email || 'N/A',
               role: session.user?.role || 'N/A',
               loginTime: session.loginTime ? new Date(session.loginTime).toLocaleString() : 'N/A',
-              logoutTime: session.logoutTime ? new Date(session.logoutTime).toLocaleString() : 'Active',
+              logoutTime: session.logoutTime 
+                ? new Date(session.logoutTime).toLocaleString() 
+                : (session.lastActivity ? `Active (Last: ${new Date(session.lastActivity).toLocaleString()})` : 'Active'),
               status: session.status || 'Unknown',
               ipAddress: session.ipAddress || 'N/A'
             }))
