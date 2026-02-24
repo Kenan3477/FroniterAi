@@ -56,6 +56,11 @@ export default function WorkPage() {
   const [previewDialingPaused, setPreviewDialingPaused] = useState(false);
   const [autoDialerPaused, setAutoDialerPaused] = useState(false);
   
+  // Auto-dialer should be considered paused if agent is not available
+  const isAutoDialerEffectivelyPaused = autoDialerPaused || !agentAvailable;
+  const autoDialerStatusText = !agentAvailable ? 'Agent Unavailable' : (autoDialerPaused ? 'Paused' : 'Active');
+  const autoDialerStatusColor = !agentAvailable ? 'bg-red-500' : (autoDialerPaused ? 'bg-yellow-500' : 'bg-green-500');
+  
   // Pause reason modal state
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pendingPauseAction, setPendingPauseAction] = useState<{
@@ -101,6 +106,16 @@ export default function WorkPage() {
       }
     };
   }, [activeCall.isActive, activeCall.callStatus, activeCall.callStartTime, dispatch]);
+
+  // Auto-pause dialer when agent becomes unavailable
+  useEffect(() => {
+    if (!agentAvailable && !autoDialerPaused) {
+      // Agent became unavailable, automatically pause the auto-dialer
+      console.log('🔄 Agent status changed to unavailable, auto-pausing dialer');
+      setAutoDialerPaused(true);
+    }
+    // Note: We don't auto-resume when agent becomes available, as they may want to control this manually
+  }, [agentAvailable, autoDialerPaused]);
 
   // Load real interaction data from backend
   const loadInteractionData = useCallback(async () => {
@@ -565,14 +580,25 @@ export default function WorkPage() {
                       
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <div className={`h-3 w-3 rounded-full ${autoDialerPaused ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                          <div className={`h-3 w-3 rounded-full ${autoDialerStatusColor}`}></div>
                           <span className="text-sm font-medium text-gray-700">
-                            {autoDialerPaused ? 'Paused' : 'Active'}
+                            {autoDialerStatusText}
                           </span>
+                          {!agentAvailable && (
+                            <span className="text-xs text-gray-500">
+                              (Set status to Available to enable)
+                            </span>
+                          )}
                         </div>
                         
                         <button
                           onClick={async () => {
+                            // Only allow manual pause/resume when agent is available
+                            if (!agentAvailable) {
+                              alert('Please set your status to Available first');
+                              return;
+                            }
+                            
                             if (!autoDialerPaused) {
                               // Pausing: show reason modal
                               console.log('⏸️ Auto dialer pause requested - showing reason modal');
@@ -588,13 +614,18 @@ export default function WorkPage() {
                               console.log('▶️ Auto dialer resumed');
                             }
                           }}
+                          disabled={!agentAvailable}
                           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            autoDialerPaused
-                              ? 'bg-green-600 text-white hover:bg-green-700'
-                              : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                            !agentAvailable 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : autoDialerPaused
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-yellow-600 text-white hover:bg-yellow-700'
                           }`}
                         >
-                          {autoDialerPaused ? '▶️ Resume Dialing' : '⏸️ Pause Dialing'}
+                          {!agentAvailable 
+                            ? 'Unavailable' 
+                            : autoDialerPaused ? '▶️ Resume Dialing' : '⏸️ Pause Dialing'}
                         </button>
                       </div>
                     </div>
