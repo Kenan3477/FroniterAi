@@ -306,6 +306,63 @@ export async function GET(request: NextRequest) {
     if (campaignId) params.append('campaignId', campaignId);
     if (agentId) params.append('agentId', agentId);
     
+    // ✅ SPECIAL CASE: Handle pause_reasons report differently since it's frontend-only
+    if (reportType === 'pause_reasons') {
+      console.log('📊 Handling pause_reasons report with frontend endpoints');
+      
+      try {
+        // Call our own frontend API endpoints directly
+        const pauseParams = new URLSearchParams();
+        if (startDate) pauseParams.append('startDate', new Date(startDate).toISOString());
+        if (endDate) {
+          const endDateTime = new Date(endDate);
+          endDateTime.setHours(23, 59, 59, 999);
+          pauseParams.append('endDate', endDateTime.toISOString());
+        }
+        
+        // Get pause events data from our frontend endpoints
+        const pauseResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pause-events?${pauseParams.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!pauseResponse.ok) {
+          throw new Error(`Failed to fetch pause events: ${pauseResponse.status}`);
+        }
+        
+        const pauseData = await pauseResponse.json();
+        const pauseEvents = pauseData.data || pauseData || [];
+        const totalDuration = pauseEvents.reduce((acc: number, event: any) => acc + (event.duration || 0), 0);
+        const avgDuration = pauseEvents.length > 0 ? Math.round(totalDuration / pauseEvents.length) : 0;
+        const uniqueAgentIds = new Set(pauseEvents.map((event: any) => event.agentId || event.agentName));
+        
+        const reportData = {
+          type: 'pause_reasons',
+          title: 'Pause Reasons Analysis',
+          generated_at: new Date().toISOString(),
+          date_range: { start: startDate, end: endDate },
+          summary: {
+            total_pause_events: pauseEvents.length,
+            total_pause_duration: totalDuration,
+            avg_pause_duration: avgDuration,
+            unique_agents: uniqueAgentIds.size
+          },
+          data: pauseEvents
+        };
+        
+        return NextResponse.json({
+          success: true,
+          data: reportData
+        });
+        
+      } catch (pauseError) {
+        console.error('❌ Pause reasons report error:', pauseError);
+        throw new Error(`Failed to generate pause reasons report: ${pauseError instanceof Error ? pauseError.message : 'Unknown error'}`);
+      }
+    }
+    
     let endpoint = '';
     switch (reportType) {
       case 'calls':

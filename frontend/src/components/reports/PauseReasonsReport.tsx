@@ -61,19 +61,32 @@ export const PauseReasonsReport: React.FC<PauseReasonsReportProps> = ({
         params.append('endDate', endDateTime.toISOString());
       }
       
-      // Use cookie-based authentication instead of Authorization headers
+      // ✅ FIXED: Use same authentication pattern as reports page - both Authorization header and cookies
+      const token = typeof window !== 'undefined' ? (
+        localStorage.getItem('omnivox_token') || localStorage.getItem('authToken') || ''
+      ) : '';
+      
+      console.log('🔑 PauseReasonsReport - Auth Debug:', {
+        hasToken: !!token,
+        tokenLength: token.length,
+        tokenPrefix: token.substring(0, 20) + (token.length > 20 ? '...' : ''),
+        startDate,
+        endDate
+      });
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
       const [eventsResponse, statsResponse] = await Promise.all([
         fetch(`/api/pause-events?${params.toString()}`, {
           credentials: 'include', // Include cookies
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers
         }),
         fetch(`/api/pause-events/stats?${params.toString()}`, {
           credentials: 'include', // Include cookies
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers
         })
       ]);
 
