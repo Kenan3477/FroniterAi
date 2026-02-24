@@ -64,7 +64,8 @@ export default function PauseReasonsAnalysis() {
 
   const loadAgents = async () => {
     try {
-      const response = await fetch('/api/agents', {
+      console.log('🔄 Loading agents/users for pause reasons page...');
+      const response = await fetch('/api/users', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken')}`
         }
@@ -72,10 +73,17 @@ export default function PauseReasonsAnalysis() {
       
       if (response.ok) {
         const data = await response.json();
-        setAgents(data.agents || []);
+        console.log('✅ Users loaded for pause reasons:', data.length);
+        // Filter only agents (users with AGENT role) for the dropdown
+        const agentUsers = data.filter((user: any) => user.role === 'AGENT' || user.role === 'ADMIN');
+        setAgents(agentUsers);
+      } else {
+        console.error('❌ Failed to load users:', response.status);
+        setAgents([]); // Set empty array to prevent undefined errors
       }
     } catch (error) {
-      console.error('Failed to load agents:', error);
+      console.error('❌ Failed to load agents:', error);
+      setAgents([]); // Set empty array to prevent undefined errors
     }
   };
 
@@ -220,7 +228,7 @@ export default function PauseReasonsAnalysis() {
           </div>
           <div className="ml-4">
             <h3 className="text-sm font-medium text-gray-500">Active Agents</h3>
-            <p className="text-2xl font-semibold text-gray-900">{stats ? Object.keys(stats.byAgent).length : 0}</p>
+            <p className="text-2xl font-semibold text-gray-900">{stats && stats.byAgent ? Object.keys(stats.byAgent).length : 0}</p>
           </div>
         </div>
       </div>
@@ -234,21 +242,21 @@ export default function PauseReasonsAnalysis() {
 
     switch (groupBy) {
       case 'agent':
-        data = Object.entries(stats.byAgent).map(([agentId, data]) => ({
+        data = Object.entries(stats.byAgent || {}).map(([agentId, data]) => ({
           label: `${data.agent?.firstName} ${data.agent?.lastName}`,
           count: data.count,
           duration: data.duration
         }));
         break;
       case 'reason':
-        data = Object.entries(stats.byReason).map(([reason, count]) => ({
+        data = Object.entries(stats.byReason || {}).map(([reason, count]) => ({
           label: reason,
           count: count,
           duration: 0 // Would need to calculate from raw data
         }));
         break;
       case 'category':
-        data = Object.entries(stats.byCategory).map(([category, count]) => ({
+        data = Object.entries(stats.byCategory || {}).map(([category, count]) => ({
           label: category,
           count: count,
           duration: 0 // Would need to calculate from raw data
