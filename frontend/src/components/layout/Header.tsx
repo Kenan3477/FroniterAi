@@ -42,6 +42,8 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
   const [activePauseEvent, setActivePauseEvent] = useState<any>(null);
+  const [showPauseReasonDropdown, setShowPauseReasonDropdown] = useState(false);
+  const [selectedPauseReason, setSelectedPauseReason] = useState<string>('');
 
   console.log('🏗️ Header component rendered, pause modal state:', { showPauseModal, pendingStatusChange, activePauseEvent });
   
@@ -80,16 +82,18 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     
     // Check if this is a status change that requires a pause reason
     if (newStatus === 'Break') {
-      console.log('✅ Break status detected, showing pause modal...');
+      console.log('✅ Break status detected, showing pause reason dropdown...');
+      setShowPauseReasonDropdown(true);
       setPendingStatusChange(newStatus);
-      setShowPauseModal(true);
       return;
     }
 
-    // If changing from Break status, end any active pause event
+    // Handle break to other status transitions
     if (agentStatus === 'Break' && newStatus !== 'Break') {
       console.log('🔚 Ending active pause event...');
       await endActivePauseEvent();
+      setShowPauseReasonDropdown(false);
+      setSelectedPauseReason('');
     }
 
     const result = await updateAgentStatus(newStatus);
@@ -235,6 +239,80 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     'Break',
     'Offline'
   ];
+
+  // Pause reasons for the dropdown
+  const pauseReasons = [
+    { id: 'toilet_break', label: 'Toilet Break', category: 'personal' },
+    { id: 'lunch_time', label: 'Lunch Time', category: 'scheduled' },
+    { id: 'break_time', label: 'Break Time', category: 'scheduled' },
+    { id: 'home_time', label: 'Home Time', category: 'scheduled' },
+    { id: 'training', label: 'Training', category: 'work' },
+    { id: 'meeting', label: 'Meeting', category: 'work' },
+    { id: 'technical_issue', label: 'Technical Issue', category: 'technical' },
+    { id: 'personal_emergency', label: 'Personal Emergency', category: 'personal' },
+    { id: 'other', label: 'Other', category: 'other' }
+  ];
+
+  const handlePauseReasonSelect = async (reasonId: string) => {
+    if (!reasonId || !pendingStatusChange) {
+      alert('Please select a pause reason to continue.');
+      return;
+    }
+
+    const selectedReason = pauseReasons.find(r => r.id === reasonId);
+    if (!selectedReason) {
+      alert('Invalid pause reason selected.');
+      return;
+    }
+
+    console.log('✅ Pause reason selected:', selectedReason.label);
+    
+    try {
+      if (!user?.id) return;
+
+      // Start pause event tracking
+      const pauseEventResponse = await fetch('/api/pause-events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Use cookies for authentication
+        body: JSON.stringify({
+          agentId: user.id,
+          eventType: 'break',
+          pauseReason: selectedReason.label,
+          pauseCategory: selectedReason.category,
+          metadata: {
+            previousStatus: agentStatus,
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+
+      if (pauseEventResponse.ok) {
+        const pauseEventData = await pauseEventResponse.json();
+        setActivePauseEvent(pauseEventData.data);
+        console.log('✅ Pause event started:', pauseEventData);
+      }
+
+      // Update agent status
+      const result = await updateAgentStatus(pendingStatusChange);
+      
+      if (!result.success) {
+        alert(result.message || 'Failed to update agent status');
+        return;
+      }
+
+      // Success - hide dropdown and reset state
+      setShowPauseReasonDropdown(false);
+      setSelectedPauseReason('');
+      setPendingStatusChange(null);
+
+    } catch (error) {
+      console.error('❌ Error handling pause:', error);
+      alert('Failed to record pause reason. Please try again.');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -437,6 +515,48 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       ))}
                     </select>
                   </div>
+                  
+                  {/* Pause Reason Dropdown - Shows when Break is pending */}
+                  {showPauseReasonDropdown && pendingStatusChange === 'Break' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">
+                        <span className="text-orange-600">*</span> Select Pause Reason
+                      </label>
+                      <select 
+                        value={selectedPauseReason}
+                        onChange={(e) => setSelectedPauseReason(e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">Choose reason...</option>
+                        {pauseReasons.map((reason) => (
+                          <option key={reason.id} value={reason.id}>
+                            {reason.label}
+                          </option>
+                        ))}
+                      </select>
+                      
+                      <div className="flex space-x-2 mt-3">
+                        <button
+                          onClick={() => handlePauseReasonSelect(selectedPauseReason)}
+                          disabled={!selectedPauseReason || isUpdatingStatus}
+                          className="flex-1 bg-orange-600 text-white text-xs px-3 py-2 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUpdatingStatus ? 'Setting...' : 'Confirm Break'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowPauseReasonDropdown(false);
+                            setPendingStatusChange(null);
+                            setSelectedPauseReason('');
+                          }}
+                          disabled={isUpdatingStatus}
+                          className="flex-1 bg-gray-300 text-gray-700 text-xs px-3 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile Campaign/Queue Selectors */}
