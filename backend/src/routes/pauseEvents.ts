@@ -377,7 +377,7 @@ router.get('/', authenticateToken, async (req, res) => {
       userRole: req.user?.role as UserRole || UserRole.AGENT,
       targetAgentId: agentId as string,
       dataType: DataType.PAUSE_EVENTS,
-      action: 'read',
+      action: 'READ',
       context: {
         dateRange: {
           from: dateFrom ? new Date(dateFrom as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
@@ -504,6 +504,8 @@ router.get('/', authenticateToken, async (req, res) => {
         sessionId: (req as any).sessionID || 'unknown'
       });
     }
+
+    const [allPauseEvents, allTotalCount] = await Promise.all([
       prisma.agentPauseEvent.findMany({
         where: whereConditions,
         include: {
@@ -526,12 +528,12 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       data: {
-        pauseEvents,
+        pauseEvents: allPauseEvents,
         pagination: {
           page: pageNum,
           limit: limitNum,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limitNum)
+          total: allTotalCount,
+          totalPages: Math.ceil(allTotalCount / limitNum)
         }
       }
     });
