@@ -73,10 +73,17 @@ export default function PauseReasonsAnalysis() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Users loaded for pause reasons:', data.length);
-        // Filter only agents (users with AGENT role) for the dropdown
-        const agentUsers = data.filter((user: any) => user.role === 'AGENT' || user.role === 'ADMIN');
-        setAgents(agentUsers);
+        console.log('✅ Users loaded for pause reasons:', Array.isArray(data) ? data.length : 'Not an array');
+        
+        // Ensure data is an array before filtering
+        if (Array.isArray(data)) {
+          // Filter only agents (users with AGENT role) for the dropdown
+          const agentUsers = data.filter((user: any) => user.role === 'AGENT' || user.role === 'ADMIN');
+          setAgents(agentUsers || []);
+        } else {
+          console.error('❌ Users data is not an array:', data);
+          setAgents([]);
+        }
       } else {
         console.error('❌ Failed to load users:', response.status);
         setAgents([]); // Set empty array to prevent undefined errors
@@ -151,8 +158,12 @@ export default function PauseReasonsAnalysis() {
       const eventsData = await eventsResponse.json();
       const statsData = await statsResponse.json();
 
-      setPauseEvents(eventsData.data || []);
-      setStats(statsData.data || null);
+      // Ensure events data is an array
+      const events = eventsData.data || eventsData || [];
+      setPauseEvents(Array.isArray(events) ? events : []);
+      setStats(statsData.data || statsData || null);
+
+      console.log('📊 Pause events loaded:', Array.isArray(events) ? events.length : 'Not an array', events);
 
     } catch (error) {
       console.error('Error loading pause data:', error);
@@ -268,8 +279,8 @@ export default function PauseReasonsAnalysis() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Breakdown by {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</h3>
         <div className="space-y-4">
-          {data.slice(0, 10).map((item, index) => {
-            const maxCount = Math.max(...data.map(d => d.count));
+          {Array.isArray(data) && data.slice(0, 10).map((item, index) => {
+            const maxCount = Array.isArray(data) && data.length > 0 ? Math.max(...data.map(d => d.count)) : 0;
             const percentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
             
             return (
@@ -380,7 +391,7 @@ export default function PauseReasonsAnalysis() {
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Agents</option>
-              {agents.map((agent) => (
+              {Array.isArray(agents) && agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
                   {agent.firstName} {agent.lastName}
                 </option>
@@ -463,7 +474,7 @@ export default function PauseReasonsAnalysis() {
                   </td>
                 </tr>
               ) : (
-                pauseEvents.map((event) => (
+                Array.isArray(pauseEvents) && pauseEvents.map((event) => (
                   <tr key={event.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {event.agent?.firstName} {event.agent?.lastName}
