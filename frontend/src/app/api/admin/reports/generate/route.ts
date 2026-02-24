@@ -321,7 +321,13 @@ export async function GET(request: NextRequest) {
         }
         
         // Get pause events data from our frontend endpoints
-        const pauseResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pause-events?${pauseParams.toString()}`, {
+        const frontendBaseUrl = process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : process.env.NEXTAUTH_URL || 'http://localhost:3000';
+          
+        console.log('🔗 Using frontend URL for pause events:', frontendBaseUrl);
+          
+        const pauseResponse = await fetch(`${frontendBaseUrl}/api/pause-events?${pauseParams.toString()}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
