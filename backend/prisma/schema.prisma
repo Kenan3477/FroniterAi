@@ -285,35 +285,39 @@ model CallKPI {
 }
 
 model CallRecord {
-  id                   String                 @id @default(cuid())
-  callId               String                 @unique
-  campaignId           String
-  contactId            String
-  agentId              String?
-  phoneNumber          String
-  dialedNumber         String?
-  callType             String                 @default("outbound")
-  startTime            DateTime
-  endTime              DateTime?
-  duration             Int?
-  outcome              String?
-  dispositionId        String?
-  notes                String?
-  recording            String?
-  transferTo           String?
-  createdAt            DateTime               @default(now())
-  ai_recommendations   ai_recommendations[]
-  alerts               alerts[]
-  automation_triggers  automation_triggers[]
-  call_analysis        call_analysis?
-  agent                Agent?                 @relation(fields: [agentId], references: [agentId])
-  campaign             Campaign               @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
-  contact              Contact                @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
-  disposition          Disposition?           @relation(fields: [dispositionId], references: [id])
-  disposition_tracking disposition_tracking[]
-  quality_monitoring   quality_monitoring?
-  recordingFile        Recording?
-  sentiment_analysis   sentiment_analysis[]
+  id                    String                 @id @default(cuid())
+  callId                String                 @unique
+  campaignId            String
+  contactId             String
+  agentId               String?
+  phoneNumber           String
+  dialedNumber          String?
+  callType              String                 @default("outbound")
+  startTime             DateTime
+  endTime               DateTime?
+  duration              Int?
+  outcome               String?
+  dispositionId         String?
+  notes                 String?
+  recording             String?
+  transcriptionStatus   String?                // Added for transcription pipeline
+  transferTo            String?
+  createdAt             DateTime               @default(now())
+  ai_recommendations    ai_recommendations[]
+  alerts                alerts[]
+  automation_triggers   automation_triggers[]
+  call_analysis         call_analysis?
+  agent                 Agent?                 @relation(fields: [agentId], references: [agentId])
+  campaign              Campaign               @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact               Contact                @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  disposition           Disposition?           @relation(fields: [dispositionId], references: [id])
+  disposition_tracking  disposition_tracking[]
+  quality_monitoring    quality_monitoring?
+  recordingFile         Recording?
+  sentiment_analysis    sentiment_analysis[]
+  // New transcription relations
+  transcripts           CallTranscript[]
+  transcriptionJobs     TranscriptionJob[]
 
   @@map("call_records")
 }
@@ -1631,6 +1635,112 @@ model UserSession {
   @@index([status])
   @@index([loginTime])
   @@index([logoutTime])
-  @@index([sessionId])
   @@map("user_sessions")
+}
+
+// ========================================
+// TRANSCRIPTION SYSTEM MODELS
+// ========================================
+
+model CallTranscript {
+  id                      String    @id @default(cuid())
+  callId                  String    // References call_records.id
+  transcriptText          String
+  structuredJson          Json?
+  summary                 String?
+  sentimentScore          Float?    // 0-1 range
+  complianceFlags         Json?
+  confidenceScore         Float?    // 0-1 range
+  processingStatus        String    @default("pending") // pending, processing, completed, failed
+  errorMessage            String?
+  
+  // AI analysis fields
+  callOutcomeClassification String?
+  keyObjections             Json?
+  
+  // Advanced analytics
+  agentTalkRatio            Float?
+  customerTalkRatio         Float?
+  longestMonologueSeconds   Int?
+  silenceDurationSeconds    Int?
+  interruptionsCount        Int?
+  scriptAdherenceScore      Float?
+  
+  // Processing metadata
+  processingProvider        String    @default("openai")
+  processingTimeMs          Int?
+  processingCost            Float?
+  wordCount                 Int?
+  
+  // GDPR compliance
+  retentionExpiresAt        DateTime?
+  dataRegion                String    @default("global")
+  
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  
+  // Relations
+  callRecord                CallRecord @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([processingStatus])
+  @@index([processingProvider])
+  @@index([retentionExpiresAt])
+  @@index([dataRegion])
+  @@index([createdAt])
+  @@map("call_transcripts")
+}
+
+model TranscriptionJob {
+  id            String    @id @default(cuid())
+  callId        String    // References call_records.id
+  recordingUrl  String
+  status        String    @default("pending") // pending, processing, completed, failed, retrying
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  priority      Int       @default(100)
+  
+  // Job metadata
+  jobType       String    @default("transcription") // transcription, backfill, reprocess
+  provider      String    @default("openai")
+  
+  // Error handling
+  errorMessage  String?
+  lastErrorAt   DateTime?
+  
+  // Scheduling
+  scheduledAt   DateTime  @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  
+  // Audit trail
+  createdBy     String    @default("system")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  callRecord    CallRecord @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([callId])
+  @@index([provider])
+  @@index([jobType])
+  @@map("transcription_jobs")
+}
+
+model TranscriptionAudit {
+  id        String    @id @default(cuid())
+  callId    String
+  action    String
+  details   Json?
+  userId    String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  @@index([callId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("transcription_audit")
 }

@@ -16,7 +16,10 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx src/database/seed.ts"
+    "db:seed": "tsx src/database/seed.ts",
+    "transcription:worker": "tsx src/scripts/transcriptionWorker.ts",
+    "transcription:backfill": "tsx src/scripts/backfillTranscriptions.ts",
+    "transcription:backfill:execute": "tsx src/scripts/backfillTranscriptions.ts --execute"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",

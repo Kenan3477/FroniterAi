@@ -5,6 +5,7 @@
 
 import { prisma } from '../database/index';
 import { getCallRecordings } from './twilioService';
+import { onNewCallRecording } from './transcriptionWorker';
 import path from 'path';
 import fs from 'fs/promises';
 import fetch from 'node-fetch';
@@ -91,6 +92,16 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
         recording: `${BASE_RECORDING_URL}/${recordingRecord.id}/download`
       }
     });
+    
+    // 🎯 AUTO-TRANSCRIPTION: Queue transcription job for new recording
+    try {
+      const recordingUrl = `${BASE_RECORDING_URL}/${recordingRecord.id}/download`;
+      await onNewCallRecording(callRecordId, recordingUrl);
+      console.log(`📝 Transcription queued for call ${callRecordId}`);
+    } catch (transcriptionError) {
+      console.error(`⚠️ Failed to queue transcription for call ${callRecordId}:`, transcriptionError);
+      // Don't fail the recording process if transcription queueing fails
+    }
     
     return recordingRecord.id;
     

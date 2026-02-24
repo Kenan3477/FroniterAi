@@ -92,6 +92,7 @@ import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tena
 import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-time sentiment analysis and coaching
 // import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
+import transcriptRoutes from './routes/transcriptRoutes'; // NEW: AI-powered call transcription system
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -218,6 +219,7 @@ class App {
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     this.app.use('/api/recordings', recordingRoutes); // Call recording download and streaming
+    this.app.use('/api', transcriptRoutes); // AI-powered call transcription system
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts

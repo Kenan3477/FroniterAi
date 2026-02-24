@@ -19,7 +19,9 @@ import {
   ChevronUpIcon,
   Bars3Icon,
   EyeIcon,
-  XMarkIcon
+  XMarkIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 interface Campaign {
@@ -75,6 +77,78 @@ interface CallRecord {
   };
 }
 
+interface TranscriptData {
+  callId: string;
+  status: 'completed' | 'processing' | 'not_started' | 'failed';
+  message?: string;
+  estimatedCompletion?: string;
+  call?: {
+    id: string;
+    phoneNumber: string;
+    startTime: string;
+    duration?: number;
+    outcome?: string;
+    agent?: {
+      firstName: string;
+      lastName: string;
+    };
+    contact?: {
+      firstName: string;
+      lastName: string;
+    };
+    campaign?: {
+      name: string;
+    };
+  };
+  transcript?: {
+    text: string;
+    segments?: TranscriptSegment[];
+    confidence?: number;
+    language?: string;
+    wordCount?: number;
+    processingProvider?: string;
+  };
+  analysis?: {
+    summary?: string;
+    sentimentScore?: number;
+    complianceFlags?: ComplianceFlag[];
+    keyObjections?: string[];
+    callOutcome?: string;
+  };
+  analytics?: {
+    agentTalkRatio?: number;
+    customerTalkRatio?: number;
+    longestMonologue?: number;
+    silenceDuration?: number;
+    interruptions?: number;
+    scriptAdherence?: number;
+  };
+  metadata?: {
+    processingTime?: number;
+    processingCost?: number;
+    processingDate?: string;
+    retentionExpires?: string;
+    dataRegion?: string;
+  };
+}
+
+interface TranscriptSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+  speaker?: 'agent' | 'customer';
+  confidence?: number;
+}
+
+interface ComplianceFlag {
+  type: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description: string;
+  timestamp?: number;
+  confidence: number;
+}
+
 interface CallRecordsFilters {
   dateFrom?: string;
   dateTo?: string;
@@ -108,6 +182,14 @@ export const CallRecordsView: React.FC = () => {
   
   // Campaign filter data
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
+  
+  // Transcript-related state
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [selectedTranscriptCallId, setSelectedTranscriptCallId] = useState<string | null>(null);
+  const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const [transcriptView, setTranscriptView] = useState<'full' | 'summary' | 'analytics'>('full');
 
   // Outcome color mapping
   const outcomeColors: { [key: string]: string } = {
@@ -369,6 +451,69 @@ export const CallRecordsView: React.FC = () => {
       alert(`❌ Recording playback failed\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
       setIsPlaying(null);
     }
+  };
+
+  const fetchTranscript = async (callId: string) => {
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+    setSelectedTranscriptCallId(callId);
+    setShowTranscriptModal(true);
+
+    try {
+      console.log(`📝 Fetching transcript for call: ${callId} (format: ${transcriptView})`);
+      
+      const response = await fetch(`/api/calls/${callId}/transcript?format=${transcriptView}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const transcript = await response.json();
+      setTranscriptData(transcript);
+      
+      console.log('✅ Transcript loaded successfully:', transcript.status);
+
+    } catch (error) {
+      console.error('❌ Error fetching transcript:', error);
+      setTranscriptError(error instanceof Error ? error.message : 'Failed to load transcript');
+    } finally {
+      setTranscriptLoading(false);
+    }
+  };
+
+  // Effect to refetch transcript when view changes
+  useEffect(() => {
+    if (showTranscriptModal && selectedTranscriptCallId) {
+      fetchTranscript(selectedTranscriptCallId);
+    }
+  }, [transcriptView]); // Re-fetch when view changes
+
+  const formatSentimentScore = (score?: number): { text: string; color: string } => {
+    if (score === undefined || score === null) {
+      return { text: 'Unknown', color: 'text-gray-500' };
+    }
+    
+    if (score >= 0.7) return { text: 'Positive', color: 'text-green-600' };
+    if (score >= 0.3) return { text: 'Neutral', color: 'text-yellow-600' };
+    return { text: 'Negative', color: 'text-red-600' };
+  };
+
+  const formatTimestamp = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const closeTranscriptModal = () => {
+    setShowTranscriptModal(false);
+    setSelectedTranscriptCallId(null);
+    setTranscriptData(null);
+    setTranscriptError(null);
   };
 
   const cleanupDemoRecords = async () => {
@@ -703,6 +848,13 @@ export const CallRecordsView: React.FC = () => {
                       >
                         <DocumentArrowDownIcon className="h-4 w-4" />
                       </a>
+                      <button
+                        onClick={() => fetchTranscript(record.id)}
+                        className="flex items-center text-purple-600 hover:text-purple-800"
+                        title="View transcript"
+                      >
+                        <DocumentTextIcon className="h-4 w-4" />
+                      </button>
                     </div>
                   ) : (
                     <span className="text-sm text-gray-400">No recording</span>
@@ -874,10 +1026,399 @@ export const CallRecordsView: React.FC = () => {
                       <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
                       Download
                     </a>
+                    <button
+                      onClick={() => {
+                        setSelectedRecord(null); // Close this modal first
+                        fetchTranscript(selectedRecord.id);
+                      }}
+                      className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                    >
+                      <DocumentTextIcon className="h-4 w-4 mr-1" />
+                      Transcript
+                    </button>
                     <span className="text-sm text-gray-600">
                       {selectedRecord.recordingFile.format.toUpperCase()} • {formatDuration(selectedRecord.recordingFile.duration)}
                     </span>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transcript Modal */}
+      {showTranscriptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <ChatBubbleLeftRightIcon className="h-6 w-6 text-purple-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Call Transcript</h2>
+                {selectedTranscriptCallId && (
+                  <span className="text-sm text-gray-500">Call: {selectedTranscriptCallId}</span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                {/* View Toggle */}
+                <div className="flex rounded-lg bg-gray-100 p-1">
+                  <button
+                    onClick={() => setTranscriptView('full')}
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      transcriptView === 'full' 
+                        ? 'bg-white text-purple-700 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Full
+                  </button>
+                  <button
+                    onClick={() => setTranscriptView('summary')}
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      transcriptView === 'summary' 
+                        ? 'bg-white text-purple-700 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setTranscriptView('analytics')}
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      transcriptView === 'analytics' 
+                        ? 'bg-white text-purple-700 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Analytics
+                  </button>
+                </div>
+                <button
+                  onClick={closeTranscriptModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {transcriptLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading transcript...</p>
+                  </div>
+                </div>
+              ) : transcriptError ? (
+                <div className="text-center py-12">
+                  <div className="text-red-600 mb-4">
+                    <XMarkIcon className="h-12 w-12 mx-auto" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Transcript Error</h3>
+                  <p className="text-gray-600 mb-4">{transcriptError}</p>
+                  <button
+                    onClick={() => selectedTranscriptCallId && fetchTranscript(selectedTranscriptCallId)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : transcriptData?.status === 'not_started' || transcriptData?.status === 'processing' ? (
+                <div className="text-center py-12">
+                  <div className="text-yellow-600 mb-4">
+                    <ClockIcon className="h-12 w-12 mx-auto" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {transcriptData.status === 'processing' ? 'Transcription in Progress' : 'Transcription Not Started'}
+                  </h3>
+                  <p className="text-gray-600 mb-2">{transcriptData.message}</p>
+                  {transcriptData.estimatedCompletion && (
+                    <p className="text-sm text-gray-500">Estimated completion: {transcriptData.estimatedCompletion}</p>
+                  )}
+                </div>
+              ) : transcriptData && (
+                <div>
+                  {transcriptView === 'full' && (
+                    <div className="space-y-6">
+                      {/* Call Information */}
+                      {transcriptData.call && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h3 className="text-sm font-medium text-gray-900 mb-2">Call Details</h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-500">Phone:</span> {transcriptData.call.phoneNumber}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Duration:</span> {formatDuration(transcriptData.call.duration)}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Agent:</span> {transcriptData.call.agent ? 
+                                `${transcriptData.call.agent.firstName} ${transcriptData.call.agent.lastName}` : 'N/A'
+                              }
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Outcome:</span> {transcriptData.call.outcome}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick Analytics */}
+                      {transcriptData.analysis && (
+                        <div className="bg-blue-50 rounded-lg p-4">
+                          <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Insights</h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-500">Sentiment:</span>
+                              <span className={`ml-2 font-medium ${formatSentimentScore(transcriptData.analysis.sentimentScore).color}`}>
+                                {formatSentimentScore(transcriptData.analysis.sentimentScore).text}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Call Outcome:</span>
+                              <span className="ml-2 font-medium">{transcriptData.analysis.callOutcome}</span>
+                            </div>
+                          </div>
+                          {transcriptData.analysis.summary && (
+                            <div className="mt-3">
+                              <span className="text-gray-500">Summary:</span>
+                              <p className="mt-1 text-gray-700">{transcriptData.analysis.summary}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Full Transcript */}
+                      {transcriptData.transcript && (
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-4">Full Transcript</h3>
+                          
+                          {/* Transcript Metadata */}
+                          <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span>Words: {transcriptData.transcript.wordCount || 'N/A'}</span>
+                                <span className="ml-4">Confidence: {transcriptData.transcript.confidence ? 
+                                  `${Math.round(transcriptData.transcript.confidence * 100)}%` : 'N/A'}
+                                </span>
+                              </div>
+                              <div>
+                                Provider: {transcriptData.transcript.processingProvider || 'OpenAI'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Segmented Transcript */}
+                          {transcriptData.transcript.segments && transcriptData.transcript.segments.length > 0 ? (
+                            <div className="space-y-3">
+                              {transcriptData.transcript.segments.map((segment, index) => (
+                                <div key={segment.id || index} className="flex space-x-3">
+                                  <div className="flex-shrink-0 text-xs text-gray-500 pt-1 w-12">
+                                    {formatTimestamp(segment.start)}
+                                  </div>
+                                  <div className="flex-shrink-0 text-xs font-medium pt-1 w-16">
+                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs ${
+                                      segment.speaker === 'agent' 
+                                        ? 'bg-blue-100 text-blue-800' 
+                                        : 'bg-green-100 text-green-800'
+                                    }`}>
+                                      {segment.speaker === 'agent' ? 'Agent' : 'Customer'}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-gray-900">{segment.text}</p>
+                                    {segment.confidence && segment.confidence < 0.8 && (
+                                      <span className="text-xs text-yellow-600">Low confidence</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                              <p className="text-gray-900 leading-relaxed whitespace-pre-wrap">
+                                {transcriptData.transcript.text}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Compliance Flags */}
+                      {transcriptData.analysis?.complianceFlags && transcriptData.analysis.complianceFlags.length > 0 && (
+                        <div className="bg-red-50 rounded-lg p-4">
+                          <h3 className="text-sm font-medium text-red-900 mb-2">Compliance Alerts</h3>
+                          <div className="space-y-2">
+                            {transcriptData.analysis.complianceFlags.map((flag, index) => (
+                              <div key={index} className="flex items-start space-x-2">
+                                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                  flag.severity === 'CRITICAL' ? 'bg-red-200 text-red-800' :
+                                  flag.severity === 'HIGH' ? 'bg-orange-200 text-orange-800' :
+                                  flag.severity === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
+                                  'bg-blue-200 text-blue-800'
+                                }`}>
+                                  {flag.severity}
+                                </span>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{flag.type.replace(/_/g, ' ')}</p>
+                                  <p className="text-sm text-gray-600">{flag.description}</p>
+                                  {flag.timestamp && (
+                                    <p className="text-xs text-gray-500">At: {formatTimestamp(flag.timestamp)}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {transcriptView === 'summary' && transcriptData.analysis && (
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Call Summary</h3>
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <p className="text-gray-900 leading-relaxed">
+                            {transcriptData.analysis.summary || 'No summary available'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Sentiment Analysis</h4>
+                          <div className={`text-2xl font-bold ${formatSentimentScore(transcriptData.analysis.sentimentScore).color}`}>
+                            {formatSentimentScore(transcriptData.analysis.sentimentScore).text}
+                          </div>
+                          {transcriptData.analysis.sentimentScore !== undefined && (
+                            <div className="text-sm text-gray-600 mt-1">
+                              Score: {Math.round(transcriptData.analysis.sentimentScore * 100)}%
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Call Outcome</h4>
+                          <div className="text-lg font-medium text-gray-900">
+                            {transcriptData.analysis.callOutcome || 'Unknown'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {transcriptData.analysis.keyObjections && transcriptData.analysis.keyObjections.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Key Objections</h4>
+                          <ul className="space-y-2">
+                            {transcriptData.analysis.keyObjections.map((objection, index) => (
+                              <li key={index} className="flex items-start space-x-2">
+                                <span className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0"></span>
+                                <span className="text-gray-700">{objection}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {transcriptView === 'analytics' && transcriptData.analytics && (
+                    <div className="space-y-6">
+                      <h3 className="text-lg font-medium text-gray-900">Call Analytics</h3>
+                      
+                      {/* Talk Time Analysis */}
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Talk Time Distribution</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-2xl font-bold text-blue-600">
+                              {transcriptData.analytics.agentTalkRatio ? 
+                                `${Math.round(transcriptData.analytics.agentTalkRatio * 100)}%` : 'N/A'
+                              }
+                            </div>
+                            <div className="text-sm text-gray-600">Agent Talk Time</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {transcriptData.analytics.customerTalkRatio ? 
+                                `${Math.round(transcriptData.analytics.customerTalkRatio * 100)}%` : 'N/A'
+                              }
+                            </div>
+                            <div className="text-sm text-gray-600">Customer Talk Time</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Conversation Metrics */}
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Conversation Flow</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Longest Monologue</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.longestMonologue ? 
+                                  formatDuration(transcriptData.analytics.longestMonologue) : 'N/A'
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Silence Duration</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.silenceDuration ? 
+                                  formatDuration(transcriptData.analytics.silenceDuration) : 'N/A'
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Interruptions</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.interruptions || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Performance Metrics</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Script Adherence</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.scriptAdherence ? 
+                                  `${Math.round(transcriptData.analytics.scriptAdherence * 100)}%` : 'N/A'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Processing Information */}
+                      {transcriptData.metadata && (
+                        <div className="border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Processing Information</h4>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            {transcriptData.metadata.processingTime && (
+                              <div>Processing Time: {transcriptData.metadata.processingTime}ms</div>
+                            )}
+                            {transcriptData.metadata.processingCost && (
+                              <div>Processing Cost: ${transcriptData.metadata.processingCost.toFixed(4)}</div>
+                            )}
+                            {transcriptData.metadata.processingDate && (
+                              <div>Processed: {new Date(transcriptData.metadata.processingDate).toLocaleString()}</div>
+                            )}
+                            {transcriptData.metadata.dataRegion && (
+                              <div>Data Region: {transcriptData.metadata.dataRegion}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
