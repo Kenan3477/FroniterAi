@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
+import { PauseReasonsReport } from '@/components/reports/PauseReasonsReport';
 import { 
   ArrowLeftIcon,
   CalendarIcon,
@@ -368,13 +369,6 @@ function ReportViewPageContent() {
     console.log('🔄 useEffect triggered - reportType:', JSON.stringify(reportType));
     console.log('🔄 useEffect - filters:', filters);
     
-    // Redirect pause_reasons to our dedicated page
-    if (reportType === 'pause_reasons') {
-      console.log('🚀 Redirecting to dedicated pause reasons analysis page');
-      router.push('/reports/pause_reasons');
-      return;
-    }
-    
     if (reportType) {
       console.log('✅ Report type exists, calling loadReportData()');
       loadReportData();
@@ -523,6 +517,11 @@ function ReportViewPageContent() {
         {/* Main Content */}
         {category === 'voice' && subcategory === 'call' ? (
           <CallRecordsView />
+        ) : reportType === 'pause_reasons' ? (
+          <PauseReasonsReport 
+            startDate={filters.dateRange.from} 
+            endDate={filters.dateRange.to}
+          />
         ) : loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>

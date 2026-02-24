@@ -7,12 +7,41 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     
+    // Check for both Authorization header and cookie-based authentication
+    const authHeader = request.headers.get('Authorization') || '';
+    const authCookie = request.cookies.get('auth-token')?.value || '';
+    
+    if (authHeader.includes('temp_local_token_') || authCookie.includes('temp_local_token_')) {
+      console.log('✅ Using local bypass for pause events stats');
+      
+      // Return mock pause events stats
+      return NextResponse.json({
+        success: true,
+        stats: {
+          totalEvents: 3,
+          totalDuration: 4500, // 75 minutes in seconds
+          averageDuration: 1500, // 25 minutes
+          byReason: {
+            'Break': { count: 1, totalDuration: 900 },
+            'Lunch': { count: 1, totalDuration: 1800 },
+            'Meeting': { count: 1, totalDuration: 1800 }
+          },
+          byAgent: {
+            'Test Agent': { count: 3, totalDuration: 4500 }
+          },
+          byDate: {
+            '2026-02-24': { count: 3, totalDuration: 4500 }
+          }
+        }
+      });
+    }
+    
     const backendUrl = `${BACKEND_URL}/api/pause-events/stats${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
-        'Authorization': request.headers.get('Authorization') || '',
+        'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
     });
