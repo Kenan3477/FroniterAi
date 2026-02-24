@@ -9,6 +9,7 @@ import InteractionTable from '@/components/work/InteractionTable';
 import { CustomerInfoCard, CustomerInfoCardData } from '@/components/work/CustomerInfoCard';
 import { RestApiDialer } from '@/components/dialer/RestApiDialer';
 import { PreviewContactCard, PreviewContact } from '@/components/work/PreviewContactCard';
+import PauseReasonModal from '@/components/agent/PauseReasonModal';
 import { RootState } from '@/store';
 import { updateCallDuration, updateCustomerInfo } from '@/store/slices/activeCallSlice';
 import { 
@@ -28,7 +29,7 @@ export default function WorkPage() {
   const [agentId, setAgentId] = useState('demo-agent');
   
   // Get auth context data
-  const { currentCampaign, agentStatus, updateAgentStatus } = useAuth();
+  const { user, currentCampaign, agentStatus, updateAgentStatus } = useAuth();
   
   // Client-side hydration state
   const [isClient, setIsClient] = useState(false);
@@ -53,6 +54,14 @@ export default function WorkPage() {
   const [isLoadingContact, setIsLoadingContact] = useState(false);
   const [showPreviewCard, setShowPreviewCard] = useState(false);
   const [previewDialingPaused, setPreviewDialingPaused] = useState(false);
+  const [autoDialerPaused, setAutoDialerPaused] = useState(false);
+  
+  // Pause reason modal state
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pendingPauseAction, setPendingPauseAction] = useState<{
+    type: 'preview_pause' | 'auto_dial_pause';
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
   
   // Ref to prevent infinite loops in preview contact fetching
   const fetchingContactRef = useRef(false);
@@ -429,6 +438,70 @@ export default function WorkPage() {
     }
   };
 
+  // Pause reason handling functions
+  const handlePauseWithReason = (type: 'preview_pause' | 'auto_dial_pause'): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setPendingPauseAction({ type, resolve });
+      setShowPauseModal(true);
+    });
+  };
+
+  const handlePauseConfirm = async (reason: string, comment?: string) => {
+    try {
+      if (!user?.id || !pendingPauseAction) return;
+
+      // Start pause event tracking
+      const pauseEventResponse = await fetch('/api/pause-events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('omnivox_token') || localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          agentId: user.id,
+          eventType: pendingPauseAction.type,
+          pauseReason: reason,
+          pauseCategory: getPauseCategory(reason),
+          agentComment: comment,
+          metadata: {
+            previousStatus: agentStatus,
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+
+      if (pauseEventResponse.ok) {
+        const pauseEventData = await pauseEventResponse.json();
+        console.log('✅ Pause event started:', pauseEventData);
+      }
+
+      // Confirm the pause action
+      pendingPauseAction.resolve(true);
+
+    } catch (error) {
+      console.error('❌ Error handling pause:', error);
+      alert('Failed to record pause reason. Please try again.');
+      pendingPauseAction?.resolve(false);
+    } finally {
+      setShowPauseModal(false);
+      setPendingPauseAction(null);
+    }
+  };
+
+  const handlePauseCancel = () => {
+    pendingPauseAction?.resolve(false);
+    setShowPauseModal(false);
+    setPendingPauseAction(null);
+  };
+
+  const getPauseCategory = (reason: string): string => {
+    if (reason.toLowerCase().includes('toilet') || reason.toLowerCase().includes('personal')) return 'personal';
+    if (reason.toLowerCase().includes('lunch') || reason.toLowerCase().includes('break time') || reason.toLowerCase().includes('home')) return 'scheduled';
+    if (reason.toLowerCase().includes('training') || reason.toLowerCase().includes('meeting')) return 'work';
+    if (reason.toLowerCase().includes('technical') || reason.toLowerCase().includes('system')) return 'technical';
+    return 'other';
+  };
+
   const getCurrentData = () => {
     switch (selectedView) {
       case 'My Interactions':
@@ -478,6 +551,56 @@ export default function WorkPage() {
                     console.log('REST API call result:', result);
                   }}
                 />
+                
+                {/* Auto Dialer Controls */}
+                {!activeCall.isActive && currentCampaign && (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Auto Dialer</h3>
+                        <p className="text-sm text-gray-600">
+                          Campaign: {currentCampaign.name} • {currentCampaign.dialMethod}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <div className={`h-3 w-3 rounded-full ${autoDialerPaused ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {autoDialerPaused ? 'Paused' : 'Active'}
+                          </span>
+                        </div>
+                        
+                        <button
+                          onClick={async () => {
+                            if (!autoDialerPaused) {
+                              // Pausing: show reason modal
+                              console.log('⏸️ Auto dialer pause requested - showing reason modal');
+                              const confirmed = await handlePauseWithReason('auto_dial_pause');
+                              
+                              if (confirmed) {
+                                setAutoDialerPaused(true);
+                                console.log('⏸️ Auto dialer paused');
+                              }
+                            } else {
+                              // Resuming: no reason needed
+                              setAutoDialerPaused(false);
+                              console.log('▶️ Auto dialer resumed');
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            autoDialerPaused
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                          }`}
+                        >
+                          {autoDialerPaused ? '▶️ Resume Dialing' : '⏸️ Pause Dialing'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Show dialing interface only when no active call */}
                 {!activeCall.isActive && (
                   <div className="mt-4">
@@ -702,15 +825,23 @@ export default function WorkPage() {
               }}
               onPause={async () => {
                 const newPausedState = !previewDialingPaused;
-                setPreviewDialingPaused(newPausedState);
                 
                 if (newPausedState) {
-                  // Pausing: set status to Unavailable
-                  console.log('⏸️ Preview dialing paused from card - setting status to Unavailable');
-                  await updateAgentStatus('Unavailable');
+                  // Pausing: show pause reason modal
+                  console.log('⏸️ Preview dialing pause requested - showing reason modal');
+                  const confirmed = await handlePauseWithReason('preview_pause');
+                  
+                  if (confirmed) {
+                    setPreviewDialingPaused(true);
+                    console.log('⏸️ Preview dialing paused - setting status to Unavailable');
+                    await updateAgentStatus('Unavailable');
+                  } else {
+                    console.log('❌ Preview dialing pause cancelled');
+                  }
                 } else {
-                  // Resuming: set status to Available
-                  console.log('▶️ Preview dialing resumed from card - setting status to Available');
+                  // Resuming: set status to Available (no reason needed for resuming)
+                  setPreviewDialingPaused(false);
+                  console.log('▶️ Preview dialing resumed - setting status to Available');
                   await updateAgentStatus('Available');
                 }
               }}
@@ -721,6 +852,22 @@ export default function WorkPage() {
           </div>
         ) : null;
       })()}
+      
+      {/* Pause Reason Modal */}
+      {showPauseModal && pendingPauseAction && (
+        <PauseReasonModal
+          isOpen={showPauseModal}
+          eventType={pendingPauseAction.type}
+          onConfirm={handlePauseConfirm}
+          onClose={handlePauseCancel}
+          title="Pause Reason Required"
+          description={`Please select the reason for pausing ${
+            pendingPauseAction.type === 'preview_pause' 
+              ? 'preview contact dialing' 
+              : 'auto dialer'
+          }:`}
+        />
+      )}
       </MainLayout>
     </>
   );

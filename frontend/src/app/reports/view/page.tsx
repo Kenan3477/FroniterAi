@@ -368,6 +368,13 @@ function ReportViewPageContent() {
     console.log('🔄 useEffect triggered - reportType:', JSON.stringify(reportType));
     console.log('🔄 useEffect - filters:', filters);
     
+    // Redirect pause_reasons to our dedicated page
+    if (reportType === 'pause_reasons') {
+      console.log('🚀 Redirecting to dedicated pause reasons analysis page');
+      router.push('/reports/pause_reasons');
+      return;
+    }
+    
     if (reportType) {
       console.log('✅ Report type exists, calling loadReportData()');
       loadReportData();

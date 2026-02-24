@@ -42,6 +42,8 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
   const [activePauseEvent, setActivePauseEvent] = useState<any>(null);
+
+  console.log('🏗️ Header component rendered, pause modal state:', { showPauseModal, pendingStatusChange, activePauseEvent });
   
   const { 
     user, 
@@ -74,8 +76,11 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    console.log('🔄 Status change requested:', newStatus, 'from:', agentStatus);
+    
     // Check if this is a status change that requires a pause reason
     if (newStatus === 'Break') {
+      console.log('✅ Break status detected, showing pause modal...');
       setPendingStatusChange(newStatus);
       setShowPauseModal(true);
       return;
@@ -83,6 +88,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
     // If changing from Break status, end any active pause event
     if (agentStatus === 'Break' && newStatus !== 'Break') {
+      console.log('🔚 Ending active pause event...');
       await endActivePauseEvent();
     }
 
@@ -94,6 +100,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   };
 
   const handlePauseConfirm = async (reason: string, comment?: string) => {
+    console.log('✅ Pause reason confirmed:', reason, comment);
     try {
       if (!user?.id || !pendingStatusChange) return;
 
@@ -418,7 +425,10 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <div className={`h-3 w-3 ${getStatusColor(agentStatus)} rounded-full`}></div>
                     <select 
                       value={agentStatus}
-                      onChange={(e) => handleStatusChange(e.target.value)}
+                      onChange={(e) => {
+                        console.log('🎯 DROPDOWN CHANGED TO:', e.target.value);
+                        handleStatusChange(e.target.value);
+                      }}
                       disabled={isUpdatingStatus}
                       className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 flex-1 disabled:opacity-50"
                     >
@@ -511,14 +521,17 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
       {/* Pause Reason Modal */}
       {showPauseModal && (
-        <PauseReasonModal
-          isOpen={showPauseModal}
-          eventType="break"
-          onConfirm={handlePauseConfirm}
-          onClose={handlePauseCancel}
-          title="Break Reason Required"
-          description="Please select the reason for going on break:"
-        />
+        <>
+          {console.log('🎯 Rendering PauseReasonModal, showPauseModal:', showPauseModal)}
+          <PauseReasonModal
+            isOpen={showPauseModal}
+            eventType="break"
+            onConfirm={handlePauseConfirm}
+            onClose={handlePauseCancel}
+            title="Break Reason Required"
+            description="Please select the reason for going on break:"
+          />
+        </>
       )}
     </header>
   );
