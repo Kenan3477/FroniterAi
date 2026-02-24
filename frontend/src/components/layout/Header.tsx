@@ -44,6 +44,8 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [activePauseEvent, setActivePauseEvent] = useState<any>(null);
   const [showPauseReasonDropdown, setShowPauseReasonDropdown] = useState(false);
   const [selectedPauseReason, setSelectedPauseReason] = useState<string>('');
+  const [notificationData, setNotificationData] = useState<any>(null);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   console.log('🏗️ Header component rendered, pause modal state:', { showPauseModal, pendingStatusChange, activePauseEvent });
   
@@ -231,6 +233,48 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
     fetchInboundQueues();
   }, []);
+
+  // Fetch notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setIsLoadingNotifications(true);
+        console.log('📋 Fetching notification summary...');
+        
+        const response = await fetch('/api/notifications/summary', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            console.log('📋 Notification summary loaded:', data.data);
+            setNotificationData(data.data);
+          } else {
+            console.warn('Failed to load notifications:', data.message);
+            setNotificationData({ notifications: [], unreadCount: 0 });
+          }
+        } else {
+          console.error('Failed to fetch notifications:', response.status);
+          setNotificationData({ notifications: [], unreadCount: 0 });
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotificationData({ notifications: [], unreadCount: 0 });
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+
+    fetchNotifications();
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   const userStatuses = [
     'Available',
@@ -436,7 +480,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
             className="p-2 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-md relative"
           >
             <BellIcon className="h-6 w-6" />
-            <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+            {notificationData?.unreadCount > 0 && (
+              <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+            )}
           </button>
 
           {/* Notifications Dropdown */}
@@ -445,24 +491,88 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
-                  <span className="text-sm text-gray-500">3 new</span>
+                  <span className="text-sm text-gray-500">
+                    {isLoadingNotifications ? 'Loading...' : 
+                     notificationData?.unreadCount > 0 ? `${notificationData.unreadCount} new` : 'No new'}
+                  </span>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <PhoneIcon className="h-4 w-4 text-blue-600" />
+                
+                {isLoadingNotifications ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="animate-pulse flex items-start space-x-3">
+                        <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">New missed call</p>
-                      <p className="text-xs text-gray-500">2 minutes ago</p>
-                    </div>
+                    ))}
                   </div>
-                </div>
-                <button className="w-full mt-3 text-center text-sm text-slate-600 hover:text-omnivox-500">
-                  View all notifications
-                </button>
+                ) : notificationData?.notifications?.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {notificationData.notifications.map((notification: any) => (
+                      <div key={notification.id} className="flex items-start space-x-3 hover:bg-gray-50 p-2 rounded-md -m-2">
+                        <div className="flex-shrink-0">
+                          <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                            notification.type === 'callback' && notification.metadata?.isOverdue ? 'bg-red-100' :
+                            notification.type === 'callback' ? 'bg-yellow-100' :
+                            notification.type === 'missed_call' ? 'bg-blue-100' :
+                            'bg-gray-100'
+                          }`}>
+                            <span className="text-sm">
+                              {notification.icon}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${
+                            notification.priority === 'high' ? 'text-red-900' : 'text-gray-900'
+                          }`}>
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {notification.timeAgo}
+                          </p>
+                          {notification.actionUrl && (
+                            <button 
+                              onClick={() => {
+                                window.location.href = notification.actionUrl;
+                                setShowNotifications(false);
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                            >
+                              {notification.actionLabel || 'View'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <BellIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No notifications at this time</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Callbacks, missed calls, and system alerts will appear here
+                    </p>
+                  </div>
+                )}
+                
+                {notificationData?.notifications?.length > 0 && (
+                  <button 
+                    onClick={() => {
+                      window.location.href = '/notifications';
+                      setShowNotifications(false);
+                    }}
+                    className="w-full mt-3 text-center text-sm text-slate-600 hover:text-omnivox-500"
+                  >
+                    View all notifications
+                  </button>
+                )}
               </div>
             </div>
           )}
