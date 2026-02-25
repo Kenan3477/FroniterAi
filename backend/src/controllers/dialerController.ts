@@ -13,6 +13,43 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 
 const prisma = new PrismaClient();
 
+// Helper function to get or create agent record for user
+async function getOrCreateAgentForUser(userId: string, userFirstName: string, userLastName: string, userEmail: string): Promise<string | null> {
+  try {
+    console.log('🔍 Looking for agent with email:', userEmail);
+    
+    // First try to find existing agent by email
+    let agent = await prisma.agent.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (agent) {
+      console.log('✅ Found existing agent:', { agentId: agent.agentId, name: `${agent.firstName} ${agent.lastName}` });
+      return agent.agentId;
+    }
+
+    // If no agent found, create a new one based on user data
+    const agentId = `agent-${userId}`;
+    console.log('📝 Creating new agent with ID:', agentId);
+    
+    agent = await prisma.agent.create({
+      data: {
+        agentId: agentId,
+        firstName: userFirstName || 'Unknown',
+        lastName: userLastName || 'User',
+        email: userEmail,
+        status: 'Available'
+      }
+    });
+
+    console.log('✅ Created new agent:', { agentId: agent.agentId, name: `${agent.firstName} ${agent.lastName}` });
+    return agent.agentId;
+  } catch (error) {
+    console.error('❌ Error getting/creating agent:', error);
+    return null;
+  }
+}
+
 // Phone number formatting utility
 const formatPhoneNumber = (phoneNumber: string): string => {
   // Remove all non-digit characters
@@ -660,6 +697,62 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       });
     }
 
+    // Get authenticated user info
+    const authenticatedUser = (req as any).user;
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    console.log('🔐 Authenticated user:', { 
+      userId: authenticatedUser.userId, 
+      username: authenticatedUser.username,
+      role: authenticatedUser.role 
+    });
+
+    // Get user details from database to create/find agent
+    console.log('🔍 Looking up user with ID:', authenticatedUser.userId);
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(authenticatedUser.userId) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        username: true
+      }
+    });
+    
+    console.log('👤 User lookup result:', user ? `Found: ${user.firstName} ${user.lastName} (${user.username})` : 'NOT FOUND');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Get or create agent record for this user
+    console.log('👤 Getting agent for user:', { id: user.id, name: `${user.firstName} ${user.lastName}`, email: user.email });
+    const agentId = await getOrCreateAgentForUser(
+      user.id.toString(), 
+      user.firstName, 
+      user.lastName, 
+      user.email
+    );
+
+    if (!agentId) {
+      console.error('❌ Failed to get/create agent for user:', user.id);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get agent information'
+      });
+    }
+
+    console.log('✅ Using agent ID:', agentId);
+
     // Format phone number to international format
     const formattedTo = formatPhoneNumber(to);
     console.log('📞 Formatted phone number:', { original: to, formatted: formattedTo });
@@ -781,7 +874,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
           data: {
             attemptCount: contact.attemptCount + 1,
             lastAttempt: new Date(),
-            lastAgentId: null, // Will be set when agent is assigned
+            lastAgentId: agentId, // FIXED: Use actual agent ID
             updatedAt: new Date()
           }
         });
@@ -789,18 +882,21 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         // No existing contact found - create new one
         console.log('📝 No existing contact found, creating new manual dial contact');
         contactId = `contact-${Date.now()}`;
-        const nameParts = contactName ? contactName.split(' ') : ['Manual', 'Dial'];
+        
+        // Use "Unknown" as default contact name when no name provided
+        const nameParts = contactName ? contactName.split(' ') : ['Unknown', 'Contact'];
         
         contact = await prisma.contact.create({
           data: {
             contactId: contactId,
             listId: listId, // Use created list ID
-            firstName: nameParts[0] || 'Manual',
-            lastName: nameParts.slice(1).join(' ') || 'Dial',
+            firstName: nameParts[0] || 'Unknown',
+            lastName: nameParts.slice(1).join(' ') || 'Contact',
             phone: formattedTo,
             status: 'new',
             attemptCount: 1,
-            lastAttempt: new Date()
+            lastAttempt: new Date(),
+            lastAgentId: agentId
           }
         });
         console.log('✅ Created new contact:', contact.contactId);
@@ -808,10 +904,20 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     }
 
     // Start call record in database
+    console.log('📊 Creating call record with data:', {
+      callId: conferenceId,
+      agentId: agentId,
+      contactId: contactId,
+      campaignId: campaignId,
+      phoneNumber: formattedTo,
+      dialedNumber: formattedTo,
+      callType: 'outbound'
+    });
+    
     const callRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: null, // FIXED: Always use null to avoid foreign key issues
+        agentId: agentId, // FIXED: Use actual agent ID from authenticated user
         contactId: contactId, // Use created contact ID
         campaignId: campaignId, // Use existing/created campaign ID
         phoneNumber: formattedTo,
@@ -820,6 +926,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         startTime: new Date()
       }
     });
+    
+    console.log('✅ Created call record:', callRecord.callId);
 
     // Call the customer and connect them directly to the WebRTC agent
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
