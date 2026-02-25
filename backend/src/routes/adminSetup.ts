@@ -207,4 +207,8 @@ router.get('/check-users', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/admin-setup/fix-call-records - Fix call records data issues
+import { fixCallRecordsData } from '../controllers/adminController';
+router.post('/fix-call-records', ...fixCallRecordsData);
+
 export default router;
