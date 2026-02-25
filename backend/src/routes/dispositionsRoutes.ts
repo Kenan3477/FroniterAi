@@ -82,10 +82,10 @@ router.post('/',
   validateRequest([
     body('callId').isString().notEmpty(),
     body('sipCallId').optional().isString(),
-    body('agentId').isString().notEmpty(),
+    body('agentId').optional().isString(), // Made optional - will use authenticated user
     body('contactId').optional().isString(),
     body('campaignId').optional().isString(),
-    body('phoneNumber').isString().notEmpty(),
+    body('phoneNumber').optional().isString(), // Made optional
     body('dispositionId').isString().notEmpty(),
     body('notes').optional().isString(),
     body('followUpDate').optional().isISO8601(),
@@ -93,9 +93,9 @@ router.post('/',
     body('callBackNumber').optional().isString(),
     body('leadScore').optional().isInt({ min: 1, max: 10 }),
     body('saleAmount').optional().isFloat({ min: 0 }),
-    body('callDuration').isInt({ min: 0 }),
-    body('callStartTime').isISO8601(),
-    body('callEndTime').isISO8601(),
+    body('callDuration').optional().isInt({ min: 0 }), // Made optional
+    body('callStartTime').optional().isISO8601(),
+    body('callEndTime').optional().isISO8601(),
     body('metadata').optional().isObject(),
   ]),
   async (req, res) => {
@@ -123,10 +123,10 @@ router.post('/',
       const disposition = await dispositionService.createDisposition({
         callId,
         sipCallId,
-        agentId,
+        agentId: agentId || (req.user as any).userId, // Use authenticated user if agentId not provided
         contactId,
         campaignId,
-        phoneNumber,
+        phoneNumber: phoneNumber || 'Unknown', // Default if not provided
         dispositionId,
         notes,
         followUpDate: followUpDate ? new Date(followUpDate) : undefined,
@@ -134,9 +134,9 @@ router.post('/',
         callBackNumber,
         leadScore,
         saleAmount,
-        callDuration,
-        callStartTime: new Date(callStartTime),
-        callEndTime: new Date(callEndTime),
+        callDuration: callDuration || 0, // Default to 0 if not provided
+        callStartTime: callStartTime ? new Date(callStartTime) : new Date(), // Default to now if not provided
+        callEndTime: callEndTime ? new Date(callEndTime) : new Date(), // Default to now if not provided
         metadata,
       });
 

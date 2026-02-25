@@ -263,11 +263,14 @@ export const generateCustomerToAgentTwiML = (): string => {
   // Use client dial to connect to the WebRTC agent
   dial.client('agent-browser');
   
-  // If agent doesn't answer or disconnects, provide feedback
+  // Only provide feedback if agent doesn't answer initially - not during normal call ending
   twiml.say({
     voice: 'alice', 
     language: 'en-GB'
-  }, 'Unable to connect. Please try again later.');
+  }, 'Thank you for your call.');
+  
+  // Hangup cleanly without additional messages
+  twiml.hangup();
 
   return twiml.toString();
 };
