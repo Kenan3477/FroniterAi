@@ -427,22 +427,36 @@ router.post('/import-twilio-recordings', [
         let callDirection = 'outbound';
         
         try {
-          // Fetch the actual call details from Twilio to get phone number
-          const twilioClient = require('../services/twilioService').client;
-          if (twilioClient && recording.callSid) {
+          // Use existing Twilio client from the top-level import
+          const twilio = require('twilio');
+          const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+          const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+          
+          if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && recording.callSid) {
+            const twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+            
+            console.log(`📞 Fetching call details for ${recording.callSid}...`);
             const callDetails = await twilioClient.calls(recording.callSid).fetch();
-            actualPhoneNumber = callDirection === 'inbound' ? callDetails.from : callDetails.to;
+            
+            // Determine call direction first, then extract correct phone number
             callDirection = callDetails.direction.includes('inbound') ? 'inbound' : 'outbound';
+            actualPhoneNumber = callDirection === 'inbound' ? callDetails.from : callDetails.to;
+            
+            console.log(`📱 Extracted: ${actualPhoneNumber} (${callDirection})`);
             
             // Clean phone number format
             if (actualPhoneNumber && actualPhoneNumber !== recording.callSid) {
               actualPhoneNumber = actualPhoneNumber.replace(/\s+/g, ''); // Remove spaces
+              console.log(`✅ Phone number extracted: ${actualPhoneNumber}`);
             } else {
+              console.log(`⚠️  Invalid phone number, using fallback`);
               actualPhoneNumber = 'Unknown';
             }
+          } else {
+            console.log(`❌ Missing Twilio credentials or callSid`);
           }
         } catch (phoneError) {
-          console.log(`⚠️  Could not fetch phone number for call ${recording.callSid}: ${phoneError instanceof Error ? phoneError.message : 'Unknown error'}`);
+          console.log(`❌ Phone extraction failed for ${recording.callSid}: ${phoneError instanceof Error ? phoneError.message : 'Unknown error'}`);
           actualPhoneNumber = 'Unknown';
         }
         
@@ -484,7 +498,7 @@ router.post('/import-twilio-recordings', [
           defaultAgentId = adminAgent.agentId;
         }
         
-        // Create contact if none exists and phone number is valid
+        // Create contact if none exists and we have a valid phone number
         if (!matchingContact && actualPhoneNumber !== 'Unknown') {
           // Create a minimal contact record for this unknown number
           const contactId = `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -504,11 +518,25 @@ router.post('/import-twilio-recordings', [
           console.log(`📱 Created contact for phone number: ${actualPhoneNumber}`);
         }
         
-        // Skip if we still don't have a contact (phone number was "Unknown")
+        // If we still don't have a contact (phone number was "Unknown"), create a placeholder
         if (!matchingContact) {
-          console.log(`⏭️  Skipping recording ${recording.callSid} - no phone number available`);
-          skippedCount++;
-          continue;
+          console.log(`⚠️  Creating placeholder contact for recording ${recording.callSid} with unknown phone`);
+          
+          const contactId = `contact_unknown_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          matchingContact = await prisma.contact.create({
+            data: {
+              contactId: contactId,
+              listId: 'IMPORTED-CONTACTS',
+              firstName: 'Unknown',
+              lastName: 'Phone', 
+              fullName: `Unknown Phone (${recording.callSid})`,
+              phone: actualPhoneNumber, // Will be "Unknown"
+              email: null
+            }
+          });
+          
+          console.log(`📝 Created placeholder contact for call ${recording.callSid}`);
         }
         
         // Create call record with actual phone number and proper contact
