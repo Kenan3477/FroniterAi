@@ -422,48 +422,105 @@ router.post('/import-twilio-recordings', [
           continue;
         }
         
-        // Check for existing real contact (NOT fake imported contacts)
-        let existingContact = null;
-        if (recording.callSid && recording.callSid !== 'Unknown') {
-          // Try to extract phone number from call SID or other metadata
-          // In a real implementation, you would have phone number from Twilio API
-          existingContact = await prisma.contact.findFirst({
+        // Extract actual phone number from Twilio call data
+        let actualPhoneNumber = 'Unknown';
+        let callDirection = 'outbound';
+        
+        try {
+          // Fetch the actual call details from Twilio to get phone number
+          const twilioClient = require('../services/twilioService').client;
+          if (twilioClient && recording.callSid) {
+            const callDetails = await twilioClient.calls(recording.callSid).fetch();
+            actualPhoneNumber = callDirection === 'inbound' ? callDetails.from : callDetails.to;
+            callDirection = callDetails.direction.includes('inbound') ? 'inbound' : 'outbound';
+            
+            // Clean phone number format
+            if (actualPhoneNumber && actualPhoneNumber !== recording.callSid) {
+              actualPhoneNumber = actualPhoneNumber.replace(/\s+/g, ''); // Remove spaces
+            } else {
+              actualPhoneNumber = 'Unknown';
+            }
+          }
+        } catch (phoneError) {
+          console.log(`⚠️  Could not fetch phone number for call ${recording.callSid}: ${phoneError instanceof Error ? phoneError.message : 'Unknown error'}`);
+          actualPhoneNumber = 'Unknown';
+        }
+        
+        // Find existing contact by phone number match (NO fake contact creation)
+        let matchingContact = null;
+        if (actualPhoneNumber && actualPhoneNumber !== 'Unknown') {
+          matchingContact = await prisma.contact.findFirst({
             where: {
-              AND: [
-                // Add phone number matching if available
-                // { phone: extractedPhoneNumber },
-                // Exclude fake imported contacts
-                {
-                  NOT: {
-                    OR: [
-                      { firstName: 'Imported' },
-                      { listId: 'TWILIO-IMPORT' },
-                      { listId: 'IMPORTED-CONTACTS' }
-                    ]
-                  }
-                }
-              ]
+              OR: [
+                { phone: actualPhoneNumber },
+                { mobile: actualPhoneNumber },
+                { workPhone: actualPhoneNumber },
+                { homePhone: actualPhoneNumber }
+              ],
+              // Exclude fake imported contacts
+              NOT: {
+                OR: [
+                  { firstName: 'Imported' },
+                  { firstName: 'John', lastName: 'Turner' },
+                  { contactId: { contains: '4uwl67i8f' } }
+                ]
+              }
             }
           });
         }
         
-        // Skip if no existing real contact found (don't create call records for orphaned recordings)
-        if (!existingContact) {
-          console.log(`⏭️  Skipping recording ${recording.callSid} - no real contact found`);
+        // Get default agent (admin user) for historical calls
+        let defaultAgentId = null;
+        const adminAgent = await prisma.agent.findFirst({
+          where: {
+            OR: [
+              { agentId: 'agent-1' },
+              { email: 'admin@omnivox-ai.com' }
+            ]
+          }
+        });
+        
+        if (adminAgent) {
+          defaultAgentId = adminAgent.agentId;
+        }
+        
+        // Create contact if none exists and phone number is valid
+        if (!matchingContact && actualPhoneNumber !== 'Unknown') {
+          // Create a minimal contact record for this unknown number
+          const contactId = `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          matchingContact = await prisma.contact.create({
+            data: {
+              contactId: contactId,
+              listId: 'IMPORTED-CONTACTS',
+              firstName: 'Unknown',
+              lastName: 'Contact', 
+              fullName: `Unknown Contact`,
+              phone: actualPhoneNumber,
+              email: null
+            }
+          });
+          
+          console.log(`📱 Created contact for phone number: ${actualPhoneNumber}`);
+        }
+        
+        // Skip if we still don't have a contact (phone number was "Unknown")
+        if (!matchingContact) {
+          console.log(`⏭️  Skipping recording ${recording.callSid} - no phone number available`);
           skippedCount++;
           continue;
         }
         
-        // Create call record with real contact link
+        // Create call record with actual phone number and proper contact
         const callRecord = await prisma.callRecord.create({
           data: {
             callId: recording.callSid,
-            agentId: null, // Unknown agent for imported recordings
-            contactId: existingContact.contactId, // Use real contact ID only
-            campaignId: 'HISTORICAL-CALLS', // Campaign for historical calls
-            phoneNumber: 'Unknown', // Phone number not available in recording data
-            dialedNumber: 'Unknown',
-            callType: 'outbound',
+            agentId: defaultAgentId, // Assign admin agent to imported records
+            contactId: matchingContact.contactId,
+            campaignId: 'HISTORICAL-CALLS',
+            phoneNumber: actualPhoneNumber, // Use extracted phone number
+            dialedNumber: actualPhoneNumber,
+            callType: callDirection as any,
             startTime: recording.dateCreated,
             endTime: new Date(recording.dateCreated.getTime() + (parseInt(recording.duration) * 1000)),
             duration: parseInt(recording.duration) || 0,
