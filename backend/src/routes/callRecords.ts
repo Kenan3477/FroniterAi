@@ -96,6 +96,47 @@ router.get('/', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request
 });
 
 /**
+ * DELETE /api/call-records/bulk-delete
+ * Delete all call records (for cleanup)
+ * Requires ADMIN role
+ */
+router.delete('/bulk-delete', requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    console.log('🗑️  Starting bulk delete of all call records...');
+    
+    // Delete all call records and related data
+    const deleteResult = await prisma.$transaction(async (tx) => {
+      // First delete recordings
+      const recordingDeleteResult = await tx.recording.deleteMany({});
+      console.log(`🗑️  Deleted ${recordingDeleteResult.count} recordings`);
+      
+      // Then delete call records
+      const callRecordDeleteResult = await tx.callRecord.deleteMany({});
+      console.log(`🗑️  Deleted ${callRecordDeleteResult.count} call records`);
+      
+      return {
+        callRecordsDeleted: callRecordDeleteResult.count,
+        recordingsDeleted: recordingDeleteResult.count
+      };
+    });
+
+    console.log('✅ Bulk delete completed successfully');
+    res.json({
+      success: true,
+      data: deleteResult,
+      message: `Successfully deleted ${deleteResult.callRecordsDeleted} call records and ${deleteResult.recordingsDeleted} recordings`
+    });
+  } catch (error) {
+    console.error('❌ Bulk delete failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete call records',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
  * POST /api/call-records/start
  * Start a new call and create call record
  * Requires: AGENT, SUPERVISOR, or ADMIN role
