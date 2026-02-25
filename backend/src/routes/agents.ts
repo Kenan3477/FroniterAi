@@ -45,6 +45,41 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/agents - Get all agents
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const agents = await prisma.agent.findMany({
+      select: {
+        id: true,
+        agentId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        firstName: 'asc'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: agents,
+      count: agents.length
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching agents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch agents',
+      error: error.message
+    });
+  }
+});
+
 // GET /api/agents/queue - Get agents queue with real database data
 router.get('/queue', async (req: Request, res: Response) => {
   try {

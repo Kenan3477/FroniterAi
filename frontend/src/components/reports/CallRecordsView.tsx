@@ -166,7 +166,7 @@ export const CallRecordsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CallRecordsFilters>({
-    dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Last 30 days instead of 7
     dateTo: new Date().toISOString().split('T')[0]
   });
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
