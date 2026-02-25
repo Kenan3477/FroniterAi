@@ -854,20 +854,46 @@ export default function WorkPage() {
                 setShowPreviewCard(false);
                 setPreviewContact(null);
               }}
-              onPause={async () => {
+              onPause={async (reason?: string, comment?: string) => {
                 const newPausedState = !previewDialingPaused;
                 
                 if (newPausedState) {
-                  // Pausing: show pause reason modal
-                  console.log('⏸️ Preview dialing pause requested - showing reason modal');
-                  const confirmed = await handlePauseWithReason('preview_pause');
-                  
-                  if (confirmed) {
+                  // Pausing: reason and comment are provided by the component
+                  if (reason) {
+                    console.log('⏸️ Preview dialing paused with reason:', reason);
                     setPreviewDialingPaused(true);
                     console.log('⏸️ Preview dialing paused - setting status to Unavailable');
                     await updateAgentStatus('Unavailable');
+                    
+                    // Log the pause event with the reason
+                    try {
+                      const pauseEventData = {
+                        agentId: user?.id || 'unknown',
+                        eventType: 'preview_pause',
+                        reason: reason,
+                        comment: comment,
+                        timestamp: new Date().toISOString()
+                      };
+                      
+                      const response = await fetch('/api/pause-events', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('omnivox_token')}`
+                        },
+                        body: JSON.stringify(pauseEventData)
+                      });
+                      
+                      if (response.ok) {
+                        console.log('✅ Pause event logged successfully');
+                      } else {
+                        console.error('❌ Failed to log pause event:', response.statusText);
+                      }
+                    } catch (error) {
+                      console.error('❌ Error logging pause event:', error);
+                    }
                   } else {
-                    console.log('❌ Preview dialing pause cancelled');
+                    console.log('❌ No pause reason provided');
                   }
                 } else {
                   // Resuming: set status to Available (no reason needed for resuming)

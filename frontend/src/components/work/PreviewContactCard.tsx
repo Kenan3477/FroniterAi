@@ -18,8 +18,27 @@ import {
   Pause,
   Play,
   X,
-  Tag
+  Tag,
+  ChevronDown
 } from 'lucide-react';
+
+// Pause reason types for preview_pause
+interface PauseReasonOption {
+  id: string;
+  label: string;
+  category: string;
+  description?: string;
+}
+
+const PREVIEW_PAUSE_REASONS: PauseReasonOption[] = [
+  { id: 'contact_research', label: 'Contact Research', category: 'work', description: 'Researching contact information' },
+  { id: 'system_slow', label: 'System Running Slow', category: 'technical', description: 'Waiting for system response' },
+  { id: 'call_prep', label: 'Call Preparation', category: 'work', description: 'Preparing call script/notes' },
+  { id: 'need_break', label: 'Need Break', category: 'personal', description: 'Taking a short break' },
+  { id: 'supervisor_help', label: 'Need Supervisor Help', category: 'work', description: 'Waiting for supervisor assistance' },
+  { id: 'technical_issue', label: 'Technical Issue', category: 'technical', description: 'Equipment or software problem' },
+  { id: 'other', label: 'Other', category: 'other', description: 'Other reason (please specify)' }
+];
 
 export interface PreviewContact {
   id: string;
@@ -74,7 +93,7 @@ interface PreviewContactCardProps {
   onCallNow: (contact: PreviewContact, notes?: string) => void;
   onSkip: (contact: PreviewContact, skipReason?: string) => void;
   onClose: () => void;
-  onPause?: () => void;
+  onPause?: (reason?: string, comment?: string) => void;
   campaignName?: string;
   isLoading?: boolean;
   isPreviewPaused?: boolean;
@@ -91,6 +110,11 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   isLoading = false,
   isPreviewPaused = false
 }) => {
+  // State for pause reason selection
+  const [showPauseReasons, setShowPauseReasons] = useState(false);
+  const [selectedPauseReason, setSelectedPauseReason] = useState<string>('');
+  const [pauseComment, setPauseComment] = useState<string>('');
+
   console.log('🎯🎯🎯 PreviewContactCard component called with props:', {
     hasContact: !!contact,
     isVisible,
@@ -100,8 +124,54 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
 
   // Reset form when contact changes
   useEffect(() => {
-    // No longer need to set notes since we removed the notes section
+    // Reset pause reason selection when contact changes
+    setShowPauseReasons(false);
+    setSelectedPauseReason('');
+    setPauseComment('');
   }, [contact]);
+
+  // Handle pause button click
+  const handlePauseClick = () => {
+    if (isPreviewPaused) {
+      // If already paused, resume without asking for reason
+      onPause?.();
+    } else {
+      // Show pause reason selection
+      setShowPauseReasons(true);
+    }
+  };
+
+  // Handle pause reason confirmation
+  const handlePauseConfirm = () => {
+    if (!selectedPauseReason) {
+      alert('Please select a pause reason.');
+      return;
+    }
+
+    if (selectedPauseReason === 'other' && !pauseComment.trim()) {
+      alert('Please specify the reason in the comment field.');
+      return;
+    }
+
+    const selectedReasonObj = PREVIEW_PAUSE_REASONS.find(r => r.id === selectedPauseReason);
+    const reasonLabel = selectedReasonObj?.label || selectedPauseReason;
+    const finalReason = selectedPauseReason === 'other' ? `Other: ${pauseComment}` : reasonLabel;
+
+    // Call pause with reason
+    onPause?.(finalReason, pauseComment || undefined);
+    
+    // Reset form
+    setShowPauseReasons(false);
+    setSelectedPauseReason('');
+    setPauseComment('');
+  };
+
+  // Handle pause reason cancellation
+  const handlePauseCancel = () => {
+    setShowPauseReasons(false);
+    setSelectedPauseReason('');
+    setPauseComment('');
+  };
 
   console.log('🎯 PreviewContactCard render decision:', {
     isVisible,
@@ -363,29 +433,103 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
                 </Button>
                 
                 {onPause && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPause()}
-                    disabled={isLoading}
-                    className={`${
-                      isPreviewPaused 
-                        ? 'text-green-600 border-green-300 hover:bg-green-50' 
-                        : 'text-blue-600 border-blue-300 hover:bg-blue-50'
-                    }`}
-                  >
-                    {isPreviewPaused ? (
-                      <>
-                        <Play className="w-4 h-4 mr-1" />
-                        Resume
-                      </>
-                    ) : (
-                      <>
-                        <Pause className="w-4 h-4 mr-1" />
-                        Pause
-                      </>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePauseClick}
+                      disabled={isLoading}
+                      className={`${
+                        isPreviewPaused 
+                          ? 'text-green-600 border-green-300 hover:bg-green-50' 
+                          : 'text-blue-600 border-blue-300 hover:bg-blue-50'
+                      }`}
+                    >
+                      {isPreviewPaused ? (
+                        <>
+                          <Play className="w-4 h-4 mr-1" />
+                          Resume
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-4 h-4 mr-1" />
+                          Pause
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Pause Reason Selection - appears below pause button when needed */}
+                    {showPauseReasons && !isPreviewPaused && (
+                      <div className="absolute z-10 mt-8 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-80">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-gray-900">Select Pause Reason</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handlePauseCancel}
+                              className="h-6 w-6 p-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {PREVIEW_PAUSE_REASONS.map((reason) => (
+                              <div
+                                key={reason.id}
+                                className={`p-2 rounded cursor-pointer text-sm ${
+                                  selectedPauseReason === reason.id
+                                    ? 'bg-blue-50 border-blue-200 border'
+                                    : 'hover:bg-gray-50'
+                                }`}
+                                onClick={() => setSelectedPauseReason(reason.id)}
+                              >
+                                <div className="font-medium">{reason.label}</div>
+                                {reason.description && (
+                                  <div className="text-xs text-gray-500">{reason.description}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {selectedPauseReason === 'other' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="pauseComment" className="text-sm font-medium">
+                                Please specify:
+                              </Label>
+                              <textarea
+                                id="pauseComment"
+                                value={pauseComment}
+                                onChange={(e) => setPauseComment(e.target.value)}
+                                placeholder="Enter pause reason..."
+                                className="w-full p-2 border border-gray-300 rounded text-sm resize-none"
+                                rows={2}
+                              />
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              onClick={handlePauseConfirm}
+                              disabled={!selectedPauseReason}
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              Confirm Pause
+                            </Button>
+                            <Button
+                              onClick={handlePauseCancel}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </Button>
+                  </div>
                 )}
                 
                 <Button
