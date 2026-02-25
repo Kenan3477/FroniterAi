@@ -211,4 +211,157 @@ router.get('/check-users', async (req: Request, res: Response) => {
 import { fixCallRecordsData } from '../controllers/adminController';
 router.post('/fix-call-records', ...fixCallRecordsData);
 
+// POST /api/admin-setup/fix-call-records-public - Public version for emergency cleanup
+router.post('/fix-call-records-public', async (req: Request, res: Response) => {
+  try {
+    console.log('🔧 Public call records data fix triggered...');
+
+    // Include the same fix logic but without authentication requirement
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    // 1. Ensure all users have agent records
+    const allUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true
+      }
+    });
+
+    const agentMap = new Map();
+
+    for (const user of allUsers) {
+      let agent = await prisma.agent.findUnique({
+        where: { email: user.email }
+      });
+
+      if (!agent) {
+        const agentId = `agent-${user.id}`;
+        agent = await prisma.agent.create({
+          data: {
+            agentId: agentId,
+            firstName: user.firstName || user.username || 'Unknown',
+            lastName: user.lastName || 'User',
+            email: user.email,
+            status: 'Available'
+          }
+        });
+        console.log(`✅ Created agent for ${user.username}: ${agent.agentId}`);
+      }
+
+      agentMap.set(user.id, agent.agentId);
+    }
+
+    // 2. Fix call records with missing agent IDs
+    const callsNeedingAgents = await prisma.callRecord.findMany({
+      where: {
+        OR: [
+          { agentId: { equals: '' } }
+        ]
+      }
+    });
+
+    const adminUser = allUsers.find((u: any) => u.role === 'ADMIN' || u.username?.toLowerCase().includes('admin'));
+    let agentUpdates = 0;
+
+    if (adminUser && agentMap.has(adminUser.id)) {
+      const adminAgentId = agentMap.get(adminUser.id);
+      
+      const updateResult = await prisma.callRecord.updateMany({
+        where: {
+          OR: [
+            { agentId: { equals: '' } }
+          ]
+        },
+        data: {
+          agentId: adminAgentId
+        }
+      });
+
+      agentUpdates = updateResult.count;
+    }
+
+    // 3. Fix John Turner contacts
+    const johnTurnerUpdates = await prisma.contact.updateMany({
+      where: {
+        AND: [
+          { firstName: 'John' },
+          { lastName: 'Turner' }
+        ]
+      },
+      data: {
+        firstName: 'Unknown',
+        lastName: 'Contact'
+      }
+    });
+
+    // 4. Fix phone numbers
+    const phoneFixQuery = `
+      UPDATE "call_records" 
+      SET "phoneNumber" = "dialedNumber" 
+      WHERE ("phoneNumber" IS NULL OR "phoneNumber" = '' OR "phoneNumber" = 'Unknown') 
+      AND "dialedNumber" IS NOT NULL 
+      AND "dialedNumber" != '' 
+      AND "dialedNumber" != 'Unknown'
+    `;
+    
+    const phoneFixResult1 = await prisma.$executeRawUnsafe(phoneFixQuery);
+
+    // 5. Final statistics
+    const stats = {
+      totalCalls: await prisma.callRecord.count(),
+      callsWithAgents: await prisma.callRecord.count({
+        where: { 
+          agentId: { 
+            notIn: ['', 'NULL'] 
+          }
+        }
+      }),
+      callsWithPhones: await prisma.callRecord.count({
+        where: { 
+          phoneNumber: { 
+            notIn: ['', 'Unknown', 'NULL']
+          }
+        }
+      }),
+      johnTurnerRemaining: await prisma.contact.count({
+        where: {
+          firstName: 'John',
+          lastName: 'Turner'
+        }
+      })
+    };
+
+    const fixResults = {
+      agentRecordsCreated: agentMap.size,
+      callRecordsUpdatedWithAgents: agentUpdates,
+      johnTurnerContactsFixed: johnTurnerUpdates.count,
+      phoneNumbersFixed: Number(phoneFixResult1),
+      finalStats: stats
+    };
+
+    console.log('✅ Public call records data fix completed:', fixResults);
+
+    res.json({
+      success: true,
+      message: 'Call records data fix completed successfully',
+      results: fixResults
+    });
+
+    await prisma.$disconnect();
+
+  } catch (error: any) {
+    console.error('❌ Error fixing call records data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to fix call records data'
+    });
+  }
+});
+
 export default router;
