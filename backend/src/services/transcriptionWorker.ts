@@ -4,7 +4,7 @@
  */
 
 import Queue from 'bull';
-import Redis from 'redis';
+import { createClient } from 'redis';
 import { prisma } from '../database/index';
 import { createTranscriptionService } from './transcriptionService';
 
@@ -32,7 +32,7 @@ const redisConfig = {
 };
 
 // Create Redis connection
-const redisClient = Redis.createClient(redisConfig);
+const redisClient = createClient(redisConfig);
 
 // Create Bull queue
 const transcriptionQueue = new Queue('transcription', {
