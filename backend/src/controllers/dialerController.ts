@@ -607,6 +607,82 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
           }
         } else {
           console.warn(`⚠️  No call record found for Twilio SID: ${CallSid}`);
+          
+          // FAILSAFE: Create missing call record from webhook data
+          try {
+            console.log(`🔧 Creating failsafe call record from webhook data...`);
+            
+            // Ensure required campaign exists
+            await prisma.campaign.upsert({
+              where: { campaignId: 'webhook-calls' },
+              update: {},
+              create: {
+                campaignId: 'webhook-calls',
+                name: 'Webhook Created Calls',
+                dialMethod: 'Manual',
+                status: 'Active',
+                isActive: true,
+                description: 'Call records created from Twilio webhooks',
+                recordCalls: true
+              }
+            });
+
+            // Ensure required data list exists
+            await prisma.dataList.upsert({
+              where: { listId: 'webhook-contacts' },
+              update: {},
+              create: {
+                listId: 'webhook-contacts',
+                name: 'Webhook Contacts',
+                campaignId: 'webhook-calls',
+                active: true,
+                totalContacts: 0
+              }
+            });
+
+            // Create contact for this call
+            const contactId = `webhook-${CallSid}`;
+            await prisma.contact.upsert({
+              where: { contactId },
+              update: {},
+              create: {
+                contactId,
+                listId: 'webhook-contacts',
+                firstName: 'Webhook',
+                lastName: 'Contact',
+                phone: To || From || 'Unknown',
+                status: 'contacted'
+              }
+            });
+
+            // Get a default agent (first available agent)
+            const defaultAgent = await prisma.agent.findFirst();
+
+            // Create the call record
+            const failsafeCallRecord = await prisma.callRecord.create({
+              data: {
+                callId: CallSid,
+                agentId: defaultAgent?.agentId || null,
+                contactId: contactId,
+                campaignId: 'webhook-calls',
+                phoneNumber: To || From || 'Unknown',
+                dialedNumber: To || 'Unknown',
+                callType: Direction === 'inbound' ? 'inbound' : 'outbound',
+                startTime: new Date(Date.now() - (parseInt(CallDuration) * 1000) || 0), // Estimate start time
+                endTime: new Date(),
+                duration: parseInt(CallDuration) || 0,
+                outcome: 'completed',
+                recording: CallSid,
+                notes: 'Created from Twilio webhook failsafe'
+              }
+            });
+
+            console.log(`✅ Created failsafe call record: ${failsafeCallRecord.callId}`);
+            console.log(`📝 Phone: ${failsafeCallRecord.phoneNumber}, Agent: ${failsafeCallRecord.agentId}`);
+            
+          } catch (failsafeError) {
+            console.error('❌ Error creating failsafe call record:', failsafeError);
+          }
         }
       } catch (dbError) {
         console.error('❌ Error updating call record:', dbError);
