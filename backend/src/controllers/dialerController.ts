@@ -779,7 +779,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
           campaignId: campaignId,
           name: 'Manual Dial Campaign',
           dialMethod: 'Manual',
-          status: 'Active'
+          status: 'Active',
+          isActive: true,
+          description: 'Automatic campaign for manual dialing',
+          recordCalls: true,
+          allowTransfers: false
         }
       });
       console.log('✅ Created campaign:', campaign.campaignId);
