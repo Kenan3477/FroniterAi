@@ -231,11 +231,23 @@ export const CallRecordsView: React.FC = () => {
 
       console.log(`📞 CallRecordsView - Making API call to: /api/call-records?${queryParams}`);
 
+      // Get auth token from localStorage
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔑 Added Authorization header with token');
+      } else {
+        console.warn('⚠️ No auth token found in localStorage');
+      }
+
       const response = await fetch(`/api/call-records?${queryParams}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
       });
 

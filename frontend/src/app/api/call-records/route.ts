@@ -9,22 +9,26 @@ export async function GET(request: NextRequest) {
   try {
     console.log('📞 Proxying call records request to backend...');
 
-    // Get auth token from cookies (optional for development)
-    const authToken = request.cookies.get('auth-token')?.value;
-    const accessToken = request.cookies.get('access-token')?.value;
-    const token = request.cookies.get('token')?.value;
+    // Get auth token from Authorization header (primary) or cookies (fallback)
+    const authHeader = request.headers.get('authorization');
+    let finalToken: string | undefined;
     
-    // Debug: Log all cookies
-    console.log('🍪 Available cookies:');
-    request.cookies.getAll().forEach(cookie => {
-      console.log(`  ${cookie.name}: ${cookie.value?.substring(0, 20)}...`);
-    });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      finalToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+      console.log('🔑 Found token in Authorization header');
+    } else {
+      // Fallback to cookies
+      const authToken = request.cookies.get('auth-token')?.value;
+      const accessToken = request.cookies.get('access-token')?.value;
+      const token = request.cookies.get('token')?.value;
+      finalToken = authToken || accessToken || token;
+      console.log('🔑 Looking for token in cookies:', finalToken ? 'FOUND' : 'NONE');
+    }
     
-    const finalToken = authToken || accessToken || token;
-    console.log('🔑 Selected token:', finalToken ? `${finalToken.substring(0, 20)}...` : 'NONE');
+    console.log('🔑 Final token:', finalToken ? `${finalToken.substring(0, 20)}...` : 'NONE');
     
     if (!finalToken) {
-      console.log('🔒 No auth token found in cookies');
+      console.log('🔒 No auth token found in headers or cookies');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
