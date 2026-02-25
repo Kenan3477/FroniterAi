@@ -914,20 +914,42 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       callType: 'outbound'
     });
     
-    const callRecord = await prisma.callRecord.create({
-      data: {
+    try {
+      const callRecord = await prisma.callRecord.create({
+        data: {
+          callId: conferenceId,
+          agentId: agentId, // FIXED: Use actual agent ID from authenticated user
+          contactId: contactId, // Use created contact ID
+          campaignId: campaignId, // Use existing/created campaign ID
+          phoneNumber: formattedTo,
+          dialedNumber: formattedTo,
+          callType: 'outbound',
+          startTime: new Date()
+        }
+      });
+      
+      console.log('✅ Created call record:', callRecord.callId);
+      console.log('📝 Call record details:', {
+        id: callRecord.id,
+        callId: callRecord.callId,
+        phoneNumber: callRecord.phoneNumber,
+        agentId: callRecord.agentId,
+        contactId: callRecord.contactId,
+        campaignId: callRecord.campaignId
+      });
+    } catch (callRecordError) {
+      console.error('❌ Error creating call record:', callRecordError);
+      console.error('📝 Call record data that failed:', {
         callId: conferenceId,
-        agentId: agentId, // FIXED: Use actual agent ID from authenticated user
-        contactId: contactId, // Use created contact ID
-        campaignId: campaignId, // Use existing/created campaign ID
+        agentId: agentId,
+        contactId: contactId,
+        campaignId: campaignId,
         phoneNumber: formattedTo,
-        dialedNumber: formattedTo,
-        callType: 'outbound',
-        startTime: new Date()
-      }
-    });
-    
-    console.log('✅ Created call record:', callRecord.callId);
+        dialedNumber: formattedTo
+      });
+      // Continue with the call even if record creation fails
+      // We'll create the record later via webhook if needed
+    }
 
     // Call the customer and connect them directly to the WebRTC agent
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
@@ -947,12 +969,37 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     console.log('✅ Twilio Call SID:', callResult.sid);
 
     // Update call record with Twilio call SID
-    await prisma.callRecord.update({
-      where: { callId: conferenceId },
-      data: { 
-        recording: callResult.sid // Store Twilio SID for recording lookup
+    try {
+      await prisma.callRecord.update({
+        where: { callId: conferenceId },
+        data: { 
+          recording: callResult.sid // Store Twilio SID for recording lookup
+        }
+      });
+      console.log('✅ Updated call record with Twilio SID:', callResult.sid);
+    } catch (updateError) {
+      console.error('❌ Error updating call record with Twilio SID:', updateError);
+      // If the original call record wasn't created, create it now
+      try {
+        console.log('🔄 Attempting to create call record with Twilio SID...');
+        await prisma.callRecord.create({
+          data: {
+            callId: conferenceId,
+            agentId: agentId,
+            contactId: contactId,
+            campaignId: campaignId,
+            phoneNumber: formattedTo,
+            dialedNumber: formattedTo,
+            callType: 'outbound',
+            startTime: new Date(),
+            recording: callResult.sid
+          }
+        });
+        console.log('✅ Created call record with Twilio SID on retry');
+      } catch (retryError) {
+        console.error('❌ Failed to create call record on retry:', retryError);
       }
-    });
+    }
 
     res.json({
       success: true,
