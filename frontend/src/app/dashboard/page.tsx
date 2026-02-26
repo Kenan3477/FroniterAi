@@ -163,15 +163,36 @@ function DashboardContent() {
   const loadDashboardStats = async () => {
     setLoading(true);
     try {
+      // Get the JWT token from localStorage
+      const token = localStorage.getItem('omnivox_token');
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      console.log('📊 Loading dashboard stats with auth token:', !!token);
+      
       const response = await fetch('/api/dashboard/stats', {
         credentials: 'include',
+        headers
       });
+      
+      console.log('📊 Dashboard stats response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Dashboard stats data received:', data);
         if (data.success) {
           setDashboardStats(data.data);
         }
+      } else {
+        console.error('❌ Dashboard stats API failed:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
       }
     } catch (error) {
       console.error('Failed to load dashboard stats:', error);
