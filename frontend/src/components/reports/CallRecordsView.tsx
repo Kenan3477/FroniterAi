@@ -158,6 +158,7 @@ interface CallRecordsFilters {
   callType?: string;
   phoneNumber?: string;
   hasRecording?: boolean;
+  dispositionId?: string;
 }
 
 export const CallRecordsView: React.FC = () => {
@@ -182,6 +183,9 @@ export const CallRecordsView: React.FC = () => {
   
   // Campaign filter data
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
+  
+  // Disposition filter data
+  const [allDispositions, setAllDispositions] = useState<{id: string, name: string}[]>([]);
   
   // Transcript-related state
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
@@ -219,6 +223,7 @@ export const CallRecordsView: React.FC = () => {
       if (filters.callType) queryParams.append('callType', filters.callType);
       if (filters.phoneNumber) queryParams.append('phoneNumber', filters.phoneNumber);
       if (filters.hasRecording) queryParams.append('hasRecording', 'true');
+      if (filters.dispositionId) queryParams.append('dispositionId', filters.dispositionId);
       if (searchTerm) queryParams.append('search', searchTerm);
       
       // Add pagination
@@ -368,7 +373,32 @@ export const CallRecordsView: React.FC = () => {
     console.log('📞 CallRecordsView - Component mounted, calling fetchCallRecords...');
     fetchCallRecords();
     fetchAllCampaigns();
+    fetchAllDispositions();
   }, [filters, searchTerm, sortBy, sortOrder, currentPage]);
+
+  const fetchAllDispositions = async () => {
+    try {
+      const response = await fetch('/api/dispositions/configs', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setAllDispositions(data.data || []);
+      } else {
+        throw new Error(data.error || 'Failed to fetch dispositions');
+      }
+    } catch (err: any) {
+      console.error('Error fetching dispositions:', err);
+      // Continue without dispositions - not critical
+    }
+  };
 
   const formatDuration = (seconds?: number): string => {
     if (!seconds) return '0:00';
@@ -710,6 +740,23 @@ export const CallRecordsView: React.FC = () => {
               {allCampaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
                   {campaign.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Disposition Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Disposition</label>
+            <select
+              value={filters.dispositionId || ''}
+              onChange={(e) => setFilters({ ...filters, dispositionId: e.target.value || undefined })}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Dispositions</option>
+              {allDispositions.map((disposition) => (
+                <option key={disposition.id} value={disposition.id}>
+                  {disposition.name}
                 </option>
               ))}
             </select>

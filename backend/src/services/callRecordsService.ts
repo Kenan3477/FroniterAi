@@ -33,6 +33,7 @@ export interface CallSearchFilters {
   dateTo?: Date;
   phoneNumber?: string;
   duration?: { min?: number; max?: number };
+  dispositionId?: string;
 }
 
 /**
@@ -189,6 +190,10 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
     where.duration = {};
     if (filters.duration.min) where.duration.gte = filters.duration.min;
     if (filters.duration.max) where.duration.lte = filters.duration.max;
+  }
+
+  if (filters.dispositionId) {
+    where.dispositionId = filters.dispositionId;
   }
 
   const callRecords = await prisma.callRecord.findMany({

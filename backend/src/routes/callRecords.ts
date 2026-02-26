@@ -46,6 +46,7 @@ router.get('/', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request
       campaignId: req.query.campaignId as string,
       outcome: req.query.outcome as string,
       phoneNumber: req.query.phoneNumber as string,
+      dispositionId: req.query.dispositionId as string,
       dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
     };
