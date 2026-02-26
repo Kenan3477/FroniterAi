@@ -573,10 +573,20 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       });
 
+    } catch (error) {
+      console.error('❌ Save call data error:', error);
+      
+      return res.status(500).json({
+        success: false,
+        error: 'Database operation failed', 
+        message: error instanceof Error ? error.message : 'Unknown database error'
+      });
+    }
+
   } catch (error) {
     console.error('❌ Save call data error:', error);
     
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Database operation failed', 
       message: error instanceof Error ? error.message : 'Unknown database error'
