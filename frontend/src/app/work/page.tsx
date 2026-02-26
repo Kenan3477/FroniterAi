@@ -26,10 +26,12 @@ export default function WorkPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [agentId, setAgentId] = useState('demo-agent');
   
   // Get auth context data
   const { user, currentCampaign, agentStatus, updateAgentStatus } = useAuth();
+  
+  // Set agentId based on authenticated user
+  const [agentId, setAgentId] = useState(user?.id?.toString() || user?.username || 'demo-agent');
   
   // Client-side hydration state
   const [isClient, setIsClient] = useState(false);
@@ -37,6 +39,14 @@ export default function WorkPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Update agentId when user changes
+  useEffect(() => {
+    if (user) {
+      const newAgentId = user.id?.toString() || user.username || 'demo-agent';
+      setAgentId(newAgentId);
+    }
+  }, [user]);
   
   // Real interaction data state
   const [categorizedInteractions, setCategorizedInteractions] = useState<CategorizedInteractions>({

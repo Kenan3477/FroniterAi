@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout';
 import { TwilioDialer } from '@/components/dialer/TwilioDialerIntegrated';
+import { useAuth } from '@/contexts/AuthContext';
 
 const SipDialerPage = () => {
+  const { user } = useAuth();
   const [agentId, setAgentId] = useState('');
 
   useEffect(() => {
-    // Get agent ID from session/auth
-    // For now, use a default
-    setAgentId('demo-agent');
-  }, []);
+    // Get agent ID from authenticated user
+    if (user) {
+      const newAgentId = user.id?.toString() || user.username || 'demo-agent';
+      setAgentId(newAgentId);
+    }
+  }, [user]);
 
   return (
     <MainLayout>
