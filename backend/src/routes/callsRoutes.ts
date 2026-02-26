@@ -406,9 +406,39 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         errors: [] as string[]
       };
       
-      if (disposition?.id || req.body.dispositionId) {
-        const dispositionIdToCheck = disposition?.id || req.body.dispositionId;
-        console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
+      if (disposition?.id || req.body.dispositionId || (typeof disposition === 'string' && disposition)) {
+        let dispositionIdToCheck = disposition?.id || req.body.dispositionId;
+        
+        // Handle case where frontend sends disposition name as string instead of ID
+        if (!dispositionIdToCheck && typeof disposition === 'string') {
+          console.log('🔄 Frontend sent disposition name:', disposition, 'attempting to map to ID...');
+          
+          try {
+            // Try to find disposition by name
+            const dispositionByName = await prisma.disposition.findFirst({
+              where: { 
+                name: {
+                  equals: disposition,
+                  mode: 'insensitive'
+                }
+              }
+            });
+            
+            if (dispositionByName) {
+              dispositionIdToCheck = dispositionByName.id;
+              console.log('✅ Mapped disposition name to ID:', disposition, '->', dispositionIdToCheck);
+            } else {
+              console.log('❌ No disposition found with name:', disposition);
+              debugInfo.errors.push(`No disposition found with name: ${disposition}`);
+            }
+          } catch (mappingError: any) {
+            console.log('❌ Error mapping disposition name:', mappingError.message);
+            debugInfo.errors.push(`Disposition mapping error: ${mappingError.message}`);
+          }
+        }
+        
+        if (dispositionIdToCheck) {
+          console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
         console.log('🔍 For campaign:', safeCampaignId);
         try {
           // First check if disposition exists
