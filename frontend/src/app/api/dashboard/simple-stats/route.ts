@@ -1,79 +1,117 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
-    const { searchParams } = new URL(request.url);
+    console.log('📊 Fetching dashboard simple stats directly from database...');
     
-    console.log('📊 Fetching dashboard stats from backend...');
+    // Get today's date range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Forward query parameters to backend
-    const agentId = searchParams.get('agentId');
-    const queryString = agentId ? `?agentId=${agentId}` : '';
-    
-    // Connect to backend KPI dashboard endpoint instead of direct DB access
-    const backendResponse = await fetch(`${backendUrl}/api/kpi/dashboard${queryString}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    console.log(`📅 Querying for calls between ${today.toISOString()} and ${tomorrow.toISOString()}`);
 
-    if (!backendResponse.ok) {
-      console.error('❌ Backend dashboard stats failed:', backendResponse.status);
-      // Fallback structure for frontend compatibility
-      return NextResponse.json({
-        success: true,
-        data: {
-          totalCalls: 0,
-          callsToday: 0,
-          totalContacts: 0,
-          activeCampaigns: 0,
-          totalAgents: 0,
-          answeredCallsToday: 0,
-          answerRate: 0,
-          avgCallDuration: 0,
-          trends: {
-            calls: 0,
-            answered: 0,
-            duration: 0
-          },
-          source: 'fallback'
+    // Get call statistics directly from database
+    const [
+      totalCallsToday,
+      totalCallsAllTime,
+      totalContacts,
+      activeCampaigns,
+      totalAgents,
+      callsWithDuration
+    ] = await Promise.all([
+      // Today's calls
+      prisma.callRecord.count({
+        where: {
+          startTime: {
+            gte: today,
+            lt: tomorrow
+          }
         }
-      });
-    }
+      }),
+      
+      // All time calls
+      prisma.callRecord.count(),
+      
+      // Total contacts
+      prisma.contact.count(),
+      
+      // Active campaigns
+      prisma.campaign.count({
+        where: {
+          status: { in: ['Active', 'active'] }
+        }
+      }),
+      
+      // Total agents/users
+      prisma.user.count(),
+      
+      // Calls with duration (successful calls)
+      prisma.callRecord.count({
+        where: {
+          startTime: {
+            gte: today,
+            lt: tomorrow
+          },
+          duration: {
+            gt: 0
+          }
+        }
+      })
+    ]);
 
-    const backendData = await backendResponse.json();
-    
-    console.log('✅ Dashboard stats fetched from backend successfully');
-    
-    // Transform backend KPI data to match frontend expectations
-    return NextResponse.json({
-      success: true,
-      data: {
-        // Map backend KPI structure to frontend dashboard structure
-        totalCalls: backendData.kpis?.totalCalls || 0,
-        callsToday: backendData.kpis?.callsToday || 0,
-        totalContacts: backendData.kpis?.totalContacts || 0,
-        activeCampaigns: backendData.kpis?.activeCampaigns || 0,
-        totalAgents: backendData.kpis?.totalAgents || 0,
-        answeredCallsToday: backendData.kpis?.answeredCalls || 0,
-        answerRate: backendData.kpis?.answerRate || 0,
-        avgCallDuration: backendData.kpis?.avgDuration || 0,
-        trends: {
-          calls: backendData.trends?.calls || 0,
-          answered: backendData.trends?.answered || 0,
-          duration: backendData.trends?.duration || 0
+    // Calculate average call duration for today
+    const durationStats = await prisma.callRecord.aggregate({
+      where: {
+        startTime: {
+          gte: today,
+          lt: tomorrow
         },
-        source: 'backend'
+        duration: {
+          gt: 0
+        }
+      },
+      _avg: {
+        duration: true
       }
     });
 
+    const avgDuration = Math.round(durationStats._avg.duration || 0);
+    const answerRate = totalCallsToday > 0 ? Math.round((callsWithDuration / totalCallsToday) * 100) : 0;
+
+    const stats = {
+      totalCalls: totalCallsAllTime,
+      callsToday: totalCallsToday,
+      totalContacts: totalContacts,
+      activeCampaigns: activeCampaigns,
+      totalAgents: totalAgents,
+      answeredCallsToday: callsWithDuration,
+      answerRate: answerRate,
+      avgCallDuration: avgDuration,
+      trends: {
+        calls: 0, // Would need historical data to calculate
+        answered: 0,
+        duration: 0
+      },
+      source: 'database'
+    };
+
+    console.log('✅ Dashboard simple stats calculated:', stats);
+    
+    return NextResponse.json({
+      success: true,
+      data: stats
+    });
+
   } catch (error) {
-    console.error('Dashboard stats error:', error);
+    console.error('Dashboard simple stats error:', error);
     return NextResponse.json(
       { 
         success: false,
@@ -97,5 +135,7 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
