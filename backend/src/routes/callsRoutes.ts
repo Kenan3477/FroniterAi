@@ -237,10 +237,15 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
+    console.log('🔍 DEBUG AGENT ID CONVERSION:');
+    console.log('  - Original agentId:', agentId, '(type:', typeof agentId, ')');
+    console.log('  - After String():', safeAgentId, '(type:', typeof safeAgentId, ')');
+
     // AGENT ID FIX: If agentId is 509 (number or string), map to system-agent
     if (agentId === 509 || agentId === '509') {
       safeAgentId = 'system-agent';
       console.log('🔧 Mapped agent 509 to system-agent (missing from database)');
+      console.log('  - Final safeAgentId:', safeAgentId, '(type:', typeof safeAgentId, ')');
     }
 
     try {
