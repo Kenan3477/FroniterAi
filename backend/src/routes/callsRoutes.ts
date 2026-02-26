@@ -286,17 +286,59 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const uniqueCallId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const uniqueContactId = `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Try to find or create contact with better conflict handling
+    // Phone number normalization function
+    function normalizePhoneNumber(phone: string): string[] {
+      if (!phone || phone === 'Unknown') return [];
+      
+      // Remove all non-digit characters
+      const digitsOnly = phone.replace(/\D/g, '');
+      
+      // Generate different variants
+      const variants = new Set<string>();
+      
+      // Original number (cleaned)
+      variants.add(digitsOnly);
+      
+      // UK format handling - if starts with 44, also try with 0 prefix
+      if (digitsOnly.startsWith('44')) {
+        const withoutCountryCode = digitsOnly.substring(2);
+        variants.add('0' + withoutCountryCode);
+        variants.add(withoutCountryCode);
+      }
+      
+      // If starts with 0, also try without 0
+      if (digitsOnly.startsWith('0')) {
+        variants.add(digitsOnly.substring(1));
+        // Also try with +44
+        variants.add('44' + digitsOnly.substring(1));
+      }
+      
+      // If doesn't start with 0 or 44, try with 0 prefix
+      if (!digitsOnly.startsWith('0') && !digitsOnly.startsWith('44')) {
+        variants.add('0' + digitsOnly);
+        variants.add('44' + digitsOnly);
+      }
+      
+      // Convert back to array and log for debugging
+      const result = Array.from(variants).filter(v => v.length > 0);
+      console.log(`📞 Phone number variants for ${phone}:`, result);
+      return result;
+    }
+
+    // Try to find or create contact with better phone number matching
     let contact = null;
     if (safePhoneNumber !== 'Unknown') {
+      const phoneVariants = normalizePhoneNumber(safePhoneNumber);
+      
       contact = await prisma.contact.findFirst({
         where: {
-          OR: [
-            { phone: safePhoneNumber },
-            { phone: safePhoneNumber.replace(/\s+/g, '') }
-          ]
+          OR: phoneVariants.map(variant => ({ phone: variant }))
         }
       });
+      
+      if (contact) {
+        console.log(`✅ Found existing contact: ${contact.firstName} ${contact.lastName} (${contact.phone}) matching dialed ${safePhoneNumber}`);
+      }
 
       if (!contact && customerInfo) {
         // Use upsert to avoid contactId conflicts
@@ -315,13 +357,11 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             console.log('✅ Contact created:', contact.contactId);
           } catch (contactError: any) {
             console.log('⚠️ Contact creation failed, trying to find existing:', contactError.message);
-            // If contact creation fails due to unique constraint, try to find it again
+            // If contact creation fails due to unique constraint, try to find it again with improved matching
+            const phoneVariants = normalizePhoneNumber(safePhoneNumber);
             contact = await prisma.contact.findFirst({
               where: {
-                OR: [
-                  { phone: safePhoneNumber },
-                  { phone: safePhoneNumber.replace(/\s+/g, '') }
-                ]
+                OR: phoneVariants.map(variant => ({ phone: variant }))
               }
             });
             
@@ -366,9 +406,10 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             });
           } catch (contactError: any) {
             console.log('⚠️ Minimal contact creation failed, trying to find existing:', contactError.message);
+            const phoneVariants = normalizePhoneNumber(safePhoneNumber);
             contact = await prisma.contact.findFirst({
               where: {
-                phone: safePhoneNumber
+                OR: phoneVariants.map(variant => ({ phone: variant }))
               }
             });
             
