@@ -92,70 +92,17 @@ router.post('/webhook/recording-status', validateTwilioWebhook, async (req, res)
     });
     
     if (!callRecord) {
-      console.log(`📝 No existing call record for ${CallSid}, creating from recording webhook...`);
+      console.log(`📝 No existing call record for ${CallSid}, skipping auto-sync creation...`);
+      console.log(`   ⚠️  Auto-sync contact creation disabled to prevent unwanted contacts`);
+      console.log(`   📋 Call records should only be created through proper dialing workflows`);
       
-      // Ensure required entities exist
-      await prisma.dataList.upsert({
-        where: { listId: 'AUTO-SYNC-CONTACTS' },
-        update: {},
-        create: {
-          listId: 'AUTO-SYNC-CONTACTS',
-          name: 'Auto-Sync Twilio Contacts',
-          active: true,
-          totalContacts: 0
-        }
+      // Just acknowledge the recording webhook without creating records
+      res.status(200).json({ 
+        success: true, 
+        message: 'Recording acknowledged but no call record exists',
+        note: 'Auto-sync contact creation disabled'
       });
-      
-      await prisma.campaign.upsert({
-        where: { campaignId: 'LIVE-CALLS' },
-        update: {},
-        create: {
-          campaignId: 'LIVE-CALLS',
-          name: 'Live Calls',
-          description: 'Real-time calls auto-synced from Twilio',
-          status: 'Active',
-          isActive: true
-        }
-      });
-      
-      const contactId = `auto-sync-${CallSid}`;
-      
-      // Create contact first (foreign key requirement)
-      await prisma.contact.upsert({
-        where: { contactId },
-        update: {},
-        create: {
-          contactId,
-          listId: 'AUTO-SYNC-CONTACTS',
-          firstName: 'Auto-Sync',
-          lastName: 'Contact',
-          phone: 'Unknown',
-          email: null
-        }
-      });
-      
-      // Create call record
-      callRecord = await prisma.callRecord.create({
-        data: {
-          callId: CallSid,
-          agentId: null,
-          contactId: contactId,
-          campaignId: 'LIVE-CALLS',
-          phoneNumber: 'Unknown',
-          dialedNumber: 'Unknown',
-          callType: 'outbound',
-          startTime: new Date(), // Recording webhook doesn't have call start time
-          endTime: new Date(),
-          duration: RecordingDuration ? parseInt(RecordingDuration) : 0,
-          outcome: 'completed',
-          dispositionId: null,
-          notes: `Auto-synced from Twilio. Recording SID: ${RecordingSid}`,
-          recording: RecordingUrl,
-          transferTo: null
-        }
-      });
-      
-      console.log(`✅ Created call record ${callRecord.id} for call ${CallSid}`);
+      return;
     } else {
       // Update existing call record with recording info
       await prisma.callRecord.update({
