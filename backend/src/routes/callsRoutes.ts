@@ -339,10 +339,27 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         });
       }
 
-      // Create call record with correct schema
-      const callRecord = await prisma.callRecord.create({
-        data: {
-          callId: callSid || uniqueCallId, // Use real Twilio CallSid if provided
+      // Create or update call record with correct schema
+      // Use upsert to handle case where Twilio webhook already created the record
+      const finalCallId = callSid || uniqueCallId;
+      const callRecord = await prisma.callRecord.upsert({
+        where: { callId: finalCallId },
+        update: {
+          // Update existing record with disposition and duration info
+          agentId: safeAgentId,
+          contactId: contact.contactId,
+          campaignId: safeCampaignId,
+          phoneNumber: safePhoneNumber,
+          duration: safeDuration,
+          outcome: disposition?.outcome || 'completed',
+          dispositionId: disposition?.id || null,
+          recording: recordingUrl || null,
+          notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
+          endTime: new Date()
+        },
+        create: {
+          // Create new record if it doesn't exist
+          callId: finalCallId,
           agentId: safeAgentId,
           contactId: contact.contactId,
           campaignId: safeCampaignId,
@@ -353,12 +370,13 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           endTime: new Date(),
           duration: safeDuration,
           outcome: disposition?.outcome || 'completed',
-          recording: recordingUrl || null, // Include recording URL if provided
+          dispositionId: disposition?.id || null,
+          recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
         }
       });
 
-      console.log('✅ Call record created:', callRecord.callId);
+      console.log('✅ Call record created/updated:', callRecord.callId);
 
       res.json({
         success: true,
