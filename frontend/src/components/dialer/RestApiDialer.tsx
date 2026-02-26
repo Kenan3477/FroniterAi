@@ -437,7 +437,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           followUpRequired: dispositionData.followUpRequired,
           followUpDate: dispositionData.followUpDate,
           phoneNumber: phoneNumber,
-          agentId: agentId // Use authenticated user's agent ID
+          agentId: String(agentId) // Convert to string for database compatibility
         })
       });
 

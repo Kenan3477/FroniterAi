@@ -141,7 +141,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           customerInfo: customerData,
           disposition: dispositionData,
           callDuration: callDuration,
-          agentId: agentId, // Use authenticated user's agent ID
+          agentId: String(agentId), // Convert to string for database compatibility
           campaignId: 'manual-dial'
         })
       });

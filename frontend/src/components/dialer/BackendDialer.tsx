@@ -243,7 +243,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
               },
               disposition: disposition.outcome,
               callDuration: callDuration,
-              agentId: agentId,
+              agentId: String(agentId), // Convert to string for database compatibility
               campaignId: customerInfo.campaignId || 'default'
             })
           });
