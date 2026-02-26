@@ -391,6 +391,14 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
       // Validate disposition if provided
       let validDispositionId = null;
+      let debugInfo = {
+        dispositionFound: false,
+        campaignLinkFound: false,
+        autoFixAttempted: false,
+        autoFixSuccess: false,
+        errors: [] as string[]
+      };
+      
       if (disposition?.id || req.body.dispositionId) {
         const dispositionIdToCheck = disposition?.id || req.body.dispositionId;
         console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
@@ -401,6 +409,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             where: { id: dispositionIdToCheck }
           });
           if (existingDisposition) {
+            debugInfo.dispositionFound = true;
             console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', dispositionIdToCheck);
             
             // Check if this disposition is linked to the campaign
@@ -414,11 +423,13 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             });
             
             if (campaignDisposition) {
+              debugInfo.campaignLinkFound = true;
               validDispositionId = dispositionIdToCheck;
               console.log('✅ Disposition is linked to campaign - APPROVED for save');
             } else {
               console.log('❌ Disposition NOT linked to campaign', safeCampaignId);
               console.log('   🔧 AUTO-FIXING: Creating campaign disposition link...');
+              debugInfo.autoFixAttempted = true;
               
               // AUTO-FIX: Create the missing campaign disposition link
               try {
@@ -431,19 +442,23 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
                   }
                 });
                 
+                debugInfo.autoFixSuccess = true;
                 validDispositionId = dispositionIdToCheck;
                 console.log('✅ AUTO-FIX SUCCESS: Created campaign disposition link');
                 console.log('   Disposition can now be used for manual calls');
                 
               } catch (autoFixError: any) {
+                debugInfo.errors.push(`Auto-fix failed: ${autoFixError.message}`);
                 console.log('❌ AUTO-FIX FAILED:', autoFixError.message);
                 console.log('   Proceeding without dispositionId');
               }
             }
           } else {
+            debugInfo.errors.push('Disposition not found in database');
             console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
           }
         } catch (dispositionError: any) {
+          debugInfo.errors.push(`Disposition validation error: ${dispositionError.message}`);
           console.log('⚠️ Disposition validation failed:', dispositionError.message);
         }
       } else {
@@ -499,6 +514,12 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           receivedDispositionId: req.body.dispositionId,
           receivedDisposition: disposition,
           validatedDispositionId: validDispositionId,
+          validationDebug: debugInfo,
+          debugFlow: {
+            step1_dispositionExists: 'checked',
+            step2_campaignLinkExists: validDispositionId ? 'yes' : 'no_or_failed',
+            step3_autoFixAttempted: validDispositionId ? 'not_needed' : 'needed'
+          },
           finalCallRecord: {
             callId: callRecord.callId,
             dispositionId: callRecord.dispositionId,
