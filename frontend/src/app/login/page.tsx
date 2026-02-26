@@ -173,7 +173,7 @@ export default function LoginPage() {
         </div>
 
         {/* CSS for animations */}
-        <style jsx>{`
+        <style jsx global>{`
           @keyframes slideUp {
             from {
               opacity: 0;
