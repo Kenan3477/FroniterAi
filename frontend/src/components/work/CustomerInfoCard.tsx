@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useAuth } from '@/contexts/AuthContext';
 import { endCall, clearCall, holdCall } from '@/store/slices/activeCallSlice';
 import { RootState } from '@/store';
 import { CallTransferModal } from '@/components/ui/CallTransferModal';
@@ -51,6 +52,10 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   const [showDispositionModal, setShowDispositionModal] = useState(false);
   const dispatch = useDispatch();
   const activeCallState = useSelector((state: RootState) => state.activeCall);
+  
+  // Get authenticated user for agent ID
+  const { user } = useAuth();
+  const agentId = user?.id?.toString() || user?.username || 'demo-agent';
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -135,7 +140,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           customerInfo: customerData,
           disposition: dispositionData,
           callDuration: callDuration,
-          agentId: 'agent-browser', // TODO: Get real agent ID
+          agentId: agentId, // Use authenticated user's agent ID
           campaignId: 'manual-dial'
         })
       });

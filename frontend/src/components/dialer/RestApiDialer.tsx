@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Device } from '@twilio/voice-sdk';
+import { useAuth } from '@/contexts/AuthContext';
 import { RootState } from '@/store';
 import { startCall, answerCall, endCall } from '@/store/slices/activeCallSlice';
 import { DispositionCard, DispositionData } from './DispositionCard';
@@ -22,6 +23,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Get authenticated user for agent ID
+  const { user } = useAuth();
+  const agentId = user?.id?.toString() || user?.username || 'demo-agent';
   
   // Disposition modal state
   const [showDispositionModal, setShowDispositionModal] = useState(false);
@@ -425,7 +430,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
           followUpRequired: dispositionData.followUpRequired,
           followUpDate: dispositionData.followUpDate,
           phoneNumber: phoneNumber,
-          agentId: 'agent-browser' // TODO: Get real agent ID
+          agentId: agentId // Use authenticated user's agent ID
         })
       });
 

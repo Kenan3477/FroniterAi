@@ -380,7 +380,7 @@ export default function WorkPage() {
           phoneNumber: activeCall.phoneNumber,
           customerInfo: activeCall.customerInfo,
           callDuration: activeCall.callDuration,
-          agentId: 'agent-browser', // TODO: Get real agent ID
+          agentId: agentId, // Use authenticated user's agent ID
           campaignId: 'manual-dial'
         })
       });
