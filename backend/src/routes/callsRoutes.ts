@@ -4,7 +4,18 @@
 import express from 'express';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { createRestApiCall, generateAccessToken } from '../services/twilioService';
+import { createRestApiCall, genera    // Validate required fields with safe defaults
+    const safePhoneNumber = phoneNumber || 'Unknown';
+    const safeAgentId = agentId || 'system-agent';
+    const safeCampaignId = campaignId || 'manual-dial';
+    const safeDuration = parseInt(callDuration) || 0;
+
+    // AGENT ID FIX: If agentId is "509" (which doesn't exist), map to system-agent
+    let finalAgentId = safeAgentId;
+    if (safeAgentId === '509') {
+      finalAgentId = 'system-agent';
+      console.log('🔧 Mapped agent 509 to system-agent (missing from database)');
+    }essToken } from '../services/twilioService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -232,9 +243,15 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
     // Validate required fields with safe defaults
     const safePhoneNumber = phoneNumber || 'Unknown';
-    const safeAgentId = agentId || 'demo-agent';
+    let safeAgentId = agentId || 'system-agent';
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration) || 0;
+
+    // AGENT ID FIX: If agentId is "509" (which doesn't exist), map to system-agent
+    if (agentId === '509') {
+      safeAgentId = 'system-agent';
+      console.log('🔧 Mapped agent 509 to system-agent (missing from database)');
+    }
 
     try {
       // Ensure required dependencies exist
@@ -463,6 +480,14 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       } else {
         console.log('⚠️ No disposition ID provided in request');
+        debugInfo.errors.push('No disposition ID provided');
+      }
+
+      // FALLBACK: If no valid disposition found but outcome is provided, proceed without dispositionId
+      if (!validDispositionId && (disposition?.outcome || disposition?.name)) {
+        console.log('🔄 No valid dispositionId but outcome provided, proceeding without DB link');
+        console.log('   Outcome:', disposition?.outcome || disposition?.name);
+        debugInfo.errors.push('Using outcome without DB disposition link');
       }
 
       // Create or update call record with correct schema
@@ -509,6 +534,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       res.json({
         success: true,
         message: 'Call data saved successfully',
+        warning: validDispositionId ? null : 'Disposition ID not found - call saved without disposition link',
         debug: {
           campaignId: safeCampaignId,
           receivedDispositionId: req.body.dispositionId,
