@@ -163,7 +163,7 @@ function DashboardContent() {
   const loadDashboardStats = async () => {
     setLoading(true);
     try {
-      // Get the JWT token from localStorage
+      // Get the JWT token from localStorage for proper authentication
       const token = localStorage.getItem('omnivox_token');
       
       const headers: Record<string, string> = {
@@ -175,6 +175,7 @@ function DashboardContent() {
       }
       
       console.log('📊 Loading dashboard stats with auth token:', !!token);
+      console.log('🔑 Using Bearer token authentication for dashboard stats');
       
       const response = await fetch('/api/dashboard/stats', {
         credentials: 'include',
