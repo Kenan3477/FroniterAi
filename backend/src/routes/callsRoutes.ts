@@ -455,6 +455,17 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       res.json({
         success: true,
         message: 'Call data saved successfully',
+        debug: {
+          receivedDispositionId: req.body.dispositionId,
+          receivedDisposition: disposition,
+          validatedDispositionId: validDispositionId,
+          finalCallRecord: {
+            callId: callRecord.callId,
+            dispositionId: callRecord.dispositionId,
+            agentId: callRecord.agentId,
+            duration: callRecord.duration
+          }
+        },
         data: {
           callRecord,
           contact
