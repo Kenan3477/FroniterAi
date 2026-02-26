@@ -231,27 +231,11 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
     console.log('✅ Recording evidence validated - proceeding with call save');
 
-    // Validate required fields with safe defaults
+    // Validate required fields with safe defaults  
     const safePhoneNumber = phoneNumber || 'Unknown';
-    let safeAgentId = String(agentId || 'system-agent'); // Ensure agentId is always a string
+    let safeAgentId = String(agentId || 'system-agent'); // Ensure agentId is always a string (frontend should now send as string)
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
-
-    // IMPORTANT: Log the type conversion results
-    console.log('🔍 AGENTID TYPE CONVERSION:');
-    console.log('  - Original agentId:', agentId, '(type:', typeof agentId, ')');
-    console.log('  - Converted safeAgentId:', safeAgentId, '(type:', typeof safeAgentId, ')');
-    
-    // Early validation test - return debug info if agentId is 509
-    if (agentId === 509) {
-      return res.json({
-        success: false,
-        debug: 'TYPE_CONVERSION_TEST',
-        original: { agentId: agentId, type: typeof agentId },
-        converted: { safeAgentId: safeAgentId, type: typeof safeAgentId },
-        message: 'Debugging agentId type conversion - this is a test response'
-      });
-    }
 
     try {
       // Ensure required dependencies exist
