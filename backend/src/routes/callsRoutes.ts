@@ -208,6 +208,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       customerInfo,
       disposition,
       callDuration,
+      duration,    // Frontend sends 'duration' instead of 'callDuration'
       agentId,
       campaignId,
       callSid,
@@ -245,7 +246,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const safePhoneNumber = phoneNumber || 'Unknown';
     let safeAgentId = agentId || 'system-agent';
     const safeCampaignId = campaignId || 'manual-dial';
-    const safeDuration = parseInt(callDuration) || 0;
+    const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
     // AGENT ID FIX: If agentId is "509" (which doesn't exist), map to system-agent
     if (agentId === '509') {
