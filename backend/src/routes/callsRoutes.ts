@@ -266,6 +266,28 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             }
           });
           console.log('✅ Contact created:', contact.contactId);
+        } else if (contact && customerInfo) {
+          // Update existing contact with better information if provided
+          const shouldUpdate = (
+            (customerInfo.firstName && customerInfo.firstName !== 'Unknown' && contact.firstName === 'Unknown') ||
+            (customerInfo.lastName && customerInfo.lastName !== 'Contact' && contact.lastName === 'Contact') ||
+            (customerInfo.email && !contact.email)
+          );
+
+          if (shouldUpdate) {
+            contact = await prisma.contact.update({
+              where: { id: contact.id },
+              data: {
+                firstName: customerInfo.firstName || contact.firstName,
+                lastName: customerInfo.lastName || contact.lastName,
+                email: customerInfo.email || contact.email,
+                status: 'contacted',
+                lastAttempt: new Date(),
+                attemptCount: { increment: 1 }
+              }
+            });
+            console.log('✅ Contact updated with better info:', contact.contactId);
+          }
         } else if (!contact) {
           // Create minimal contact for unknown callers
           contact = await prisma.contact.create({
