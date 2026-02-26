@@ -120,6 +120,9 @@ export const GET = requireAuth(async (request, user) => {
     } else if (agentId && (user.role === 'ADMIN' || user.role === 'SUPERVISOR')) {
       userFilter = { agentId: agentId };
     }
+    
+    // For ADMIN and SUPERVISOR users without specific agentId filter, show all data
+    console.log(`🔍 Dashboard stats query - User: ${user.email}, Role: ${user.role}, UserID: ${user.userId}, Filter:`, userFilter);
 
     // 1. Contact Statistics
     const contactStats = await prisma.contact.aggregate({
