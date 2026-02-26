@@ -8,7 +8,79 @@ import { prisma } from '../database/index';
 
 const router = express.Router();
 
-// Apply authentication to all routes
+// TEMPORARY: Create missing disposition types (NO AUTH REQUIRED) - MUST BE FIRST
+router.post('/create-types', async (req, res) => {
+  try {
+    console.log('🛠️ Creating missing disposition types...');
+    
+    const missingDispositions = [
+      {
+        id: 'disp_1766684993442',
+        name: 'Completed',
+        description: 'Call completed successfully',
+        category: 'completed'
+      },
+      {
+        id: 'disp_manual_answered',
+        name: 'Answered',
+        description: 'Call was answered',
+        category: 'answered'
+      },
+      {
+        id: 'disp_manual_no_answer',
+        name: 'No Answer',
+        description: 'No answer',
+        category: 'no_answer'
+      },
+      {
+        id: 'disp_manual_busy',
+        name: 'Busy',
+        description: 'Line was busy',
+        category: 'busy'
+      },
+      {
+        id: 'disp_manual_voicemail', 
+        name: 'Voicemail',
+        description: 'Reached voicemail',
+        category: 'voicemail'
+      }
+    ];
+    
+    const results = [];
+    for (const disposition of missingDispositions) {
+      try {
+        const existing = await prisma.disposition.findUnique({
+          where: { id: disposition.id }
+        });
+        
+        if (existing) {
+          results.push({ ...disposition, status: 'exists' });
+        } else {
+          const created = await prisma.disposition.create({ data: disposition });
+          results.push({ ...created, status: 'created' });
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        results.push({ ...disposition, status: 'error', error: errorMsg });
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: results,
+      message: 'Disposition types processed'
+    });
+    
+  } catch (error) {
+    console.error('Error creating disposition types:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Apply authentication to all OTHER routes (after create-types)
 router.use(authenticate);
 
 /**

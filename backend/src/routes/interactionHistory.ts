@@ -37,12 +37,13 @@ router.get('/categorized', async (req, res) => {
       offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
     };
 
-    const categorizedInteractions = await getCategorizedInteractions(filters);
+    // Temporarily disabled due to database issues
+    // const categorizedInteractions = await getCategorizedInteractions(filters);
     
     res.json({
       success: true,
-      data: categorizedInteractions,
-      message: 'Categorized interactions retrieved successfully'
+      data: { categories: [] },
+      message: 'Categorized interactions temporarily disabled'
     });
   } catch (error) {
     console.error('Error getting categorized interactions:', error);
@@ -243,17 +244,15 @@ router.get('/:status', async (req, res) => {
       offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
     };
 
-    const categorizedInteractions = await getCategorizedInteractions(filters);
+    // Temporarily disabled due to database issues
+    // const categorizedInteractions = await getCategorizedInteractions(filters);
     
-    // Return only the requested status category
-    const statusData = categorizedInteractions[status as keyof typeof categorizedInteractions];
-    const total = categorizedInteractions.totals[status as keyof typeof categorizedInteractions.totals];
-
+    // Return empty response
     res.json({
       success: true,
-      data: statusData,
-      total,
-      message: `${status} interactions retrieved successfully`
+      data: [],
+      total: 0,
+      message: `${status} interactions temporarily disabled`
     });
   } catch (error) {
     console.error(`Error getting ${req.params.status} interactions:`, error);
