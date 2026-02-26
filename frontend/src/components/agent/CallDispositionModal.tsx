@@ -17,11 +17,13 @@ interface CallDispositionModalProps {
   contactName: string;
   contactPhone: string;
   callDuration: string;
-  onDispositionSelect: (disposition: string, notes?: string) => void;
+  onDispositionSelect: (disposition: string, notes?: string, dispositionData?: any) => void;
   onClose: () => void;
 }
 
 // Call outcome categories and dispositions
+type DispositionOutcome = string | { id: string; name: string; category?: string };
+
 const dispositionCategories = {
   negative: {
     title: 'Negative',
@@ -36,7 +38,7 @@ const dispositionCategories = {
       'Wrong Number',
       'Deceased',
       'Hostile/Rude'
-    ]
+    ] as DispositionOutcome[]
   },
   neutral: {
     title: 'Neutral',
@@ -54,7 +56,7 @@ const dispositionCategories = {
       'No Answer',
       'Busy',
       'Voicemail Left'
-    ]
+    ] as DispositionOutcome[]
   },
   positive: {
     title: 'Positive',
@@ -71,7 +73,7 @@ const dispositionCategories = {
       'Appointment Booked',
       'Interest Shown',
       'Information Sent'
-    ]
+    ] as DispositionOutcome[]
   }
 };
 
@@ -94,20 +96,21 @@ export default function CallDispositionModal({
       fetch('/api/dispositions')
         .then(response => response.json())
         .then(data => {
+          console.log('📋 Loaded dispositions from API:', data);
           if (data.success && data.dispositions) {
             // Update dispositions with API data while keeping the structure
             setDispositions({
               negative: {
                 ...dispositionCategories.negative,
-                outcomes: data.dispositions.negative
+                outcomes: data.dispositions.negative || []
               },
               neutral: {
                 ...dispositionCategories.neutral,
-                outcomes: data.dispositions.neutral
+                outcomes: data.dispositions.neutral || []
               },
               positive: {
                 ...dispositionCategories.positive,
-                outcomes: data.dispositions.positive
+                outcomes: data.dispositions.positive || []
               }
             });
           }
@@ -121,18 +124,32 @@ export default function CallDispositionModal({
 
   if (!isOpen) return null;
 
-  const handleDispositionClick = (disposition: string, category: string) => {
-    setSelectedDisposition(disposition);
+  const handleDispositionClick = (disposition: DispositionOutcome, category: string) => {
+    const dispositionName = typeof disposition === 'string' ? disposition : disposition.name;
+    const dispositionId = typeof disposition === 'string' ? null : disposition.id;
+    
+    setSelectedDisposition(dispositionName);
     setSelectedCategory(category);
+    
+    // Store both name and ID for submission
+    (setSelectedDisposition as any).id = dispositionId;
   };
 
   const handleSubmit = () => {
     if (selectedDisposition) {
-      onDispositionSelect(selectedDisposition, notes);
+      // Pass both the disposition name and ID
+      const dispositionData = {
+        outcome: selectedDisposition,
+        id: (setSelectedDisposition as any).id,
+        notes: notes
+      };
+      
+      onDispositionSelect(selectedDisposition, notes, dispositionData);
       // Reset form
       setSelectedDisposition('');
       setNotes('');
       setSelectedCategory('');
+      (setSelectedDisposition as any).id = null;
     }
   };
 
@@ -187,19 +204,24 @@ export default function CallDispositionModal({
                     
                     {/* Outcome Buttons */}
                     <div className="space-y-2">
-                      {category.outcomes.map((outcome) => (
-                        <button
-                          key={outcome}
-                          onClick={() => handleDispositionClick(outcome, categoryKey)}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm transition-all ${
-                            selectedDisposition === outcome
-                              ? 'bg-blue-600 text-white shadow-md'
-                              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
-                          }`}
-                        >
-                          {outcome}
-                        </button>
-                      ))}
+                      {category.outcomes.map((outcome) => {
+                        const outcomeName = typeof outcome === 'string' ? outcome : outcome.name;
+                        const outcomeId = typeof outcome === 'string' ? null : outcome.id;
+                        
+                        return (
+                          <button
+                            key={outcomeId || outcomeName}
+                            onClick={() => handleDispositionClick(outcome, categoryKey)}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-all ${
+                              selectedDisposition === outcomeName
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+                            }`}
+                          >
+                            {outcomeName}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );

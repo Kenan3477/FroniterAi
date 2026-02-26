@@ -190,6 +190,7 @@ router.post('/webhook/status', async (req: Request, res: Response) => {
 
 // POST /api/calls/save-call-data - Save call data and disposition (Frontend compatibility)
 router.post('/save-call-data', async (req: Request, res: Response) => {
+  console.log('🔥 SAVE-CALL-DATA ENDPOINT HIT - DEBUG VERSION ACTIVE');
   try {
     const {
       phoneNumber,
@@ -203,7 +204,9 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     } = req.body;
 
     console.log('💾 Backend: Save-call-data request for:', phoneNumber);
-    console.log('💾 Backend: Request body:', JSON.stringify(req.body, null, 2));
+    console.log('💾 Backend: Request body keys:', Object.keys(req.body));
+    console.log('💾 Backend: Disposition data:', JSON.stringify(disposition, null, 2));
+    console.log('💾 Backend: Direct dispositionId:', req.body.dispositionId);
 
     // REQUIRE RECORDING EVIDENCE - Only save calls that have actual recordings
     if (!callSid && !recordingUrl) {

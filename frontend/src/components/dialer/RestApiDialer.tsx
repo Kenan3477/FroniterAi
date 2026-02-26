@@ -415,6 +415,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
     if (!pendingCallEnd) return;
     
     try {
+      console.log('💾 Submitting disposition data:', dispositionData);
+      
       // Save disposition to backend
       const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
@@ -425,7 +427,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         body: JSON.stringify({
           callSid: pendingCallEnd.callSid,
           duration: pendingCallEnd.duration,
-          disposition: dispositionData.outcome,
+          disposition: {
+            id: dispositionData.id,
+            name: dispositionData.outcome,
+            outcome: dispositionData.outcome
+          },
+          dispositionId: dispositionData.id, // Add explicit dispositionId field
           notes: dispositionData.notes,
           followUpRequired: dispositionData.followUpRequired,
           followUpDate: dispositionData.followUpDate,

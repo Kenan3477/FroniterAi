@@ -3,7 +3,7 @@
  * Displays after call ends for agent to add notes and select disposition
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface DispositionCardProps {
@@ -19,20 +19,22 @@ interface DispositionCardProps {
 
 export interface DispositionData {
   outcome: string;
+  id?: string;
   notes: string;
   followUpRequired: boolean;
   followUpDate?: string;
 }
 
-const dispositionOptions = [
-  { value: 'answered', label: 'Answered - Successful', color: 'bg-green-100 text-slate-800 border-slate-300' },
-  { value: 'voicemail', label: 'Voicemail Left', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { value: 'no-answer', label: 'No Answer', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 'busy', label: 'Busy', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { value: 'not-interested', label: 'Not Interested', color: 'bg-red-100 text-red-800 border-red-300' },
-  { value: 'callback', label: 'Callback Requested', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { value: 'wrong-number', label: 'Wrong Number', color: 'bg-gray-100 text-gray-800 border-gray-300' },
-  { value: 'do-not-call', label: 'Do Not Call', color: 'bg-red-100 text-red-800 border-red-300' },
+// Default disposition options (fallback)
+const defaultDispositionOptions = [
+  { id: 'answered', name: 'Answered - Successful', color: 'bg-green-100 text-slate-800 border-slate-300' },
+  { id: 'voicemail', name: 'Voicemail Left', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+  { id: 'no-answer', name: 'No Answer', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  { id: 'busy', name: 'Busy', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+  { id: 'not-interested', name: 'Not Interested', color: 'bg-red-100 text-red-800 border-red-300' },
+  { id: 'callback', name: 'Callback Requested', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+  { id: 'wrong-number', name: 'Wrong Number', color: 'bg-gray-100 text-gray-800 border-gray-300' },
+  { id: 'do-not-call', name: 'Do Not Call', color: 'bg-red-100 text-red-800 border-red-300' },
 ];
 
 export const DispositionCard: React.FC<DispositionCardProps> = ({
@@ -43,9 +45,65 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
   callDuration
 }) => {
   const [selectedOutcome, setSelectedOutcome] = useState('');
+  const [selectedDispositionId, setSelectedDispositionId] = useState('');
   const [notes, setNotes] = useState('');
   const [followUpRequired, setFollowUpRequired] = useState(false);
   const [followUpDate, setFollowUpDate] = useState('');
+  const [dispositionOptions, setDispositionOptions] = useState(defaultDispositionOptions);
+
+  // Load dispositions from API when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/dispositions')
+        .then(response => response.json())
+        .then(data => {
+          console.log('📋 Loaded dispositions for DispositionCard:', data);
+          if (data.success && data.dispositions) {
+            // Flatten all dispositions from categories into a single array
+            const allDispositions = [
+              ...(data.dispositions.positive || []),
+              ...(data.dispositions.neutral || []),
+              ...(data.dispositions.negative || [])
+            ];
+            
+            // Convert to the format expected by DispositionCard
+            const formattedDispositions = allDispositions.map((disp: any, index: number) => {
+              if (typeof disp === 'string') {
+                return {
+                  id: `disp-${index}`,
+                  name: disp,
+                  color: 'bg-blue-100 text-blue-800 border-blue-300'
+                };
+              } else {
+                return {
+                  id: disp.id,
+                  name: disp.name,
+                  color: getColorForCategory(disp.category)
+                };
+              }
+            });
+            
+            setDispositionOptions(formattedDispositions);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load dispositions:', error);
+          // Keep default dispositions on error
+        });
+    }
+  }, [isOpen]);
+
+  const getColorForCategory = (category: string) => {
+    switch (category) {
+      case 'positive':
+        return 'bg-green-100 text-slate-800 border-slate-300';
+      case 'negative':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'neutral':
+      default:
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -61,6 +119,7 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
 
     const dispositionData: DispositionData = {
       outcome: selectedOutcome,
+      id: selectedDispositionId,
       notes,
       followUpRequired,
       followUpDate: followUpRequired ? followUpDate : undefined
@@ -70,6 +129,7 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
     
     // Reset form
     setSelectedOutcome('');
+    setSelectedDispositionId('');
     setNotes('');
     setFollowUpRequired(false);
     setFollowUpDate('');
@@ -106,17 +166,20 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
             <div className="grid grid-cols-2 gap-3">
               {dispositionOptions.map((option) => (
                 <button
-                  key={option.value}
-                  onClick={() => setSelectedOutcome(option.value)}
+                  key={option.id}
+                  onClick={() => {
+                    setSelectedOutcome(option.name);
+                    setSelectedDispositionId(option.id);
+                  }}
                   className={`p-3 border-2 rounded-lg text-left transition-all ${
-                    selectedOutcome === option.value
+                    selectedOutcome === option.name
                       ? `${option.color} border-current`
                       : 'bg-white border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{option.label}</span>
-                    {selectedOutcome === option.value && (
+                    <span className="font-medium">{option.name}</span>
+                    {selectedOutcome === option.name && (
                       <CheckIcon className="w-5 h-5" />
                     )}
                   </div>
