@@ -237,58 +237,57 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
-    try {
-      // Ensure required dependencies exist
-      await prisma.campaign.upsert({
-        where: { campaignId: safeCampaignId },
-        update: {},
-        create: {
-          campaignId: safeCampaignId,
-          name: 'Manual Dialing',
-          dialMethod: 'Manual',
-          status: 'Active',
-          isActive: true,
-          description: 'Manual call records',
-          recordCalls: true
+    // Ensure required dependencies exist
+    await prisma.campaign.upsert({
+      where: { campaignId: safeCampaignId },
+      update: {},
+      create: {
+        campaignId: safeCampaignId,
+        name: 'Manual Dialing',
+        dialMethod: 'Manual',
+        status: 'Active',
+        isActive: true,
+        description: 'Manual call records',
+        recordCalls: true
+      }
+    });
+
+    await prisma.dataList.upsert({
+      where: { listId: 'manual-contacts' },
+      update: {},
+      create: {
+        listId: 'manual-contacts',
+        name: 'Manual Contacts',
+        campaignId: safeCampaignId,
+        active: true,
+        totalContacts: 0
+      }
+    });
+
+    // Generate unique IDs
+    const uniqueCallId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const uniqueContactId = `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Try to find or create contact with better conflict handling
+    let contact = null;
+    if (safePhoneNumber !== 'Unknown') {
+      contact = await prisma.contact.findFirst({
+        where: {
+          OR: [
+            { phone: safePhoneNumber },
+            { phone: safePhoneNumber.replace(/\s+/g, '') }
+          ]
         }
       });
 
-      await prisma.dataList.upsert({
-        where: { listId: 'manual-contacts' },
-        update: {},
-        create: {
-          listId: 'manual-contacts',
-          name: 'Manual Contacts',
-          campaignId: safeCampaignId,
-          active: true,
-          totalContacts: 0
-        }
-      });
-
-      // Generate unique IDs
-      const uniqueCallId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const uniqueContactId = `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Try to find or create contact with better conflict handling
-      let contact = null;
-      if (safePhoneNumber !== 'Unknown') {
-        contact = await prisma.contact.findFirst({
-          where: {
-            OR: [
-              { phone: safePhoneNumber },
-              { phone: safePhoneNumber.replace(/\s+/g, '') }
-            ]
-          }
-        });
-
-        if (!contact && customerInfo) {
-          // Use upsert to avoid contactId conflicts
-          try {
-            contact = await prisma.contact.create({
-              data: {
-                contactId: uniqueContactId,
-                listId: 'manual-contacts',
-                firstName: customerInfo.firstName || 'Unknown',
+      if (!contact && customerInfo) {
+        // Use upsert to avoid contactId conflicts
+        try {
+          contact = await prisma.contact.create({
+            data: {
+              contactId: uniqueContactId,
+              listId: 'manual-contacts',
+              firstName: customerInfo.firstName || 'Unknown',
                 lastName: customerInfo.lastName || 'Contact',
                 phone: safePhoneNumber,
                 email: customerInfo.email || null,
@@ -573,23 +572,15 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       });
 
-    } catch (error) {
-      console.error('❌ Save call data error:', error);
-      
-      return res.status(500).json({
-        success: false,
-        error: 'Database operation failed', 
-        message: error instanceof Error ? error.message : 'Unknown database error'
-      });
-    }
+    } // End of main try block
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Save call data error:', error);
     
     return res.status(500).json({
       success: false,
       error: 'Database operation failed', 
-      message: error instanceof Error ? error.message : 'Unknown database error'
+      message: error?.message || 'Unknown database error'
     });
   }
 });
