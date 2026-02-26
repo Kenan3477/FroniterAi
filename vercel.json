@@ -8,6 +8,5 @@
     "NEXT_PUBLIC_API_URL": "https://froniterai-production.up.railway.app",
     "NEXT_PUBLIC_WS_URL": "wss://froniterai-production.up.railway.app"
   },
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend",
   "framework": "nextjs"
 }
