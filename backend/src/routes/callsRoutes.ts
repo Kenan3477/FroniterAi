@@ -386,6 +386,25 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       }
 
+      // Validate disposition if provided
+      let validDispositionId = null;
+      if (disposition?.id || req.body.dispositionId) {
+        const dispositionIdToCheck = disposition?.id || req.body.dispositionId;
+        try {
+          const existingDisposition = await prisma.disposition.findUnique({
+            where: { id: dispositionIdToCheck }
+          });
+          if (existingDisposition) {
+            validDispositionId = dispositionIdToCheck;
+            console.log('✅ Valid disposition found:', existingDisposition.name);
+          } else {
+            console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
+          }
+        } catch (dispositionError: any) {
+          console.log('⚠️ Disposition validation failed:', dispositionError.message);
+        }
+      }
+
       // Create or update call record with correct schema
       // Use upsert to handle case where Twilio webhook already created the record
       const finalCallId = callSid || uniqueCallId;
@@ -399,7 +418,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           phoneNumber: safePhoneNumber,
           duration: safeDuration,
           outcome: disposition?.outcome || 'completed',
-          dispositionId: disposition?.id || null,
+          dispositionId: validDispositionId,
           recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
           endTime: new Date()
@@ -417,7 +436,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           endTime: new Date(),
           duration: safeDuration,
           outcome: disposition?.outcome || 'completed',
-          dispositionId: disposition?.id || null,
+          dispositionId: validDispositionId,
           recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
         }
