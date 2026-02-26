@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Temporary bypass for testing - check if it's the local admin
     if (loginIdentifier === 'admin@omnivox.ai' && password === 'admin123') {
-      console.log('✅ Using temporary local admin bypass');
+      console.log('✅ Using temporary local admin bypass with REAL JWT token');
       
       const mockUser = {
         id: 1,
@@ -26,19 +27,38 @@ export async function POST(request: NextRequest) {
         isActive: true
       };
 
-      const mockToken = 'temp_local_token_' + Date.now();
+      // Generate REAL JWT token using the same secret as backend
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET not configured');
+      }
+
+      const realToken = jwt.sign(
+        { 
+          userId: mockUser.id, 
+          username: mockUser.username, 
+          role: mockUser.role 
+        },
+        jwtSecret,
+        { expiresIn: '24h' }
+      );
+
+      console.log('🔑 Generated real JWT token for local bypass:', {
+        tokenLength: realToken.length,
+        tokenPreview: realToken.substring(0, 50) + '...'
+      });
 
       const response = NextResponse.json({
         success: true,
         user: mockUser,
-        token: mockToken,
+        token: realToken, // Now using real JWT token instead of fake temp token
         sessionId: 'local_session_' + Date.now(),
         loginTime: new Date().toISOString(),
-        message: 'Authentication successful (local bypass)'
+        message: 'Authentication successful (local bypass with real JWT)'
       });
 
       // Set auth cookie
-      response.cookies.set('auth-token', mockToken, {
+      response.cookies.set('auth-token', realToken, {
         httpOnly: true,
         secure: false, // Set to false for localhost
         sameSite: 'lax',
