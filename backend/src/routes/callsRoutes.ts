@@ -234,23 +234,41 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     // Validate required fields with safe defaults  
     const safePhoneNumber = phoneNumber || 'Unknown';
     let safeAgentId = String(agentId || 'system-agent'); // Ensure agentId is always a string (frontend should now send as string)
-    const safeCampaignId = campaignId || 'manual-dial';
+    let safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
-    // Ensure required dependencies exist
-    await prisma.campaign.upsert({
-      where: { campaignId: safeCampaignId },
-      update: {},
-      create: {
-        campaignId: safeCampaignId,
-        name: 'Manual Dialing',
-        dialMethod: 'Manual',
-        status: 'Active',
-        isActive: true,
-        description: 'Manual call records',
-        recordCalls: true
+    // Validate campaign exists or create fallback
+    if (campaignId && campaignId !== 'manual-dial') {
+      // User provided a specific campaign - verify it exists
+      const existingCampaign = await prisma.campaign.findUnique({
+        where: { campaignId: safeCampaignId }
+      });
+      
+      if (!existingCampaign) {
+        console.warn(`⚠️ Campaign ${safeCampaignId} not found, using fallback`);
+        safeCampaignId = 'Manual Dialing'; // Use default fallback
+      } else {
+        console.log(`✅ Using existing campaign: ${existingCampaign.name} (${safeCampaignId})`);
       }
-    });
+    }
+
+    // Only create the fallback campaign if using default
+    if (safeCampaignId === 'manual-dial' || safeCampaignId === 'Manual Dialing') {
+      await prisma.campaign.upsert({
+        where: { campaignId: 'Manual Dialing' },
+        update: {},
+        create: {
+          campaignId: 'Manual Dialing',
+          name: 'Manual Dialing',
+          dialMethod: 'Manual',
+          status: 'Active',
+          isActive: true,
+          description: 'Manual call records',
+          recordCalls: true
+        }
+      });
+      safeCampaignId = 'Manual Dialing';
+    }
 
     await prisma.dataList.upsert({
       where: { listId: 'manual-contacts' },

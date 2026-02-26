@@ -381,7 +381,7 @@ export default function WorkPage() {
           customerInfo: activeCall.customerInfo,
           callDuration: activeCall.callDuration,
           agentId: agentId, // Use authenticated user's agent ID
-          campaignId: 'manual-dial'
+          campaignId: currentCampaign?.campaignId || 'Manual Dialing'
         })
       });
 

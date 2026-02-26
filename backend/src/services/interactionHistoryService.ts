@@ -294,17 +294,29 @@ export async function getCategorizedInteractions(
         where: {
           ...baseWhere,
           endedAt: { not: null },
-          outcome: { 
-            not: { 
-              in: ['pending', 'allocated', 'in-progress', 'connected'] 
-            } 
-          },
-          NOT: {
-            OR: [
-              { outcome: { contains: 'callback', mode: 'insensitive' } },
-              { result: { contains: 'callback', mode: 'insensitive' } }
-            ]
-          }
+          AND: [
+            {
+              OR: [
+                { outcome: { not: null } },
+                { result: { not: null } }
+              ]
+            },
+            {
+              outcome: { 
+                not: { 
+                  in: ['pending', 'allocated', 'in-progress', 'connected'] 
+                } 
+              }
+            },
+            {
+              NOT: {
+                OR: [
+                  { outcome: { contains: 'callback', mode: 'insensitive' } },
+                  { result: { contains: 'callback', mode: 'insensitive' } }
+                ]
+              }
+            }
+          ]
         },
         include: {
           agent: { select: { agentId: true, firstName: true, lastName: true } },
