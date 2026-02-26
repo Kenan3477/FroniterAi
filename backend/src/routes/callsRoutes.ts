@@ -197,11 +197,35 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       disposition,
       callDuration,
       agentId,
-      campaignId
+      campaignId,
+      callSid,
+      recordingUrl
     } = req.body;
 
-    console.log('💾 Backend: Saving call data for:', phoneNumber);
+    console.log('💾 Backend: Save-call-data request for:', phoneNumber);
     console.log('💾 Backend: Request body:', JSON.stringify(req.body, null, 2));
+
+    // REQUIRE RECORDING EVIDENCE - Only save calls that have actual recordings
+    if (!callSid && !recordingUrl) {
+      console.log('❌ Rejecting save-call-data: No recording evidence (callSid or recordingUrl)');
+      return res.status(400).json({
+        success: false,
+        error: 'Call data can only be saved for calls with recordings. Please provide callSid or recordingUrl.',
+        message: 'This endpoint only accepts real calls with recording evidence to prevent fake call entries.'
+      });
+    }
+
+    // Validate that CallSid looks like a real Twilio CallSid
+    if (callSid && !callSid.startsWith('CA') && !callSid.includes('conf-')) {
+      console.log('❌ Rejecting save-call-data: Invalid CallSid format:', callSid);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid CallSid format. Only real Twilio CallSids accepted.',
+        message: 'CallSid must start with "CA" (Twilio format) or contain "conf-" (conference call).'
+      });
+    }
+
+    console.log('✅ Recording evidence validated - proceeding with call save');
 
     // Validate required fields with safe defaults
     const safePhoneNumber = phoneNumber || 'Unknown';
@@ -318,7 +342,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       // Create call record with correct schema
       const callRecord = await prisma.callRecord.create({
         data: {
-          callId: uniqueCallId,
+          callId: callSid || uniqueCallId, // Use real Twilio CallSid if provided
           agentId: safeAgentId,
           contactId: contact.contactId,
           campaignId: safeCampaignId,
@@ -329,7 +353,8 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           endTime: new Date(),
           duration: safeDuration,
           outcome: disposition?.outcome || 'completed',
-          notes: disposition?.notes || 'Call completed via save-call-data API'
+          recording: recordingUrl || null, // Include recording URL if provided
+          notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
         }
       });
 
