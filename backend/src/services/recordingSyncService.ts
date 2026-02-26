@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs/promises';
 
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR || path.join(process.cwd(), 'recordings');
-const BASE_RECORDING_URL = process.env.BASE_RECORDING_URL || 'http://localhost:3004/api/recordings';
+const BASE_RECORDING_URL = process.env.BASE_RECORDING_URL || 'https://froniterai-production.up.railway.app/api/recordings';
 
 interface TwilioRecording {
   sid: string;
