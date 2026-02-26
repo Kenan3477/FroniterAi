@@ -115,13 +115,6 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   const [selectedPauseReason, setSelectedPauseReason] = useState<string>('');
   const [pauseComment, setPauseComment] = useState<string>('');
 
-  console.log('🎯🎯🎯 PreviewContactCard component called with props:', {
-    hasContact: !!contact,
-    isVisible,
-    contactId: contact?.id,
-    contactName: contact?.firstName
-  });
-
   // Reset form when contact changes
   useEffect(() => {
     // Reset pause reason selection when contact changes
@@ -180,12 +173,11 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   });
 
   if (!isVisible || !contact) {
-    console.log('❌ PreviewContactCard early return:', { isVisible, hasContact: !!contact });
     return null;
   }
 
   try {
-    console.log('🎯 PreviewContactCard rendering with contact:', contact.id, contact.firstName, contact.lastName);
+    // Contact render check - no console spam
   } catch (error) {
     console.error('❌ PreviewContactCard error:', error);
     return null;
@@ -219,8 +211,6 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
   };
 
   const priority = getPriorityLabel();
-
-  console.log('🎯 PreviewContactCard about to render JSX');
 
   return (
     <>

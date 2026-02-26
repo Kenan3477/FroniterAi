@@ -834,25 +834,6 @@ export default function WorkPage() {
         // TEMPORARY: Force render for testing
         const forceRender = previewContact && previewContact.id && previewContact.id !== 'unknown';
         
-        console.log('🎨 PreviewContactCard render check - DIRECT VALUES:');
-        console.log('   - previewContact exists:', !!previewContact);
-        console.log('   - previewContact.id:', previewContact?.id);
-        console.log('   - previewContact.firstName:', previewContact?.firstName);
-        console.log('   - previewContact.phone:', previewContact?.phone);
-        console.log('   - showPreviewCard:', showPreviewCard);
-        console.log('   - typeof showPreviewCard:', typeof showPreviewCard);
-        console.log('   - id !== unknown:', previewContact?.id !== 'unknown');
-        console.log('   - shouldRender result:', shouldRender);
-        console.log('   - forceRender result:', forceRender);
-        
-        if (forceRender) {
-          console.log('🚀 FORCE RENDERING PreviewContactCard with full contact:', previewContact);
-        } else if (shouldRender) {
-          console.log('🚀 Rendering PreviewContactCard with full contact:', previewContact);
-        } else {
-          console.log('❌ Not rendering PreviewContactCard - missing conditions');
-        }
-        
         return forceRender ? (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <PreviewContactCard
