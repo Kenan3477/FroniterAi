@@ -235,6 +235,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
               'Authorization': `Bearer ${localStorage.getItem('authToken')}`
             },
             body: JSON.stringify({
+              callSid: activeCallSid, // Add required recording evidence
               phoneNumber: customerInfo.phoneNumber || customerInfo.phone || dialedNumber,
               customerInfo: {
                 ...customerInfo,

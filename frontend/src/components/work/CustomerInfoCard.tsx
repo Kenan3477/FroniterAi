@@ -136,6 +136,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({
+          callSid: callSid, // Add required recording evidence
           phoneNumber: customerData.phoneNumber,
           customerInfo: customerData,
           disposition: dispositionData,
