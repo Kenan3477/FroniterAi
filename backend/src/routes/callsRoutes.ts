@@ -188,6 +188,97 @@ router.post('/webhook/status', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/calls/fix-dispositions - TEMPORARY: Fix campaign disposition links
+router.get('/fix-dispositions', async (req: Request, res: Response) => {
+  console.log('🔧 FIXING: Campaign disposition links for manual-dial...');
+  try {
+    // Get all dispositions
+    const allDispositions = await prisma.disposition.findMany({
+      select: { id: true, name: true }
+    });
+    
+    console.log(`Found ${allDispositions.length} dispositions to link`);
+    
+    // Ensure manual-dial campaign exists
+    await prisma.campaign.upsert({
+      where: { campaignId: 'manual-dial' },
+      update: {},
+      create: {
+        campaignId: 'manual-dial',
+        name: 'Manual Dialing',
+        dialMethod: 'Manual',
+        status: 'Active',
+        isActive: true,
+        description: 'Manual call records with full disposition support'
+      }
+    });
+    
+    // Create campaign disposition links
+    const results = [];
+    
+    for (let i = 0; i < allDispositions.length; i++) {
+      const disposition = allDispositions[i];
+      
+      try {
+        await prisma.campaignDisposition.upsert({
+          where: {
+            campaignId_dispositionId: {
+              campaignId: 'manual-dial',
+              dispositionId: disposition.id
+            }
+          },
+          update: {},
+          create: {
+            campaignId: 'manual-dial',
+            dispositionId: disposition.id,
+            isRequired: false,
+            sortOrder: i
+          }
+        });
+        
+        results.push({ disposition: disposition.name, status: 'linked' });
+        
+      } catch (linkError: any) {
+        results.push({ disposition: disposition.name, status: 'error', error: linkError.message });
+      }
+    }
+    
+    // Verify fix
+    const testLink = await prisma.campaignDisposition.findUnique({
+      where: {
+        campaignId_dispositionId: {
+          campaignId: 'manual-dial',
+          dispositionId: 'cmm3dgmwi0002bk8br3qsinpd'
+        }
+      },
+      include: { disposition: true }
+    });
+    
+    res.json({
+      success: true,
+      message: `Linked ${results.filter(r => r.status === 'linked').length} dispositions to manual-dial campaign`,
+      data: {
+        results,
+        verification: testLink ? {
+          verified: true,
+          disposition: testLink.disposition.name,
+          message: 'Callback Requested is now linked to manual-dial'
+        } : {
+          verified: false,
+          message: 'Verification failed'
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fixing dispositions:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // POST /api/calls/save-call-data - Save call data and disposition (Frontend compatibility)
 router.post('/save-call-data', async (req: Request, res: Response) => {
   console.log('🔥 SAVE-CALL-DATA ENDPOINT HIT - DEBUG VERSION ACTIVE');
