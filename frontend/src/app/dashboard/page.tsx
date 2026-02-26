@@ -163,7 +163,7 @@ function DashboardContent() {
   const loadDashboardStats = async () => {
     setLoading(true);
     try {
-      // Get the JWT token from localStorage for proper authentication
+      // Get the JWT token from localStorage for proper authentication - v2.1
       let token = localStorage.getItem('omnivox_token');
       
       const headers: Record<string, string> = {
