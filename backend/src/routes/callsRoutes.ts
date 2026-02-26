@@ -4,18 +4,7 @@
 import express from 'express';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { createRestApiCall, genera    // Validate required fields with safe defaults
-    const safePhoneNumber = phoneNumber || 'Unknown';
-    const safeAgentId = agentId || 'system-agent';
-    const safeCampaignId = campaignId || 'manual-dial';
-    const safeDuration = parseInt(callDuration) || 0;
-
-    // AGENT ID FIX: If agentId is "509" (which doesn't exist), map to system-agent
-    let finalAgentId = safeAgentId;
-    if (safeAgentId === '509') {
-      finalAgentId = 'system-agent';
-      console.log('🔧 Mapped agent 509 to system-agent (missing from database)');
-    }essToken } from '../services/twilioService';
+import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
