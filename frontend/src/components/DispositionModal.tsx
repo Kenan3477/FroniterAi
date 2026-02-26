@@ -65,19 +65,34 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
   useEffect(() => {
     const fetchDispositions = async () => {
       try {
+        const authToken = localStorage.getItem('authToken') || localStorage.getItem('omnivox_token');
+        
         const response = await fetch(`/api/dispositions/configs${campaignId ? `?campaignId=${campaignId}` : ''}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (!response.ok) {
+          console.error(`❌ Disposition configs request failed: ${response.status} ${response.statusText}`);
+          if (response.status === 401) {
+            console.error('🔑 Authentication failed - user may need to log in again');
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📋 Loaded disposition configs for DispositionModal:', data);
+        
+        if (data.success && data.data && Array.isArray(data.data)) {
           setDispositions(data.data);
+          console.log('✅ Using real database disposition configs:', data.data.length, 'configs loaded');
+        } else {
+          console.warn('⚠️ Invalid disposition configs response format:', data);
         }
       } catch (error) {
-        console.error('Error fetching dispositions:', error);
+        console.error('❌ Error fetching disposition configs:', error);
       }
     };
 

@@ -54,41 +54,45 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
   // Load dispositions from API when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/dispositions')
-        .then(response => response.json())
+      // Use /api/dispositions/configs endpoint with proper authentication
+      const authToken = localStorage.getItem('authToken') || localStorage.getItem('omnivox_token');
+      
+      fetch('/api/dispositions/configs', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return response.json();
+        })
         .then(data => {
-          console.log('📋 Loaded dispositions for DispositionCard:', data);
-          if (data.success && data.dispositions) {
-            // Flatten all dispositions from categories into a single array
-            const allDispositions = [
-              ...(data.dispositions.positive || []),
-              ...(data.dispositions.neutral || []),
-              ...(data.dispositions.negative || [])
-            ];
-            
-            // Convert to the format expected by DispositionCard
-            const formattedDispositions = allDispositions.map((disp: any, index: number) => {
-              if (typeof disp === 'string') {
-                return {
-                  id: `disp-${index}`,
-                  name: disp,
-                  color: 'bg-blue-100 text-blue-800 border-blue-300'
-                };
-              } else {
-                return {
-                  id: disp.id,
-                  name: disp.name,
-                  color: getColorForCategory(disp.category)
-                };
-              }
-            });
+          console.log('📋 Loaded disposition configs for DispositionCard:', data);
+          if (data.success && data.data && Array.isArray(data.data)) {
+            // Backend returns array of disposition configs with real database IDs
+            const formattedDispositions = data.data.map((config: any) => ({
+              id: config.id, // Use real database ID
+              name: config.label || config.name,
+              color: getColorForCategory(config.category)
+            }));
             
             setDispositionOptions(formattedDispositions);
+            console.log('✅ Using real database disposition IDs:', formattedDispositions.map((d: any) => ({ id: d.id, name: d.name })));
           }
         })
         .catch(error => {
-          console.error('Failed to load dispositions:', error);
-          // Keep default dispositions on error
+          console.error('❌ Failed to load disposition configs:', error);
+          console.log('⚠️ Using default dispositions as fallback');
+          // Keep default dispositions on error - but update them with realistic IDs
+          const fallbackWithWarning = defaultDispositionOptions.map((option, index) => ({
+            ...option,
+            id: `fallback-${index}`, // Mark as fallback
+            name: `${option.name} (Fallback)`
+          }));
+          setDispositionOptions(fallbackWithWarning);
         });
     }
   }, [isOpen]);
