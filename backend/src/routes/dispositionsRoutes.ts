@@ -4,6 +4,7 @@ import { dispositionService } from '../services/dispositionService';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { body, param, query } from 'express-validator';
+import { prisma } from '../database/index';
 
 const router = express.Router();
 
@@ -120,13 +121,104 @@ router.post('/',
         metadata,
       } = req.body;
 
+      console.log('💾 Disposition save request:', {
+        callId,
+        agentId,
+        dispositionId,
+        phoneNumber,
+        authenticated_user: (req.user as any)?.userId
+      });
+
+      // Check if call record exists, create if missing
+      let existingCallRecord = null;
+      try {
+        existingCallRecord = await prisma.callRecord.findFirst({
+          where: {
+            OR: [
+              { callId: callId },
+              { recording: callId }, // Check if callId is actually a Twilio SID
+              { callId: { contains: callId } }
+            ]
+          }
+        });
+
+        if (!existingCallRecord) {
+          console.log('⚠️ Call record not found for disposition, creating minimal record...');
+          
+          // Ensure required dependencies exist
+          await prisma.campaign.upsert({
+            where: { campaignId: 'disposition-calls' },
+            update: {},
+            create: {
+              campaignId: 'disposition-calls',
+              name: 'Disposition Calls',
+              dialMethod: 'Manual',
+              status: 'Active',
+              isActive: true,
+              description: 'Call records created during disposition',
+              recordCalls: true
+            }
+          });
+
+          await prisma.dataList.upsert({
+            where: { listId: 'disposition-contacts' },
+            update: {},
+            create: {
+              listId: 'disposition-contacts',
+              name: 'Disposition Contacts',
+              campaignId: 'disposition-calls',
+              active: true,
+              totalContacts: 0
+            }
+          });
+
+          const dispositionContactId = `disposition-${callId}`;
+          await prisma.contact.upsert({
+            where: { contactId: dispositionContactId },
+            update: {},
+            create: {
+              contactId: dispositionContactId,
+              listId: 'disposition-contacts',
+              firstName: 'Disposition',
+              lastName: 'Contact',
+              phone: phoneNumber || 'Unknown',
+              status: 'contacted'
+            }
+          });
+
+          // Create minimal call record for disposition
+          existingCallRecord = await prisma.callRecord.create({
+            data: {
+              callId: callId,
+              agentId: agentId || (req.user as any)?.userId || null,
+              contactId: dispositionContactId,
+              campaignId: 'disposition-calls',
+              phoneNumber: phoneNumber || 'Unknown',
+              dialedNumber: phoneNumber || 'Unknown',
+              callType: 'outbound',
+              startTime: callStartTime ? new Date(callStartTime) : new Date(),
+              endTime: callEndTime ? new Date(callEndTime) : new Date(),
+              duration: callDuration || 0,
+              outcome: 'completed'
+            }
+          });
+
+          console.log('✅ Created minimal call record for disposition:', existingCallRecord.callId);
+        } else {
+          console.log('✅ Found existing call record for disposition:', existingCallRecord.callId);
+        }
+      } catch (callRecordError) {
+        console.error('❌ Error handling call record for disposition:', callRecordError);
+        // Continue with disposition creation anyway
+      }
+
       const disposition = await dispositionService.createDisposition({
         callId,
         sipCallId,
-        agentId: agentId || (req.user as any).userId, // Use authenticated user if agentId not provided
-        contactId,
-        campaignId,
-        phoneNumber: phoneNumber || 'Unknown', // Default if not provided
+        agentId: agentId || (req.user as any).userId || 'unknown', // Use authenticated user if agentId not provided
+        contactId: existingCallRecord?.contactId || contactId || 'unknown',
+        campaignId: existingCallRecord?.campaignId || campaignId || 'disposition-calls',
+        phoneNumber: phoneNumber || existingCallRecord?.phoneNumber || 'Unknown', // Default if not provided
         dispositionId,
         notes,
         followUpDate: followUpDate ? new Date(followUpDate) : undefined,
@@ -134,9 +226,9 @@ router.post('/',
         callBackNumber,
         leadScore,
         saleAmount,
-        callDuration: callDuration || 0, // Default to 0 if not provided
-        callStartTime: callStartTime ? new Date(callStartTime) : new Date(), // Default to now if not provided
-        callEndTime: callEndTime ? new Date(callEndTime) : new Date(), // Default to now if not provided
+        callDuration: callDuration || existingCallRecord?.duration || 0, // Default to 0 if not provided
+        callStartTime: callStartTime ? new Date(callStartTime) : existingCallRecord?.startTime || new Date(), // Default to now if not provided
+        callEndTime: callEndTime ? new Date(callEndTime) : existingCallRecord?.endTime || new Date(), // Default to now if not provided
         metadata,
       });
 

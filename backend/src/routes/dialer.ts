@@ -17,6 +17,21 @@ router.post('/rest-api', authenticate, dialerController.makeRestApiCall);
 // Make call using REST API (alternative endpoint for campaign-based calling)
 router.post('/call-rest-api', authenticate, dialerController.makeRestApiCall);
 
+// Diagnostic endpoint to test if calls reach backend
+router.post('/test-call-endpoint', authenticate, async (req, res) => {
+  console.log('🧪 TEST ENDPOINT REACHED - Call attempt detected');
+  console.log('🔐 User:', (req as any).user);
+  console.log('📞 Request body:', req.body);
+  
+  res.json({
+    success: true,
+    message: 'Test endpoint reached successfully',
+    timestamp: new Date().toISOString(),
+    user: (req as any).user,
+    body: req.body
+  });
+});
+
 // End active call
 router.post('/end', authenticate, dialerController.endCall);
 
