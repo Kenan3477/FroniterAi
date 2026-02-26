@@ -236,6 +236,7 @@ class App {
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
+    this.app.use('/api/calls', callsRoutes); // Frontend compatibility for save-call-data
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
     this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
