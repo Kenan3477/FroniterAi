@@ -394,13 +394,33 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       if (disposition?.id || req.body.dispositionId) {
         const dispositionIdToCheck = disposition?.id || req.body.dispositionId;
         console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
+        console.log('🔍 For campaign:', safeCampaignId);
         try {
+          // First check if disposition exists
           const existingDisposition = await prisma.disposition.findUnique({
             where: { id: dispositionIdToCheck }
           });
           if (existingDisposition) {
-            validDispositionId = dispositionIdToCheck;
-            console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', validDispositionId);
+            console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', dispositionIdToCheck);
+            
+            // Check if this disposition is linked to the campaign
+            const campaignDisposition = await prisma.campaignDisposition.findUnique({
+              where: {
+                campaignId_dispositionId: {
+                  campaignId: safeCampaignId,
+                  dispositionId: dispositionIdToCheck
+                }
+              }
+            });
+            
+            if (campaignDisposition) {
+              validDispositionId = dispositionIdToCheck;
+              console.log('✅ Disposition is linked to campaign - APPROVED for save');
+            } else {
+              console.log('❌ Disposition NOT linked to campaign', safeCampaignId);
+              console.log('   Disposition exists but cannot be used for this campaign');
+              console.log('   Need CampaignDisposition link to use this disposition');
+            }
           } else {
             console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
           }
@@ -456,6 +476,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         success: true,
         message: 'Call data saved successfully',
         debug: {
+          campaignId: safeCampaignId,
           receivedDispositionId: req.body.dispositionId,
           receivedDisposition: disposition,
           validatedDispositionId: validDispositionId,
