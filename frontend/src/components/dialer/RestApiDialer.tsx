@@ -558,7 +558,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       // Make WebRTC call to join conference
       const call = await device.connect({
         params: {
-          conference: conferenceId
+          conference: conferenceId,
+          agentId: agentId // Pass agent ID to associate call with correct agent
         }
       });
 
