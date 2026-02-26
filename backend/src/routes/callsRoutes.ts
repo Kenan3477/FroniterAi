@@ -544,6 +544,28 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
       console.log('✅ Call record created/updated:', callRecord.callId, 'with dispositionId:', callRecord.dispositionId);
 
+      // Create interaction history record for outcomed interactions display
+      try {
+        const interaction = await prisma.interaction.create({
+          data: {
+            agentId: safeAgentId,
+            contactId: contact.contactId,
+            campaignId: safeCampaignId,
+            channel: 'voice',
+            outcome: disposition?.name || disposition?.outcome || 'completed',
+            isDmc: false,
+            startedAt: new Date(Date.now() - (safeDuration * 1000)),
+            endedAt: new Date(),
+            durationSeconds: safeDuration,
+            result: disposition?.outcome || 'completed'
+          }
+        });
+        console.log('✅ Interaction record created:', interaction.id, 'for outcomed interactions');
+      } catch (interactionError: any) {
+        console.warn('⚠️ Could not create interaction record (not critical):', interactionError.message);
+        // Don't fail the call save if interaction creation fails
+      }
+
       res.json({
         success: true,
         message: 'Call data saved successfully',
