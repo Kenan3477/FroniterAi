@@ -390,24 +390,29 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       let validDispositionId = null;
       if (disposition?.id || req.body.dispositionId) {
         const dispositionIdToCheck = disposition?.id || req.body.dispositionId;
+        console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
         try {
           const existingDisposition = await prisma.disposition.findUnique({
             where: { id: dispositionIdToCheck }
           });
           if (existingDisposition) {
             validDispositionId = dispositionIdToCheck;
-            console.log('✅ Valid disposition found:', existingDisposition.name);
+            console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', validDispositionId);
           } else {
             console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
           }
         } catch (dispositionError: any) {
           console.log('⚠️ Disposition validation failed:', dispositionError.message);
         }
+      } else {
+        console.log('⚠️ No disposition ID provided in request');
       }
 
       // Create or update call record with correct schema
       // Use upsert to handle case where Twilio webhook already created the record
       const finalCallId = callSid || uniqueCallId;
+      console.log('💾 Creating/updating call record with dispositionId:', validDispositionId);
+      
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
         update: {
@@ -442,7 +447,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       });
 
-      console.log('✅ Call record created/updated:', callRecord.callId);
+      console.log('✅ Call record created/updated:', callRecord.callId, 'with dispositionId:', callRecord.dispositionId);
 
       res.json({
         success: true,
