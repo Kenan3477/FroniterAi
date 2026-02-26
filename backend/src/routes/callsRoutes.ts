@@ -573,23 +573,13 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       });
 
-    } catch (dbError) {
-      console.error('❌ Database error in save-call-data:', dbError);
-      
-      res.status(500).json({
-        success: false,
-        error: 'Database operation failed',
-        message: dbError instanceof Error ? dbError.message : 'Unknown database error'
-      });
-    }
-
   } catch (error) {
     console.error('❌ Save call data error:', error);
     
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Database operation failed', 
+      message: error instanceof Error ? error.message : 'Unknown database error'
     });
   }
 });
