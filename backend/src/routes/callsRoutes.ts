@@ -233,12 +233,12 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
     // Validate required fields with safe defaults
     const safePhoneNumber = phoneNumber || 'Unknown';
-    let safeAgentId = agentId || 'system-agent';
+    let safeAgentId = String(agentId || 'system-agent'); // Ensure agentId is always a string
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
-    // AGENT ID FIX: If agentId is "509" (which doesn't exist), map to system-agent
-    if (agentId === '509') {
+    // AGENT ID FIX: If agentId is 509 (number or string), map to system-agent
+    if (agentId === 509 || agentId === '509') {
       safeAgentId = 'system-agent';
       console.log('🔧 Mapped agent 509 to system-agent (missing from database)');
     }
