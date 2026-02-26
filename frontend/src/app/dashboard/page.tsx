@@ -164,7 +164,7 @@ function DashboardContent() {
     setLoading(true);
     try {
       // Get the JWT token from localStorage for proper authentication
-      const token = localStorage.getItem('omnivox_token');
+      let token = localStorage.getItem('omnivox_token');
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
@@ -189,6 +189,48 @@ function DashboardContent() {
         console.log('📊 Dashboard stats data received:', data);
         if (data.success) {
           setDashboardStats(data.data);
+        }
+      } else if (response.status === 401) {
+        console.log('🔄 Token expired, attempting to refresh authentication...');
+        
+        // Try to refresh the session by calling the refresh endpoint
+        try {
+          const refreshResponse = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            credentials: 'include',
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success && refreshData.data?.accessToken) {
+              console.log('✅ Token refreshed successfully, retrying dashboard stats...');
+              localStorage.setItem('omnivox_token', refreshData.data.accessToken);
+              
+              // Retry the dashboard stats call with new token
+              const retryHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${refreshData.data.accessToken}`
+              };
+              
+              const retryResponse = await fetch('/api/dashboard/stats', {
+                credentials: 'include',
+                headers: retryHeaders
+              });
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                console.log('📊 Dashboard stats loaded after token refresh:', retryData);
+                if (retryData.success) {
+                  setDashboardStats(retryData.data);
+                }
+              }
+            }
+          } else {
+            console.log('❌ Token refresh failed, user may need to log in again');
+            // Optionally redirect to login or show a message
+          }
+        } catch (refreshError) {
+          console.error('❌ Error during token refresh:', refreshError);
         }
       } else {
         console.error('❌ Dashboard stats API failed:', response.status, response.statusText);
