@@ -418,7 +418,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
       console.log('💾 Submitting disposition data:', dispositionData);
       
       // Save disposition to backend
-      const response = await fetch('/api/calls/save-call-data', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

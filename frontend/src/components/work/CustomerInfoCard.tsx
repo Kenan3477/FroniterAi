@@ -129,7 +129,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
       }
       
       // Save call data with disposition
-      const saveResponse = await fetch('/api/calls/save-call-data', {
+      const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

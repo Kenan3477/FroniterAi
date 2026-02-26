@@ -66,14 +66,24 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
     const fetchDispositions = async () => {
       try {
         const authToken = localStorage.getItem('authToken') || localStorage.getItem('omnivox_token');
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
         
-        const response = await fetch(`/api/dispositions/configs${campaignId ? `?campaignId=${campaignId}` : ''}`, {
+        console.log('🔑 DispositionModal: Fetching configs with auth token:', {
+          hasToken: !!authToken,
+          tokenLength: authToken?.length || 0,
+          tokenPreview: authToken?.substring(0, 20) + '...' || 'NO_TOKEN',
+          backendUrl,
+          campaignId
+        });
+        
+        const response = await fetch(`${backendUrl}/api/dispositions/configs${campaignId ? `?campaignId=${campaignId}` : ''}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
         });
 
+        console.log('📡 DispositionModal: Backend response status:', response.status, response.statusText);
         if (!response.ok) {
           console.error(`❌ Disposition configs request failed: ${response.status} ${response.statusText}`);
           if (response.status === 401) {
@@ -178,10 +188,10 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
         },
       };
 
-      const response = await fetch('/api/dispositions', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/dispositions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('omnivox_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(dispositionData),

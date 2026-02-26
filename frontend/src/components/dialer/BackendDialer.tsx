@@ -228,7 +228,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         
         // Also save customer info if provided
         if (customerInfo) {
-          await fetch('/api/calls/save-call-data', {
+          await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
