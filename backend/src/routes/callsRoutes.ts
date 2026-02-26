@@ -265,7 +265,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       const uniqueCallId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const uniqueContactId = `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Try to find or create contact
+      // Try to find or create contact with better conflict handling
       let contact = null;
       if (safePhoneNumber !== 'Unknown') {
         contact = await prisma.contact.findFirst({
@@ -278,18 +278,36 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         });
 
         if (!contact && customerInfo) {
-          contact = await prisma.contact.create({
-            data: {
-              contactId: uniqueContactId,
-              listId: 'manual-contacts',
-              firstName: customerInfo.firstName || 'Unknown',
-              lastName: customerInfo.lastName || 'Contact',
-              phone: safePhoneNumber,
-              email: customerInfo.email || null,
-              status: 'contacted'
+          // Use upsert to avoid contactId conflicts
+          try {
+            contact = await prisma.contact.create({
+              data: {
+                contactId: uniqueContactId,
+                listId: 'manual-contacts',
+                firstName: customerInfo.firstName || 'Unknown',
+                lastName: customerInfo.lastName || 'Contact',
+                phone: safePhoneNumber,
+                email: customerInfo.email || null,
+                status: 'contacted'
+              }
+            });
+            console.log('✅ Contact created:', contact.contactId);
+          } catch (contactError: any) {
+            console.log('⚠️ Contact creation failed, trying to find existing:', contactError.message);
+            // If contact creation fails due to unique constraint, try to find it again
+            contact = await prisma.contact.findFirst({
+              where: {
+                OR: [
+                  { phone: safePhoneNumber },
+                  { phone: safePhoneNumber.replace(/\s+/g, '') }
+                ]
+              }
+            });
+            
+            if (!contact) {
+              throw new Error('Unable to create or find contact');
             }
-          });
-          console.log('✅ Contact created:', contact.contactId);
+          }
         } else if (contact && customerInfo) {
           // Update existing contact with better information if provided
           const shouldUpdate = (
@@ -313,7 +331,34 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             console.log('✅ Contact updated with better info:', contact.contactId);
           }
         } else if (!contact) {
-          // Create minimal contact for unknown callers
+          // Create minimal contact for unknown callers with error handling
+          try {
+            contact = await prisma.contact.create({
+              data: {
+                contactId: uniqueContactId,
+                listId: 'manual-contacts',
+                firstName: 'Unknown',
+                lastName: 'Contact',
+                phone: safePhoneNumber,
+                status: 'contacted'
+              }
+            });
+          } catch (contactError: any) {
+            console.log('⚠️ Minimal contact creation failed, trying to find existing:', contactError.message);
+            contact = await prisma.contact.findFirst({
+              where: {
+                phone: safePhoneNumber
+              }
+            });
+            
+            if (!contact) {
+              throw new Error('Unable to create or find minimal contact');
+            }
+          }
+        }
+      } else {
+        // Create placeholder contact for unknown numbers with error handling  
+        try {
           contact = await prisma.contact.create({
             data: {
               contactId: uniqueContactId,
@@ -324,19 +369,21 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
               status: 'contacted'
             }
           });
+        } catch (contactError: any) {
+          console.log('⚠️ Placeholder contact creation failed, using fallback:', contactError.message);
+          // Create a truly unique contactId for fallback
+          const fallbackContactId = `contact-fallback-${Date.now()}-${Math.random().toString(36).substr(2, 12)}`;
+          contact = await prisma.contact.create({
+            data: {
+              contactId: fallbackContactId,
+              listId: 'manual-contacts',
+              firstName: 'Unknown',
+              lastName: 'Contact',
+              phone: safePhoneNumber || 'Unknown',
+              status: 'contacted'
+            }
+          });
         }
-      } else {
-        // Create placeholder contact for unknown numbers
-        contact = await prisma.contact.create({
-          data: {
-            contactId: uniqueContactId,
-            listId: 'manual-contacts',
-            firstName: 'Unknown',
-            lastName: 'Contact',
-            phone: safePhoneNumber,
-            status: 'contacted'
-          }
-        });
       }
 
       // Create or update call record with correct schema
