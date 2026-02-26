@@ -237,10 +237,21 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const safeCampaignId = campaignId || 'manual-dial';
     const safeDuration = parseInt(callDuration || duration) || 0;  // Handle both field names
 
-    console.log('🔍 AGENTID TYPE CONVERSION COMPLETE:');
+    // IMPORTANT: Log the type conversion results
+    console.log('🔍 AGENTID TYPE CONVERSION:');
     console.log('  - Original agentId:', agentId, '(type:', typeof agentId, ')');
-    console.log('  - Final safeAgentId:', safeAgentId, '(type:', typeof safeAgentId, ')');
-    console.log('  - Agent exists in DB as string, no special mapping needed');
+    console.log('  - Converted safeAgentId:', safeAgentId, '(type:', typeof safeAgentId, ')');
+    
+    // Early validation test - return debug info if agentId is 509
+    if (agentId === 509) {
+      return res.json({
+        success: false,
+        debug: 'TYPE_CONVERSION_TEST',
+        original: { agentId: agentId, type: typeof agentId },
+        converted: { safeAgentId: safeAgentId, type: typeof safeAgentId },
+        message: 'Debugging agentId type conversion - this is a test response'
+      });
+    }
 
     try {
       // Ensure required dependencies exist
