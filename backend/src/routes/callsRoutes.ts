@@ -330,11 +330,29 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     if (safePhoneNumber !== 'Unknown') {
       const phoneVariants = normalizePhoneNumber(safePhoneNumber);
       
+      // First, try to find a real contact (not "Unknown Contact")
       contact = await prisma.contact.findFirst({
         where: {
-          OR: phoneVariants.map(variant => ({ phone: variant }))
-        }
+          OR: phoneVariants.map(variant => ({ phone: variant })),
+          NOT: {
+            AND: [
+              { firstName: 'Unknown' },
+              { lastName: 'Contact' }
+            ]
+          }
+        },
+        orderBy: { createdAt: 'asc' }
       });
+      
+      // If no real contact found, then search for any contact including unknown ones
+      if (!contact) {
+        contact = await prisma.contact.findFirst({
+          where: {
+            OR: phoneVariants.map(variant => ({ phone: variant }))
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+      }
       
       if (contact) {
         console.log(`✅ Found existing contact: ${contact.firstName} ${contact.lastName} (${contact.phone}) matching dialed ${safePhoneNumber}`);
