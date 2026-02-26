@@ -188,4 +188,159 @@ router.post('/webhook/status', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/calls/save-call-data - Save call data and disposition (Frontend compatibility)
+router.post('/save-call-data', async (req: Request, res: Response) => {
+  try {
+    const {
+      phoneNumber,
+      customerInfo,
+      disposition,
+      callDuration,
+      agentId,
+      campaignId
+    } = req.body;
+
+    console.log('💾 Backend: Saving call data for:', phoneNumber);
+    console.log('💾 Backend: Request body:', JSON.stringify(req.body, null, 2));
+
+    // Validate required fields with safe defaults
+    const safePhoneNumber = phoneNumber || 'Unknown';
+    const safeAgentId = agentId || 'demo-agent';
+    const safeCampaignId = campaignId || 'manual-dial';
+    const safeDuration = parseInt(callDuration) || 0;
+
+    try {
+      // Ensure required dependencies exist
+      await prisma.campaign.upsert({
+        where: { campaignId: safeCampaignId },
+        update: {},
+        create: {
+          campaignId: safeCampaignId,
+          name: 'Manual Dialing',
+          dialMethod: 'Manual',
+          status: 'Active',
+          isActive: true,
+          description: 'Manual call records',
+          recordCalls: true
+        }
+      });
+
+      await prisma.dataList.upsert({
+        where: { listId: 'manual-contacts' },
+        update: {},
+        create: {
+          listId: 'manual-contacts',
+          name: 'Manual Contacts',
+          campaignId: safeCampaignId,
+          active: true,
+          totalContacts: 0
+        }
+      });
+
+      // Generate unique IDs
+      const uniqueCallId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const uniqueContactId = `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Try to find or create contact
+      let contact = null;
+      if (safePhoneNumber !== 'Unknown') {
+        contact = await prisma.contact.findFirst({
+          where: {
+            OR: [
+              { phone: safePhoneNumber },
+              { phone: safePhoneNumber.replace(/\s+/g, '') }
+            ]
+          }
+        });
+
+        if (!contact && customerInfo) {
+          contact = await prisma.contact.create({
+            data: {
+              contactId: uniqueContactId,
+              listId: 'manual-contacts',
+              firstName: customerInfo.firstName || 'Unknown',
+              lastName: customerInfo.lastName || 'Contact',
+              phone: safePhoneNumber,
+              email: customerInfo.email || null,
+              status: 'contacted'
+            }
+          });
+          console.log('✅ Contact created:', contact.contactId);
+        } else if (!contact) {
+          // Create minimal contact for unknown callers
+          contact = await prisma.contact.create({
+            data: {
+              contactId: uniqueContactId,
+              listId: 'manual-contacts',
+              firstName: 'Unknown',
+              lastName: 'Contact',
+              phone: safePhoneNumber,
+              status: 'contacted'
+            }
+          });
+        }
+      } else {
+        // Create placeholder contact for unknown numbers
+        contact = await prisma.contact.create({
+          data: {
+            contactId: uniqueContactId,
+            listId: 'manual-contacts',
+            firstName: 'Unknown',
+            lastName: 'Contact',
+            phone: safePhoneNumber,
+            status: 'contacted'
+          }
+        });
+      }
+
+      // Create call record with correct schema
+      const callRecord = await prisma.callRecord.create({
+        data: {
+          callId: uniqueCallId,
+          agentId: safeAgentId,
+          contactId: contact.contactId,
+          campaignId: safeCampaignId,
+          phoneNumber: safePhoneNumber,
+          dialedNumber: safePhoneNumber,
+          callType: 'outbound',
+          startTime: new Date(Date.now() - (safeDuration * 1000)),
+          endTime: new Date(),
+          duration: safeDuration,
+          outcome: disposition?.outcome || 'completed',
+          notes: disposition?.notes || 'Call completed via save-call-data API'
+        }
+      });
+
+      console.log('✅ Call record created:', callRecord.callId);
+
+      res.json({
+        success: true,
+        message: 'Call data saved successfully',
+        data: {
+          callRecord,
+          contact
+        }
+      });
+
+    } catch (dbError) {
+      console.error('❌ Database error in save-call-data:', dbError);
+      
+      res.status(500).json({
+        success: false,
+        error: 'Database operation failed',
+        message: dbError instanceof Error ? dbError.message : 'Unknown database error'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Save call data error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
