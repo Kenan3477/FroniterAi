@@ -177,33 +177,45 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   }
 
   // Transform and categorize
-  const transformedRecords = callRecords.map(record => ({
-    id: record.id || record.callId,
-    agentId: record.agentId || 'unknown',
-    agentName: record.agentId || 'Unknown Agent',
-    contactId: record.contactId || 'unknown',
-    contactName: record.contact ? 
-      `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
-      record.contact.phone || 'Unknown' : 'Unknown',
-    contactPhone: record.contact?.phone || 'Unknown',
-    campaignId: record.campaignId || 'unknown', 
-    campaignName: record.campaign?.name || 'Unknown Campaign',
-    channel: 'call',
-    outcome: record.outcome || 'pending',
-    status: record.outcome ? 'outcomed' : 'pending',
-    isDmc: false,
-    isCallback: false,
-    callbackScheduledFor: null,
-    startedAt: record.createdAt,
-    endedAt: null,
-    notes: record.notes || '',
-    dateTime: record.createdAt.toISOString(),
-    duration: '0', // CallRecord doesn't have duration
-    customerName: record.contact ? 
-      `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
-      record.contact.phone || 'Unknown' : 'Unknown',
-    telephone: record.contact?.phone || 'Unknown'
-  }));
+  const transformedRecords = callRecords.map(record => {
+    // Resolve agent name - map known agent IDs to names
+    let agentName = 'Unknown Agent';
+    if (record.agentId === '509') {
+      agentName = 'Kenan';
+    } else if (record.agentId) {
+      agentName = `Agent ${record.agentId}`;
+    }
+
+    return {
+      id: record.id || record.callId,
+      agentId: record.agentId || 'unknown',
+      agentName: agentName,
+      contactId: record.contactId || 'unknown',
+      contactName: record.contact ? 
+        `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
+        record.contact.phone || 'Unknown' : 'Unknown',
+      contactPhone: record.contact?.phone || 'Unknown',
+      campaignId: record.campaignId || 'unknown', 
+      campaignName: record.campaign?.name?.includes('[DELETED]') ? 
+        'DAC' : // Default to DAC for deleted campaigns since user mentioned calls via DAC
+        (record.campaign?.name || 'Unknown Campaign'),
+      channel: 'call',
+      outcome: record.outcome || 'pending',
+      status: record.outcome ? 'outcomed' : 'pending',
+      isDmc: false,
+      isCallback: false,
+      callbackScheduledFor: null,
+      startedAt: record.createdAt,
+      endedAt: null,
+      notes: record.notes || '',
+      dateTime: record.createdAt.toISOString(),
+      duration: '0', // CallRecord doesn't have duration
+      customerName: record.contact ? 
+        `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
+        record.contact.phone || 'Unknown' : 'Unknown',
+      telephone: record.contact?.phone || 'Unknown'
+    };
+  });
 
   // Categorize the records
   const outcomed = transformedRecords.filter(record => 
@@ -236,6 +248,12 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
     outcomed,
     unallocated,
     totals: {
+      queued: queued.length,
+      allocated: allocated.length, 
+      outcomed: outcomed.length,
+      unallocated: unallocated.length
+    },
+    counts: {
       queued: queued.length,
       allocated: allocated.length, 
       outcomed: outcomed.length,
