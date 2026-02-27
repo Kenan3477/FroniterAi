@@ -38,7 +38,8 @@ router.get('/debug', async (req, res) => {
       debug: true,
       agentId,
       data: result,
-      message: 'Debug route - no auth required'
+      message: 'Debug route - no auth required',
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
@@ -47,6 +48,52 @@ router.get('/debug', async (req, res) => {
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error',
       debug: true
+    });
+  }
+});
+
+/**
+ * TEMP DEBUG ROUTE WITH AUTH - for testing authenticated access
+ */
+router.get('/debug-auth', authenticate, async (req, res) => {
+  try {
+    console.log('🐛 DEBUG-AUTH: Testing interaction history WITH auth...');
+    console.log('🔑 Authenticated user:', (req as any).user);
+    
+    let agentId = req.query.agentId as string || 'current-agent';
+    
+    // Handle special case where frontend sends "current-agent"
+    if (agentId === 'current-agent') {
+      agentId = (req as any).user?.userId?.toString() || '509';
+      console.log(`🔄 Resolved current-agent to agentId: ${agentId}`);
+    }
+    
+    const limit = parseInt(req.query.limit as string) || 20;
+    console.log(`🔍 Debug-auth query for agentId: ${agentId}, limit: ${limit}`);
+    
+    const result = await getCategorizedInteractionsFromCallRecords({
+      agentId,
+      limit
+    });
+    
+    res.json({
+      success: true,
+      debug: true,
+      authenticated: true,
+      user: (req as any).user,
+      resolvedAgentId: agentId,
+      data: result,
+      message: 'Debug route - with auth',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Debug-auth route error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      debug: true,
+      authenticated: true
     });
   }
 });
