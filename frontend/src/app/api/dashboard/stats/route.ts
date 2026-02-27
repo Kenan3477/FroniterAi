@@ -140,7 +140,7 @@ export const GET = requireAuth(async (request, user) => {
     console.log(`📅 Querying calls between ${todayTest.toISOString()} and ${tomorrowTest.toISOString()}`);
     
     // Get comprehensive counts for debugging
-    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount;
+    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount, todaysSuccessfulCalls;
     
     try {
       simpleCallCount = await prisma.callRecord.count({
@@ -155,6 +155,25 @@ export const GET = requireAuth(async (request, user) => {
     } catch (error) {
       console.error('❌ Error counting today\'s calls:', error);
       simpleCallCount = 0;
+    }
+    
+    try {
+      // Count successful calls today (completed, interested, sale, callback outcomes)
+      todaysSuccessfulCalls = await prisma.callRecord.count({
+        where: {
+          startTime: {
+            gte: todayTest,
+            lt: tomorrowTest
+          },
+          outcome: {
+            in: ['completed', 'interested', 'sale', 'callback', 'SALE', 'INTERESTED', 'COMPLETED', 'CALLBACK']
+          }
+        }
+      });
+      console.log(`✅ Today's successful calls: ${todaysSuccessfulCalls}`);
+    } catch (error) {
+      console.error('❌ Error counting today\'s successful calls:', error);
+      todaysSuccessfulCalls = 0;
     }
     
     try {
@@ -196,16 +215,16 @@ export const GET = requireAuth(async (request, user) => {
       period,
       today: {
         todayCalls: simpleCallCount,
-        callsAttempted: totalCallCount, // Show total calls instead of just today
-        callsConnected: totalCallCount,
-        callsAnswered: totalCallCount,
-        successfulCalls: totalCallCount,
+        callsAttempted: simpleCallCount, // Use today's calls, not all time
+        callsConnected: simpleCallCount, // For now, assume all attempted calls connected
+        callsAnswered: simpleCallCount,
+        successfulCalls: todaysSuccessfulCalls, // ✅ Use actual successful calls today
         totalTalkTime: 0,
         averageCallDuration: 0,
         activeContacts: contactCount,
-        conversionRate: 0,
-        answeredCallRate: totalCallCount > 0 ? 100 : 0,
-        connectionRate: totalCallCount > 0 ? 100 : 0,
+        conversionRate: simpleCallCount > 0 ? Math.round((todaysSuccessfulCalls / simpleCallCount) * 100 * 100) / 100 : 0,
+        answeredCallRate: simpleCallCount > 0 ? 100 : 0,
+        connectionRate: simpleCallCount > 0 ? 100 : 0,
         activeCampaigns: campaignCount,
         activeAgents: userCount,
       },
@@ -227,6 +246,7 @@ export const GET = requireAuth(async (request, user) => {
         debug: {
           simpleCallCount,
           totalCallCount,
+          todaysSuccessfulCalls,
           contactCount,
           campaignCount,
           userCount,
