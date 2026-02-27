@@ -219,7 +219,7 @@ class App {
     this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
-    this.app.use('/api/recordings', recordingRoutes); // Call recording download and streaming
+    this.app.use('/api/recordings', require('./routes/enhancedRecordingRoutes').default); // Enhanced call recording streaming and metadata
     this.app.use('/api', transcriptRoutes); // AI-powered call transcription system
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled

@@ -762,9 +762,9 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to, contactId: existingContactId, contactName, existingContact } = req.body;
+    const { to, contactId: existingContactId, contactName, existingContact, campaignId, campaignName, agentId: requestAgentId } = req.body;
     
-    console.log('📞 Making REST API call - original number:', { to, existingContactId, contactName, existingContact });
+    console.log('📞 Making REST API call - original number:', { to, existingContactId, contactName, existingContact, campaignId, campaignName });
 
     if (!to) {
       return res.status(400).json({
@@ -842,22 +842,24 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('🎯 Creating conference call:', conferenceId);
 
-    // Ensure manual dial campaign exists
-    const campaignId = 'manual-dial';
+    // Ensure campaign exists - use provided campaignId or default to DAC
+    const finalCampaignId = campaignId || 'DAC';
+    const finalCampaignName = campaignName || 'Dial a Contact Campaign';
+    
     let campaign = await prisma.campaign.findUnique({
-      where: { campaignId: campaignId }
+      where: { campaignId: finalCampaignId }
     });
 
     if (!campaign) {
-      console.log('🔧 Creating manual dial campaign...');
+      console.log(`🔧 Creating campaign: ${finalCampaignId}...`);
       campaign = await prisma.campaign.create({
         data: {
-          campaignId: campaignId,
-          name: 'Manual Dial Campaign',
+          campaignId: finalCampaignId,
+          name: finalCampaignName,
           dialMethod: 'Manual',
           status: 'Active',
           isActive: true,
-          description: 'Automatic campaign for manual dialing',
+          description: campaignId ? `Campaign for ${campaignName}` : 'Dial a Contact Campaign for individual calls',
           recordCalls: true,
           allowTransfers: false
         }
@@ -865,19 +867,19 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       console.log('✅ Created campaign:', campaign.campaignId);
     }
 
-    // Ensure manual dial list exists
-    const listId = 'manual-dial-list';
+    // Ensure campaign list exists  
+    const listId = `${finalCampaignId}-list`;
     let dataList = await prisma.dataList.findUnique({
       where: { listId: listId }
     });
 
     if (!dataList) {
-      console.log('🔧 Creating manual dial list...');
+      console.log(`🔧 Creating list for campaign: ${finalCampaignId}...`);
       dataList = await prisma.dataList.create({
         data: {
           listId: listId,
-          name: 'Manual Dial List',
-          campaignId: campaignId,
+          name: `${finalCampaignName} List`,
+          campaignId: finalCampaignId,
           active: true
         }
       });
@@ -1000,7 +1002,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
           callId: conferenceId,
           agentId: agentId, // FIXED: Use actual agent ID from authenticated user
           contactId: contactId, // Use created contact ID
-          campaignId: campaignId, // Use existing/created campaign ID
+          campaignId: finalCampaignId, // Use existing/created campaign ID
           phoneNumber: formattedTo,
           dialedNumber: formattedTo,
           callType: 'outbound',
@@ -1023,7 +1025,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         callId: conferenceId,
         agentId: agentId,
         contactId: contactId,
-        campaignId: campaignId,
+        campaignId: finalCampaignId,
         phoneNumber: formattedTo,
         dialedNumber: formattedTo
       });
