@@ -13,6 +13,7 @@ import {
   InteractionHistoryFilters
 } from '../services/interactionHistoryService';
 import { prisma } from '../database/index';
+import { normalizePhoneNumber } from '../utils/phoneUtils';
 
 const router = express.Router();
 
@@ -177,8 +178,66 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
     })), null, 2));
   }
 
-  // Transform and categorize
-  const transformedRecords = callRecords.map(record => {
+  // Helper function to find better contact for phone number
+  async function findBetterContact(currentContact: any): Promise<any> {
+    if (!currentContact?.phone) return currentContact;
+    
+    const currentName = `${currentContact.firstName || ''} ${currentContact.lastName || ''}`.trim();
+    
+    // If current contact has a good name, keep it
+    if (currentContact.fullName && 
+        !currentContact.fullName.includes('Unknown') && 
+        !currentContact.fullName.includes('Inbound')) {
+      return currentContact;
+    }
+    
+    if (currentName && 
+        !currentName.includes('Unknown') && 
+        !currentName.includes('Inbound') &&
+        currentName !== 'Contact' &&
+        currentName.length > 2) {
+      return currentContact;
+    }
+    
+    // Look for better contacts with same phone number (normalized)
+    const normalizedPhone = normalizePhoneNumber(currentContact.phone);
+    if (!normalizedPhone) return currentContact;
+    
+    try {
+      const allContacts = await prisma.contact.findMany({
+        where: {
+          AND: [
+            { phone: { not: '' } },
+            { phone: { not: undefined as any } }
+          ]
+        }
+      });
+      
+      const betterContacts = allContacts.filter(contact => {
+        if (!contact.phone) return false;
+        const contactNormalizedPhone = normalizePhoneNumber(contact.phone);
+        return contactNormalizedPhone === normalizedPhone && contact.contactId !== currentContact.contactId;
+      });
+      
+      // Find the best alternative
+      const bestContact = betterContacts.find(contact => {
+        const fullName = contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+        return fullName && 
+               !fullName.includes('Unknown') && 
+               !fullName.includes('Inbound') &&
+               fullName !== 'Contact' &&
+               fullName.length > 2;
+      });
+      
+      return bestContact || currentContact;
+    } catch (error) {
+      console.error('Error finding better contact:', error);
+      return currentContact;
+    }
+  }
+
+  // Transform and categorize with better contact resolution
+  const transformedRecords = await Promise.all(callRecords.map(async record => {
     // Resolve agent name - map known agent IDs to names
     let agentName = 'Unknown Agent';
     if (record.agentId === '509') {
@@ -187,28 +246,31 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       agentName = `Agent ${record.agentId}`;
     }
 
-    // Better contact name resolution
+    // Try to find a better contact for this record
+    const bestContact = await findBetterContact(record.contact);
+    
+    // Better contact name resolution using the best contact found
     let contactName = 'Unknown Contact';
     let customerName = 'Unknown Contact';
     
-    if (record.contact) {
-      // Use fullName if available, otherwise combine first/last
-      if (record.contact.fullName && !record.contact.fullName.includes('Unknown')) {
-        contactName = record.contact.fullName;
-        customerName = record.contact.fullName;
-      } else if (record.contact.firstName && record.contact.lastName) {
-        const fullName = `${record.contact.firstName} ${record.contact.lastName}`.trim();
+    if (bestContact) {
+      // Use fullName if available and good quality
+      if (bestContact.fullName && !bestContact.fullName.includes('Unknown')) {
+        contactName = bestContact.fullName;
+        customerName = bestContact.fullName;
+      } else if (bestContact.firstName && bestContact.lastName) {
+        const fullName = `${bestContact.firstName} ${bestContact.lastName}`.trim();
         if (fullName !== 'Unknown Contact' && fullName !== 'Inbound Caller') {
           contactName = fullName;
           customerName = fullName;
-        } else if (record.contact.phone) {
+        } else if (bestContact.phone) {
           // For "Unknown Contact" or "Inbound Caller", show phone number instead
-          contactName = record.contact.phone;
-          customerName = record.contact.phone;
+          contactName = bestContact.phone;
+          customerName = bestContact.phone;
         }
-      } else if (record.contact.phone) {
-        contactName = record.contact.phone;
-        customerName = record.contact.phone;
+      } else if (bestContact.phone) {
+        contactName = bestContact.phone;
+        customerName = bestContact.phone;
       }
     }
 
@@ -218,7 +280,7 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       agentName: agentName,
       contactId: record.contactId || 'unknown',
       contactName: contactName,
-      contactPhone: record.contact?.phone || 'Unknown',
+      contactPhone: bestContact?.phone || record.contact?.phone || 'Unknown',
       campaignId: record.campaignId || 'unknown', 
       campaignName: record.campaign?.name?.includes('[DELETED]') ? 
         'DAC' : // Default to DAC for deleted campaigns since user mentioned calls via DAC
@@ -235,9 +297,9 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       dateTime: record.createdAt.toISOString(),
       duration: '0', // CallRecord doesn't have duration
       customerName: customerName,
-      telephone: record.contact?.phone || 'Unknown'
+      telephone: bestContact?.phone || record.contact?.phone || 'Unknown'
     };
-  });
+  }));
 
   // Categorize the records
   const outcomed = transformedRecords.filter(record => 
