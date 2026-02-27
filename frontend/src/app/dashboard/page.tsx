@@ -1,5 +1,7 @@
 'use client';
 
+// Dashboard with enhanced authentication and interaction history fixes - v27.02.2026
+
 import { useState, useEffect, Suspense } from 'react';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
