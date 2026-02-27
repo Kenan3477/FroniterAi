@@ -140,7 +140,7 @@ export const GET = requireAuth(async (request, user) => {
     console.log(`📅 Querying calls between ${todayTest.toISOString()} and ${tomorrowTest.toISOString()}`);
     
     // Get comprehensive counts for debugging
-    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount, todaysSuccessfulCalls;
+    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount, todaysSuccessfulCalls, todaysSales, meaningfulInteractions;
     
     try {
       simpleCallCount = await prisma.callRecord.count({
@@ -174,6 +174,46 @@ export const GET = requireAuth(async (request, user) => {
     } catch (error) {
       console.error('❌ Error counting today\'s successful calls:', error);
       todaysSuccessfulCalls = 0;
+    }
+    
+    // Get conversion rate metrics: sales divided by meaningful interactions (calls over 15s)
+    
+    try {
+      // Count actual sales today
+      todaysSales = await prisma.callRecord.count({
+        where: {
+          startTime: {
+            gte: todayTest,
+            lt: tomorrowTest
+          },
+          outcome: {
+            in: ['sale', 'SALE']
+          }
+        }
+      });
+      console.log(`💰 Today's sales: ${todaysSales}`);
+    } catch (error) {
+      console.error('❌ Error counting today\'s sales:', error);
+      todaysSales = 0;
+    }
+    
+    try {
+      // Count meaningful interactions (calls over 15 seconds)
+      meaningfulInteractions = await prisma.callRecord.count({
+        where: {
+          startTime: {
+            gte: todayTest,
+            lt: tomorrowTest
+          },
+          duration: {
+            gt: 15
+          }
+        }
+      });
+      console.log(`🗣️ Today's meaningful interactions (>15s): ${meaningfulInteractions}`);
+    } catch (error) {
+      console.error('❌ Error counting meaningful interactions:', error);
+      meaningfulInteractions = 0;
     }
     
     try {
@@ -222,7 +262,7 @@ export const GET = requireAuth(async (request, user) => {
         totalTalkTime: 0,
         averageCallDuration: 0,
         activeContacts: contactCount,
-        conversionRate: simpleCallCount > 0 ? Math.round((todaysSuccessfulCalls / simpleCallCount) * 100 * 100) / 100 : 0,
+        conversionRate: meaningfulInteractions > 0 ? Math.round((todaysSales / meaningfulInteractions) * 100 * 100) / 100 : 0,
         answeredCallRate: simpleCallCount > 0 ? 100 : 0,
         connectionRate: simpleCallCount > 0 ? 100 : 0,
         activeCampaigns: campaignCount,
@@ -247,10 +287,13 @@ export const GET = requireAuth(async (request, user) => {
           simpleCallCount,
           totalCallCount,
           todaysSuccessfulCalls,
+          todaysSales,
+          meaningfulInteractions,
           contactCount,
           campaignCount,
           userCount,
           queryDate: todayTest.toISOString(),
+          conversionFormula: `${todaysSales} sales / ${meaningfulInteractions} meaningful interactions (>15s)`,
         },
       },
     };
