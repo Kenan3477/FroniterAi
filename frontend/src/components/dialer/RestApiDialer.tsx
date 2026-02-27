@@ -215,31 +215,45 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated, o
               
               // Extract call information for Redux state
               const callParameters = call.parameters || {};
-              const callerNumber = callParameters.From || 'Unknown';
+              
+              // FIXED: Determine call direction and use correct phone number
+              // If we have a phoneNumber set, this is an outbound call to that number
+              // For outbound calls: From = agent (Twilio number), To = customer
+              // For inbound calls: From = customer, To = agent (Twilio number)
+              const isOutboundCall = phoneNumber && phoneNumber.trim() !== '';
+              const customerNumber = isOutboundCall 
+                ? phoneNumber  // Use the number we dialed
+                : (callParameters.From || 'Unknown'); // Use the caller's number
+              
               const callSid = call.parameters?.CallSid || call.sid || null;
               
-              console.log('📞 Incoming call details:', { 
-                from: callerNumber, 
+              console.log(`📞 Call direction: ${isOutboundCall ? 'OUTBOUND' : 'INBOUND'}, Customer: ${customerNumber}`);
+              console.log('📞 Call parameters:', callParameters);
+              console.log('📞 Active REST API call:', activeRestApiCall);
+              
+              console.log('📞 Call details:', { 
+                customer: customerNumber, 
                 callSid: callSid,
+                direction: isOutboundCall ? 'outbound' : 'inbound',
                 parameters: callParameters 
               });
               
               // Start call in Redux with proper metadata
               dispatch(startCall({
-                phoneNumber: callerNumber,
+                phoneNumber: customerNumber,
                 callSid: callSid,
-                callType: 'inbound',
+                callType: isOutboundCall ? 'outbound' : 'inbound',
                 customerInfo: {
-                  firstName: 'Inbound',
-                  lastName: 'Caller',
-                  phone: callerNumber,
-                  id: `inbound-${callSid || Date.now()}`
+                  firstName: isOutboundCall ? 'Customer' : 'Inbound',
+                  lastName: isOutboundCall ? '' : 'Caller',
+                  phone: customerNumber,
+                  id: `${isOutboundCall ? 'outbound' : 'inbound'}-${callSid || Date.now()}`
                 }
               }));
               
               // Update to connected status
               dispatch(answerCall());
-              console.log('📱 Redux state updated - inbound call started and answered');
+              console.log(`📱 Redux state updated - ${isOutboundCall ? 'outbound' : 'inbound'} call started and answered`);
             });
             
             call.on('disconnect', async () => {
