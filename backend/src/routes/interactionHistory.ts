@@ -238,7 +238,7 @@ router.get('/categorized', async (req, res) => {
       
       res.json({
         success: true,
-        data: { categories: categorizedInteractions },
+        data: categorizedInteractions,  // Direct data, not nested under categories
         message: 'Categorized interactions retrieved successfully'
       });
     } catch (serviceError: any) {
@@ -251,7 +251,7 @@ router.get('/categorized', async (req, res) => {
         
         res.json({
           success: true,
-          data: { categories: fallbackResult },
+          data: fallbackResult,  // Direct data, not nested under categories  
           message: 'Interaction history retrieved using CallRecord fallback',
           warning: 'Used CallRecord fallback due to interaction service error'
         });
