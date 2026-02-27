@@ -9,6 +9,10 @@ import WebSocket from 'ws';
 import { getWebSocketService } from '../socket';
 import { prisma } from '../database';
 import sentimentAnalysisService from './sentimentAnalysisService';
+import liveCoachingService from './liveCoachingService';
+import OpenAI from 'openai';
+import fs from 'fs';
+import path from 'path';
 
 interface AudioChunk {
   callId: string;
@@ -24,6 +28,7 @@ interface AudioChunk {
 
 interface LiveCallAnalysis {
   callId: string;
+  agentId: string;
   isAnsweringMachine: boolean;
   confidence: number;
   speechPattern: 'human' | 'machine' | 'unknown';
@@ -34,6 +39,7 @@ interface LiveCallAnalysis {
     interestKeywords: string[];
     objectionKeywords: string[];
   };
+  coachingActive: boolean;
   lastUpdate: Date;
 }
 
@@ -42,11 +48,29 @@ export class LiveCallAnalyzer extends EventEmitter {
   private transcriptBuffer = new Map<string, string>();
   private audioBuffer = new Map<string, Buffer[]>();
   private wsServer?: WebSocket.Server;
+  private openai?: OpenAI;
+  private tempDirectory: string;
 
   constructor() {
     super();
+    
+    // Initialize OpenAI client for real-time transcription
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+    } else {
+      console.warn('⚠️ OPENAI_API_KEY not found - speech-to-text will be disabled');
+    }
+
+    // Setup temp directory for audio processing
+    this.tempDirectory = process.env.TEMP_DIRECTORY || '/tmp/omnivox-live-analysis';
+    if (!fs.existsSync(this.tempDirectory)) {
+      fs.mkdirSync(this.tempDirectory, { recursive: true });
+    }
+
     this.setupWebSocketServer();
-    console.log('🧠 Live Call Analyzer initialized');
+    console.log('🧠 Live Call Analyzer initialized with OpenAI Whisper integration');
   }
 
   private setupWebSocketServer(): void {
@@ -105,9 +129,10 @@ export class LiveCallAnalyzer extends EventEmitter {
     }
   }
 
-  private async startCallAnalysis(callId: string): Promise<void> {
+  private async startCallAnalysis(callId: string, agentId: string = 'unknown'): Promise<void> {
     const analysis: LiveCallAnalysis = {
       callId,
+      agentId,
       isAnsweringMachine: false,
       confidence: 0,
       speechPattern: 'unknown',
@@ -118,6 +143,7 @@ export class LiveCallAnalyzer extends EventEmitter {
         interestKeywords: [],
         objectionKeywords: []
       },
+      coachingActive: false,
       lastUpdate: new Date()
     };
 
@@ -138,16 +164,19 @@ export class LiveCallAnalyzer extends EventEmitter {
     }
 
     try {
-      // Decode audio data
-      const audioData = Buffer.from(mediaMessage.media.payload, 'base64');
+      // Decode Twilio's audio payload (base64 encoded mu-law)
+      const audioData = this.decodeTwilioAudio(mediaMessage.media.payload);
       
       // Add to buffer
       const buffer = this.audioBuffer.get(callId) || [];
       buffer.push(audioData);
       this.audioBuffer.set(callId, buffer);
 
-      // Process in chunks for real-time analysis
-      if (buffer.length >= 10) { // Process every 10 chunks (~1 second of audio)
+      // Process in chunks for real-time analysis (accumulate ~1 second of audio)
+      const totalSize = buffer.reduce((sum, chunk) => sum + chunk.length, 0);
+      
+      // Twilio sends ~160 bytes per chunk at 8kHz, so ~50 chunks = 1 second
+      if (buffer.length >= 50 || totalSize >= 8000) {
         await this.analyzeAudioBuffer(callId, buffer);
         this.audioBuffer.set(callId, []); // Clear buffer
       }
@@ -155,6 +184,51 @@ export class LiveCallAnalyzer extends EventEmitter {
     } catch (error) {
       console.error(`❌ Error processing audio chunk for call ${callId}:`, error);
     }
+  }
+
+  private decodeTwilioAudio(base64Payload: string): Buffer {
+    try {
+      // Decode base64 to get raw mu-law audio data
+      const muLawData = Buffer.from(base64Payload, 'base64');
+      
+      // Convert mu-law to linear PCM for better speech recognition
+      const pcmData = this.muLawToPcm(muLawData);
+      
+      return pcmData;
+      
+    } catch (error) {
+      console.error('❌ Error decoding Twilio audio:', error);
+      return Buffer.alloc(0);
+    }
+  }
+
+  private muLawToPcm(muLawData: Buffer): Buffer {
+    // μ-law to linear PCM conversion
+    // This is a standard algorithm for converting Twilio's audio format
+    const pcmData = Buffer.alloc(muLawData.length * 2); // 16-bit PCM
+    
+    for (let i = 0; i < muLawData.length; i++) {
+      const muLawByte = muLawData[i];
+      
+      // μ-law decompression algorithm
+      let sign = (muLawByte & 0x80) ? -1 : 1;
+      let exponent = (muLawByte & 0x70) >> 4;
+      let mantissa = muLawByte & 0x0F;
+      
+      let sample = 0;
+      if (exponent === 0) {
+        sample = (mantissa << 2) + 33;
+      } else {
+        sample = ((mantissa + 16) << (exponent + 2)) + 33;
+      }
+      
+      sample *= sign;
+      
+      // Write 16-bit PCM sample (little endian)
+      pcmData.writeInt16LE(sample, i * 2);
+    }
+    
+    return pcmData;
   }
 
   private async analyzeAudioBuffer(callId: string, audioChunks: Buffer[]): Promise<void> {
@@ -182,19 +256,85 @@ export class LiveCallAnalyzer extends EventEmitter {
 
   private async speechToText(audioBuffer: Buffer): Promise<string> {
     try {
-      // This would integrate with OpenAI Whisper or Google Speech-to-Text
-      // For now, return a mock result for testing
+      if (!this.openai) {
+        console.warn('⚠️ OpenAI client not available for speech-to-text');
+        return '';
+      }
+
+      // Convert audio buffer to WAV file for OpenAI Whisper
+      const tempFile = await this.saveAudioBufferToFile(audioBuffer);
       
-      // In real implementation:
-      // const transcription = await whisperAPI.transcribe(audioBuffer);
-      // return transcription.text;
-      
-      return ''; // Placeholder - implement actual speech recognition
+      try {
+        console.log('🎯 Transcribing audio chunk with OpenAI Whisper...');
+        
+        const transcription = await this.openai.audio.transcriptions.create({
+          file: fs.createReadStream(tempFile),
+          model: 'whisper-1',
+          language: 'en',
+          response_format: 'text',
+          temperature: 0.1 // Lower temperature for more consistent results
+        });
+
+        // Clean up temp file
+        fs.unlinkSync(tempFile);
+
+        console.log('✅ Transcription result:', transcription.slice(0, 100) + '...');
+        return transcription;
+
+      } catch (whisperError) {
+        // Clean up temp file on error
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+        throw whisperError;
+      }
       
     } catch (error) {
       console.error('❌ Speech-to-text error:', error);
       return '';
     }
+  }
+
+  private async saveAudioBufferToFile(audioBuffer: Buffer): Promise<string> {
+    const fileName = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.wav`;
+    const filePath = path.join(this.tempDirectory, fileName);
+    
+    // Convert raw audio to WAV format
+    const wavBuffer = this.convertToWav(audioBuffer);
+    fs.writeFileSync(filePath, wavBuffer);
+    
+    return filePath;
+  }
+
+  private convertToWav(audioBuffer: Buffer): Buffer {
+    // Simple WAV header for mu-law audio (Twilio default)
+    // This is a basic implementation - in production, use a proper audio library
+    const sampleRate = 8000; // Twilio default
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    
+    const wavHeader = Buffer.alloc(44);
+    
+    // RIFF header
+    wavHeader.write('RIFF', 0);
+    wavHeader.writeUInt32LE(36 + audioBuffer.length, 4);
+    wavHeader.write('WAVE', 8);
+    
+    // fmt chunk
+    wavHeader.write('fmt ', 12);
+    wavHeader.writeUInt32LE(16, 16); // chunk size
+    wavHeader.writeUInt16LE(1, 20); // audio format (PCM)
+    wavHeader.writeUInt16LE(numChannels, 22);
+    wavHeader.writeUInt32LE(sampleRate, 24);
+    wavHeader.writeUInt32LE(sampleRate * numChannels * bitsPerSample / 8, 28);
+    wavHeader.writeUInt16LE(numChannels * bitsPerSample / 8, 32);
+    wavHeader.writeUInt16LE(bitsPerSample, 34);
+    
+    // data chunk
+    wavHeader.write('data', 36);
+    wavHeader.writeUInt32LE(audioBuffer.length, 40);
+    
+    return Buffer.concat([wavHeader, audioBuffer]);
   }
 
   private async analyzeTranscriptSegment(
@@ -221,6 +361,15 @@ export class LiveCallAnalyzer extends EventEmitter {
       // 4. Keyword Detection
       const keywordResult = this.detectKeywords(newSegment);
 
+      // 5. Live Coaching Generation
+      const coachingRecommendations = await liveCoachingService.generateCoaching(
+        callId,
+        analysis.agentId,
+        newSegment,
+        sentimentResult.score,
+        intentResult
+      );
+
       // Update analysis
       analysis.isAnsweringMachine = answeringMachineResult.isAnsweringMachine;
       analysis.confidence = answeringMachineResult.confidence;
@@ -228,6 +377,7 @@ export class LiveCallAnalyzer extends EventEmitter {
       analysis.sentimentScore = sentimentResult.score;
       analysis.intentClassification = intentResult;
       analysis.keywordDetection = keywordResult;
+      analysis.coachingActive = coachingRecommendations.length > 0;
       analysis.lastUpdate = new Date();
 
       // Update in memory
@@ -236,10 +386,10 @@ export class LiveCallAnalyzer extends EventEmitter {
       // Save to database
       await this.updateCallRecord(callId, analysis);
 
-      // Broadcast update
+      // Broadcast update (includes coaching data)
       this.broadcastCallUpdate(callId, analysis);
 
-      console.log(`🧠 Updated analysis for call ${callId}: ${analysis.intentClassification} (${analysis.confidence})`);
+      console.log(`🧠 Updated analysis for call ${callId}: ${analysis.intentClassification} (${analysis.confidence}) - ${coachingRecommendations.length} coaching tips`);
 
     } catch (error) {
       console.error(`❌ Error analyzing transcript segment for call ${callId}:`, error);
@@ -439,6 +589,9 @@ export class LiveCallAnalyzer extends EventEmitter {
       // Final comprehensive analysis
       await this.performFinalAnalysis(callId, fullTranscript, analysis);
     }
+
+    // Cleanup coaching session
+    liveCoachingService.endCallCoaching(callId);
 
     // Cleanup
     this.activeCalls.delete(callId);

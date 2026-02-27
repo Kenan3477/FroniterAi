@@ -5,6 +5,7 @@
 
 import express, { Request, Response } from 'express';
 import { liveCallAnalyzer } from '../services/liveCallAnalyzer';
+import liveCoachingService from '../services/liveCoachingService';
 import EnhancedTwiMLService from '../services/enhancedTwiMLService';
 import { authenticate, requireRole } from '../middleware/auth';
 
@@ -250,6 +251,62 @@ router.get('/:callId', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get call analysis'
+    });
+  }
+});
+
+/**
+ * GET /api/live-analysis/coaching/:callId
+ * Get active coaching recommendations for a call
+ */
+router.get('/coaching/:callId', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { callId } = req.params;
+    const recommendations = liveCoachingService.getActiveRecommendations(callId);
+    
+    res.json({
+      success: true,
+      data: {
+        callId,
+        recommendations,
+        count: recommendations.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error getting coaching recommendations:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/live-analysis/acknowledge-coaching
+ * Acknowledge a coaching recommendation
+ */
+router.post('/acknowledge-coaching', async (req: Request, res: Response) => {
+  try {
+    const { callId, recommendationId } = req.body;
+
+    if (!callId || !recommendationId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing callId or recommendationId' 
+      });
+    }
+
+    liveCoachingService.acknowledgeRecommendation(callId, recommendationId);
+
+    res.json({
+      success: true,
+      message: 'Recommendation acknowledged'
+    });
+  } catch (error) {
+    console.error('❌ Error acknowledging coaching recommendation:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
     });
   }
 });

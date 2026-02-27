@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import LiveCoachingPanel from '@/components/coaching/LiveCoachingPanel';
 import { 
   PhoneCall, 
   PhoneOff, 
@@ -465,6 +466,12 @@ export default function EnhancedAgentInterface({
           </div>
         </div>
       </div>
+
+      {/* Live Coaching Panel */}
+      <LiveCoachingPanel 
+        agentId={agentId} 
+        currentCallId={currentCall?.callId}
+      />
     </div>
   );
 }
