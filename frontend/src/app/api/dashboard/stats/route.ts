@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/middleware/auth';
 import { PrismaClient } from '@prisma/client';
 
-// Use explicit DATABASE_URL for Railway connection
+// Use Railway database URL - external proxy for Vercel deployment
 const prisma = new PrismaClient({
   datasources: {
     db: {
