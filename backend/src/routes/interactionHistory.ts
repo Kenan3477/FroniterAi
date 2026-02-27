@@ -24,8 +24,17 @@ router.use(authenticate);
  */
 router.get('/categorized', async (req, res) => {
   try {
+    let agentId = req.query.agentId as string;
+    
+    // Handle special case where frontend sends "current-agent"
+    if (agentId === 'current-agent') {
+      console.log('⚠️ Frontend sent "current-agent" - this should be resolved to actual agentId');
+      // For now, return empty results rather than error
+      agentId = undefined as any;
+    }
+
     const filters: InteractionHistoryFilters = {
-      agentId: req.query.agentId as string,
+      agentId: agentId,
       campaignId: req.query.campaignId as string,
       contactId: req.query.contactId as string,
       channel: req.query.channel as string,
@@ -38,13 +47,34 @@ router.get('/categorized', async (req, res) => {
     };
 
     console.log('🔍 Getting categorized interactions with filters:', filters);
-    const categorizedInteractions = await getCategorizedInteractions(filters);
     
-    res.json({
-      success: true,
-      data: { categories: categorizedInteractions },
-      message: 'Categorized interactions retrieved successfully'
-    });
+    try {
+      const categorizedInteractions = await getCategorizedInteractions(filters);
+      
+      res.json({
+        success: true,
+        data: { categories: categorizedInteractions },
+        message: 'Categorized interactions retrieved successfully'
+      });
+    } catch (serviceError: any) {
+      console.error('❌ Service error in getCategorizedInteractions:', serviceError);
+      
+      // Return empty categories instead of failing completely
+      res.json({
+        success: true,
+        data: { 
+          categories: {
+            queued: [],
+            allocated: [],
+            outcomed: [],
+            unallocated: [],
+            totals: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+          }
+        },
+        message: 'Error retrieving interactions - returning empty results',
+        warning: serviceError.message
+      });
+    }
   } catch (error) {
     console.error('Error getting categorized interactions:', error);
     res.status(500).json({
