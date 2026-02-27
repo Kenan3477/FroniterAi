@@ -1,6 +1,7 @@
 'use client';
 
-// Dashboard with enhanced authentication and interaction history fixes - v27.02.2026
+// Dashboard with enhanced authentication and interaction history fixes - v27.02.2026-FORCE-DEPLOY
+// Force deployment: Authentication fixes ready for production
 
 import { useState, useEffect, Suspense } from 'react';
 import { MainLayout } from '@/components/layout';
