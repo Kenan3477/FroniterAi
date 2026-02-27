@@ -129,11 +129,19 @@ export default function WorkPage() {
 
   // Load real interaction data from backend
   const loadInteractionData = useCallback(async () => {
+    console.log('🔍 Loading interactions for agentId:', agentId);
     setIsLoadingInteractions(true);
     try {
       const categorized = await getCategorizedInteractions(agentId);
       setCategorizedInteractions(categorized);
       console.log('🔄 Loaded categorized interactions:', categorized);
+      console.log('📊 Interaction counts:', {
+        outcomed: categorized.outcomed?.length || 0,
+        allocated: categorized.allocated?.length || 0,
+        queued: categorized.queued?.length || 0,
+        unallocated: categorized.unallocated?.length || 0
+      });
+      console.log('🎯 Sample outcomed data:', categorized.outcomed?.slice(0, 2));
     } catch (error) {
       console.error('Failed to load interaction data:', error);
     } finally {
@@ -528,10 +536,15 @@ export default function WorkPage() {
   };
 
   const getCurrentData = () => {
+    console.log('🎯 getCurrentData called with selectedView:', selectedView);
+    console.log('📊 categorizedInteractions state:', categorizedInteractions);
+    console.log('🔢 outcomed length:', categorizedInteractions.outcomed?.length);
+    
     switch (selectedView) {
       case 'My Interactions':
         return categorizedInteractions.allocated; // Real active call data
       case 'Outcomed Interactions':
+        console.log('🎯 Returning outcomed interactions:', categorizedInteractions.outcomed);
         return categorizedInteractions.outcomed; // Real completed call data only - no mock data
       case 'Queued Interactions':
         return categorizedInteractions.queued;

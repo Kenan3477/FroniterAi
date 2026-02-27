@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
                'Unknown';
 
     // Connect to backend authentication instead of using demo credentials
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3004';
+    // For server-side API routes, use BACKEND_URL (not NEXT_PUBLIC_*)
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
     
     console.log('🔐 Attempting backend authentication for:', loginIdentifier);
     console.log('📡 Backend URL:', `${backendUrl}/api/auth/login`);
