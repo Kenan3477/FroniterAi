@@ -20,6 +20,41 @@ const router = express.Router();
 router.use(authenticate);
 
 /**
+ * TEMP DEBUG ROUTE - NO AUTH REQUIRED
+ */
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('🐛 DEBUG: Testing interaction history without auth...');
+    
+    const agentId = req.query.agentId as string || '509';
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    console.log(`🔍 Debug query for agentId: ${agentId}, limit: ${limit}`);
+    
+    const result = await getCategorizedInteractionsFromCallRecords({
+      agentId,
+      limit
+    });
+    
+    res.json({
+      success: true,
+      debug: true,
+      agentId,
+      data: result,
+      message: 'Debug route - no auth required'
+    });
+
+  } catch (error) {
+    console.error('❌ Debug route error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      debug: true
+    });
+  }
+});
+
+/**
  * TEMP FIX: Get categorized interactions from CallRecord table
  */
 async function getCategorizedInteractionsFromCallRecords(filters: InteractionHistoryFilters) {
