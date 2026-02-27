@@ -147,6 +147,7 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
           contactId: true,
           firstName: true,
           lastName: true,
+          fullName: true,
           phone: true
         }
       },
@@ -186,14 +187,37 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       agentName = `Agent ${record.agentId}`;
     }
 
+    // Better contact name resolution
+    let contactName = 'Unknown Contact';
+    let customerName = 'Unknown Contact';
+    
+    if (record.contact) {
+      // Use fullName if available, otherwise combine first/last
+      if (record.contact.fullName && !record.contact.fullName.includes('Unknown')) {
+        contactName = record.contact.fullName;
+        customerName = record.contact.fullName;
+      } else if (record.contact.firstName && record.contact.lastName) {
+        const fullName = `${record.contact.firstName} ${record.contact.lastName}`.trim();
+        if (fullName !== 'Unknown Contact' && fullName !== 'Inbound Caller') {
+          contactName = fullName;
+          customerName = fullName;
+        } else if (record.contact.phone) {
+          // For "Unknown Contact" or "Inbound Caller", show phone number instead
+          contactName = record.contact.phone;
+          customerName = record.contact.phone;
+        }
+      } else if (record.contact.phone) {
+        contactName = record.contact.phone;
+        customerName = record.contact.phone;
+      }
+    }
+
     return {
       id: record.id || record.callId,
       agentId: record.agentId || 'unknown',
       agentName: agentName,
       contactId: record.contactId || 'unknown',
-      contactName: record.contact ? 
-        `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
-        record.contact.phone || 'Unknown' : 'Unknown',
+      contactName: contactName,
       contactPhone: record.contact?.phone || 'Unknown',
       campaignId: record.campaignId || 'unknown', 
       campaignName: record.campaign?.name?.includes('[DELETED]') ? 
@@ -210,9 +234,7 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       notes: record.notes || '',
       dateTime: record.createdAt.toISOString(),
       duration: '0', // CallRecord doesn't have duration
-      customerName: record.contact ? 
-        `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
-        record.contact.phone || 'Unknown' : 'Unknown',
+      customerName: customerName,
       telephone: record.contact?.phone || 'Unknown'
     };
   });

@@ -61,11 +61,16 @@ export interface CategorizedInteractions {
 export async function getCategorizedInteractions(agentId?: string): Promise<CategorizedInteractions> {
   try {
     const params = new URLSearchParams();
-    if (agentId) params.append('agentId', agentId);
+    // Always use "current-agent" to let backend resolve the actual agentId
+    params.append('agentId', 'current-agent');
+    
+    console.log('🔍 Fetching categorized interactions with agentId: current-agent');
 
     const response = await fetch(`${BACKEND_URL}/api/interaction-history/categorized?${params}`, {
       headers: getAuthHeaders(),
     });
+
+    console.log('📞 Interaction history response status:', response.status);
 
     if (!response.ok) {
       console.error('Failed to fetch categorized interactions:', response.status);
@@ -73,8 +78,10 @@ export async function getCategorizedInteractions(agentId?: string): Promise<Cate
     }
 
     const data = await response.json();
+    console.log('📋 Raw interaction history response:', data);
     
     if (data.success && data.data) {
+      console.log('✅ Processing interaction data:', data.data);
       // Transform backend data to match our interface
       return {
         queued: transformInteractionData(data.data.queued || []),
@@ -85,9 +92,10 @@ export async function getCategorizedInteractions(agentId?: string): Promise<Cate
       };
     }
 
+    console.log('❌ No valid data in response, returning empty categories');
     return getEmptyCategories();
   } catch (error) {
-    console.error('Error fetching categorized interactions:', error);
+    console.error('❌ Error fetching categorized interactions:', error);
     return getEmptyCategories();
   }
 }
@@ -254,14 +262,14 @@ function transformInteractionData(interactions: any[]): InteractionData[] {
   return interactions.map((interaction: any) => ({
     id: interaction.id,
     agentName: interaction.agentName || interaction.agent?.firstName + ' ' + interaction.agent?.lastName || 'Unknown Agent',
-    customerName: interaction.contactName || interaction.contact?.firstName + ' ' + interaction.contact?.lastName || 'Unknown Contact',
-    interactionType: interaction.type || 'call',
-    telephone: interaction.phoneNumber || interaction.contact?.phoneNumber || '',
+    customerName: interaction.contactName || interaction.customerName || interaction.contact?.firstName + ' ' + interaction.contact?.lastName || 'Unknown Contact',
+    interactionType: interaction.type || interaction.channel || 'call',
+    telephone: interaction.telephone || interaction.contactPhone || interaction.phoneNumber || interaction.contact?.phoneNumber || '',
     direction: interaction.direction || 'outbound',
-    subject: interaction.subject || interaction.phoneNumber || '',
+    subject: interaction.subject || interaction.telephone || interaction.contactPhone || '',
     campaignName: interaction.campaignName || interaction.campaign?.name || 'Unknown Campaign',
     outcome: interaction.outcome || (interaction.endedAt ? 'Completed' : 'In Progress'),
-    dateTime: formatDateTime(interaction.endedAt || interaction.startedAt || interaction.createdAt),
+    dateTime: formatDateTime(interaction.dateTime || interaction.endedAt || interaction.startedAt || interaction.createdAt),
     duration: formatDuration(interaction.duration || 0),
     callId: interaction.callId,
     contactId: interaction.contactId,
