@@ -93,6 +93,7 @@ import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-t
 // import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 import transcriptRoutes from './routes/transcriptRoutes'; // NEW: AI-powered call transcription system
+import liveAnalysisRoutes from './routes/liveAnalysisRoutes'; // NEW: Intelligent live call analysis system
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -265,6 +266,7 @@ class App {
 
     // Phase 3: Advanced AI Dialler Features - NEW
     this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
+    this.app.use('/api/live-analysis', liveAnalysisRoutes); // NEW: Intelligent live call analysis system
     // this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition - TEMPORARILY DISABLED
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES

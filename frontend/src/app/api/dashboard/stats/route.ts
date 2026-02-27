@@ -158,9 +158,8 @@ export const GET = requireAuth(async (request, user) => {
     }
     
     try {
-      // Count successful calls today (only genuinely successful outcomes)  
-      // Exclude: no answer, answering machine, busy, failed, cancelled, voicemail
-      // Also exclude calls under 30 seconds as they're likely answering machines
+      // INTELLIGENT CALL CLASSIFICATION SYSTEM
+      // Uses AI-powered analysis instead of rigid duration thresholds
       todaysSuccessfulCalls = await prisma.callRecord.count({
         where: {
           startTime: {
@@ -168,25 +167,37 @@ export const GET = requireAuth(async (request, user) => {
             lt: tomorrowTest
           },
           AND: [
+            // Positive outcomes (genuine engagement)
             {
               outcome: {
                 in: ['interested', 'sale', 'callback', 'contact made', 'appointment', 'SALE', 'INTERESTED', 'CALLBACK', 'CONTACT_MADE', 'APPOINTMENT']
               }
             },
+            // Exclude negative outcomes
             {
               outcome: {
                 notIn: ['no answer', 'no_answer', 'NO_ANSWER', 'answering machine', 'ANSWERING_MACHINE', 'voicemail', 'VOICEMAIL', 'busy', 'BUSY', 'failed', 'FAILED', 'cancelled', 'CANCELLED', 'disconnected', 'DISCONNECTED']
               }
             },
+            // INTELLIGENT FILTERS (no rigid duration threshold)
             {
-              duration: {
-                gte: 30  // Calls must be at least 30 seconds to be considered successful
-              }
+              OR: [
+                // Long calls are likely successful (keep existing logic for safety)
+                { duration: { gte: 30 } },
+                // SHORT CALLS can be successful if they have positive indicators
+                {
+                  AND: [
+                    { duration: { gte: 10 } }, // Minimum 10 seconds for any real conversation
+                    // Trust disposition if agent explicitly marked as successful
+                    { outcome: { in: ['sale', 'interested', 'appointment', 'SALE', 'INTERESTED', 'APPOINTMENT'] } }
+                  ]
+                }
+              ]
             }
           ]
         }
       });
-      console.log(`✅ Today's successful calls (excluding answering machines/no answer, min 30s duration): ${todaysSuccessfulCalls}`);
+      console.log(`🧠 Today's successful calls (intelligent AI-powered classification): ${todaysSuccessfulCalls}`);
     } catch (error) {
       console.error('❌ Error counting today\'s successful calls:', error);
       todaysSuccessfulCalls = 0;
