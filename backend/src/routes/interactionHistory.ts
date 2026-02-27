@@ -12,11 +12,134 @@ import {
   trackAutoDialInteraction,
   InteractionHistoryFilters
 } from '../services/interactionHistoryService';
+import { prisma } from '../database/index';
 
 const router = express.Router();
 
 // Apply authentication to all interaction history routes
 router.use(authenticate);
+
+/**
+ * TEMP FIX: Get categorized interactions from CallRecord table
+ */
+async function getCategorizedInteractionsFromCallRecords(filters: InteractionHistoryFilters) {
+  console.log('📞 Using CallRecord table for interaction history');
+  
+  const baseWhere: any = {};
+  
+  if (filters.agentId) baseWhere.agentId = filters.agentId;
+  if (filters.campaignId) baseWhere.campaignId = filters.campaignId;
+  
+  if (filters.dateFrom || filters.dateTo) {
+    baseWhere.createdAt = {};
+    if (filters.dateFrom) baseWhere.createdAt.gte = filters.dateFrom;
+    if (filters.dateTo) baseWhere.createdAt.lte = filters.dateTo;
+  }
+
+  // Default to today's records if no date filter
+  if (!filters.dateFrom && !filters.dateTo) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    baseWhere.createdAt = {
+      gte: today,
+      lt: tomorrow
+    };
+  }
+
+  const limit = filters.limit || 50;
+  
+  console.log('📋 CallRecord query filters:', baseWhere);
+
+  const callRecords = await prisma.callRecord.findMany({
+    where: baseWhere,
+    include: {
+      contact: {
+        select: {
+          contactId: true,
+          firstName: true,
+          lastName: true,
+          phone: true
+        }
+      },
+      campaign: {
+        select: {
+          campaignId: true,
+          name: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit * 2 // Get more to categorize
+  });
+
+  console.log(`📊 Found ${callRecords.length} call records to categorize`);
+
+  // Transform and categorize
+  const transformedRecords = callRecords.map(record => ({
+    id: record.id || record.callId,
+    agentId: record.agentId || 'unknown',
+    agentName: record.agentId || 'Unknown Agent',
+    contactId: record.contactId || 'unknown',
+    contactName: record.contact ? 
+      `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
+      record.contact.phone || 'Unknown' : 'Unknown',
+    contactPhone: record.contact?.phone || 'Unknown',
+    campaignId: record.campaignId || 'unknown', 
+    campaignName: record.campaign?.name || 'Unknown Campaign',
+    channel: 'call',
+    outcome: record.outcome || 'pending',
+    status: record.outcome ? 'outcomed' : 'pending',
+    isDmc: false,
+    isCallback: false,
+    callbackScheduledFor: null,
+    startedAt: record.createdAt,
+    endedAt: null,
+    notes: record.notes || '',
+    dateTime: record.createdAt.toISOString(),
+    duration: '0', // CallRecord doesn't have duration
+    customerName: record.contact ? 
+      `${record.contact.firstName || ''} ${record.contact.lastName || ''}`.trim() || 
+      record.contact.phone || 'Unknown' : 'Unknown',
+    telephone: record.contact?.phone || 'Unknown'
+  }));
+
+  // Categorize the records
+  const outcomed = transformedRecords.filter(record => 
+    record.outcome && 
+    record.outcome !== 'pending' && 
+    record.outcome !== '' &&
+    !record.outcome.toLowerCase().includes('callback')
+  ).slice(0, limit);
+
+  const allocated = transformedRecords.filter(record => 
+    !record.outcome || 
+    record.outcome === 'pending' || 
+    record.outcome === 'in-progress'
+  ).slice(0, limit);
+
+  const queued: any[] = []; // No callbacks in CallRecord typically
+  const unallocated: any[] = []; // Simple implementation
+
+  const result = {
+    queued,
+    allocated,
+    outcomed,
+    unallocated,
+    totals: {
+      queued: queued.length,
+      allocated: allocated.length, 
+      outcomed: outcomed.length,
+      unallocated: unallocated.length
+    }
+  };
+
+  console.log('📊 CallRecord categorization result:', result.totals);
+  
+  return result;
+}
 
 /**
  * GET /api/interaction-history/categorized
@@ -49,7 +172,8 @@ router.get('/categorized', async (req, res) => {
     console.log('🔍 Getting categorized interactions with filters:', filters);
     
     try {
-      const categorizedInteractions = await getCategorizedInteractions(filters);
+      // TEMP FIX: Use CallRecord data instead of missing interaction table
+      const categorizedInteractions = await getCategorizedInteractionsFromCallRecords(filters);
       
       res.json({
         success: true,
@@ -58,6 +182,37 @@ router.get('/categorized', async (req, res) => {
       });
     } catch (serviceError: any) {
       console.error('❌ Service error in getCategorizedInteractions:', serviceError);
+
+      // ENHANCED FALLBACK: Try CallRecord directly if interaction service fails
+      try {
+        console.log('🔄 Fallback to CallRecord table...');
+        const fallbackResult = await getCategorizedInteractionsFromCallRecords(filters);
+        
+        res.json({
+          success: true,
+          data: { categories: fallbackResult },
+          message: 'Interaction history retrieved using CallRecord fallback',
+          warning: 'Used CallRecord fallback due to interaction service error'
+        });
+      } catch (fallbackError: any) {
+        console.error('❌ CallRecord fallback also failed:', fallbackError);
+        
+        // Return empty categories instead of failing completely
+        res.json({
+          success: true,
+          data: { 
+            categories: {
+              queued: [],
+              allocated: [],
+              outcomed: [],
+              unallocated: [],
+              totals: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+            }
+          },
+          message: 'Error retrieving interactions - returning empty results',
+          warning: 'Failed to get categorized interactions'
+        });
+      }
       
       // Return empty categories instead of failing completely
       res.json({
