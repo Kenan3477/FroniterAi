@@ -22,7 +22,7 @@ export async function GET(
           SELECT 1 FROM agent_campaign_assignments aca 
           WHERE aca.agentId = ? 
             AND aca.campaignId = c.campaignId
-            AND aca.isActive = 1
+            AND aca.isActive = true
         )`;
         queryParams.push(user.userId.toString());
       }
@@ -121,7 +121,7 @@ export async function PUT(
           SELECT 1 FROM agent_campaign_assignments aca 
           WHERE aca.agentId = '${user.userId}' 
             AND aca.campaignId = c.campaignId
-            AND aca.isActive = 1
+            AND aca.isActive = true
         )`;
       }
 
@@ -179,7 +179,7 @@ export async function PUT(
         updateParams.push(notes);
       }
 
-      updateFields.push('updatedAt = datetime("now")');
+      updateFields.push('updatedAt = NOW()');
       updateParams.push(contactId);
 
       if (updateFields.length > 1) { // More than just updatedAt

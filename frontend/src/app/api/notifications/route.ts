@@ -17,7 +17,7 @@ export const GET = requireAuth(async (request, user) => {
 
     // Build where conditions
     const whereConditions = [`userId = ${user.userId}`];
-    if (unreadOnly) whereConditions.push('isRead = 0');
+    if (unreadOnly) whereConditions.push('isRead = false');
     if (type) whereConditions.push(`type = '${type}'`);
     
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
@@ -28,7 +28,7 @@ export const GET = requireAuth(async (request, user) => {
              actionUrl, actionLabel, metadata, createdAt, expiresAt
       FROM notifications
       ${whereClause}
-      AND (expiresAt IS NULL OR expiresAt > datetime('now'))
+      AND (expiresAt IS NULL OR expiresAt > NOW())
       ORDER BY priority DESC, createdAt DESC
       LIMIT ${limit} OFFSET ${offset}
     ` as any[];
@@ -45,8 +45,8 @@ export const GET = requireAuth(async (request, user) => {
       SELECT COUNT(*) as count 
       FROM notifications 
       WHERE userId = ${user.userId} 
-        AND isRead = 0 
-        AND (expiresAt IS NULL OR expiresAt > datetime('now'))
+        AND isRead = false 
+        AND (expiresAt IS NULL OR expiresAt > NOW())
     ` as any[];
 
     const unreadCount = unreadQuery[0]?.count || 0;
@@ -127,7 +127,7 @@ export const POST = requireAuth(async (request, user) => {
         ${actionLabel || null},
         ${metadata ? JSON.stringify(metadata) : null},
         ${expiresAt || null},
-        datetime('now')
+        NOW()
       )
     `;
 
@@ -165,7 +165,7 @@ export const PUT = requireAuth(async (request, user) => {
     
     await prisma.$executeRaw`
       UPDATE notifications 
-      SET isRead = 1 
+      SET isRead = true 
       WHERE id IN (${notificationIds.join(',')}) 
         AND userId = ${user.userId}
     `;

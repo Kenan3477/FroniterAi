@@ -85,7 +85,7 @@ export async function authenticateToken(
       const userQuery = await prisma.$queryRaw`
         SELECT id, isActive, refreshTokenVersion, role 
         FROM users 
-        WHERE id = ${payload.userId} AND isActive = 1
+        WHERE id = ${payload.userId} AND isActive = true
         LIMIT 1
       ` as any[];
 

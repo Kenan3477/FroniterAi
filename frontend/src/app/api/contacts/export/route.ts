@@ -23,7 +23,7 @@ export const GET = requireAuth(async (request, user) => {
           SELECT 1 FROM agent_campaign_assignments aca 
           WHERE aca.agentId = '${user.userId}' 
             AND aca.campaignId = c.campaignId
-            AND aca.isActive = 1
+            AND aca.isActive = true
         )
       `);
     }
@@ -210,7 +210,7 @@ export const POST = requireAuth(async (request, user) => {
         SELECT 1 FROM agent_campaign_assignments aca 
         WHERE aca.agentId = ? 
           AND aca.campaignId = c.campaignId
-          AND aca.isActive = 1
+          AND aca.isActive = true
       )`;
       queryParams.push(user.userId.toString());
     }

@@ -119,8 +119,8 @@ export const POST = requireRole(['ADMIN'])(async (request, user) => {
         ${retryPolicy ? JSON.stringify(retryPolicy) : null},
         ${headers ? JSON.stringify(headers) : null},
         ${user.userId},
-        datetime('now'),
-        datetime('now')
+        NOW(),
+        NOW()
       )
     `;
 

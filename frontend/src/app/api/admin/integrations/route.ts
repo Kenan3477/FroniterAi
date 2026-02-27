@@ -124,8 +124,8 @@ export const POST = requireRole(['ADMIN'])(async (request, user) => {
         ${JSON.stringify(configuration)},
         ${encryptedCredentials},
         ${user.userId},
-        datetime('now'),
-        datetime('now')
+        NOW(),
+        NOW()
       )
     `;
 

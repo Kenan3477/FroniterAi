@@ -167,7 +167,7 @@ export const POST = requireAuth(async (request, user) => {
                   status = ${contact.status},
                   tags = ${JSON.stringify(contact.tags)},
                   notes = ${contact.notes || null},
-                  updatedAt = datetime('now')
+                  updatedAt = NOW()
               WHERE contactId = ${existingContact[0].contactId}
             `;
             imported.push({ ...contact, contactId: existingContact[0].contactId, action: 'updated' });
@@ -184,7 +184,7 @@ export const POST = requireAuth(async (request, user) => {
             ${contactId}, ${contact.firstName}, ${contact.lastName}, 
             ${contact.email}, ${contact.phone}, ${contact.company}, ${campaignId},
             ${contact.status}, ${JSON.stringify(contact.tags)}, 
-            ${contact.notes || null}, datetime('now'), datetime('now')
+            ${contact.notes || null}, NOW(), NOW()
           )
         `;
         

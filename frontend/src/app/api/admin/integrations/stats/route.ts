@@ -26,7 +26,7 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
         syncStatus as status,
         COUNT(*) as count
       FROM integrations
-      WHERE isActive = 1
+      WHERE isActive = true
       GROUP BY syncStatus
     ` as any[];
 
@@ -34,7 +34,7 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
     const webhookStats = await prisma.$queryRaw`
       SELECT 
         COUNT(*) as totalWebhooks,
-        SUM(CASE WHEN isActive = 1 THEN 1 ELSE 0 END) as activeWebhooks
+        SUM(CASE WHEN isActive = true THEN 1 ELSE 0 END) as activeWebhooks
       FROM webhooks
     ` as any[];
 
@@ -44,7 +44,7 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
         status,
         COUNT(*) as count
       FROM webhook_deliveries
-      WHERE createdAt >= datetime('now', '-24 hours')
+      WHERE createdAt >= NOW() - INTERVAL '24 hours'
       GROUP BY status
     ` as any[];
 
@@ -59,7 +59,7 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
         SUM(il.recordsProcessed) as totalRecordsProcessed
       FROM integration_logs il
       INNER JOIN integrations i ON il.integrationId = i.id
-      WHERE il.timestamp >= datetime('now', '-24 hours')
+      WHERE il.timestamp >= NOW() - INTERVAL '24 hours'
       GROUP BY il.integrationId, i.name
     ` as any[];
 
