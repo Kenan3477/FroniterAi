@@ -24,10 +24,14 @@ router.use(authenticate);
  */
 async function getCategorizedInteractionsFromCallRecords(filters: InteractionHistoryFilters) {
   console.log('📞 Using CallRecord table for interaction history');
+  console.log('📋 Input filters:', JSON.stringify(filters, null, 2));
   
   const baseWhere: any = {};
   
-  if (filters.agentId) baseWhere.agentId = filters.agentId;
+  if (filters.agentId) {
+    baseWhere.agentId = filters.agentId;
+    console.log(`🔍 Filtering by agentId: ${filters.agentId}`);
+  }
   if (filters.campaignId) baseWhere.campaignId = filters.campaignId;
   
   if (filters.dateFrom || filters.dateTo) {
@@ -76,6 +80,19 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   });
 
   console.log(`📊 Found ${callRecords.length} call records to categorize`);
+  
+  // Log some sample records for debugging
+  if (callRecords.length > 0) {
+    console.log('🎯 Sample CallRecord data:');
+    console.log(JSON.stringify(callRecords.slice(0, 2).map(r => ({
+      id: r.id,
+      agentId: r.agentId,
+      contactId: r.contactId,
+      outcome: r.outcome,
+      contact: r.contact,
+      campaign: r.campaign
+    })), null, 2));
+  }
 
   // Transform and categorize
   const transformedRecords = callRecords.map(record => ({
@@ -113,6 +130,14 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
     record.outcome !== '' &&
     !record.outcome.toLowerCase().includes('callback')
   ).slice(0, limit);
+  
+  console.log(`🎯 Outcomed categorization: Found ${outcomed.length} outcomed records`);
+  if (outcomed.length > 0) {
+    console.log('Sample outcomed record:', outcomed[0]);
+  }
+  if (transformedRecords.length > 0) {
+    console.log('All outcomes found:', transformedRecords.map(r => r.outcome));
+  }
 
   const allocated = transformedRecords.filter(record => 
     !record.outcome || 
@@ -151,9 +176,10 @@ router.get('/categorized', async (req, res) => {
     
     // Handle special case where frontend sends "current-agent"
     if (agentId === 'current-agent') {
-      console.log('⚠️ Frontend sent "current-agent" - this should be resolved to actual agentId');
-      // For now, return empty results rather than error
-      agentId = undefined as any;
+      console.log('⚠️ Frontend sent "current-agent" - resolving to authenticated user agentId');
+      // Get agentId from authenticated user (req.user should be set by auth middleware)
+      agentId = (req as any).user?.userId?.toString() || '509'; // Default to 509 for Kenan
+      console.log(`🔄 Resolved current-agent to agentId: ${agentId}`);
     }
 
     const filters: InteractionHistoryFilters = {
