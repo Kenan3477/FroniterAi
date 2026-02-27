@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/middleware/auth';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Use explicit DATABASE_URL for Railway connection
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || "postgresql://postgres:EJhlgyhMsYUhNhaBRyHAjNSoCfTmlUPm@interchange.proxy.rlwy.net:42798/railway"
+    }
+  }
+});
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
