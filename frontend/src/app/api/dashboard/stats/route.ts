@@ -209,45 +209,76 @@ export const GET = requireAuth(async (request, user) => {
       _count: { id: true },
     });
 
-    // 2. Call Record Statistics (using raw SQL due to schema complexity)
-    const callStatsQuery = `
-      SELECT 
-        COUNT(*) as totalCalls,
-        COUNT(CASE WHEN outcome = 'answered' THEN 1 END) as answeredCalls,
-        COUNT(CASE WHEN outcome = 'connected' THEN 1 END) as connectedCalls,
-        COUNT(CASE WHEN outcome = 'completed' THEN 1 END) as completedCalls,
-        AVG(duration) as avgDuration,
-        SUM(duration) as totalDuration,
-        COUNT(CASE WHEN duration > 0 THEN 1 END) as callsWithDuration
-      FROM call_records 
-      WHERE startTime >= ? 
-      ${userFilter.agentId ? 'AND agentId = ?' : ''}
-    `;
+    // 2. Call Record Statistics (using Prisma queries to avoid SQL compatibility issues)
+    console.log('📊 Fetching call stats with Prisma queries...');
+    
+    const callWhereClause = {
+      startTime: dateFilter,
+      ...userFilter
+    };
+    
+    console.log('🔍 Call where clause:', callWhereClause);
+    
+    const [
+      totalCallsCount,
+      answeredCallsCount,
+      connectedCallsCount,
+      completedCallsCount,
+      callsWithDuration,
+      avgDurationResult,
+      totalDurationResult
+    ] = await Promise.all([
+      prisma.callRecord.count({ where: callWhereClause }),
+      prisma.callRecord.count({ where: { ...callWhereClause, outcome: 'answered' } }),
+      prisma.callRecord.count({ where: { ...callWhereClause, outcome: 'connected' } }),
+      prisma.callRecord.count({ where: { ...callWhereClause, outcome: 'completed' } }),
+      prisma.callRecord.count({ where: { ...callWhereClause, duration: { gt: 0 } } }),
+      prisma.callRecord.aggregate({ 
+        where: callWhereClause,
+        _avg: { duration: true }
+      }),
+      prisma.callRecord.aggregate({ 
+        where: callWhereClause,
+        _sum: { duration: true }
+      })
+    ]);
 
-    const callStatsParams: string[] = [dateFilter.gte.toISOString()];
-    if (userFilter.agentId) {
-      callStatsParams.push(userFilter.agentId);
-    }
-
-    const callStats = await prisma.$queryRawUnsafe(callStatsQuery, ...callStatsParams) as any[];
-    const currentCallStats = callStats[0] || {
-      totalCalls: 0,
-      answeredCalls: 0,
-      connectedCalls: 0,
-      completedCalls: 0,
-      avgDuration: 0,
-      totalDuration: 0,
-      callsWithDuration: 0,
+    const currentCallStats = {
+      totalCalls: Number(totalCallsCount),
+      answeredCalls: Number(answeredCallsCount),
+      connectedCalls: Number(connectedCallsCount),
+      completedCalls: Number(completedCallsCount),
+      avgDuration: Math.round(Number(avgDurationResult._avg.duration) || 0),
+      totalDuration: Number(totalDurationResult._sum.duration) || 0,
+      callsWithDuration: Number(callsWithDuration),
     };
 
-    // Previous period call stats for trends
-    const previousCallStatsQuery = callStatsQuery.replace('startTime >= ?', 'startTime >= ? AND startTime < ?');
-    const previousCallStatsParams = [previousDateFilter.gte.toISOString(), previousDateFilter.lt?.toISOString() || dateFilter.gte.toISOString()];
-    if (userFilter.agentId) {
-      previousCallStatsParams.push(userFilter.agentId);
-    }
+    console.log('📊 Current call stats:', currentCallStats);
 
-    const previousCallStatsResult = await prisma.$queryRawUnsafe(previousCallStatsQuery, ...previousCallStatsParams) as any[];
+    // Previous period call stats for trends
+    const previousCallWhereClause = {
+      startTime: previousDateFilter,
+      ...userFilter
+    };
+    
+    const [
+      prevTotalCallsCount,
+      prevAnsweredCallsCount,
+      prevConnectedCallsCount,
+      prevCompletedCallsCount
+    ] = await Promise.all([
+      prisma.callRecord.count({ where: previousCallWhereClause }),
+      prisma.callRecord.count({ where: { ...previousCallWhereClause, outcome: 'answered' } }),
+      prisma.callRecord.count({ where: { ...previousCallWhereClause, outcome: 'connected' } }),
+      prisma.callRecord.count({ where: { ...previousCallWhereClause, outcome: 'completed' } })
+    ]);
+
+    const previousCallStatsResult = [{
+      totalCalls: Number(prevTotalCallsCount),
+      answeredCalls: Number(prevAnsweredCallsCount),
+      connectedCalls: Number(prevConnectedCallsCount),
+      completedCalls: Number(prevCompletedCallsCount)
+    }];
     const previousCallStats = previousCallStatsResult[0] || {
       totalCalls: 0,
       answeredCalls: 0,
@@ -276,27 +307,43 @@ export const GET = requireAuth(async (request, user) => {
       },
     });
 
-    // 5. Disposition Analysis
-    const dispositionQuery = `
-      SELECT 
-        d.category,
-        COUNT(*) as count,
-        AVG(cr.duration) as avgDuration
-      FROM call_records cr
-      LEFT JOIN dispositions d ON cr.dispositionId = d.id
-      WHERE cr.startTime >= ?
-      ${userFilter.agentId ? 'AND cr.agentId = ?' : ''}
-      GROUP BY d.category
-      ORDER BY count DESC
-      LIMIT 10
-    `;
+    // 5. Disposition Analysis using Prisma
+    console.log('📊 Fetching disposition stats...');
+    
+    const dispositionCallRecords = await prisma.callRecord.findMany({
+      where: callWhereClause,
+      select: {
+        duration: true,
+        disposition: {
+          select: {
+            category: true
+          }
+        }
+      }
+    });
 
-    const dispositionParams: string[] = [dateFilter.gte.toISOString()];
-    if (userFilter.agentId) {
-      dispositionParams.push(userFilter.agentId);
-    }
+    // Group dispositions manually
+    const dispositionMap = new Map();
+    dispositionCallRecords.forEach(record => {
+      const category = record.disposition?.category || 'No Disposition';
+      if (!dispositionMap.has(category)) {
+        dispositionMap.set(category, { count: 0, totalDuration: 0, records: 0 });
+      }
+      const current = dispositionMap.get(category);
+      current.count += 1;
+      if (record.duration) {
+        current.totalDuration += record.duration;
+        current.records += 1;
+      }
+    });
 
-    const dispositions = await prisma.$queryRawUnsafe(dispositionQuery, ...dispositionParams) as any[];
+    const dispositions = Array.from(dispositionMap.entries()).map(([category, stats]) => ({
+      category,
+      count: stats.count,
+      avgDuration: stats.records > 0 ? Math.round(stats.totalDuration / stats.records) : 0
+    })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+    console.log('📊 Disposition stats:', dispositions);
 
     // Calculate metrics
     const totalCalls = Number(currentCallStats.totalCalls) || 0;
