@@ -158,19 +158,35 @@ export const GET = requireAuth(async (request, user) => {
     }
     
     try {
-      // Count successful calls today (completed, interested, sale, callback outcomes)
+      // Count successful calls today (only genuinely successful outcomes)  
+      // Exclude: no answer, answering machine, busy, failed, cancelled, voicemail
+      // Also exclude calls under 30 seconds as they're likely answering machines
       todaysSuccessfulCalls = await prisma.callRecord.count({
         where: {
           startTime: {
             gte: todayTest,
             lt: tomorrowTest
           },
-          outcome: {
-            in: ['completed', 'interested', 'sale', 'callback', 'SALE', 'INTERESTED', 'COMPLETED', 'CALLBACK']
-          }
+          AND: [
+            {
+              outcome: {
+                in: ['interested', 'sale', 'callback', 'contact made', 'appointment', 'SALE', 'INTERESTED', 'CALLBACK', 'CONTACT_MADE', 'APPOINTMENT']
+              }
+            },
+            {
+              outcome: {
+                notIn: ['no answer', 'no_answer', 'NO_ANSWER', 'answering machine', 'ANSWERING_MACHINE', 'voicemail', 'VOICEMAIL', 'busy', 'BUSY', 'failed', 'FAILED', 'cancelled', 'CANCELLED', 'disconnected', 'DISCONNECTED']
+              }
+            },
+            {
+              duration: {
+                gte: 30  // Calls must be at least 30 seconds to be considered successful
+              }
+            }
+          ]
         }
       });
-      console.log(`✅ Today's successful calls: ${todaysSuccessfulCalls}`);
+      console.log(`✅ Today's successful calls (excluding answering machines/no answer, min 30s duration): ${todaysSuccessfulCalls}`);
     } catch (error) {
       console.error('❌ Error counting today\'s successful calls:', error);
       todaysSuccessfulCalls = 0;

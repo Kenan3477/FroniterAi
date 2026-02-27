@@ -209,6 +209,48 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     console.log('💾 Backend: Disposition data:', JSON.stringify(disposition, null, 2));
     console.log('💾 Backend: Direct dispositionId:', req.body.dispositionId);
 
+    // Map disposition names to proper outcome values for successful call tracking
+    function mapDispositionToOutcome(disposition: any): string {
+      if (!disposition) return 'completed';
+      
+      const dispositionName = (disposition.name || disposition.outcome || '').toLowerCase().trim();
+      const dispositionNotes = (disposition.notes || '').toLowerCase().trim();
+      
+      console.log('🔍 Mapping disposition:', dispositionName, 'with notes:', dispositionNotes);
+      
+      // Map specific disposition names to outcomes
+      if (dispositionName.includes('no answer') || dispositionName.includes('no_answer')) {
+        return 'no_answer';
+      }
+      if (dispositionName.includes('answering machine') || dispositionName.includes('voicemail')) {
+        return 'answering_machine';
+      }
+      if (dispositionName.includes('busy')) {
+        return 'busy';
+      }
+      if (dispositionName.includes('sale') || dispositionName.includes('sold')) {
+        return 'sale';
+      }
+      if (dispositionName.includes('interested')) {
+        return 'interested';
+      }
+      if (dispositionName.includes('callback') || dispositionName.includes('call back')) {
+        return 'callback';
+      }
+      if (dispositionName.includes('not interested') || dispositionName.includes('not_interested')) {
+        return 'not_interested';
+      }
+      if (dispositionName.includes('disconnected') || dispositionName.includes('hung up')) {
+        return 'disconnected';
+      }
+      
+      // Default to the original outcome or 'completed'
+      return disposition.outcome || 'completed';
+    }
+
+    const mappedOutcome = mapDispositionToOutcome(disposition);
+    console.log('📊 Mapped disposition outcome:', mappedOutcome);
+
     // REQUIRE RECORDING EVIDENCE - Only save calls that have actual recordings
     if (!callSid && !recordingUrl) {
       console.log('❌ Rejecting save-call-data: No recording evidence (callSid or recordingUrl)');
@@ -594,7 +636,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           campaignId: safeCampaignId,
           phoneNumber: safePhoneNumber,
           duration: safeDuration,
-          outcome: disposition?.outcome || 'completed',
+          outcome: mappedOutcome,
           dispositionId: validDispositionId,
           recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
@@ -612,7 +654,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           startTime: new Date(Date.now() - (safeDuration * 1000)),
           endTime: new Date(),
           duration: safeDuration,
-          outcome: disposition?.outcome || 'completed',
+          outcome: mappedOutcome,
           dispositionId: validDispositionId,
           recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
@@ -634,7 +676,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             startedAt: new Date(Date.now() - (safeDuration * 1000)),
             endedAt: new Date(),
             durationSeconds: safeDuration,
-            result: disposition?.outcome || 'completed'
+            result: mappedOutcome
           }
         });
         console.log('✅ Interaction record created:', interaction.id, 'for outcomed interactions');
