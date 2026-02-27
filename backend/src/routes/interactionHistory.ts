@@ -16,11 +16,8 @@ import { prisma } from '../database/index';
 
 const router = express.Router();
 
-// Apply authentication to all interaction history routes
-router.use(authenticate);
-
 /**
- * TEMP DEBUG ROUTE - NO AUTH REQUIRED
+ * TEMP DEBUG ROUTE - NO AUTH REQUIRED - Must be before auth middleware
  */
 router.get('/debug', async (req, res) => {
   try {
@@ -53,6 +50,9 @@ router.get('/debug', async (req, res) => {
     });
   }
 });
+
+// Apply authentication to all other interaction history routes
+router.use(authenticate);
 
 /**
  * TEMP FIX: Get categorized interactions from CallRecord table
