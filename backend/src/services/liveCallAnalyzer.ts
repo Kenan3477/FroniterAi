@@ -10,6 +10,8 @@ import { getWebSocketService } from '../socket';
 import { prisma } from '../database';
 import sentimentAnalysisService from './sentimentAnalysisService';
 import liveCoachingService from './liveCoachingService';
+import advancedAMDService from './advancedAMDService';
+import performanceMonitoringService from './performanceMonitoringService';
 import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
@@ -232,12 +234,53 @@ export class LiveCallAnalyzer extends EventEmitter {
   }
 
   private async analyzeAudioBuffer(callId: string, audioChunks: Buffer[]): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       // Combine audio chunks
       const combinedAudio = Buffer.concat(audioChunks);
       
+      // Advanced AMD audio analysis
+      const amdStartTime = Date.now();
+      const amdResult = advancedAMDService.analyzeAudioChunk(
+        callId, 
+        combinedAudio, 
+        Date.now()
+      );
+      performanceMonitoringService.recordProcessingTime('amd_audio_analysis', amdStartTime);
+      
+      // If high-confidence AMD detection, update analysis immediately
+      if (amdResult && amdResult.confidence > 0.8) {
+        const analysis = this.activeCalls.get(callId);
+        if (analysis) {
+          analysis.isAnsweringMachine = amdResult.isAnsweringMachine;
+          analysis.confidence = amdResult.confidence;
+          analysis.speechPattern = amdResult.isAnsweringMachine ? 'machine' : 'human';
+          (analysis as any).amdDetails = {
+            detectionMethod: amdResult.detectionMethod,
+            reasoning: amdResult.reasoning,
+            timeToDetection: amdResult.timeToDetection,
+            indicators: amdResult.indicators
+          };
+          
+          this.activeCalls.set(callId, analysis);
+          this.broadcastCallUpdate(callId, analysis);
+          
+          // Record high-confidence detection metrics
+          performanceMonitoringService.recordMetric('amd.high_confidence_detection', 1, 'count', {
+            result: amdResult.isAnsweringMachine ? 'machine' : 'human',
+            method: amdResult.detectionMethod,
+            confidence: amdResult.confidence.toString()
+          });
+          
+          console.log(`🤖 AMD detected for call ${callId}: ${amdResult.isAnsweringMachine ? 'MACHINE' : 'HUMAN'} (${amdResult.confidence.toFixed(2)} confidence)`);
+        }
+      }
+      
       // Convert to text using speech recognition
+      const transcriptStartTime = Date.now();
       const transcript = await this.speechToText(combinedAudio);
+      performanceMonitoringService.recordProcessingTime('speech_to_text', transcriptStartTime);
       
       if (transcript && transcript.length > 5) {
         // Add to transcript buffer
@@ -249,7 +292,15 @@ export class LiveCallAnalyzer extends EventEmitter {
         await this.analyzeTranscriptSegment(callId, transcript, updatedTranscript);
       }
 
+      // Record overall audio processing performance
+      performanceMonitoringService.recordProcessingTime('audio_buffer_analysis', startTime);
+      performanceMonitoringService.recordMetric('audio.chunk_size', combinedAudio.length, 'bytes');
+
     } catch (error) {
+      performanceMonitoringService.recordError('audio_analysis_error', { 
+        callId, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       console.error(`❌ Error analyzing audio buffer for call ${callId}:`, error);
     }
   }
@@ -345,23 +396,34 @@ export class LiveCallAnalyzer extends EventEmitter {
     const analysis = this.activeCalls.get(callId);
     if (!analysis) return;
 
+    const startTime = Date.now();
+
     try {
-      // 1. Answering Machine Detection
-      const answeringMachineResult = this.detectAnsweringMachine(fullTranscript);
+      // 1. Advanced Answering Machine Detection
+      const amdStartTime = Date.now();
+      const advancedAMDResult = advancedAMDService.analyzeTranscript(callId, fullTranscript);
+      performanceMonitoringService.recordProcessingTime('amd_analysis', amdStartTime);
       
       // 2. Sentiment Analysis
+      const sentimentStartTime = Date.now();
       const sentimentResult = await sentimentAnalysisService.analyzeText({
         text: newSegment,
         callId
       });
+      performanceMonitoringService.recordProcessingTime('sentiment_analysis', sentimentStartTime);
 
       // 3. Intent Classification
+      const intentStartTime = Date.now();
       const intentResult = this.classifyIntent(newSegment, fullTranscript);
+      performanceMonitoringService.recordProcessingTime('intent_classification', intentStartTime);
 
       // 4. Keyword Detection
+      const keywordStartTime = Date.now();
       const keywordResult = this.detectKeywords(newSegment);
+      performanceMonitoringService.recordProcessingTime('keyword_detection', keywordStartTime);
 
       // 5. Live Coaching Generation
+      const coachingStartTime = Date.now();
       const coachingRecommendations = await liveCoachingService.generateCoaching(
         callId,
         analysis.agentId,
@@ -369,16 +431,25 @@ export class LiveCallAnalyzer extends EventEmitter {
         sentimentResult.score,
         intentResult
       );
+      performanceMonitoringService.recordProcessingTime('coaching_generation', coachingStartTime);
 
-      // Update analysis
-      analysis.isAnsweringMachine = answeringMachineResult.isAnsweringMachine;
-      analysis.confidence = answeringMachineResult.confidence;
-      analysis.speechPattern = answeringMachineResult.pattern;
+      // Update analysis with advanced AMD results
+      analysis.isAnsweringMachine = advancedAMDResult.isAnsweringMachine;
+      analysis.confidence = advancedAMDResult.confidence;
+      analysis.speechPattern = advancedAMDResult.isAnsweringMachine ? 'machine' : 'human';
       analysis.sentimentScore = sentimentResult.score;
       analysis.intentClassification = intentResult;
       analysis.keywordDetection = keywordResult;
       analysis.coachingActive = coachingRecommendations.length > 0;
       analysis.lastUpdate = new Date();
+
+      // Store advanced AMD details for monitoring
+      (analysis as any).amdDetails = {
+        detectionMethod: advancedAMDResult.detectionMethod,
+        reasoning: advancedAMDResult.reasoning,
+        timeToDetection: advancedAMDResult.timeToDetection,
+        indicators: advancedAMDResult.indicators
+      };
 
       // Update in memory
       this.activeCalls.set(callId, analysis);
@@ -389,10 +460,21 @@ export class LiveCallAnalyzer extends EventEmitter {
       // Broadcast update (includes coaching data)
       this.broadcastCallUpdate(callId, analysis);
 
-      console.log(`🧠 Updated analysis for call ${callId}: ${analysis.intentClassification} (${analysis.confidence}) - ${coachingRecommendations.length} coaching tips`);
+      // Record performance metrics
+      performanceMonitoringService.recordProcessingTime('full_transcript_analysis', startTime);
+      performanceMonitoringService.recordMetric('analysis.confidence', advancedAMDResult.confidence, 'score', {
+        method: advancedAMDResult.detectionMethod,
+        result: advancedAMDResult.isAnsweringMachine ? 'machine' : 'human'
+      });
+
+      console.log(`🧠 Updated analysis for call ${callId}: ${analysis.intentClassification} (${analysis.confidence}) - AMD: ${advancedAMDResult.detectionMethod} - ${coachingRecommendations.length} coaching tips`);
 
     } catch (error) {
-      console.error(`❌ Error analyzing transcript segment for call ${callId}:`, error);
+      performanceMonitoringService.recordError('transcript_analysis_error', { 
+        callId, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      console.error(`❌ Error analyzing transcript for call ${callId}:`, error);
     }
   }
 
@@ -592,6 +674,9 @@ export class LiveCallAnalyzer extends EventEmitter {
 
     // Cleanup coaching session
     liveCoachingService.endCallCoaching(callId);
+
+    // Cleanup advanced AMD data
+    advancedAMDService.clearCallData(callId);
 
     // Cleanup
     this.activeCalls.delete(callId);

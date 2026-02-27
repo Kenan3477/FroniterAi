@@ -6,6 +6,8 @@
 import express, { Request, Response } from 'express';
 import { liveCallAnalyzer } from '../services/liveCallAnalyzer';
 import liveCoachingService from '../services/liveCoachingService';
+import performanceMonitoringService from '../services/performanceMonitoringService';
+import advancedAMDService from '../services/advancedAMDService';
 import EnhancedTwiMLService from '../services/enhancedTwiMLService';
 import { authenticate, requireRole } from '../middleware/auth';
 
@@ -304,6 +306,149 @@ router.post('/acknowledge-coaching', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Error acknowledging coaching recommendation:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * GET /api/live-analysis/performance/dashboard
+ * Get real-time performance dashboard
+ */
+router.get('/performance/dashboard', authenticate, async (req: Request, res: Response) => {
+  try {
+    const dashboard = performanceMonitoringService.getPerformanceDashboard();
+    
+    res.json({
+      success: true,
+      data: dashboard
+    });
+  } catch (error) {
+    console.error('❌ Error getting performance dashboard:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * GET /api/live-analysis/performance/accuracy-report
+ * Generate accuracy report for specified period
+ */
+router.get('/performance/accuracy-report', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, days = 7 } = req.query;
+    
+    let start: Date, end: Date;
+    
+    if (startDate && endDate) {
+      start = new Date(startDate as string);
+      end = new Date(endDate as string);
+    } else {
+      end = new Date();
+      start = new Date(end.getTime() - Number(days) * 24 * 60 * 60 * 1000);
+    }
+    
+    const report = performanceMonitoringService.generateAccuracyReport(start, end);
+    
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('❌ Error generating accuracy report:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * GET /api/live-analysis/amd/stats
+ * Get Advanced AMD system statistics
+ */
+router.get('/amd/stats', authenticate, async (req: Request, res: Response) => {
+  try {
+    const stats = advancedAMDService.getSystemStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('❌ Error getting AMD stats:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/live-analysis/performance/record-accuracy
+ * Record actual call outcome for accuracy measurement
+ */
+router.post('/performance/record-accuracy', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { callId, actualResult, predictedResult, confidence, detectionMethod, timeToDetection } = req.body;
+
+    if (!callId || !actualResult || !predictedResult) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing required fields: callId, actualResult, predictedResult' 
+      });
+    }
+
+    performanceMonitoringService.recordAnalysisAccuracy({
+      callId,
+      actualResult,
+      predictedResult,
+      confidence: confidence || 0,
+      detectionMethod: detectionMethod || 'unknown',
+      timeToDetection: timeToDetection || 0
+    });
+
+    res.json({
+      success: true,
+      message: 'Accuracy data recorded'
+    });
+  } catch (error) {
+    console.error('❌ Error recording accuracy data:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/live-analysis/amd/update-thresholds
+ * Update AMD detection thresholds
+ */
+router.post('/amd/update-thresholds', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const { thresholds } = req.body;
+
+    if (!thresholds || typeof thresholds !== 'object') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid thresholds object' 
+      });
+    }
+
+    advancedAMDService.updateThresholds(thresholds);
+
+    res.json({
+      success: true,
+      message: 'AMD thresholds updated',
+      data: { updatedThresholds: thresholds }
+    });
+  } catch (error) {
+    console.error('❌ Error updating AMD thresholds:', error);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
