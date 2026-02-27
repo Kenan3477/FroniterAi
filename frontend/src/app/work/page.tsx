@@ -19,13 +19,28 @@ import {
   ArrowPathIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
-import { getOutcomedInteractions, getActiveInteractions, getQueuedInteractions, getUnallocatedInteractions, getCategorizedInteractions, InteractionData, CategorizedInteractions } from '@/services/interactionService';
+import { getOutcomedInteractions, getActiveInteractions, getQueuedInteractions, getUnallocatedInteractions, getCategorizedInteractions, getInteractionCounts, getFilteredInteractions, InteractionData, CategorizedInteractions, InteractionFilters } from '@/services/interactionService';
 
 export default function WorkPage() {
   const [selectedView, setSelectedView] = useState('Queued Interactions');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // New filtering states
+  const [outcomeFilter, setOutcomeFilter] = useState('');
+  const [phoneFilter, setPhoneFilter] = useState('');
+  const [contactNameFilter, setContactNameFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+  
+  // Real-time sidebar counts
+  const [sidebarCounts, setSidebarCounts] = useState({
+    outcomed: 0,
+    allocated: 0,
+    queued: 0,
+    unallocated: 0
+  });
   
   // Get auth context data
   const { user, currentCampaign, agentStatus, updateAgentStatus } = useAuth();
@@ -149,10 +164,74 @@ export default function WorkPage() {
     }
   }, [agentId]);
 
+  // Real-time sidebar count updates
+  const updateSidebarCounts = useCallback(async () => {
+    try {
+      console.log('📊 Updating sidebar counts...');
+      const counts = await getInteractionCounts(agentId);
+      setSidebarCounts(counts);
+      console.log('📈 Updated sidebar counts:', counts);
+    } catch (error) {
+      console.error('Failed to update sidebar counts:', error);
+    }
+  }, [agentId]);
+
+  // Load filtered interaction data
+  const loadFilteredData = useCallback(async () => {
+    console.log('🔍 Loading filtered interactions...');
+    setIsLoadingInteractions(true);
+    try {
+      const filters: InteractionFilters = {};
+      
+      if (searchTerm) filters.searchTerm = searchTerm;
+      if (outcomeFilter) filters.outcome = outcomeFilter;
+      if (phoneFilter) filters.phoneNumber = phoneFilter;
+      if (contactNameFilter) filters.contactName = contactNameFilter;
+      if (dateFromFilter) filters.dateFrom = dateFromFilter;
+      if (dateToFilter) filters.dateTo = dateToFilter;
+      
+      const categorized = await getFilteredInteractions(filters);
+      setCategorizedInteractions(categorized);
+      console.log('🔄 Loaded filtered interactions:', categorized);
+    } catch (error) {
+      console.error('Failed to load filtered interaction data:', error);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  }, [agentId, searchTerm, outcomeFilter, phoneFilter, contactNameFilter, dateFromFilter, dateToFilter]);
+
+  // Function to refresh data after call completion
+  const refreshAfterCall = useCallback(async () => {
+    console.log('🔄 Refreshing data after call completion...');
+    await Promise.all([
+      updateSidebarCounts(),
+      loadFilteredData()
+    ]);
+  }, [updateSidebarCounts, loadFilteredData]);
+
   // Load interaction data when view changes or component mounts
   useEffect(() => {
-    loadInteractionData();
-  }, [selectedView, loadInteractionData]);
+    loadFilteredData();
+  }, [selectedView, loadFilteredData]);
+
+  // Update sidebar counts on mount and periodically
+  useEffect(() => {
+    updateSidebarCounts();
+    
+    // Update counts every 30 seconds for real-time feel
+    const interval = setInterval(updateSidebarCounts, 30000);
+    
+    return () => clearInterval(interval);
+  }, [updateSidebarCounts]);
+
+  // Update filtered data when filters change
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      loadFilteredData();
+    }, 500); // Debounce filter changes
+    
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, outcomeFilter, phoneFilter, contactNameFilter, dateFromFilter, dateToFilter]);
 
   // Preview Dialing Functions - define before useEffect that uses it
   const fetchNextPreviewContact = useCallback(async () => {
@@ -569,10 +648,10 @@ export default function WorkPage() {
           onViewChange={setSelectedView}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          outcomedInteractionsCount={categorizedInteractions.counts.outcomed}
-          activeInteractionsCount={categorizedInteractions.counts.allocated}
-          queuedInteractionsCount={categorizedInteractions.counts.queued}
-          unallocatedInteractionsCount={categorizedInteractions.counts.unallocated}
+          outcomedInteractionsCount={sidebarCounts.outcomed}
+          activeInteractionsCount={sidebarCounts.allocated}
+          queuedInteractionsCount={sidebarCounts.queued}
+          unallocatedInteractionsCount={sidebarCounts.unallocated}
           tasksCount={0} // Tasks will be implemented with real task management system
         />
 
@@ -588,6 +667,7 @@ export default function WorkPage() {
                   onCallInitiated={(result) => {
                     console.log('REST API call result:', result);
                   }}
+                  onCallCompleted={refreshAfterCall}
                 />
                 
                 {/* Auto Dialer Controls */}
@@ -699,6 +779,7 @@ export default function WorkPage() {
                       }}
                       onUpdateField={handleUpdateCustomerField}
                       onSave={handleSaveCustomerInfo}
+                      onCallCompleted={refreshAfterCall}
                     />
                   </div>
                 ) : (
@@ -777,46 +858,83 @@ export default function WorkPage() {
                     <div className="grid grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Date Range
+                          Date From
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
-                          <option>Today</option>
-                          <option>Yesterday</option>
-                          <option>This Week</option>
-                          <option>This Month</option>
-                          <option>Custom Range</option>
-                        </select>
+                        <input
+                          type="date"
+                          value={dateFromFilter}
+                          onChange={(e) => setDateFromFilter(e.target.value)}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Campaign
+                          Date To
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
-                          <option>All Campaigns</option>
-                          <option>Wiseguys failed payments</option>
-                          <option>Ken Campaign NEW</option>
-                        </select>
+                        <input
+                          type="date"
+                          value={dateToFilter}
+                          onChange={(e) => setDateToFilter(e.target.value)}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Outcome
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
-                          <option>All Outcomes</option>
-                          <option>Answering Machine</option>
-                          <option>Not Interested - NI</option>
-                          <option>Connected</option>
+                        <select 
+                          value={outcomeFilter}
+                          onChange={(e) => setOutcomeFilter(e.target.value)}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                        >
+                          <option value="">All Outcomes</option>
+                          <option value="completed">Completed</option>
+                          <option value="Not Interested">Not Interested</option>
+                          <option value="busy">Busy</option>
+                          <option value="no-answer">No Answer</option>
+                          <option value="voicemail">Voicemail</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Agent
+                          Phone Number
                         </label>
-                        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
-                          <option>All Agents</option>
-                          <option>Harley</option>
-                          <option>Nic</option>
-                        </select>
+                        <input
+                          type="text"
+                          placeholder="Enter phone number..."
+                          value={phoneFilter}
+                          onChange={(e) => setPhoneFilter(e.target.value)}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Contact Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter contact name..."
+                          value={contactNameFilter}
+                          onChange={(e) => setContactNameFilter(e.target.value)}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => {
+                            setOutcomeFilter('');
+                            setPhoneFilter('');
+                            setContactNameFilter('');
+                            setDateFromFilter('');
+                            setDateToFilter('');
+                            setSearchTerm('');
+                          }}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+                        >
+                          Clear Filters
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -829,7 +947,7 @@ export default function WorkPage() {
                   data={getCurrentData()}
                   section={selectedView}
                   searchTerm={searchTerm}
-                  onRefresh={loadInteractionData}
+                  onRefresh={loadFilteredData}
                 />
               </div>
             </>

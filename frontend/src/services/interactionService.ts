@@ -21,6 +21,25 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+export interface InteractionFilters {
+  agentId?: string;
+  campaignId?: string;
+  outcome?: string;
+  phoneNumber?: string;
+  contactName?: string;
+  searchTerm?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+}
+
+export interface InteractionCounts {
+  outcomed: number;
+  allocated: number;
+  queued: number;
+  unallocated: number;
+}
+
 export interface InteractionData {
   id: string;
   agentName: string;
@@ -96,6 +115,91 @@ export async function getCategorizedInteractions(agentId?: string): Promise<Cate
     return getEmptyCategories();
   } catch (error) {
     console.error('❌ Error fetching categorized interactions:', error);
+    return getEmptyCategories();
+  }
+}
+
+/**
+ * Get real-time interaction counts for sidebar (daily reset)
+ */
+export async function getInteractionCounts(agentId?: string): Promise<InteractionCounts> {
+  try {
+    const params = new URLSearchParams();
+    params.append('agentId', agentId || 'current-agent');
+    
+    console.log('📊 Fetching real-time interaction counts...');
+
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/counts?${params}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch interaction counts:', response.status);
+      return { outcomed: 0, allocated: 0, queued: 0, unallocated: 0 };
+    }
+
+    const data = await response.json();
+    console.log('📈 Received interaction counts:', data.counts);
+
+    if (data.success && data.counts) {
+      return data.counts;
+    }
+
+    return { outcomed: 0, allocated: 0, queued: 0, unallocated: 0 };
+  } catch (error) {
+    console.error('Error fetching interaction counts:', error);
+    return { outcomed: 0, allocated: 0, queued: 0, unallocated: 0 };
+  }
+}
+
+/**
+ * Fetch filtered categorized interactions with search capabilities
+ */
+export async function getFilteredInteractions(filters: InteractionFilters = {}): Promise<CategorizedInteractions> {
+  try {
+    const params = new URLSearchParams();
+    
+    // Always use "current-agent" to let backend resolve the actual agentId
+    params.append('agentId', filters.agentId || 'current-agent');
+    
+    if (filters.campaignId) params.append('campaignId', filters.campaignId);
+    if (filters.outcome) params.append('outcome', filters.outcome);
+    if (filters.phoneNumber) params.append('phoneNumber', filters.phoneNumber);
+    if (filters.contactName) params.append('contactName', filters.contactName);
+    if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    
+    console.log('🔍 Fetching filtered interactions with params:', Object.fromEntries(params));
+
+    const response = await fetch(`${BACKEND_URL}/api/interaction-history/categorized?${params}`, {
+      headers: getAuthHeaders(),
+    });
+
+    console.log('📞 Filtered interaction history response status:', response.status);
+
+    if (!response.ok) {
+      console.error('Failed to fetch filtered interactions:', response.status);
+      return getEmptyCategories();
+    }
+
+    const data = await response.json();
+    console.log('📊 Received filtered interaction data:', data);
+
+    if (data.success && data.data) {
+      return {
+        queued: transformInteractionData(data.data.queued || []),
+        allocated: transformInteractionData(data.data.allocated || []),
+        outcomed: transformInteractionData(data.data.outcomed || []),
+        unallocated: transformInteractionData(data.data.unallocated || []),
+        counts: data.data.counts || { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
+      };
+    }
+
+    return getEmptyCategories();
+  } catch (error) {
+    console.error('Error fetching filtered interactions:', error);
     return getEmptyCategories();
   }
 }

@@ -15,6 +15,9 @@ export interface InteractionHistoryFilters {
   outcome?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  phoneNumber?: string;  // NEW: For phone number search
+  contactName?: string;  // NEW: For contact name search
+  searchTerm?: string;   // NEW: General search term
   limit?: number;
   offset?: number;
 }

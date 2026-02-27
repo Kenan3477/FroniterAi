@@ -13,7 +13,7 @@ import {
   InteractionHistoryFilters
 } from '../services/interactionHistoryService';
 import { prisma } from '../database/index';
-import { normalizePhoneNumber } from '../utils/phoneUtils';
+import { normalizePhoneNumber, generatePhoneVariations } from '../utils/phoneUtils';
 
 const router = express.Router();
 
@@ -117,13 +117,34 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   }
   if (filters.campaignId) baseWhere.campaignId = filters.campaignId;
   
+  // Add phone number and contact search functionality
+  if (filters.phoneNumber) {
+    const normalizedSearch = normalizePhoneNumber(filters.phoneNumber);
+    if (normalizedSearch) {
+      const phoneVariations = generatePhoneVariations(normalizedSearch);
+      baseWhere.phoneNumber = { in: phoneVariations };
+      console.log(`📞 Filtering by phone number variations: ${phoneVariations.join(', ')}`);
+    }
+  }
+  
+  if (filters.contactName) {
+    // We'll handle contact name filtering after we get the records
+    // since it requires joining with contact table
+    console.log(`👤 Will filter by contact name: ${filters.contactName}`);
+  }
+  
+  if (filters.outcome) {
+    baseWhere.outcome = filters.outcome;
+    console.log(`🎯 Filtering by outcome: ${filters.outcome}`);
+  }
+  
   if (filters.dateFrom || filters.dateTo) {
     baseWhere.createdAt = {};
     if (filters.dateFrom) baseWhere.createdAt.gte = filters.dateFrom;
     if (filters.dateTo) baseWhere.createdAt.lte = filters.dateTo;
   }
 
-  // Default to today's records if no date filter
+  // Default to today's records only for interaction counts and sidebar
   if (!filters.dateFrom && !filters.dateTo) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -134,6 +155,7 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       gte: today,
       lt: tomorrow
     };
+    console.log(`📅 No date filter provided - defaulting to today: ${today.toISOString()} to ${tomorrow.toISOString()}`);
   }
 
   const limit = filters.limit || 50;
@@ -301,8 +323,34 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
     };
   }));
 
-  // Categorize the records
-  const outcomed = transformedRecords.filter(record => 
+  // Apply post-processing filters (contact name, general search)
+  let filteredRecords = transformedRecords;
+  
+  if (filters.contactName) {
+    const nameSearch = filters.contactName.toLowerCase();
+    filteredRecords = filteredRecords.filter(record => 
+      record.contactName?.toLowerCase().includes(nameSearch) ||
+      record.customerName?.toLowerCase().includes(nameSearch)
+    );
+    console.log(`👤 Filtered by contact name '${filters.contactName}': ${filteredRecords.length} records`);
+  }
+  
+  if (filters.searchTerm) {
+    const searchTerm = filters.searchTerm.toLowerCase();
+    filteredRecords = filteredRecords.filter(record => 
+      record.contactName?.toLowerCase().includes(searchTerm) ||
+      record.customerName?.toLowerCase().includes(searchTerm) ||
+      record.telephone?.includes(searchTerm) ||
+      record.contactPhone?.includes(searchTerm) ||
+      record.campaignName?.toLowerCase().includes(searchTerm) ||
+      record.outcome?.toLowerCase().includes(searchTerm) ||
+      record.agentName?.toLowerCase().includes(searchTerm)
+    );
+    console.log(`🔍 Filtered by search term '${filters.searchTerm}': ${filteredRecords.length} records`);
+  }
+
+  // Categorize the filtered records
+  const outcomed = filteredRecords.filter(record => 
     record.outcome && 
     record.outcome !== 'pending' && 
     record.outcome !== '' &&
@@ -313,11 +361,11 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   if (outcomed.length > 0) {
     console.log('Sample outcomed record:', outcomed[0]);
   }
-  if (transformedRecords.length > 0) {
-    console.log('All outcomes found:', transformedRecords.map(r => r.outcome));
+  if (filteredRecords.length > 0) {
+    console.log('All outcomes found:', filteredRecords.map(r => r.outcome));
   }
 
-  const allocated = transformedRecords.filter(record => 
+  const allocated = filteredRecords.filter(record => 
     !record.outcome || 
     record.outcome === 'pending' || 
     record.outcome === 'in-progress'
@@ -351,6 +399,81 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
 }
 
 /**
+ * GET /api/interaction-history/counts
+ * Get just the counts for sidebar - optimized for real-time updates
+ */
+router.get('/counts', async (req, res) => {
+  try {
+    let agentId = req.query.agentId as string;
+    
+    // Handle special case where frontend sends "current-agent"
+    if (agentId === 'current-agent') {
+      agentId = (req as any).user?.userId?.toString() || '509'; // Default to 509 for Kenan
+    }
+
+    // Get today's date for daily reset
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    console.log(`📊 Getting today's interaction counts for agent ${agentId}`);
+    console.log(`📅 Date range: ${today.toISOString()} to ${tomorrow.toISOString()}`);
+
+    // Get counts directly from database for efficiency
+    const [outcomedCount, pendingCount] = await Promise.all([
+      prisma.callRecord.count({
+        where: {
+          agentId: agentId,
+          createdAt: { gte: today, lt: tomorrow },
+          AND: [
+            { outcome: { not: null } },
+            { outcome: { not: '' } },
+            { outcome: { not: 'pending' } }
+          ]
+        }
+      }),
+      prisma.callRecord.count({
+        where: {
+          agentId: agentId,
+          createdAt: { gte: today, lt: tomorrow },
+          OR: [
+            { outcome: null },
+            { outcome: '' },
+            { outcome: 'pending' }
+          ]
+        }
+      })
+    ]);
+
+    const counts = {
+      outcomed: outcomedCount,
+      allocated: pendingCount,
+      queued: 0, // No callbacks in current system
+      unallocated: 0
+    };
+
+    console.log('📈 Real-time counts:', counts);
+
+    res.json({
+      success: true,
+      counts: counts,
+      date: today.toISOString(),
+      agentId: agentId,
+      message: 'Daily interaction counts retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting interaction counts:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to get interaction counts'
+    });
+  }
+});
+
+/**
  * GET /api/interaction-history/categorized
  * Get categorized interactions for call history subtabs
  */
@@ -373,6 +496,9 @@ router.get('/categorized', async (req, res) => {
       channel: req.query.channel as string,
       status: req.query.status as 'queued' | 'allocated' | 'outcomed' | 'unallocated' | 'active',
       outcome: req.query.outcome as string,
+      phoneNumber: req.query.phoneNumber as string,
+      contactName: req.query.contactName as string,
+      searchTerm: req.query.searchTerm as string,
       dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,

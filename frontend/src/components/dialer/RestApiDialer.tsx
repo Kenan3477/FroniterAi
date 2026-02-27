@@ -8,9 +8,10 @@ import { DispositionCard, DispositionData } from './DispositionCard';
 
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
+  onCallCompleted?: () => void; // NEW: Callback to refresh data after call completion
 }
 
-export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated }) => {
+export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated, onCallCompleted }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
@@ -456,6 +457,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated })
         setShowDispositionModal(false);
         setPendingCallEnd(null);
         setActiveRestApiCall(null);
+        
+        // Refresh work page data
+        if (onCallCompleted) {
+          console.log('🔄 Triggering data refresh after call completion...');
+          onCallCompleted();
+        }
         
         setLastCallResult({
           success: true,

@@ -39,12 +39,14 @@ interface CustomerInfoCardProps {
   customerData: CustomerInfoCardData;
   onUpdateField: (field: keyof CustomerInfoCardData, value: string) => void;
   onSave?: () => void;
+  onCallCompleted?: () => void; // NEW: Callback to refresh data after call completion
 }
 
 export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   customerData,
   onUpdateField,
-  onSave
+  onSave,
+  onCallCompleted
 }) => {
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -156,6 +158,12 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         
         // Close disposition modal
         setShowDispositionModal(false);
+        
+        // Refresh work page data
+        if (onCallCompleted) {
+          console.log('🔄 Triggering data refresh after call completion...');
+          onCallCompleted();
+        }
         
         // Optionally clear call state after a delay
         setTimeout(() => {
