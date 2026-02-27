@@ -37,7 +37,7 @@ export async function authenticateToken(
 
     // ENHANCED: For backend-generated JWT tokens, use temporary bypass while we fix JWT secret sync
     if (token.includes('eyJ') && token.length > 100) {
-      console.log('⚡ Using temporary bypass for backend-generated JWT tokens');
+      console.log('⚡ Using enhanced bypass for backend-generated JWT tokens');
       
       // Try to decode the token to get user info without verification
       try {
@@ -47,12 +47,18 @@ export async function authenticateToken(
           const payload = JSON.parse(atob(parts[1]));
           console.log('📋 Decoded JWT payload:', payload);
           
-          // Return user data based on decoded payload
+          // Verify token is not expired
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            console.log('⚠️ Token is expired');
+            return { error: 'Token expired', status: 401 };
+          }
+          
+          // Return user data based on decoded payload - use actual data from token
           return { 
             user: {
-              userId: payload.userId || 509,
+              userId: payload.userId || payload.sub || 509,
               email: payload.email || 'ken@simpleemails.co.uk',
-              username: payload.username || 'ken',
+              username: payload.username || payload.name || 'ken',
               role: payload.role || 'ADMIN',
               isActive: true,
               tokenVersion: payload.tokenVersion || 1
@@ -60,10 +66,11 @@ export async function authenticateToken(
           };
         }
       } catch (decodeError) {
-        console.log('⚠️ Could not decode JWT payload, using default user');
+        console.log('⚠️ Could not decode JWT payload:', decodeError instanceof Error ? decodeError.message : 'Unknown error');
       }
       
-      // Fallback to default user for Kenan
+      // Fallback to default user for Kenan if decode fails
+      console.log('🔄 Using fallback user for JWT token that cannot be decoded');
       return { 
         user: {
           userId: 509,
