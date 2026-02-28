@@ -10,16 +10,16 @@ import twilio from 'twilio';
 
 const router = express.Router();
 
-// Apply authentication to all routes
-router.use(authenticate);
-
 /**
  * GET /api/recordings/test
- * Test endpoint to verify route registration
+ * Test endpoint to verify route registration - NO AUTH for testing
  */
 router.get('/test', async (req: Request, res: Response) => {
   res.json({ success: true, message: 'Recordings route is working!' });
 });
+
+// Apply authentication to all other routes  
+router.use(authenticate);
 
 /**
  * GET /api/recordings/:id/stream
