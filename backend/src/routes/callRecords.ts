@@ -159,7 +159,7 @@ router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response) 
     const existingRecord = await prisma.callRecord.findUnique({
       where: { id: callRecordId },
       include: {
-        recordings: true
+        recordingFile: true
       }
     });
 
