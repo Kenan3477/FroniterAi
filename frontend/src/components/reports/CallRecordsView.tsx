@@ -21,7 +21,8 @@ import {
   EyeIcon,
   XMarkIcon,
   DocumentTextIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 interface Campaign {
@@ -587,6 +588,76 @@ export const CallRecordsView: React.FC = () => {
     }
   };
 
+  const deleteCallRecord = async (callRecordId: string, phoneNumber: string) => {
+    if (!confirm(`Are you sure you want to delete the call record for ${phoneNumber}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/call-records/${callRecordId}`, {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ Call record deleted successfully!`);
+        // Refresh the records
+        fetchCallRecords();
+      } else {
+        alert(`❌ Delete failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting call record:', error);
+      alert(`❌ Delete error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAllCallRecords = async () => {
+    if (!confirm('Are you sure you want to delete ALL call records? This will permanently remove all call data and cannot be undone.')) {
+      return;
+    }
+    
+    if (!confirm('This is your final warning. ALL call records, recordings, and interactions will be permanently deleted. Are you absolutely sure?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/call-records/bulk-delete', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ All call records deleted successfully! Deleted: ${data.data.callRecordsDeleted} call records and ${data.data.recordingsDeleted} recordings.`);
+        // Refresh the records
+        fetchCallRecords();
+      } else {
+        alert(`❌ Bulk delete failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting all call records:', error);
+      alert(`❌ Bulk delete error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Removed syncTwilioRecordings and exportToCSV functions as requested
 
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -630,7 +701,16 @@ export const CallRecordsView: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
           <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
         </div>
-        {/* Removed Export CSV, Clean Demo Records, and Sync Twilio buttons as requested */}
+        <div className="flex space-x-2">
+          <button
+            onClick={deleteAllCallRecords}
+            className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            title="Delete all call records permanently"
+          >
+            <TrashIcon className="h-4 w-4 mr-1" />
+            Delete All
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -920,12 +1000,22 @@ export const CallRecordsView: React.FC = () => {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => setSelectedRecord(record)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setSelectedRecord(record)}
+                      className="text-blue-600 hover:text-blue-900"
+                      title="View details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteCallRecord(record.id, record.phoneNumber)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete call record"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
