@@ -79,7 +79,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
         console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
 
         // Fetch the audio file from Twilio
-        const fetch = require('node-fetch');
+        const fetch = (await import('node-fetch')).default;
         const twilioResponse = await fetch(mediaUrl, {
           headers: {
             'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
@@ -108,7 +108,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
         return res.status(500).json({
           success: false,
           error: 'Failed to stream recording from Twilio',
-          details: twilioError.message
+          details: twilioError instanceof Error ? twilioError.message : String(twilioError)
         });
       }
     } else {
