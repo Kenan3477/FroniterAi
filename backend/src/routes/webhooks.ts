@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
 import twilio from 'twilio';
+import { prisma } from '../database/index';
 
 const router = Router();
 
@@ -53,6 +54,77 @@ router.post('/status', validateTwilioSignature, (req: Request, res: Response) =>
   console.log(`Call ${CallSid}: ${CallStatus} (Duration: ${CallDuration}s) ${From} → ${To}`);
   
   res.status(200).send('OK');
+});
+
+// Recording webhook handler for when Twilio completes a recording - SECURED
+router.post('/recording', validateTwilioSignature, async (req: Request, res: Response) => {
+  try {
+    console.log('🎵 Recording webhook received:', req.body);
+    
+    const { 
+      RecordingSid, 
+      CallSid, 
+      RecordingUrl, 
+      RecordingDuration, 
+      RecordingStatus,
+      RecordingChannels 
+    } = req.body;
+
+    if (RecordingStatus === 'completed') {
+      console.log(`✅ Recording completed for call ${CallSid}: ${RecordingSid}`);
+      
+      // Find the call record - try both callId and exact CallSid match
+      let callRecord = await prisma.callRecord.findFirst({
+        where: { callId: CallSid }
+      });
+
+      // If not found by callId, try to find by any field that might contain CallSid
+      if (!callRecord) {
+        callRecord = await prisma.callRecord.findFirst({
+          where: { 
+            OR: [
+              { recording: { contains: CallSid } },
+              { notes: { contains: CallSid } }
+            ]
+          }
+        });
+      }
+
+      if (callRecord) {
+        // Create or update the recording record
+        await prisma.recording.upsert({
+          where: { callRecordId: callRecord.id },
+          update: {
+            fileName: `recording_${RecordingSid}.wav`,
+            filePath: RecordingUrl,
+            duration: parseInt(RecordingDuration) || 0,
+            format: 'wav',
+            uploadStatus: 'completed',
+            updatedAt: new Date()
+          },
+          create: {
+            callRecordId: callRecord.id,
+            fileName: `recording_${RecordingSid}.wav`,
+            filePath: RecordingUrl,
+            duration: parseInt(RecordingDuration) || 0,
+            format: 'wav',
+            quality: RecordingChannels === '2' ? 'stereo' : 'mono',
+            storageType: 'twilio',
+            uploadStatus: 'completed'
+          }
+        });
+
+        console.log(`📝 Recording saved for call ${CallSid}`);
+      } else {
+        console.warn(`⚠️ Call record not found for CallSid: ${CallSid}`);
+      }
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Error processing recording webhook:', error);
+    res.status(500).send('Error processing recording');
+  }
 });
 
 // Welcome route for inbound calls - SECURED
