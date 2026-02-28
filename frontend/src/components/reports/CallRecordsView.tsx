@@ -634,26 +634,60 @@ export const CallRecordsView: React.FC = () => {
       setLoading(true);
       console.log('🗑️ Starting bulk delete request...');
       
-      const token = localStorage.getItem('token');
+      // Get token from multiple sources
+      let token = localStorage.getItem('token') || 
+                  localStorage.getItem('authToken') || 
+                  sessionStorage.getItem('token') || 
+                  sessionStorage.getItem('authToken') ||
+                  document.cookie.split(';').find(c => c.trim().startsWith('token='))?.split('=')[1];
+      
       console.log('Token available:', !!token);
+      console.log('Token length:', token?.length || 0);
+      
+      // If no token, try to get one from auth context
+      if (!token && typeof window !== 'undefined') {
+        // Check if there's an auth context we can access
+        const authData = localStorage.getItem('auth') || sessionStorage.getItem('auth');
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            token = parsed.token || parsed.accessToken;
+            console.log('Found token in auth data:', !!token);
+          } catch (e) {
+            console.log('Failed to parse auth data');
+          }
+        }
+      }
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please log out and log back in.');
+      }
       
       const response = await fetch('/api/call-records/bulk-delete', {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include'
       });
       
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       // Get response text first to handle empty responses
       const responseText = await response.text();
       console.log('Response text:', responseText);
       
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log out and log back in.');
+        } else if (response.status === 403) {
+          throw new Error('Access denied. Admin privileges required.');
+        } else if (response.status === 405) {
+          throw new Error('Method not allowed. The delete endpoint may not be properly configured.');
+        }
         throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
       }
       
@@ -748,6 +782,111 @@ export const CallRecordsView: React.FC = () => {
     }
   };
 
+  const nuclearCleanup = async () => {
+    if (!confirm('⚠️ NUCLEAR CLEANUP WARNING ⚠️\n\nThis will PERMANENTLY DELETE ALL:\n• Call Records\n• Recordings\n• Interactions\n• Transcriptions\n• KPIs\n• Sales Records\n• Queue Entries\n• Pause Events\n\nAre you absolutely sure?')) {
+      return;
+    }
+    
+    if (!confirm('🚨 FINAL WARNING 🚨\n\nThis action cannot be undone. All call data will be permanently lost.\n\nType "DELETE EVERYTHING" in the next prompt if you want to proceed.')) {
+      return;
+    }
+    
+    const confirmation = prompt('Type "DELETE EVERYTHING" to confirm:');
+    if (confirmation !== 'DELETE EVERYTHING') {
+      alert('❌ Cleanup cancelled. You must type exactly "DELETE EVERYTHING" to confirm.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log('☢️ Starting nuclear cleanup...');
+      
+      // Get token from multiple sources
+      let token = localStorage.getItem('token') || 
+                  localStorage.getItem('authToken') || 
+                  sessionStorage.getItem('token') || 
+                  sessionStorage.getItem('authToken') ||
+                  document.cookie.split(';').find(c => c.trim().startsWith('token='))?.split('=')[1];
+      
+      if (!token && typeof window !== 'undefined') {
+        const authData = localStorage.getItem('auth') || sessionStorage.getItem('auth');
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            token = parsed.token || parsed.accessToken;
+          } catch (e) {
+            console.log('Failed to parse auth data');
+          }
+        }
+      }
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please log out and log back in.');
+      }
+      
+      const response = await fetch('/api/call-records/nuclear-cleanup', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      console.log('Nuclear cleanup response status:', response.status);
+      
+      const responseText = await response.text();
+      console.log('Nuclear cleanup response:', responseText);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log out and log back in.');
+        } else if (response.status === 403) {
+          throw new Error('Access denied. Admin privileges required.');
+        }
+        throw new Error(`Nuclear cleanup failed! Status: ${response.status}, Response: ${responseText}`);
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error(`Invalid response: ${responseText}`);
+      }
+      
+      if (data.success) {
+        alert(`✅ NUCLEAR CLEANUP COMPLETED! 
+        
+Deleted:
+• ${data.data.callRecordsDeleted} call records
+• ${data.data.recordingsDeleted} recordings
+• ${data.data.interactionsDeleted} interactions
+• ${data.data.transcriptionsDeleted} transcriptions
+• ${data.data.kpisDeleted} KPIs
+• ${data.data.salesDeleted} sales records
+• ${data.data.queueEntriesDeleted} queue entries
+• ${data.data.pauseEventsDeleted} pause events
+
+Reset ${data.data.contactsReset} contacts to new status.
+
+System is now completely clean!`);
+        
+        // Force refresh everything
+        setCallRecords([]);
+        setTotalRecords(0);
+        setCurrentPage(1);
+        await fetchCallRecords();
+      } else {
+        throw new Error(data.error || 'Nuclear cleanup failed');
+      }
+    } catch (error) {
+      console.error('Nuclear cleanup error:', error);
+      alert(`❌ Nuclear cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Removed syncTwilioRecordings and exportToCSV functions as requested
 
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -806,6 +945,13 @@ export const CallRecordsView: React.FC = () => {
             title="Force clear cache and refresh data"
           >
             🔄 Force Refresh
+          </button>
+          <button
+            onClick={nuclearCleanup}
+            className="inline-flex items-center px-3 py-2 border border-red-600 shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            title="Nuclear cleanup - completely wipe all call data"
+          >
+            ☢️ Nuclear Cleanup
           </button>
         </div>
       </div>

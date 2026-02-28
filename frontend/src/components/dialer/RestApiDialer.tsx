@@ -9,9 +9,16 @@ import { DispositionCard, DispositionData } from './DispositionCard';
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
   onCallCompleted?: () => void; // NEW: Callback to refresh data after call completion
+  campaignId?: string; // NEW: Allow passing campaign information
+  campaignName?: string; // NEW: Allow passing campaign name
 }
 
-export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated, onCallCompleted }) => {
+export const RestApiDialer: React.FC<RestApiDialerProps> = ({ 
+  onCallInitiated, 
+  onCallCompleted,
+  campaignId = 'DAC', // Default to DAC campaign
+  campaignName = 'Dial a Contact Campaign'
+}) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastCallResult, setLastCallResult] = useState<any>(null);
@@ -512,7 +519,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({ onCallInitiated, o
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ 
-          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
+          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+          campaignId: campaignId,
+          campaignName: campaignName,
+          agentId: agentId
         })
       });
       
