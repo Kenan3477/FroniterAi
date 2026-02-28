@@ -14,6 +14,14 @@ const router = express.Router();
 router.use(authenticate);
 
 /**
+ * GET /api/recordings/test
+ * Test endpoint to verify route registration
+ */
+router.get('/test', async (req: Request, res: Response) => {
+  res.json({ success: true, message: 'Recordings route is working!' });
+});
+
+/**
  * GET /api/recordings/:id/stream
  * Stream recording audio from Twilio
  */
