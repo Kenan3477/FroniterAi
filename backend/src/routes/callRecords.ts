@@ -138,6 +138,76 @@ router.delete('/bulk-delete', requireRole('ADMIN'), async (req: Request, res: Re
 });
 
 /**
+ * DELETE /api/call-records/:id
+ * Delete individual call record by ID
+ * Requires ADMIN role
+ */
+router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const callRecordId = req.params.id;
+    
+    if (!callRecordId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Call record ID is required'
+      });
+    }
+
+    console.log(`🗑️  Deleting call record: ${callRecordId}`);
+    
+    // Check if call record exists
+    const existingRecord = await prisma.callRecord.findUnique({
+      where: { id: callRecordId },
+      include: {
+        recordings: true
+      }
+    });
+
+    if (!existingRecord) {
+      return res.status(404).json({
+        success: false,
+        error: 'Call record not found'
+      });
+    }
+
+    // Delete in transaction to handle related records
+    const deleteResult = await prisma.$transaction(async (tx) => {
+      // First delete any recordings associated with this call
+      const recordingDeleteResult = await tx.recording.deleteMany({
+        where: { callRecordId: callRecordId }
+      });
+      
+      // Then delete the call record
+      await tx.callRecord.delete({
+        where: { id: callRecordId }
+      });
+      
+      return {
+        recordingsDeleted: recordingDeleteResult.count
+      };
+    });
+
+    console.log(`✅ Successfully deleted call record ${callRecordId} and ${deleteResult.recordingsDeleted} recordings`);
+    
+    res.json({
+      success: true,
+      data: {
+        deletedCallRecordId: callRecordId,
+        recordingsDeleted: deleteResult.recordingsDeleted
+      },
+      message: `Call record deleted successfully`
+    });
+  } catch (error) {
+    console.error('❌ Failed to delete call record:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete call record',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+/**
  * POST /api/call-records/start
  * Start a new call and create call record
  * Requires: AGENT, SUPERVISOR, or ADMIN role
