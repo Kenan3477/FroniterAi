@@ -690,6 +690,64 @@ export const CallRecordsView: React.FC = () => {
     }
   };
 
+  const forceClearAndRefresh = async () => {
+    try {
+      console.log('🔄 Force clearing cache and refreshing...');
+      setLoading(true);
+      
+      // Clear all local state
+      setCallRecords([]);
+      setTotalRecords(0);
+      setCurrentPage(1);
+      setError(null);
+      
+      // Clear any cached data in localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('call') || key.includes('record') || key.includes('cache'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Force reload the data with cache-busting timestamp
+      const timestamp = Date.now();
+      const response = await fetch(`/api/call-records?page=1&limit=${pageSize}&_t=${timestamp}`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCallRecords(data.callRecords || []);
+        setTotalRecords(data.pagination?.total || 0);
+        console.log('✅ Force refresh completed. Records found:', data.callRecords?.length || 0);
+        
+        if ((data.callRecords?.length || 0) === 0) {
+          alert('✅ Success! No call records found. The system is clean.');
+        } else {
+          alert(`📊 Found ${data.callRecords.length} call records after force refresh.`);
+        }
+      } else {
+        throw new Error(data.error || 'Failed to fetch records');
+      }
+      
+    } catch (error) {
+      console.error('Error during force refresh:', error);
+      setError(`Force refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Removed syncTwilioRecordings and exportToCSV functions as requested
 
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -741,6 +799,13 @@ export const CallRecordsView: React.FC = () => {
           >
             <TrashIcon className="h-4 w-4 mr-1" />
             Delete All
+          </button>
+          <button
+            onClick={forceClearAndRefresh}
+            className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            title="Force clear cache and refresh data"
+          >
+            🔄 Force Refresh
           </button>
         </div>
       </div>
