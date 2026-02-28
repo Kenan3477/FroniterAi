@@ -824,7 +824,8 @@ export const CallRecordsView: React.FC = () => {
         throw new Error('Authentication token not found. Please log out and log back in.');
       }
       
-      const response = await fetch('/api/call-records/nuclear-cleanup', {
+      // Try primary nuclear cleanup endpoint first
+      let response = await fetch('/api/call-records/nuclear-cleanup', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -834,6 +835,20 @@ export const CallRecordsView: React.FC = () => {
       });
       
       console.log('Nuclear cleanup response status:', response.status);
+      
+      // If primary endpoint fails with 405, try emergency endpoint
+      if (response.status === 405) {
+        console.log('Primary endpoint failed with 405, trying emergency endpoint...');
+        response = await fetch('/api/emergency/wipe-call-data', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
+        });
+        console.log('Emergency cleanup response status:', response.status);
+      }
       
       const responseText = await response.text();
       console.log('Nuclear cleanup response:', responseText);
