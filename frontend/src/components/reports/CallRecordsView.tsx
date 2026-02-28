@@ -632,23 +632,55 @@ export const CallRecordsView: React.FC = () => {
     
     try {
       setLoading(true);
+      console.log('🗑️ Starting bulk delete request...');
+      
+      const token = localStorage.getItem('token');
+      console.log('Token available:', !!token);
+      
       const response = await fetch('/api/call-records/bulk-delete', {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': token ? `Bearer ${token}` : ''
         },
         credentials: 'include'
       });
       
-      const data = await response.json();
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      // Get response text first to handle empty responses
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+      }
+      
+      let data;
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          throw new Error(`Invalid JSON response: ${responseText}`);
+        }
+      } else {
+        // Empty response - assume success for delete operations
+        data = { success: true, data: { callRecordsDeleted: 0, recordingsDeleted: 0 } };
+      }
+      
+      console.log('Parsed data:', data);
       
       if (data.success) {
-        alert(`✅ All call records deleted successfully! Deleted: ${data.data.callRecordsDeleted} call records and ${data.data.recordingsDeleted} recordings.`);
-        // Refresh the records
-        fetchCallRecords();
+        alert(`✅ All call records deleted successfully! Deleted: ${data.data?.callRecordsDeleted || 0} call records and ${data.data?.recordingsDeleted || 0} recordings.`);
+        // Force refresh the records
+        await fetchCallRecords();
+        // Also force clear the local state
+        setCallRecords([]);
+        setTotalRecords(0);
       } else {
-        alert(`❌ Bulk delete failed: ${data.error}`);
+        throw new Error(data.error || 'Delete operation failed');
       }
     } catch (error) {
       console.error('Error deleting all call records:', error);
