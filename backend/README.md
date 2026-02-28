@@ -487,4 +487,4 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for a complete list of contributors.
 
 Made with ❤️ by the [Kennex AI Team](https://kennex.ai/team)
 
-</div>
+</div># Force Railway redeploy with emergency route
