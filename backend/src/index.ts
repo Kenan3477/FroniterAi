@@ -36,6 +36,7 @@ import userRoutes from './routes/users'; // RE-ENABLED - stats endpoint for admi
 import userManagementRoutes from './routes/userManagement'; // Enterprise user management system
 import callRecordsRoutes from './routes/callRecords'; // Production call records service
 import recordingRoutes from './routes/recordingRoutes'; // Call recording download and streaming
+import recordingsRoutes from './routes/recordings'; // NEW: Twilio recording streaming service
 import { recordingFixRoutes } from './routes/recordingFix'; // ADMIN: Recording system fixes
 import { emergencyRoutes } from './routes/emergency'; // EMERGENCY: Account unlock and debugging
 import securityRoutes from './routes/security'; // SECURITY: Admin security monitoring dashboard
@@ -220,7 +221,7 @@ class App {
     this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
-    this.app.use('/api/recordings', require('./routes/enhancedRecordingRoutes').default); // Enhanced call recording streaming and metadata
+    this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
     this.app.use('/api', transcriptRoutes); // AI-powered call transcription system
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
