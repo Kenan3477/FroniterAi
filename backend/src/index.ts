@@ -39,6 +39,7 @@ import recordingRoutes from './routes/recordingRoutes'; // Call recording downlo
 import { recordingFixRoutes } from './routes/recordingFix'; // ADMIN: Recording system fixes
 import { emergencyRoutes } from './routes/emergency'; // EMERGENCY: Account unlock and debugging
 import securityRoutes from './routes/security'; // SECURITY: Admin security monitoring dashboard
+import emergencyCleanupRoutes from './routes/emergencyCleanup'; // EMERGENCY: Call data cleanup when other routes fail
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
@@ -237,6 +238,7 @@ class App {
     // this.app.use('/api/analytics', analyticsRoutes); // DISABLED - schema conflicts
     this.app.use('/api/webhooks', webhookRoutes); // Re-enabled for Twilio webhook handling
     this.app.use('/api/calls-twiml', callsRoutes); // TwiML and call management routes
+    this.app.use('/api/emergency', emergencyCleanupRoutes); // Emergency cleanup routes for nuclear reset
     this.app.use('/api/calls', callsRoutes); // Frontend compatibility for save-call-data
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
