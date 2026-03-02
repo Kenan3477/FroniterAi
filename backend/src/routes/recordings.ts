@@ -58,31 +58,28 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
           throw new Error('Twilio credentials not configured');
         }
 
-        const client = twilio(accountSid, authToken);
-        
         // Extract recording SID from filename or filePath
         let recordingSid = '';
+        
+        // First try from fileName (e.g., "recording_RE123abc.wav")
         if (recording.fileName.includes('_')) {
-          recordingSid = recording.fileName.split('_')[1]?.replace('.wav', '');
+          recordingSid = recording.fileName.split('_')[1]?.replace('.wav', '').replace('.mp3', '');
         }
         
+        // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
         if (!recordingSid && recording.filePath) {
-          // Extract SID from filePath like: /2010-04-01/Accounts/.../Recordings/RE123...
           const pathParts = recording.filePath.split('/');
           recordingSid = pathParts[pathParts.length - 1];
         }
 
-        if (!recordingSid) {
-          throw new Error('Could not extract recording SID');
+        if (!recordingSid || !recordingSid.startsWith('RE')) {
+          throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
         }
 
-        console.log(`🔍 Extracting recording SID: ${recordingSid}`);
+        console.log(`🔍 Extracted recording SID: ${recordingSid}`);
 
-        // Get the recording from Twilio
-        const twilioRecording = await client.recordings(recordingSid).fetch();
-        
-        // Build the media URL for the recording
-        const mediaUrl = `https://api.twilio.com${twilioRecording.uri.replace('.json', '.wav')}`;
+        // Build the direct media URL for the recording (without needing to fetch metadata)
+        const mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.wav`;
         
         console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
 
@@ -95,6 +92,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
         });
 
         if (!twilioResponse.ok) {
+          console.error(`❌ Twilio API error: ${twilioResponse.status} ${twilioResponse.statusText}`);
           throw new Error(`Twilio API error: ${twilioResponse.status} ${twilioResponse.statusText}`);
         }
 
