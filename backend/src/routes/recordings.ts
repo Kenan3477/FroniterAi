@@ -1,6 +1,24 @@
 /**
  * Recording Streaming Routes
- * Handles audio playback from Twilio recordings
+ * Handles audio playback         // Extract recording SID from fileName or filePath
+        let recordingSid = '';
+        
+        // First try from fileName (e.g., "CA123abc_timestamp.mp3" or "RE123abc.wav")
+        if (recording.fileName.includes('_')) {
+          recordingSid = recording.fileName.split('_')[0]?.replace('.wav', '').replace('.mp3', '');
+        } else {
+          recordingSid = recording.fileName.replace('.wav', '').replace('.mp3', '');
+        }
+        
+        // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
+        if (!recordingSid && recording.filePath) {
+          const pathParts = recording.filePath.split('/');
+          recordingSid = pathParts[pathParts.length - 1];
+        }
+
+        if (!recordingSid || (!recordingSid.startsWith('RE') && !recordingSid.startsWith('CA'))) {
+          throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
+        }dings
  */
 
 import express, { Request, Response } from 'express';
