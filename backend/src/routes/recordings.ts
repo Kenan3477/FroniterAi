@@ -79,18 +79,25 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
         // Extract recording SID from filename or filePath
         let recordingSid = '';
         
+        console.log(`🔍 DEBUG: Processing filename: "${recording.fileName}"`);
+        
         // First try from fileName (e.g., "CA123abc_timestamp.mp3" or "RE123abc.wav")
         if (recording.fileName.includes('_')) {
           recordingSid = recording.fileName.split('_')[0]?.replace('.wav', '').replace('.mp3', '');
+          console.log(`🔍 DEBUG: Extracted from filename (before _): "${recordingSid}"`);
         } else {
           recordingSid = recording.fileName.replace('.wav', '').replace('.mp3', '');
+          console.log(`🔍 DEBUG: Extracted from full filename: "${recordingSid}"`);
         }
         
         // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
         if (!recordingSid && recording.filePath) {
           const pathParts = recording.filePath.split('/');
           recordingSid = pathParts[pathParts.length - 1];
+          console.log(`🔍 DEBUG: Extracted from filePath: "${recordingSid}"`);
         }
+
+        console.log(`🔍 DEBUG: Final SID: "${recordingSid}", starts with CA: ${recordingSid.startsWith('CA')}, starts with RE: ${recordingSid.startsWith('RE')}`);
 
         if (!recordingSid || (!recordingSid.startsWith('RE') && !recordingSid.startsWith('CA'))) {
           throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
