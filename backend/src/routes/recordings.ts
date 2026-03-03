@@ -79,9 +79,11 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
         // Extract recording SID from filename or filePath
         let recordingSid = '';
         
-        // First try from fileName (e.g., "recording_RE123abc.wav")
+        // First try from fileName (e.g., "CA123abc_timestamp.mp3" or "RE123abc.wav")
         if (recording.fileName.includes('_')) {
-          recordingSid = recording.fileName.split('_')[1]?.replace('.wav', '').replace('.mp3', '');
+          recordingSid = recording.fileName.split('_')[0]?.replace('.wav', '').replace('.mp3', '');
+        } else {
+          recordingSid = recording.fileName.replace('.wav', '').replace('.mp3', '');
         }
         
         // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
@@ -90,14 +92,48 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
           recordingSid = pathParts[pathParts.length - 1];
         }
 
-        if (!recordingSid || !recordingSid.startsWith('RE')) {
+        if (!recordingSid || (!recordingSid.startsWith('RE') && !recordingSid.startsWith('CA'))) {
           throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
         }
 
         console.log(`🔍 Extracted recording SID: ${recordingSid}`);
 
-        // Build the direct media URL for the recording (without needing to fetch metadata)
-        const mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.wav`;
+        let mediaUrl;
+        if (recordingSid.startsWith('CA')) {
+          // For call SIDs, we need to get the recording via the call's recordings
+          const recordingsListUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${recordingSid}/Recordings.json`;
+          
+          console.log(`📡 Fetching call recordings list from: ${recordingsListUrl}`);
+          
+          // First get the list of recordings for this call
+          const fetch = (await import('node-fetch')).default;
+          const recordingsListResponse = await fetch(recordingsListUrl, {
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
+            }
+          });
+
+          if (!recordingsListResponse.ok) {
+            console.error(`❌ Twilio Calls API error: ${recordingsListResponse.status} ${recordingsListResponse.statusText}`);
+            throw new Error(`Twilio Calls API error: ${recordingsListResponse.status} ${recordingsListResponse.statusText}`);
+          }
+
+          const recordingsList = await recordingsListResponse.json();
+          if (!recordingsList.recordings || recordingsList.recordings.length === 0) {
+            throw new Error('No recordings found for this call');
+          }
+
+          // Use the first recording found
+          const recordingResource = recordingsList.recordings[0];
+          const actualRecordingSid = recordingResource.sid;
+          mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${actualRecordingSid}.wav`;
+          
+          console.log(`📡 Found recording SID ${actualRecordingSid}, fetching audio from: ${mediaUrl}`);
+        } else {
+          // For recording SIDs (RE), use direct access
+          mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.wav`;
+          console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
+        }
         
         console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
 
