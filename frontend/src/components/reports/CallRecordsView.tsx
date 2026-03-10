@@ -79,7 +79,7 @@ interface CallRecord {
 
 interface TranscriptData {
   callId: string;
-  status: 'completed' | 'processing' | 'not_started' | 'failed';
+  status: 'completed' | 'processing' | 'not_started' | 'failed' | 'pending';
   message?: string;
   estimatedCompletion?: string;
   call?: {
@@ -1187,18 +1187,30 @@ export const CallRecordsView: React.FC = () => {
                     Retry
                   </button>
                 </div>
-              ) : transcriptData?.status === 'not_started' || transcriptData?.status === 'processing' ? (
+              ) : transcriptData?.status === 'not_started' || transcriptData?.status === 'processing' || transcriptData?.status === 'pending' ? (
                 <div className="text-center py-12">
                   <div className="text-yellow-600 mb-4">
                     <ClockIcon className="h-12 w-12 mx-auto" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {transcriptData.status === 'processing' ? 'Transcription in Progress' : 'Transcription Not Started'}
+                    {transcriptData.status === 'processing' ? 'Transcription in Progress' : 
+                     transcriptData.status === 'pending' ? 'Transcription Pending' : 
+                     'Transcription Not Started'}
                   </h3>
-                  <p className="text-gray-600 mb-2">{transcriptData.message}</p>
+                  <p className="text-gray-600 mb-2">
+                    {transcriptData.status === 'pending' ? 
+                     'The transcript for this call is queued for processing. Please check back in a few moments.' : 
+                     transcriptData.message || 'Transcript processing has not yet begun for this call.'}
+                  </p>
                   {transcriptData.estimatedCompletion && (
                     <p className="text-sm text-gray-500">Estimated completion: {transcriptData.estimatedCompletion}</p>
                   )}
+                  <button
+                    onClick={() => selectedTranscriptCallId && fetchTranscript(selectedTranscriptCallId)}
+                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    Check Again
+                  </button>
                 </div>
               ) : transcriptData && (
                 <div>
