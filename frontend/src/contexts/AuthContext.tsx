@@ -307,9 +307,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Check if we have a token before making the request
       const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
       
+      console.log('🔍 checkAuth: Token check result:', token ? 'Token found' : 'No token found');
+      
       // If no token, skip the auth check and set loading to false
       if (!token) {
         console.log('🔐 No auth token found, skipping auth check');
+        setUser(null); // Ensure user is null
         setLoading(false);
         return;
       }
@@ -320,12 +323,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const isExpired = Date.now() >= payload.exp * 1000;
         
         if (isExpired) {
-          console.log('🚨 Token is expired, clearing storage and redirecting to login');
+          console.log('🚨 Token is expired, clearing storage');
           localStorage.removeItem('omnivox_token');
           localStorage.removeItem('authToken');
           localStorage.removeItem('sessionData');
+          setUser(null);
           setLoading(false);
-          router.push('/login');
           return;
         }
       } catch (e) {
@@ -333,10 +336,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('omnivox_token');
         localStorage.removeItem('authToken');
         localStorage.removeItem('sessionData');
+        setUser(null);
         setLoading(false);
         return;
       }
 
+      console.log('🔍 checkAuth: Making profile request...');
       const response = await fetch('/api/auth/profile', {
         credentials: 'include',
       });
@@ -344,6 +349,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          console.log('✅ checkAuth: Profile retrieved successfully:', data.user.email);
           setUser(data.user);
           
           // Restore agent status from localStorage only on client-side
@@ -354,31 +360,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.log('🔄 Restored agent status from localStorage:', savedStatus);
             }
           }
+        } else {
+          console.log('❌ checkAuth: Profile request successful but data.success false');
+          setUser(null);
         }
       } else if (response.status === 401) {
-        // Handle 401 responses by clearing auth and redirecting
-        console.log('🚨 401 Unauthorized - clearing auth and redirecting to login');
+        // Handle 401 responses by clearing auth
+        console.log('🚨 checkAuth: 401 Unauthorized - clearing auth');
         localStorage.removeItem('omnivox_token');
         localStorage.removeItem('authToken');
         localStorage.removeItem('sessionData');
         setUser(null);
-        router.push('/login');
+      } else {
+        console.log('❌ checkAuth: Unexpected response status:', response.status);
+        setUser(null);
       }
     } catch (error) {
-      console.error('Auth check error:', error);
-      // On error, also check if it's related to expired tokens
-      if (error instanceof Error && error.message.includes('expired')) {
-        console.log('🚨 Token expired error, clearing auth');
-        localStorage.removeItem('omnivox_token');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('sessionData');
-        setUser(null);
-        router.push('/login');
-      }
+      console.error('❌ checkAuth error:', error);
+      // On error, clear user and set loading to false
+      setUser(null);
     } finally {
       setLoading(false);
     }
-  }, [isClient, router]);
+  }, [isClient]);
 
   useEffect(() => {
     checkAuth();
