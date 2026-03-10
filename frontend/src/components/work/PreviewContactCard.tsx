@@ -150,6 +150,8 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
     const reasonLabel = selectedReasonObj?.label || selectedPauseReason;
     const finalReason = selectedPauseReason === 'other' ? `Other: ${pauseComment}` : reasonLabel;
 
+    console.log('🔄 Pausing preview with reason:', finalReason);
+
     // Call pause with reason
     onPause?.(finalReason, pauseComment || undefined);
     
@@ -450,34 +452,60 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
 
                     {/* Pause Reason Selection - appears below pause button when needed */}
                     {showPauseReasons && !isPreviewPaused && (
-                      <div className="absolute z-10 mt-8 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-80">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-gray-900">Select Pause Reason</h4>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handlePauseCancel}
-                              className="h-6 w-6 p-0"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
+                      <div 
+                        className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+                        onClick={(e) => {
+                          // Close modal if clicking on backdrop
+                          if (e.target === e.currentTarget) {
+                            handlePauseCancel();
+                          }
+                        }}
+                      >
+                        <div className="bg-white border border-gray-300 rounded-lg shadow-xl p-6 w-96 max-w-md mx-4">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold text-gray-900 text-lg">Select Pause Reason</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handlePauseCancel}
+                                className="h-8 w-8 p-0 hover:bg-gray-100"
+                                title="Close"
+                              >
+                                <X className="w-5 h-5" />
+                              </Button>
+                            </div>
+                            
+                            <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                              💡 <strong>Tip:</strong> Click to select, double-click to confirm instantly
+                            </div>
                           
                           <div className="space-y-2 max-h-48 overflow-y-auto">
                             {PREVIEW_PAUSE_REASONS.map((reason) => (
                               <div
                                 key={reason.id}
-                                className={`p-2 rounded cursor-pointer text-sm ${
+                                className={`p-3 rounded cursor-pointer text-sm border transition-all duration-150 ${
                                   selectedPauseReason === reason.id
-                                    ? 'bg-blue-50 border-blue-200 border'
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-200'
+                                    : 'hover:bg-gray-50 border-gray-200'
                                 }`}
                                 onClick={() => setSelectedPauseReason(reason.id)}
+                                onDoubleClick={() => {
+                                  setSelectedPauseReason(reason.id);
+                                  // Auto-confirm on double-click if not "other" reason
+                                  if (reason.id !== 'other') {
+                                    handlePauseConfirm();
+                                  }
+                                }}
                               >
                                 <div className="font-medium">{reason.label}</div>
                                 {reason.description && (
                                   <div className="text-xs text-gray-500">{reason.description}</div>
+                                )}
+                                {selectedPauseReason === reason.id && (
+                                  <div className="text-xs text-blue-600 font-medium mt-1">
+                                    ✓ Selected {reason.id !== 'other' && '• Double-click to confirm instantly'}
+                                  </div>
                                 )}
                               </div>
                             ))}
@@ -499,12 +527,12 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
                             </div>
                           )}
 
-                          <div className="flex gap-2 pt-2">
+                          <div className="flex gap-2 pt-3">
                             <Button
                               onClick={handlePauseConfirm}
                               disabled={!selectedPauseReason}
                               size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
                             >
                               Confirm Pause
                             </Button>
@@ -512,12 +540,14 @@ export const PreviewContactCard: React.FC<PreviewContactCardProps> = ({
                               onClick={handlePauseCancel}
                               variant="outline"
                               size="sm"
+                              className="flex-1"
                             >
                               Cancel
                             </Button>
                           </div>
                         </div>
                       </div>
+                    </div>
                     )}
                   </div>
                 )}
