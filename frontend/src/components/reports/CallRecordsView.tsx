@@ -512,77 +512,15 @@ export const CallRecordsView: React.FC = () => {
         credentials: 'include'
       });
 
-      let transcript;
-
-      if (!response.ok || response.status === 404) {
-        // If transcript not found or API error, show demo transcript for demonstration
-        console.log('⚠️ API returned error, showing demo transcript for demonstration');
-        
-        const demoTranscripts = [
-          {
-            text: `Agent: Good afternoon, this is Sarah calling from Digital Marketing Solutions. Am I speaking with Mr. Johnson?\n\nCustomer: Yes, this is John. What's this about?\n\nAgent: Thank you for taking my call, John. I'm reaching out because we've been helping businesses like yours increase their online presence by up to 300% through our targeted digital marketing strategies. Are you currently happy with your online lead generation?\n\nCustomer: Well, we could always use more leads. What exactly are you offering?\n\nAgent: That's great to hear! We specialize in Google Ads management and SEO optimization. Our clients typically see a 40-50% increase in qualified leads within the first 3 months. Would you be interested in learning about a free audit of your current online marketing?\n\nCustomer: I might be interested. What would that involve?\n\nAgent: The audit is completely free and takes about 15 minutes. We'll analyze your website, your current Google ranking, and identify missed opportunities. Can I schedule that for you this week?\n\nCustomer: Let me think about it and get back to you.\n\nAgent: Absolutely, I understand it's a big decision. Would it help if I sent you some case studies of similar businesses we've helped? I could email those over today.\n\nCustomer: Sure, that would be helpful. My email is john@example.com.\n\nAgent: Perfect, I'll send those over within the hour. I'll also include my direct number so you can reach me when you're ready. Thank you for your time today, John.\n\nCustomer: Thank you, Sarah. Have a good day.\n\nAgent: You too, goodbye!`,
-            summary: "Outbound sales call for digital marketing services. Customer showed interest in lead generation services and requested case studies. Follow-up required with email materials and direct contact information provided.",
-            sentiment: 0.75,
-            outcome: "interested"
-          },
-          {
-            text: `Agent: Hello, this is Mike from TechSupport Pro. I'm calling about the support ticket you submitted regarding your software installation. Is this a good time to talk?\n\nCustomer: Oh yes, I've been having trouble with the installation for two days now. The software keeps crashing during setup.\n\nAgent: I'm sorry to hear about the trouble you're experiencing. Let me help you get this resolved today. Can you tell me what operating system you're running?\n\nCustomer: I'm on Windows 11, and I've tried downloading it three times already.\n\nAgent: That's definitely frustrating. Windows 11 sometimes has compatibility issues with older installer versions. Are you downloading from our main website or the customer portal?\n\nCustomer: I'm using the link from the customer portal.\n\nAgent: Perfect, that's the right place. Let me walk you through running the installer as administrator and temporarily disabling your antivirus. This resolves the issue in about 90% of cases.\n\nCustomer: Okay, I'm willing to try anything at this point.\n\nAgent: Great! First, right-click on the installer file and select 'Run as administrator'. Then temporarily disable Windows Defender...\n\nCustomer: Alright, I'm doing that now... Oh wow, it's actually installing properly now!\n\nAgent: Excellent! I'm glad we got that resolved. The installation should complete in about 3-4 minutes. I'll stay on the line to make sure everything finishes properly.\n\nCustomer: This is fantastic, thank you so much for your help. I was getting really frustrated.\n\nAgent: You're very welcome! Customer satisfaction is our top priority. Is there anything else I can help you with today?\n\nCustomer: No, that's everything. Thank you again!\n\nAgent: Perfect! I'm going to send you a follow-up email with some helpful tips for getting started. Have a great day!`,
-            summary: "Technical support call for software installation issues on Windows 11. Issue resolved by running installer as administrator and disabling antivirus temporarily. Customer very satisfied with quick resolution.",
-            sentiment: 0.85,
-            outcome: "resolved"
-          }
-        ];
-        
-        const selectedDemo = demoTranscripts[Math.floor(Math.random() * demoTranscripts.length)];
-        
-        transcript = {
-          callId,
-          status: 'completed',
-          call: {
-            id: callId,
-            phoneNumber: 'Demo Call',
-            startTime: new Date().toISOString(),
-            duration: 300,
-            outcome: selectedDemo.outcome
-          },
-          transcript: {
-            text: selectedDemo.text,
-            segments: [],
-            confidence: 0.95,
-            language: 'en',
-            wordCount: selectedDemo.text.split(' ').length,
-            processingProvider: 'openai'
-          },
-          analysis: {
-            summary: selectedDemo.summary,
-            sentimentScore: selectedDemo.sentiment,
-            complianceFlags: {},
-            keyObjections: [],
-            callOutcome: selectedDemo.outcome
-          },
-          analytics: {
-            agentTalkRatio: 0.65,
-            customerTalkRatio: 0.35,
-            longestMonologue: 45,
-            silenceDuration: 3,
-            interruptions: 2,
-            scriptAdherence: 0.78
-          },
-          metadata: {
-            isDemoData: true,
-            message: 'This is demonstration transcript data to showcase the transcript feature.'
-          }
-        };
-      } else {
-        transcript = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
+      const transcript = await response.json();
       setTranscriptData(transcript);
       
       console.log('✅ Transcript loaded successfully:', transcript.status);
-      if (transcript.metadata?.isDemoData) {
-        console.log('📄 Showing demo transcript for demonstration purposes');
-      }
 
     } catch (error) {
       console.error('❌ Error fetching transcript:', error);
@@ -1184,11 +1122,6 @@ export const CallRecordsView: React.FC = () => {
                 {selectedTranscriptCallId && (
                   <span className="text-sm text-gray-500">Call: {selectedTranscriptCallId}</span>
                 )}
-                {transcriptData?.metadata?.isDemoData && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Demo Data
-                  </span>
-                )}
               </div>
               <div className="flex items-center space-x-2">
                 {/* View Toggle */}
@@ -1303,27 +1236,6 @@ export const CallRecordsView: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-gray-500">Outcome:</span> {transcriptData.call.outcome}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Demo Data Notice */}
-                      {transcriptData.metadata?.isDemoData && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <div className="flex items-start">
-                            <div className="flex-shrink-0">
-                              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <div className="ml-3">
-                              <h3 className="text-sm font-medium text-blue-800">
-                                Demo Transcript
-                              </h3>
-                              <p className="mt-1 text-sm text-blue-700">
-                                {transcriptData.metadata.message || 'This is demonstration transcript data to showcase the transcript feature.'}
-                              </p>
                             </div>
                           </div>
                         </div>
