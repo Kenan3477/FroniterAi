@@ -12,8 +12,23 @@ export async function authenticateToken(
   request: NextRequest
 ): Promise<{ user: JWTPayload } | { error: string; status: number }> {
   try {
+    // Try Authorization header first
+    let token = null;
     const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+      console.log('🔑 Using Authorization header token');
+    } else {
+      // Fallback to cookies (for frontend API routes)
+      const authToken = request.cookies.get('auth-token')?.value;
+      const accessToken = request.cookies.get('access-token')?.value;
+      const cookieToken = request.cookies.get('token')?.value;
+      
+      token = authToken || accessToken || cookieToken;
+      if (token) {
+        console.log('🍪 Using cookie token for authentication');
+      }
+    }
 
     if (!token) {
       return { error: 'Access token required', status: 401 };

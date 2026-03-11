@@ -252,8 +252,45 @@ export const GET = requireAuth(async (request, user) => {
     }
     
     try {
-      contactCount = await prisma.contact.count();
-      console.log(`📞 Total contact count: ${contactCount}`);
+      // Check if campaignId is provided in query parameters for campaign-specific contact count
+      const { searchParams } = new URL(request.url);
+      const requestedCampaignId = searchParams.get('campaignId');
+      
+      if (requestedCampaignId) {
+        // Campaign-specific contact count - get contacts assigned to this campaign through data lists
+        console.log(`🎯 Getting contact count for campaign: ${requestedCampaignId}`);
+        
+        // Find data lists assigned to this campaign
+        const assignedDataLists = await prisma.dataList.findMany({
+          where: { 
+            campaignId: requestedCampaignId,
+            active: true 
+          },
+          include: {
+            _count: {
+              select: {
+                contacts: true
+              }
+            }
+          }
+        });
+
+        // Sum up contacts from all assigned data lists
+        contactCount = assignedDataLists.reduce((total, dataList) => {
+          return total + dataList._count.contacts;
+        }, 0);
+
+        console.log(`📞 Campaign-specific contact count for ${requestedCampaignId}: ${contactCount} (from ${assignedDataLists.length} data lists)`);
+        
+        // Log individual data list contributions for debugging
+        assignedDataLists.forEach(dataList => {
+          console.log(`  - ${dataList.name}: ${dataList._count.contacts} contacts`);
+        });
+      } else {
+        // Global contact count (all campaigns)
+        contactCount = await prisma.contact.count();
+        console.log(`📞 Global contact count: ${contactCount}`);
+      }
     } catch (error) {
       console.error('❌ Error counting contacts:', error);
       contactCount = 0;

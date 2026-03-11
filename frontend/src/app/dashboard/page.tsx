@@ -18,20 +18,20 @@ function DashboardContent() {
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   const [isClient, setIsClient] = useState(false);
   
-  // Get authenticated user - dashboard now requires authentication
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  // Get authenticated user and current campaign - dashboard now requires authentication
+  const { user, isAuthenticated, loading: authLoading, currentCampaign } = useAuth();
 
   // Client-side hydration guard
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Load dashboard stats when user is authenticated
+  // Load dashboard stats when user is authenticated or campaign changes
   useEffect(() => {
     if (isAuthenticated && user) {
       loadDashboardStats();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, currentCampaign]); // Added currentCampaign as dependency
 
   // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
   useEffect(() => {
@@ -180,7 +180,17 @@ function DashboardContent() {
       console.log('📊 Loading dashboard stats with auth token:', !!token);
       console.log('🔑 Using Bearer token authentication for dashboard stats');
       
-      const response = await fetch('/api/dashboard/stats', {
+      // Build query parameters - include current campaign ID for campaign-specific contact counts
+      const queryParams = new URLSearchParams();
+      if (currentCampaign?.campaignId) {
+        queryParams.append('campaignId', currentCampaign.campaignId);
+        console.log('🎯 Including campaign filter for stats:', currentCampaign.campaignId);
+      }
+      
+      const url = `/api/dashboard/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('📡 Dashboard stats URL:', url);
+      
+      const response = await fetch(url, {
         credentials: 'include',
         headers
       });
