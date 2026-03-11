@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 
 // Force deployment to test schema migration
 // Railway deployment refresh - fixing 404 Application not found
+// Deploy real transcript routes - March 11, 2026
 
 import config from './config';
 import { connectDatabase } from './database';
