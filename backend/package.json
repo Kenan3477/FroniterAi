@@ -19,7 +19,12 @@
     "db:seed": "tsx src/database/seed.ts",
     "transcription:worker": "tsx src/scripts/transcriptionWorker.ts",
     "transcription:backfill": "tsx src/scripts/backfillTranscriptions.ts",
-    "transcription:backfill:execute": "tsx src/scripts/backfillTranscriptions.ts --execute"
+    "transcription:backfill:execute": "tsx src/scripts/backfillTranscriptions.ts --execute",
+    "transcription:status": "tsx src/scripts/transcriptionStatus.ts",
+    "transcription:test": "tsx src/scripts/testTranscriptionSystem.ts",
+    "setup:openai": "tsx src/scripts/setupOpenAI.ts",
+    "setup:free-transcription": "tsx src/scripts/setupFreeTranscription.ts",
+    "system:health": "tsx src/scripts/transcriptionStatus.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",

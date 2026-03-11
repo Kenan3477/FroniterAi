@@ -96,7 +96,10 @@ import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-t
 // import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 import transcriptRoutes from './routes/transcriptRoutes'; // NEW: AI-powered call transcription system
+// import transcriptManagementRoutes from './routes/transcriptManagement'; // NEW: Transcription system management API
 import liveAnalysisRoutes from './routes/liveAnalysisRoutes'; // NEW: Intelligent live call analysis system
+
+// import { initializeTranscriptionSystem } from './scripts/initializeTranscription';
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -224,6 +227,7 @@ class App {
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
     this.app.use('/api', transcriptRoutes); // AI-powered call transcription system
+    // this.app.use('/api/admin/transcripts', transcriptManagementRoutes); // Transcription system management API
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
@@ -335,6 +339,14 @@ class App {
 
       // Ensure basic system agents exist
       await ensureBasicAgents();
+
+      // Initialize transcription system
+      try {
+        // await initializeTranscriptionSystem();
+      } catch (transcriptionError) {
+        console.warn('⚠️ Transcription system initialization failed:', transcriptionError);
+        console.log('📞 Server will start without transcription features');
+      }
 
       // Start server
       const port = config.server.port;

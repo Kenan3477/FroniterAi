@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Request, Response } from 'express';
 import twilio from 'twilio';
 import { prisma } from '../database/index';
+import { onNewCallRecording } from '../services/transcriptionWorker';
 
 const router = Router();
 
@@ -115,6 +116,18 @@ router.post('/recording', validateTwilioSignature, async (req: Request, res: Res
         });
 
         console.log(`📝 Recording saved for call ${CallSid}`);
+
+        // 🚀 AUTOMATIC TRANSCRIPTION: Queue transcription for the new recording
+        if (RecordingUrl && callRecord.id) {
+          try {
+            console.log(`🤖 Queueing automatic transcription for call ${callRecord.id}`);
+            await onNewCallRecording(callRecord.id, RecordingUrl);
+            console.log(`✅ Transcription queued successfully for call ${callRecord.id}`);
+          } catch (transcriptionError) {
+            console.error(`❌ Failed to queue transcription for call ${callRecord.id}:`, transcriptionError);
+            // Don't fail the webhook if transcription queueing fails
+          }
+        }
       } else {
         console.warn(`⚠️ Call record not found for CallSid: ${CallSid}`);
       }

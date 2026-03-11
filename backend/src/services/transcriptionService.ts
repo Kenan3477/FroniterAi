@@ -8,15 +8,13 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import { prisma } from '../database/index';
-import { createWriteStream, createReadStream } from 'fs';
-import { promisify } from 'util';
-import { pipeline } from 'stream';
-
-const streamPipeline = promisify(pipeline);
+import { audioFileService } from './audioFileService';
+import { localWhisperService } from './localWhisperService';
+import { whisperCppService } from './whisperCppService';
 
 // Configuration interfaces
 interface TranscriptionConfig {
-  provider: 'openai' | 'self-hosted';
+  provider: 'openai' | 'self-hosted' | 'local-whisper' | 'whisper-cpp';
   openaiApiKey?: string;
   selfHostedEndpoint?: string;
   selfHostedApiKey?: string;
@@ -180,8 +178,8 @@ export class TranscriptionService {
       // Update job status
       await this.updateJobStatus(callId, 'completed');
       
-      // Clean up temp file
-      await this.cleanupTempFile(audioFilePath);
+      // Clean up temp file using audio file service
+      await audioFileService.cleanupAudioFile(audioFilePath);
       
       // Audit trail
       await this.logAudit(callId, 'TRANSCRIPTION_COMPLETED', {
@@ -204,68 +202,18 @@ export class TranscriptionService {
    * Download audio file securely and prepare for processing
    */
   private async downloadAndPrepareAudio(recordingUrl: string, callId: string): Promise<string> {
-    const fileName = `${callId}_${Date.now()}.wav`;
-    const filePath = path.join(this.config.tempDirectory!, fileName);
-    
     try {
-      // Handle different URL types (local file, S3, GCS, etc.)
-      if (recordingUrl.startsWith('http')) {
-        // Remote file download
-        const response = await axios({
-          method: 'GET',
-          url: recordingUrl,
-          responseType: 'stream',
-          timeout: 30000,
-          headers: {
-            'User-Agent': 'Omnivox-AI-Transcription/1.0'
-          }
-        });
+      console.log(`📥 Downloading audio for call: ${callId}`);
+      console.log(`🔗 Recording URL: ${recordingUrl}`);
 
-        if (response.headers['content-length']) {
-          const fileSize = parseInt(response.headers['content-length']);
-          if (fileSize > this.config.maxFileSize!) {
-            throw new Error(`File too large: ${fileSize} bytes (max: ${this.config.maxFileSize})`);
-          }
-        }
-
-        await streamPipeline(response.data, createWriteStream(filePath));
-        
-      } else if (recordingUrl.startsWith('file://') || recordingUrl.startsWith('/')) {
-        // Local file copy
-        const localPath = recordingUrl.replace('file://', '');
-        if (!fs.existsSync(localPath)) {
-          throw new Error(`Local file not found: ${localPath}`);
-        }
-        
-        const stats = fs.statSync(localPath);
-        if (stats.size > this.config.maxFileSize!) {
-          throw new Error(`File too large: ${stats.size} bytes (max: ${this.config.maxFileSize})`);
-        }
-        
-        await streamPipeline(createReadStream(localPath), createWriteStream(filePath));
-        
-      } else {
-        throw new Error(`Unsupported recording URL format: ${recordingUrl}`);
-      }
-
-      // Verify file was downloaded successfully
-      if (!fs.existsSync(filePath)) {
-        throw new Error('Failed to download/prepare audio file');
-      }
-
-      const fileStats = fs.statSync(filePath);
-      if (fileStats.size === 0) {
-        throw new Error('Downloaded file is empty');
-      }
-
-      console.log(`📥 Audio file prepared: ${filePath} (${fileStats.size} bytes)`);
-      return filePath;
+      // Use the new audio file service to download the recording
+      const downloadResult = await audioFileService.downloadRecording(recordingUrl, callId);
+      
+      console.log(`✅ Audio file downloaded: ${downloadResult.localPath} (${downloadResult.fileSize} bytes)`);
+      return downloadResult.localPath;
       
     } catch (error) {
-      // Clean up partial file
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      console.error(`❌ Audio download failed for call ${callId}:`, error);
       throw error;
     }
   }
@@ -281,6 +229,10 @@ export class TranscriptionService {
         return await this.transcribeWithOpenAI(audioFilePath);
       } else if (this.config.provider === 'self-hosted') {
         return await this.transcribeWithSelfHosted(audioFilePath);
+      } else if (this.config.provider === 'local-whisper') {
+        return await this.transcribeWithLocalWhisper(audioFilePath);
+      } else if (this.config.provider === 'whisper-cpp') {
+        return await this.transcribeWithWhisperCpp(audioFilePath);
       } else {
         throw new Error(`Unsupported transcription provider: ${this.config.provider}`);
       }
@@ -368,6 +320,63 @@ export class TranscriptionService {
       wordCount: transcription.text.split(/\s+/).length,
       confidence: 0.85 // Default confidence for self-hosted
     };
+  }
+
+  /**
+   * Transcribe using FREE Local Whisper (OpenAI's open-source model)
+   */
+  private async transcribeWithLocalWhisper(audioFilePath: string): Promise<TranscriptionResult> {
+    console.log('🆓 Using FREE Local Whisper (no API costs!)');
+    
+    try {
+      const result = await localWhisperService.transcribe(audioFilePath);
+      
+      return {
+        text: result.text,
+        segments: result.segments?.map(seg => ({
+          id: seg.id,
+          start: seg.start,
+          end: seg.end,
+          text: seg.text,
+          confidence: seg.confidence
+        })),
+        language: result.language,
+        duration: result.duration,
+        wordCount: result.wordCount,
+        confidence: result.confidence,
+        processingTimeMs: result.processingTimeMs
+      };
+    } catch (error) {
+      throw new Error(`Local Whisper failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Transcribe using FREE Whisper.cpp (ultra-fast C++ implementation)
+   */
+  private async transcribeWithWhisperCpp(audioFilePath: string): Promise<TranscriptionResult> {
+    console.log('⚡ Using FREE Whisper.cpp (ultra-fast!)');
+    
+    try {
+      const result = await whisperCppService.transcribe(audioFilePath);
+      
+      return {
+        text: result.text,
+        segments: result.segments?.map((seg, index) => ({
+          id: index,
+          start: seg.start,
+          end: seg.end,
+          text: seg.text,
+          confidence: 0.9 // Whisper.cpp doesn't provide confidence
+        })),
+        duration: result.segments?.[result.segments.length - 1]?.end,
+        wordCount: result.text.split(/\s+/).length,
+        confidence: 0.9,
+        processingTimeMs: result.processingTimeMs
+      };
+    } catch (error) {
+      throw new Error(`Whisper.cpp failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -518,7 +527,10 @@ Provide only valid JSON, no additional text.`;
       return minutes * 0.006;
     }
     
-    // Self-hosted is essentially free (excluding infrastructure costs)
+    // All other providers are FREE! 🎉
+    // local-whisper: OpenAI's free open-source model
+    // whisper-cpp: Free C++ implementation
+    // self-hosted: Free (excluding infrastructure costs)
     return 0;
   }
 
@@ -595,20 +607,6 @@ Provide only valid JSON, no additional text.`;
   }
 
   /**
-   * Clean up temporary files (GDPR compliance)
-   */
-  private async cleanupTempFile(filePath: string): Promise<void> {
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log(`🧹 Temporary file cleaned up: ${filePath}`);
-      }
-    } catch (error) {
-      console.error(`⚠️ Failed to cleanup temp file ${filePath}:`, error);
-    }
-  }
-
-  /**
    * Log audit trail for compliance
    */
   private async logAudit(callId: string, action: string, details: any): Promise<void> {
@@ -632,7 +630,7 @@ Provide only valid JSON, no additional text.`;
  */
 export function createTranscriptionService(): TranscriptionService {
   const config: TranscriptionConfig = {
-    provider: (process.env.TRANSCRIPTION_PROVIDER as any) || 'openai',
+    provider: (process.env.TRANSCRIPTION_PROVIDER as any) || 'local-whisper', // Default to FREE option
     openaiApiKey: process.env.OPENAI_API_KEY,
     selfHostedEndpoint: process.env.WHISPER_SELF_HOSTED_ENDPOINT,
     selfHostedApiKey: process.env.WHISPER_SELF_HOSTED_API_KEY,
