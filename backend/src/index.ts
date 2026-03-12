@@ -97,6 +97,7 @@ import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-t
 // import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 import simpleTranscriptRoutes from './routes/simpleTranscriptRoutes'; // TEMPORARY: Simplified transcript routes
+import transcriptTestRoutes from './routes/testRoutes'; // TEMPORARY: Test routes for debugging
 // import transcriptManagementRoutes from './routes/transcriptManagement'; // NEW: Transcription system management API
 import liveAnalysisRoutes from './routes/liveAnalysisRoutes'; // NEW: Intelligent live call analysis system
 
@@ -228,6 +229,7 @@ class App {
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
     this.app.use('/api', simpleTranscriptRoutes); // TEMPORARY: Simplified transcript routes
+    this.app.use('/api', transcriptTestRoutes); // TEMPORARY: Test transcript without auth
     // this.app.use('/api/admin/transcripts', transcriptManagementRoutes); // Transcription system management API
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     // this.app.use('/api/admin/integrations', integrationRoutes); // Admin integrations management - temporarily disabled
