@@ -70,10 +70,10 @@ router.get('/system/status', authenticateToken, async (req: any, res: any) => {
       },
       health: {
         overall: configValidation.isValid && queueStats.failed < 10 ? 'healthy' : 'degraded',
-        audioStorage: configValidation.summary.audioStorage,
-        openaiConnection: configValidation.summary.openaiIntegration,
-        transcriptionEnabled: configValidation.summary.transcriptionEnabled,
-        realTimeProcessing: configValidation.summary.realTimeProcessing
+        audioStorage: (configValidation as any).summary?.audioStorage || 'unknown',
+        openaiConnection: (configValidation as any).summary?.openaiIntegration || 'unknown',
+        transcriptionEnabled: (configValidation as any).summary?.transcriptionEnabled || 'unknown',
+        realTimeProcessing: (configValidation as any).summary?.realTimeProcessing || 'unknown'
       }
     };
 
