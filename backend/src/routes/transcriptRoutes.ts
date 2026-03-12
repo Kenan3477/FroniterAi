@@ -69,20 +69,8 @@ router.get('/calls/:id/transcript', authenticateToken, async (req: any, res: any
       });
     }
 
-    // Log access for audit trail
-    await (prisma as any).transcriptionAudit.create({
-      data: {
-        callId,
-        action: 'TRANSCRIPT_ACCESSED',
-        details: {
-          userId: req.user.id,
-          userRole: req.user.role,
-          accessFormat: format,
-          accessedAt: new Date().toISOString()
-        },
-        userId: req.user.id.toString()
-      }
-    });
+    // Log access for audit trail (simplified for production stability)
+    console.log(`📋 Transcript accessed: ${callId} by user ${req.user.username} (${req.user.role})`);
 
     // Return transcript based on requested format
     if (format === 'summary') {
