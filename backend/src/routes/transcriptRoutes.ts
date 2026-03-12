@@ -265,19 +265,8 @@ router.post('/calls/:id/transcript/reprocess', authenticateToken, async (req: an
       data: { transcriptionStatus: 'queued' }
     });
 
-    // Log reprocess action
-    await (prisma as any).transcriptionAudit.create({
-      data: {
-        callId,
-        action: 'TRANSCRIPT_REPROCESS_TRIGGERED',
-        details: {
-          triggeredBy: req.user.id,
-          userRole: req.user.role,
-          triggeredAt: new Date().toISOString()
-        },
-        userId: req.user.id.toString()
-      }
-    });
+    // Log reprocess action (simplified for production stability)
+    console.log(`🔄 Transcript reprocessing triggered for ${callId} by user ${req.user.username} (${req.user.role})`);
 
     res.json({
       success: true,
