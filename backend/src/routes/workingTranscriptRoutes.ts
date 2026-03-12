@@ -115,4 +115,13 @@ router.get('/transcript/:id', async (req: any, res: any) => {
   }
 });
 
+// Test route to verify deployment
+router.get('/transcript-test', async (req: any, res: any) => {
+  res.json({ 
+    message: 'Working transcript routes are deployed!', 
+    timestamp: new Date().toISOString(),
+    version: 'v2.0'
+  });
+});
+
 export default router;
