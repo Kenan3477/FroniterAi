@@ -506,7 +506,7 @@ export const CallRecordsView: React.FC = () => {
     try {
       console.log(`📝 Fetching transcript for call: ${callId} (format: ${transcriptView})`);
       
-      const response = await fetch(`/api/calls/${callId}/transcript?format=${transcriptView}`, {
+      const response = await fetch(`/api/transcript/${callId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
