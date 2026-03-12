@@ -560,6 +560,46 @@ export const CallRecordsView: React.FC = () => {
     setTranscriptError(null);
   };
 
+  // Advanced AI Transcription Function
+  const processAdvancedTranscription = async (callId: string) => {
+    if (!confirm('Process this call with Advanced AI Transcription? This will use OpenAI Whisper + GPT for deep analysis.')) {
+      return;
+    }
+
+    try {
+      setTranscriptLoading(true);
+      setTranscriptError(null);
+      
+      const response = await fetch(`/api/transcript/advanced/${callId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'AI transcription failed');
+      }
+
+      const result = await response.json();
+      
+      // Show success message
+      alert(`✅ Advanced AI Transcription Complete!\n\nProcessing Time: ${result.result.processingTimeMs}ms\nEstimated Cost: $${result.result.estimatedCost.toFixed(4)}\nSentiment: ${result.result.sentimentAnalysis.overallSentiment} (${result.result.sentimentAnalysis.sentimentScore})\nOutcome: ${result.result.sentimentAnalysis.callOutcome}`);
+      
+      // Refresh transcript data
+      await fetchTranscript(callId);
+      
+      console.log('✅ Advanced AI transcription completed:', result);
+    } catch (error) {
+      console.error('❌ Advanced AI transcription failed:', error);
+      setTranscriptError(error instanceof Error ? error.message : 'Advanced AI transcription failed');
+      alert(`❌ Advanced AI Transcription Failed\n\n${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setTranscriptLoading(false);
+    }
+  };
+
   const cleanupDemoRecords = async () => {
     if (!confirm('Are you sure you want to delete all demo records? This cannot be undone.')) {
       return;
@@ -914,6 +954,17 @@ export const CallRecordsView: React.FC = () => {
                         title="View transcript"
                       >
                         <DocumentTextIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => processAdvancedTranscription(record.id)}
+                        disabled={transcriptLoading}
+                        className="flex items-center text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Advanced AI Transcription (OpenAI Whisper + GPT)"
+                      >
+                        <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                        {transcriptLoading && selectedTranscriptCallId === record.id && (
+                          <span className="ml-1 text-xs animate-pulse">AI</span>
+                        )}
                       </button>
                     </div>
                   ) : (
