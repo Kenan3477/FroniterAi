@@ -31,7 +31,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     
-    const backendUrl = `${BACKEND_URL}/api/calls/${params.id}/transcript${queryString ? `?${queryString}` : ''}`;
+    const backendUrl = `${BACKEND_URL}/api/transcript/${params.id}`;
     console.log('Backend transcript URL:', backendUrl);
 
     // Forward the request to the Railway backend with auth
