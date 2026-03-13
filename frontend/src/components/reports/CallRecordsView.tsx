@@ -742,6 +742,56 @@ export const CallRecordsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Enhanced AI Transcription Test Section */}
+      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-blue-900">🎯 Enhanced AI Transcription System</h3>
+            <p className="text-blue-700">OpenAI Whisper + GPT-4 with intelligent speaker diarization</p>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                // Find a call with recording for testing
+                const callWithRecording = callRecords.find(call => call.recordingFile);
+                if (callWithRecording) {
+                  processAdvancedTranscription(callWithRecording.id);
+                } else {
+                  alert('No calls with recordings found. Please ensure you have call records with recordings to test the enhanced transcription system.');
+                }
+              }}
+              disabled={transcriptLoading}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
+              🎯 Test Enhanced AI Transcription
+              {transcriptLoading && (
+                <span className="ml-2 text-xs animate-pulse">Processing...</span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                alert(`📊 Enhanced AI Transcription Features:
+
+✅ Real audio processing from Twilio recordings
+✅ OpenAI Whisper speech-to-text with word timestamps  
+✅ GPT-4 intelligent speaker identification
+✅ Conversation analysis and sentiment scoring
+✅ Proper Agent/Customer separation
+
+🎯 Look for the blue "AI" button next to recordings!
+💬 Click the chat bubble icon on any call with recording.
+
+Processing takes 30-60 seconds for complete analysis.`);
+              }}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              📊 How It Works
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-lg shadow">
         {/* Filter Header */}
@@ -1026,12 +1076,13 @@ export const CallRecordsView: React.FC = () => {
                       <button
                         onClick={() => processAdvancedTranscription(record.id)}
                         disabled={transcriptLoading}
-                        className="flex items-center text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        title="Advanced AI Transcription (OpenAI Whisper + GPT)"
+                        className="flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        title="🎯 Enhanced AI Transcription (OpenAI Whisper + GPT-4)"
                       >
-                        <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                        <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1" />
+                        <span className="text-xs font-medium">AI</span>
                         {transcriptLoading && selectedTranscriptCallId === record.id && (
-                          <span className="ml-1 text-xs animate-pulse">AI</span>
+                          <span className="ml-1 text-xs animate-pulse">...</span>
                         )}
                       </button>
                     </div>
@@ -1218,6 +1269,21 @@ export const CallRecordsView: React.FC = () => {
                       <DocumentTextIcon className="h-4 w-4 mr-1" />
                       Transcript
                     </button>
+                    <button
+                      onClick={() => {
+                        setSelectedRecord(null); // Close this modal first
+                        processAdvancedTranscription(selectedRecord.id);
+                      }}
+                      disabled={transcriptLoading}
+                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      title="🎯 Enhanced AI Transcription (OpenAI Whisper + GPT-4)"
+                    >
+                      <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1" />
+                      AI Transcribe
+                      {transcriptLoading && selectedTranscriptCallId === selectedRecord.id && (
+                        <span className="ml-1 text-xs animate-pulse">...</span>
+                      )}
+                    </button>
                     <span className="text-sm text-gray-600">
                       {selectedRecord.recordingFile.format.toUpperCase()} • {formatDuration(selectedRecord.recordingFile.duration)}
                     </span>
@@ -1328,9 +1394,16 @@ export const CallRecordsView: React.FC = () => {
                   )}
                   <button
                     onClick={() => selectedTranscriptCallId && fetchTranscript(selectedTranscriptCallId)}
-                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors mr-2"
                   >
                     Check Again
+                  </button>
+                  <button
+                    onClick={() => selectedTranscriptCallId && processAdvancedTranscription(selectedTranscriptCallId)}
+                    disabled={transcriptLoading}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    🎯 Start Enhanced AI Transcription
                   </button>
                 </div>
               ) : transcriptData && (
