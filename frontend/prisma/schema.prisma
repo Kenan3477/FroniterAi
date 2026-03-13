@@ -1007,6 +1007,29 @@ model Transcription {
   @@map("transcriptions")
 }
 
+model CallTranscript {
+  id                          String    @id @default(cuid())
+  callId                      String
+  transcriptText              String?
+  summary                     String?
+  sentimentScore              Float?
+  confidenceScore             Float?
+  wordCount                   Int?
+  callOutcomeClassification   String?
+  processingProvider          String?
+  processingTimeMs            Int?
+  processingCost              Float?
+  agentTalkRatio              Float?
+  customerTalkRatio           Float?
+  structuredJson              String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  @@index([callId])
+  @@index([processingProvider])
+  @@map("call_transcripts")
+}
+
 model Notification {
   id          String    @id @default(cuid())
   userId      Int
