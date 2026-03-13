@@ -742,56 +742,6 @@ export const CallRecordsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Enhanced AI Transcription Test Section */}
-      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-blue-900">🎯 Enhanced AI Transcription System</h3>
-            <p className="text-blue-700">OpenAI Whisper + GPT-4 with intelligent speaker diarization</p>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                // Find a call with recording for testing
-                const callWithRecording = callRecords.find(call => call.recordingFile);
-                if (callWithRecording) {
-                  processAdvancedTranscription(callWithRecording.id);
-                } else {
-                  alert('No calls with recordings found. Please ensure you have call records with recordings to test the enhanced transcription system.');
-                }
-              }}
-              disabled={transcriptLoading}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
-              🎯 Test Enhanced AI Transcription
-              {transcriptLoading && (
-                <span className="ml-2 text-xs animate-pulse">Processing...</span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                alert(`📊 Enhanced AI Transcription Features:
-
-✅ Real audio processing from Twilio recordings
-✅ OpenAI Whisper speech-to-text with word timestamps  
-✅ GPT-4 intelligent speaker identification
-✅ Conversation analysis and sentiment scoring
-✅ Proper Agent/Customer separation
-
-🎯 Look for the blue "AI" button next to recordings!
-💬 Click the chat bubble icon on any call with recording.
-
-Processing takes 30-60 seconds for complete analysis.`);
-              }}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              📊 How It Works
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="bg-white rounded-lg shadow">
         {/* Filter Header */}
@@ -1650,13 +1600,30 @@ Processing takes 30-60 seconds for complete analysis.`);
                         </div>
 
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900 mb-3">Performance Metrics</h4>
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Communication Quality</h4>
                           <div className="space-y-3">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Script Adherence</span>
                               <span className="font-medium">
                                 {transcriptData.analytics.scriptAdherence ? 
                                   `${Math.round(transcriptData.analytics.scriptAdherence * 100)}%` : 'N/A'
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Interaction Flow</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.interruptions !== undefined ? 
+                                  (transcriptData.analytics.interruptions < 3 ? 'Smooth' : 'Complex') : 'N/A'
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Communication Style</span>
+                              <span className="font-medium">
+                                {transcriptData.analytics.agentTalkRatio && transcriptData.analytics.customerTalkRatio ? 
+                                  (transcriptData.analytics.agentTalkRatio > 0.6 ? 'Agent-led' : 
+                                   transcriptData.analytics.customerTalkRatio > 0.6 ? 'Customer-led' : 'Balanced') : 'N/A'
                                 }
                               </span>
                             </div>
@@ -1670,16 +1637,16 @@ Processing takes 30-60 seconds for complete analysis.`);
                           <h4 className="text-sm font-medium text-gray-900 mb-3">Processing Information</h4>
                           <div className="text-sm text-gray-600 space-y-1">
                             {transcriptData.metadata.processingTime && (
-                              <div>Processing Time: {transcriptData.metadata.processingTime}ms</div>
-                            )}
-                            {transcriptData.metadata.processingCost && (
-                              <div>Processing Cost: ${transcriptData.metadata.processingCost.toFixed(4)}</div>
+                              <div>Processing Time: {Math.round(transcriptData.metadata.processingTime / 1000)}s</div>
                             )}
                             {transcriptData.metadata.processingDate && (
                               <div>Processed: {new Date(transcriptData.metadata.processingDate).toLocaleString()}</div>
                             )}
                             {transcriptData.metadata.dataRegion && (
                               <div>Data Region: {transcriptData.metadata.dataRegion}</div>
+                            )}
+                            {transcriptData.metadata.isDemoData && (
+                              <div className="text-orange-600">⚠️ Demo Data</div>
                             )}
                           </div>
                         </div>
