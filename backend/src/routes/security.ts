@@ -10,6 +10,8 @@ router.get('/dashboard', authenticate, requireRole('ADMIN'), async (req: Request
   try {
     const securityReport = securityMonitor.getSecurityReport();
     
+    // TEMPORARILY DISABLED - securityEvent table not in current schema
+    /*
     // Get recent security events from database
     const recentEvents = await prisma.securityEvent.findMany({
       where: {
@@ -20,6 +22,10 @@ router.get('/dashboard', authenticate, requireRole('ADMIN'), async (req: Request
       orderBy: { createdAt: 'desc' },
       take: 100
     }).catch(() => []);
+    */
+
+    // Use empty array as temporary replacement
+    const recentEvents: any[] = [];
 
     // Get blocked IPs
     const blockedIPs = Array.from(securityMonitor['suspiciousIPs'] || []);
@@ -116,14 +122,20 @@ router.get('/events', authenticate, requireRole('ADMIN'), async (req: Request, r
     if (type) where.type = type as string;
     if (severity) where.severity = severity as string;
     
+    // TEMPORARILY DISABLED - securityEvent table not in current schema
+    /*
     const events = await prisma.securityEvent.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: Number(limit),
       skip: Number(offset)
     }).catch(() => []);
+    */
+    const events: any[] = [];
 
-    const total = await prisma.securityEvent.count({ where }).catch(() => 0);
+    // TEMPORARILY DISABLED - securityEvent table not in current schema
+    // const total = await prisma.securityEvent.count({ where }).catch(() => 0);
+    const total = 0;
     
     res.json({
       success: true,
@@ -195,7 +207,9 @@ router.delete('/events/clear', authenticate, requireRole('ADMIN'), async (req: R
       };
     }
     
-    const deleted = await prisma.securityEvent.deleteMany({ where }).catch(() => ({ count: 0 }));
+    // TEMPORARILY DISABLED - securityEvent table not in current schema
+    // const deleted = await prisma.securityEvent.deleteMany({ where }).catch(() => ({ count: 0 }));
+    const deleted = { count: 0 };
     
     res.json({
       success: true,

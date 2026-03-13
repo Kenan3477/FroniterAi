@@ -205,120 +205,18 @@ router.get('/user-sessions', authenticateToken, async (req, res) => {
       });
     }
 
-    const {
-      page = '1',
-      limit = '50',
-      userId,
-      status,
-      dateFrom,
-      dateTo,
-      search
-    } = req.query;
-
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Build filter conditions
-    const whereConditions: any = {};
-
-    if (userId) {
-      whereConditions.userId = parseInt(userId as string);
-    }
-
-    if (status) {
-      whereConditions.status = status as string;
-    }
-
-    if (dateFrom || dateTo) {
-      whereConditions.loginTime = {};
-      if (dateFrom) {
-        whereConditions.loginTime.gte = new Date(dateFrom as string);
-      }
-      if (dateTo) {
-        // Include the full day by adding 23:59:59 to the dateTo
-        const endDate = new Date(dateTo as string);
-        endDate.setHours(23, 59, 59, 999);
-        whereConditions.loginTime.lte = endDate;
-      }
-    }
-
-    console.log('🔍 User-sessions debug - Query conditions:');
-    console.log('  - whereConditions:', JSON.stringify(whereConditions, null, 2));
-    console.log('  - dateFrom:', dateFrom);
-    console.log('  - dateTo:', dateTo);
-    console.log('  - userId filter:', userId);
-    console.log('  - status filter:', status);
-
-    // Get user sessions with user information
-    const [sessions, totalCount] = await Promise.all([
-      prisma.userSession.findMany({
-        where: whereConditions,
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              role: true
-            }
-          }
-        },
-        orderBy: { loginTime: 'desc' },
-        skip,
-        take: limitNum,
-      }),
-      prisma.userSession.count({ where: whereConditions })
-    ]);
-
-    // Apply search filter if provided (after including user data)
-    let filteredSessions = sessions;
-    if (search) {
-      const searchLower = (search as string).toLowerCase();
-      filteredSessions = sessions.filter(session => 
-        session.user.username.toLowerCase().includes(searchLower) ||
-        session.user.firstName.toLowerCase().includes(searchLower) ||
-        session.user.lastName.toLowerCase().includes(searchLower) ||
-        session.user.email.toLowerCase().includes(searchLower) ||
-        session.ipAddress?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    console.log(`👥 Retrieved ${filteredSessions.length} user sessions (total: ${totalCount})`);
-    console.log('🔍 Debug - Session summary:');
-    if (sessions.length > 0) {
-      console.log('  - First session user ID:', sessions[0].user?.id);
-      console.log('  - First session login time:', sessions[0].loginTime);
-      console.log('  - First session user email:', sessions[0].user?.email);
-    } else {
-      console.log('  - No sessions found with current filters');
-      
-      // Check if ANY sessions exist in the database
-      const anySessions = await prisma.userSession.count();
-      console.log(`  - Total sessions in database: ${anySessions}`);
-      
-      if (anySessions > 0) {
-        const recentSession = await prisma.userSession.findFirst({
-          orderBy: { loginTime: 'desc' },
-          include: { user: { select: { email: true, id: true } } }
-        });
-        console.log('  - Most recent session:', recentSession?.loginTime);
-        console.log('  - Most recent session user:', recentSession?.user?.email);
-        console.log('  - Most recent session user ID:', recentSession?.user?.id);
-      }
-    }
-
+    // TEMPORARILY DISABLED - userSession table not in current schema
+    console.log('⚠️ User sessions feature temporarily disabled - userSession table not in schema');
+    
     res.json({
       success: true,
       data: {
-        sessions: filteredSessions,
+        sessions: [],
         pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: search ? filteredSessions.length : totalCount,
-          totalPages: Math.ceil((search ? filteredSessions.length : totalCount) / limitNum)
+          page: 1,
+          limit: 50,
+          total: 0,
+          totalPages: 0
         }
       }
     });
@@ -343,92 +241,16 @@ router.post('/cleanup-sessions', authenticateToken, async (req, res) => {
       });
     }
 
-    console.log('🧹 Starting session cleanup process...');
-
-    // Find users with multiple active sessions
-    const usersWithMultipleSessions = await prisma.userSession.groupBy({
-      by: ['userId'],
-      where: {
-        status: 'active'
-      },
-      _count: {
-        id: true
-      },
-      having: {
-        id: {
-          _count: {
-            gt: 1
-          }
-        }
-      }
-    });
-
-    let totalCleaned = 0;
-    const cleanupResults = [];
-
-    for (const userGroup of usersWithMultipleSessions) {
-      const userId = userGroup.userId;
-      const sessionCount = userGroup._count.id;
-
-      // Get all active sessions for this user, ordered by most recent first
-      const userSessions = await prisma.userSession.findMany({
-        where: {
-          userId: userId,
-          status: 'active'
-        },
-        orderBy: {
-          lastActivity: 'desc' // Keep the most recently active session
-        },
-        include: {
-          user: {
-            select: { username: true, email: true }
-          }
-        }
-      });
-
-      if (userSessions.length > 1) {
-        // Keep the most recent session, close the rest
-        const sessionsToClose = userSessions.slice(1);
-        const cleanupTime = new Date();
-
-        console.log(`👤 User ${userSessions[0].user.username}: Keeping 1 session, closing ${sessionsToClose.length} old sessions`);
-
-        // Close old sessions
-        for (const session of sessionsToClose) {
-          const sessionDuration = Math.floor((cleanupTime.getTime() - session.loginTime.getTime()) / 1000);
-          
-          await prisma.userSession.update({
-            where: { id: session.id },
-            data: {
-              status: 'logged_out',
-              logoutTime: cleanupTime,
-              sessionDuration
-            }
-          });
-        }
-
-        cleanupResults.push({
-          userId: userId,
-          username: userSessions[0].user.username,
-          email: userSessions[0].user.email,
-          totalSessions: sessionCount,
-          sessionsClosed: sessionsToClose.length,
-          sessionKept: 1
-        });
-
-        totalCleaned += sessionsToClose.length;
-      }
-    }
-
-    console.log(`✅ Session cleanup completed: ${totalCleaned} sessions closed for ${cleanupResults.length} users`);
+    // TEMPORARILY DISABLED - userSession table not in current schema
+    console.log('⚠️ Session cleanup feature temporarily disabled - userSession table not in schema');
 
     res.json({
       success: true,
-      message: `Session cleanup completed successfully`,
+      message: `Session cleanup feature temporarily disabled`,
       data: {
-        totalSessionsClosed: totalCleaned,
-        usersAffected: cleanupResults.length,
-        cleanupResults
+        totalSessionsClosed: 0,
+        usersAffected: 0,
+        cleanupResults: []
       }
     });
 

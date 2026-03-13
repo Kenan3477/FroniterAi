@@ -506,9 +506,15 @@ export const CallRecordsView: React.FC = () => {
     try {
       console.log(`📝 Fetching transcript for call: ${callId} (format: ${transcriptView})`);
       
+      // Get auth token for API call
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      
       const response = await fetch(`/api/calls/${callId}/transcript?format=${transcriptView}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include'
       });
 
@@ -560,41 +566,103 @@ export const CallRecordsView: React.FC = () => {
     setTranscriptError(null);
   };
 
-  // Advanced AI Transcription Function
+  // Enhanced AI Transcription Function (with real audio processing)
   const processAdvancedTranscription = async (callId: string) => {
-    if (!confirm('Process this call with Advanced AI Transcription? This will use OpenAI Whisper + GPT for deep analysis.')) {
+    if (!confirm('🎯 Process this call with Enhanced AI Transcription?\n\nThis will:\n• Download the actual call recording\n• Use OpenAI Whisper for speech-to-text\n• Apply GPT-4 for intelligent speaker identification\n• Generate detailed call analytics\n\nProcessing time: 30-60 seconds depending on call length.')) {
       return;
     }
 
     try {
       setTranscriptLoading(true);
       setTranscriptError(null);
+      setSelectedTranscriptCallId(callId);
+      setShowTranscriptModal(true); // Open modal immediately to show progress
       
-      const response = await fetch(`/api/transcript/advanced/${callId}`, {
+      console.log('🎯 Starting Enhanced AI Transcription for call:', callId);
+      
+      // Get auth token for backend authentication
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      
+      const response = await fetch(`/api/transcript/direct-ai/${callId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'AI transcription failed');
+        throw new Error(errorData.error || 'Enhanced AI transcription failed');
       }
 
       const result = await response.json();
+      console.log('✅ Enhanced AI transcription process started:', result);
       
-      // Show success message
-      alert(`✅ Advanced AI Transcription Complete!\n\nProcessing Time: ${result.result.processingTimeMs}ms\nEstimated Cost: $${result.result.estimatedCost.toFixed(4)}\nSentiment: ${result.result.sentimentAnalysis.overallSentiment} (${result.result.sentimentAnalysis.sentimentScore})\nOutcome: ${result.result.sentimentAnalysis.callOutcome}`);
+      // Set up intelligent polling with exponential backoff
+      let pollAttempts = 0;
+      const maxPollAttempts = 20; // 5 minutes max
       
-      // Refresh transcript data
-      await fetchTranscript(callId);
+      const pollForCompletion = async () => {
+        pollAttempts++;
+        
+        try {
+          console.log(`🔍 Polling for transcript completion (attempt ${pollAttempts}/${maxPollAttempts})`);
+          
+          // Check if transcript is now available with priority for enhanced results
+          const transcriptResponse = await fetch(`/api/calls/${callId}/transcript?format=full&enhanced=true`, {
+            method: 'GET',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            credentials: 'include'
+          });
+
+          if (transcriptResponse.ok) {
+            const transcriptData = await transcriptResponse.json();
+            
+            // Check if we have an enhanced transcript (not just fallback)
+            if (transcriptData.transcript?.processingProvider === 'enhanced_whisper_gpt4') {
+              console.log('🎉 Enhanced AI Transcription Complete!');
+              setTranscriptData(transcriptData);
+              
+              // Show success message if modal is still open
+              if (showTranscriptModal) {
+                alert('🎉 Enhanced AI Transcription Complete!\n\nYour transcript has been processed with:\n• Real audio analysis\n• OpenAI Whisper speech-to-text\n• GPT-4 intelligent speaker identification\n• Advanced call analytics\n\nView the results in the transcript modal.');
+              }
+              return; // Success - stop polling
+            } else if (transcriptData.status === 'completed' && transcriptData.transcript) {
+              console.log('📝 Standard transcript found, enhanced processing may still be in progress');
+              setTranscriptData(transcriptData); // Show standard transcript while we wait
+            }
+          }
+          
+          // Continue polling if we haven't exceeded max attempts
+          if (pollAttempts < maxPollAttempts) {
+            const delay = Math.min(15000, 5000 + (pollAttempts * 1000)); // Start at 5s, increase by 1s each time, max 15s
+            console.log(`⏳ Enhanced processing still in progress, checking again in ${delay/1000}s...`);
+            setTimeout(pollForCompletion, delay);
+          } else {
+            console.warn('⚠️ Polling timeout reached, enhanced transcript may still be processing in background');
+            alert('⚠️ Enhanced AI processing is taking longer than expected.\n\nThe transcript may still be processing in the background. Please check back in a few minutes.');
+          }
+        } catch (error) {
+          console.error('❌ Error during transcript polling:', error);
+          if (pollAttempts < maxPollAttempts) {
+            const delay = 10000; // 10 second delay on error
+            setTimeout(pollForCompletion, delay);
+          }
+        }
+      };
       
-      console.log('✅ Advanced AI transcription completed:', result);
+      // Start polling after 15 seconds (give it initial processing time)
+      setTimeout(pollForCompletion, 15000);
+      
     } catch (error) {
-      console.error('❌ Advanced AI transcription failed:', error);
-      setTranscriptError(error instanceof Error ? error.message : 'Advanced AI transcription failed');
-      alert(`❌ Advanced AI Transcription Failed\n\n${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Enhanced AI transcription failed:', error);
+      setTranscriptError(error instanceof Error ? error.message : 'Enhanced AI transcription failed');
+      alert(`❌ Enhanced AI Transcription Failed\n\n${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support if the issue persists.`);
     } finally {
       setTranscriptLoading(false);
     }

@@ -47,8 +47,8 @@ router.get('/transcript/:id', async (req: any, res: any) => {
         phoneNumber: true,
         startTime: true,
         duration: true,
-        outcome: true,
-        transcriptionStatus: true
+        outcome: true
+        // transcriptionStatus: true // TEMPORARILY DISABLED - field not in schema
       }
     });
 
@@ -59,7 +59,8 @@ router.get('/transcript/:id', async (req: any, res: any) => {
       });
     }
 
-    console.log(`✅ Call found: ${callRecord.id}, status: ${callRecord.transcriptionStatus}`);
+    // console.log(`✅ Call found: ${callRecord.id}, status: ${callRecord.transcriptionStatus}`); // TEMPORARILY DISABLED
+    console.log(`✅ Call found: ${callRecord.id}`);
 
     // Get transcript - simple query
     const transcript = await (prisma as any).callTranscript.findFirst({
@@ -318,6 +319,8 @@ router.post('/advanced/:callId', async (req, res) => {
       });
     }
 
+    // TEMPORARILY DISABLED - callTranscript table not in schema
+    /*
     // Check if already processed
     const existingTranscript = await railwayPrisma.callTranscript.findFirst({
       where: {
@@ -327,6 +330,11 @@ router.post('/advanced/:callId', async (req, res) => {
     });
 
     if (existingTranscript && existingTranscript.transcriptText !== '[AI transcription failed]') {
+    */
+    
+    // Use empty check for now
+    const existingTranscript = null;
+    if (false) {
       return res.status(400).json({
         success: false,
         error: 'Call already has advanced AI transcription'

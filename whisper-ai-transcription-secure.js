@@ -39,9 +39,9 @@ if (missingEnvVars.length > 0) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 /**
- * Download recording from Twilio to temporary file
+ * Download recording from Twilio or Railway backend to temporary file
  */
-async function downloadRecording(recordingUrl) {
+async function downloadRecording(recordingUrl, authToken = '') {
   const tempDir = os.tmpdir();
   const filename = `recording_${Date.now()}.wav`;
   const filepath = path.join(tempDir, filename);
@@ -49,15 +49,48 @@ async function downloadRecording(recordingUrl) {
   console.log('📥 Downloading recording...');
   
   try {
-    const response = await axios({
-      method: 'GET',
-      url: recordingUrl,
-      auth: {
-        username: TWILIO_ACCOUNT_SID,
-        password: TWILIO_AUTH_TOKEN
-      },
-      responseType: 'stream'
-    });
+    // Determine if this is a Twilio URL or Railway backend URL
+    const isRailwayBackend = recordingUrl.includes('railway.app') || recordingUrl.includes('localhost');
+    const isTwilioUrl = recordingUrl.includes('api.twilio.com');
+    
+    let response;
+    if (isRailwayBackend) {
+      console.log('🚂 Downloading from Railway backend...');
+      // For Railway backend, use Bearer token authentication
+      const headers = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      response = await axios({
+        method: 'GET',
+        url: recordingUrl,
+        headers,
+        responseType: 'stream',
+        timeout: 30000
+      });
+    } else if (isTwilioUrl) {
+      console.log('📞 Downloading from Twilio...');
+      // For Twilio URLs, use Twilio credentials
+      response = await axios({
+        method: 'GET',
+        url: recordingUrl,
+        auth: {
+          username: TWILIO_ACCOUNT_SID,
+          password: TWILIO_AUTH_TOKEN
+        },
+        responseType: 'stream',
+        timeout: 30000
+      });
+    } else {
+      console.log('🌐 Downloading from public URL...');
+      // For other URLs (like demo files), no auth needed
+      response = await axios({
+        method: 'GET',
+        url: recordingUrl,
+        responseType: 'stream',
+        timeout: 30000
+      });
+    }
     
     const writer = fs.createWriteStream(filepath);
     response.data.pipe(writer);
@@ -71,6 +104,10 @@ async function downloadRecording(recordingUrl) {
     return filepath;
   } catch (error) {
     console.error('❌ Download failed:', error.message);
+    if (error.response) {
+      console.error(`   Status: ${error.response.status}`);
+      console.error(`   Status Text: ${error.response.statusText}`);
+    }
     throw error;
   }
 }
@@ -100,6 +137,86 @@ async function transcribeWithWhisper(audioFilePath) {
   } catch (error) {
     console.error('❌ Whisper transcription failed:', error.message);
     throw error;
+  }
+}
+
+/**
+ * Perform speaker diarization using GPT to identify Agent vs Customer
+ */
+async function performSpeakerDiarization(transcriptText) {
+  console.log('👥 Performing speaker diarization with GPT...');
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{
+        role: "user",
+        content: `Analyze this call transcript and identify who is speaking (Agent or Customer). Break it into segments with timestamps if possible. The Agent is typically the professional representative from the company, and the Customer is the person being called.
+
+Transcript: "${transcriptText}"
+
+Please return a JSON array with segments like this:
+[
+  {
+    "speaker": "agent",
+    "text": "Hello, this is...",
+    "start": 0,
+    "end": 5
+  },
+  {
+    "speaker": "customer", 
+    "text": "Hello...",
+    "start": 5,
+    "end": 10
+  }
+]
+
+Guidelines:
+- "speaker" should be either "agent" or "customer"
+- Estimate reasonable timestamps based on speech flow
+- Split long monologues into shorter segments
+- The agent typically initiates the call and asks questions
+- The customer typically responds and provides information`
+      }],
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    const segmentsText = response.choices[0]?.message?.content || '[]';
+    let segments;
+    
+    try {
+      // Extract JSON from the response
+      const jsonMatch = segmentsText.match(/\[[\s\S]*\]/);
+      const cleanedJson = jsonMatch ? jsonMatch[0] : segmentsText;
+      segments = JSON.parse(cleanedJson);
+    } catch (parseError) {
+      console.warn('⚠️ Failed to parse diarization JSON, creating fallback segments');
+      // Fallback: Split text into sentences and alternate speakers
+      const sentences = transcriptText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      segments = sentences.map((sentence, index) => ({
+        speaker: index % 2 === 0 ? 'agent' : 'customer',
+        text: sentence.trim(),
+        start: index * 3,
+        end: (index + 1) * 3,
+        id: index
+      }));
+    }
+    
+    console.log('✅ Speaker diarization complete');
+    return segments;
+    
+  } catch (error) {
+    console.error('❌ Speaker diarization failed:', error.message);
+    // Return fallback segments
+    const sentences = transcriptText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    return sentences.map((sentence, index) => ({
+      speaker: index % 2 === 0 ? 'agent' : 'customer',
+      text: sentence.trim(),
+      start: index * 3,
+      end: (index + 1) * 3,
+      id: index
+    }));
   }
 }
 
@@ -179,7 +296,7 @@ Please return JSON with these exact fields:
 /**
  * Process single call with advanced AI transcription
  */
-async function processAdvancedTranscription(callId) {
+async function processAdvancedTranscription(callId, authToken = '') {
   const startTime = Date.now();
   console.log(`🚀 Processing advanced transcription for call: ${callId}`);
   
@@ -196,7 +313,8 @@ async function processAdvancedTranscription(callId) {
         recording: true,
         duration: true,
         phoneNumber: true,
-        outcome: true
+        outcome: true,
+        recordingFile: true
       }
     });
     
@@ -204,14 +322,35 @@ async function processAdvancedTranscription(callId) {
       throw new Error(`Call ${callId} not found`);
     }
     
-    if (!call.recording) {
+    let recordingUrl = call.recording;
+    
+    // If no direct recording URL, check if there's a recordingFile
+    if (!recordingUrl && call.recordingFile) {
+      console.log('📁 No direct recording URL, checking recordingFile...');
+      
+      if (call.recordingFile.storageType === 'twilio') {
+        // Construct Twilio recording URL
+        const recordingSid = call.recordingFile.filePath || call.recordingFile.fileName?.replace('.mp3', '');
+        if (recordingSid) {
+          recordingUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Recordings/${recordingSid}.wav`;
+          console.log(`🔧 Constructed Twilio URL: ${recordingUrl}`);
+        }
+      } else if (call.recordingFile.storageType === 'railway') {
+        // Construct Railway recording URL
+        recordingUrl = `https://froniterai-production.up.railway.app/api/recordings/${call.recordingFile.id}/download`;
+        console.log(`🔧 Constructed Railway URL: ${recordingUrl}`);
+      }
+    }
+    
+    if (!recordingUrl) {
       throw new Error(`No recording available for call ${callId}`);
     }
     
     console.log(`📞 Call: ${call.phoneNumber} (${call.duration}s)`);
+    console.log(`🎵 Recording URL: ${recordingUrl}`);
     
     // Download and transcribe
-    tempFilePath = await downloadRecording(call.recording);
+    tempFilePath = await downloadRecording(recordingUrl, authToken);
     const whisperResult = await transcribeWithWhisper(tempFilePath);
     
     // Estimate costs (approximate)
@@ -225,6 +364,9 @@ async function processAdvancedTranscription(callId) {
     
     console.log(`📝 Transcript length: ${whisperResult.text.length} characters`);
     
+    // Perform speaker diarization
+    const segments = await performSpeakerDiarization(whisperResult.text);
+    
     // Analyze sentiment
     const sentimentAnalysis = await analyzeSentiment(whisperResult.text);
     
@@ -236,26 +378,59 @@ async function processAdvancedTranscription(callId) {
     const wordCount = whisperResult.text.split(/\s+/).length;
     const confidence = Math.max(0.7, Math.min(0.95, whisperResult.text.length / (call.duration * 3)));
     
+    // Calculate analytics from segments
+    const agentSegments = segments.filter(s => s.speaker === 'agent');
+    const customerSegments = segments.filter(s => s.speaker === 'customer');
+    const totalDuration = Math.max(call.duration, segments[segments.length - 1]?.end || 0);
+    
+    const agentTotalTime = agentSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
+    const customerTotalTime = customerSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
+    const totalSpeechTime = agentTotalTime + customerTotalTime;
+    
+    const agentTalkRatio = totalSpeechTime > 0 ? agentTotalTime / totalSpeechTime : 0.5;
+    const customerTalkRatio = totalSpeechTime > 0 ? customerTotalTime / totalSpeechTime : 0.5;
+    
+    // Find longest monologue
+    const longestMonologue = Math.max(
+      ...segments.map(s => s.end - s.start),
+      0
+    );
+    
+    // Count speaker transitions as interruptions
+    const interruptions = segments.filter((s, i) => 
+      i > 0 && segments[i-1].speaker !== s.speaker && (s.start - segments[i-1].end) < 1
+    ).length;
+    
     // Create structured JSON with all data
     const structuredData = {
-      whisperResult: {
+      transcript: {
         text: whisperResult.text,
-        duration: whisperResult.duration,
-        language: whisperResult.language,
-        segments: whisperResult.segments?.slice(0, 10) // Limit segments to prevent huge JSON
+        segments: segments,
+        wordCount: wordCount,
+        confidence: confidence,
+        processingProvider: 'openai_whisper_gpt'
       },
-      sentimentAnalysis,
-      processing: {
-        provider: 'openai_whisper_gpt',
-        processingTimeMs: Date.now() - startTime,
-        estimatedCost: totalCost,
-        audioMinutes,
-        timestamp: new Date().toISOString()
+      analysis: {
+        summary: `AI Analysis: ${sentimentAnalysis.overallSentiment} sentiment (${sentimentAnalysis.sentimentScore}). Outcome: ${sentimentAnalysis.callOutcome}. Next: ${sentimentAnalysis.nextAction}`,
+        sentimentScore: sentimentAnalysis.sentimentScore,
+        callOutcome: sentimentAnalysis.callOutcome,
+        keyObjections: sentimentAnalysis.keyPoints || [],
+        complianceFlags: [] // TODO: Add compliance checking
       },
-      metrics: {
-        wordCount,
-        confidence,
-        estimatedSpeakingRate: wordCount / (call.duration / 60) // words per minute
+      analytics: {
+        agentTalkRatio: Math.round(agentTalkRatio * 100) / 100,
+        customerTalkRatio: Math.round(customerTalkRatio * 100) / 100,
+        longestMonologue: Math.round(longestMonologue),
+        silenceDuration: Math.max(0, totalDuration - totalSpeechTime),
+        interruptions: interruptions,
+        scriptAdherence: 0.8 // TODO: Calculate based on script analysis
+      },
+      metadata: {
+        processingTime: Date.now() - startTime,
+        processingCost: totalCost,
+        processingDate: new Date().toISOString(),
+        audioMinutes: audioMinutes,
+        provider: 'openai_whisper_gpt'
       }
     };
     
@@ -270,10 +445,11 @@ async function processAdvancedTranscription(callId) {
         "createdAt", "updatedAt"
       ) VALUES (
         gen_random_uuid(), ${call.id}, ${whisperResult.text}, 
-        ${JSON.stringify(structuredData)},
+        ${JSON.stringify(structuredData)}::jsonb,
         ${`AI Analysis: ${sentimentAnalysis.overallSentiment} sentiment (${sentimentAnalysis.sentimentScore}). Outcome: ${sentimentAnalysis.callOutcome}. Next: ${sentimentAnalysis.nextAction}`},
         ${sentimentAnalysis.sentimentScore}, ${confidence}, ${wordCount}, 
-        ${sentimentAnalysis.callOutcome}, 0.5, 0.5, 0, 0, 0,
+        ${sentimentAnalysis.callOutcome}, ${structuredData.analytics.agentTalkRatio}, ${structuredData.analytics.customerTalkRatio},
+        ${structuredData.analytics.longestMonologue}, ${structuredData.analytics.silenceDuration}, ${structuredData.analytics.interruptions},
         'openai_whisper_gpt', ${Date.now() - startTime}, ${totalCost}, 
         NOW(), NOW()
       )
@@ -412,10 +588,11 @@ if (require.main === module) {
     const limit = parseInt(args[1]) || 5;
     batchProcessHistoricalCalls(limit).catch(console.error);
   } else if (args[0] === 'single' && args[1]) {
-    processAdvancedTranscription(args[1]).catch(console.error);
+    const authToken = args[2] || '';
+    processAdvancedTranscription(args[1], authToken).catch(console.error);
   } else {
     console.log('Usage:');
     console.log('  node whisper-ai-transcription-secure.js batch [limit]');
-    console.log('  node whisper-ai-transcription-secure.js single <callId>');
+    console.log('  node whisper-ai-transcription-secure.js single <callId> [authToken]');
   }
 }

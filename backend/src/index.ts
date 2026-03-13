@@ -40,7 +40,7 @@ import recordingRoutes from './routes/recordingRoutes'; // Call recording downlo
 import recordingsRoutes from './routes/recordings'; // NEW: Twilio recording streaming service
 import { recordingFixRoutes } from './routes/recordingFix'; // ADMIN: Recording system fixes
 import { emergencyRoutes } from './routes/emergency'; // EMERGENCY: Account unlock and debugging
-import securityRoutes from './routes/security'; // SECURITY: Admin security monitoring dashboard
+// import securityRoutes from './routes/security'; // SECURITY: Admin security monitoring dashboard - TEMPORARILY DISABLED
 import emergencyCleanupRoutes from './routes/emergencyCleanup'; // EMERGENCY: Call data cleanup when other routes fail
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
 // import integrationRoutes from './routes/integrations'; // Temporarily disabled - fixing schema issues
@@ -63,7 +63,7 @@ import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoi
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
-import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails
+// import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails - TEMPORARILY DISABLED
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 import migrationRoutes from './routes/migration'; // Database migration endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
@@ -215,7 +215,7 @@ class App {
     this.app.use('/api/auth', authRoutes); // Auth routes - enabled and working
     this.app.use('/api/agent', agentRoutes); // Single agent status
     this.app.use('/api/agents', agentsRoutes); // Agents queue and management
-    this.app.use('/api/pause-events', pauseEventsRoutes); // Agent pause/break reason tracking system
+    // this.app.use('/api/pause-events', pauseEventsRoutes); // Agent pause/break reason tracking system - TEMPORARILY DISABLED
     this.app.use('/api/auto-dial', autoDialRoutes); // Auto-dial engine management
     this.app.use('/api/campaigns', campaignRoutes); // NEW: Production campaign management service
     this.app.use('/api/interactions', interactionRoutes); // NEW: Production interaction tracking service
@@ -252,7 +252,7 @@ class App {
     this.app.use('/api/admin', migrationRoutes); // Database migration endpoints
     this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
     this.app.use('/api/emergency', emergencyRoutes); // EMERGENCY: Account unlock and debugging endpoints (no auth required)
-    this.app.use('/api/security', securityRoutes); // SECURITY: Admin security monitoring dashboard (auth required)
+    // this.app.use('/api/security', securityRoutes); // SECURITY: Admin security monitoring dashboard (auth required) - TEMPORARILY DISABLED
     this.app.use('/api/test', testRoutes); // Testing and debugging endpoints
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system

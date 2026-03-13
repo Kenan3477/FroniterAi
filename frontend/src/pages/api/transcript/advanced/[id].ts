@@ -16,9 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Proxy to backend
-    const backendUrl = process.env.BACKEND_URL || 'https://omnivox-dialler-production.up.railway.app';
-    const response = await fetch(`${backendUrl}/transcript/advanced/${id}`, {
+    // Proxy to backend - use localhost for development
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const response = await fetch(`${backendUrl}/api/advanced/${id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

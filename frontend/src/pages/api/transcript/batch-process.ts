@@ -10,9 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Proxy to backend
+    // Proxy to backend - correct route path
     const backendUrl = process.env.BACKEND_URL || 'https://omnivox-dialler-production.up.railway.app';
-    const response = await fetch(`${backendUrl}/transcript/batch-process`, {
+    const response = await fetch(`${backendUrl}/api/batch-process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

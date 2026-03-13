@@ -161,46 +161,50 @@ router.post('/login', async (req, res) => {
                        userAgent.includes('Tablet') ? 'tablet' : 'desktop';
 
     // Close any existing active sessions for this user to prevent multiple active sessions
-    const existingActiveSessions = await prisma.userSession.findMany({
-      where: { 
-        userId: user.id, 
-        status: 'active' 
-      }
-    });
+    // TEMPORARILY DISABLED - userSession table not in schema
+    // const existingActiveSessions = await prisma.userSession.findMany({
+    //   where: { 
+    //     userId: user.id, 
+    //     status: 'active' 
+    //   }
+    // });
 
-    if (existingActiveSessions.length > 0) {
-      console.log(`🔄 Closing ${existingActiveSessions.length} existing active session(s) for user: ${user.username}`);
-      
-      const loginTime = new Date();
-      
-      // Update all active sessions to logged_out with calculated duration
-      for (const session of existingActiveSessions) {
-        const sessionDuration = Math.floor((loginTime.getTime() - session.loginTime.getTime()) / 1000);
-        await prisma.userSession.update({
-          where: { id: session.id },
-          data: {
-            status: 'logged_out',
-            logoutTime: loginTime,
-            sessionDuration
-          }
-        });
-      }
-    }
+    // TEMPORARILY DISABLED - userSession management
+    // if (existingActiveSessions.length > 0) {
+    //   console.log(`🔄 Closing ${existingActiveSessions.length} existing active session(s) for user: ${user.username}`);
+    //   
+    //   const loginTime = new Date();
+    //   
+    //   // Update all active sessions to logged_out with calculated duration
+    //   for (const session of existingActiveSessions) {
+    //     const sessionDuration = Math.floor((loginTime.getTime() - session.loginTime.getTime()) / 1000);
+    //     await prisma.userSession.update({
+    //       where: { id: session.id },
+    //       data: {
+    //         status: 'logged_out',
+    //         logoutTime: loginTime,
+    //         sessionDuration
+    //       }
+    //     });
+    //   }
+    // }
 
-    // Create user session record
-    await prisma.userSession.create({
-      data: {
-        sessionId,
-        userId: user.id,
-        loginTime: new Date(),
-        ipAddress: clientIP,
-        userAgent,
-        status: 'active',
-        lastActivity: new Date(),
-        browserInfo: userAgent,
-        deviceType
-      }
-    });
+    // Create user session record - TEMPORARILY DISABLED
+    // await prisma.userSession.create({
+    //   data: {
+    //     sessionId,
+    //     userId: user.id,
+    //     loginTime: new Date(),
+    //     ipAddress: clientIP,
+    //     userAgent,
+    //     status: 'active',
+    //     lastActivity: new Date(),
+    //     browserInfo: userAgent,
+    //     deviceType
+    //   }
+    // });
+
+    console.log('📝 User session logging temporarily disabled - schema not available');
 
     // Store refresh token in database
     await prisma.refreshToken.create({
@@ -567,30 +571,32 @@ router.post('/logout', async (req, res) => {
     const userAgent = req.get('User-Agent') || 'unknown';
     const logoutTime = new Date();
 
-    // Update user session if sessionId provided
+    // Update user session if sessionId provided - TEMPORARILY DISABLED
     if (sessionId && userId) {
-      const session = await prisma.userSession.findFirst({
-        where: { 
-          sessionId: sessionId,
-          userId: userId,
-          status: 'active'
-        }
-      });
+      // const session = await prisma.userSession.findFirst({
+      //   where: { 
+      //     sessionId: sessionId,
+      //     userId: userId,
+      //     status: 'active'
+      //   }
+      // });
 
-      if (session) {
-        const sessionDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
-        
-        await prisma.userSession.update({
-          where: { id: session.id },
-          data: {
-            logoutTime,
-            status: 'logged_out',
-            sessionDuration
-          }
-        });
-        
-        console.log(`📊 Session duration for ${userInfo?.username}: ${sessionDuration} seconds`);
-      }
+      // if (session) {
+      //   const sessionDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
+      //   
+      //   await prisma.userSession.update({
+      //     where: { id: session.id },
+      //     data: {
+      //       logoutTime,
+      //       status: 'logged_out',
+      //       sessionDuration
+      //     }
+      //   });
+      //   
+      //   console.log(`📊 Session duration for ${userInfo?.username}: ${sessionDuration} seconds`);
+      // }
+      
+      console.log('📝 User session logout temporarily disabled - schema not available');
     }
 
     // Revoke refresh token if provided

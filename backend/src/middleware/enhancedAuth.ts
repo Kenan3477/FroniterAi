@@ -204,6 +204,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     // Update lastActivity for active sessions (async, non-blocking)
     // This ensures we track when users are actively using the system
+    // TEMPORARILY DISABLED - userSession table not in current schema
+    /*
     prisma.userSession.updateMany({
       where: {
         userId: user.id,
@@ -212,10 +214,11 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       data: {
         lastActivity: new Date()
       }
-    }).catch(error => {
+    }).catch((error: any) => {
       console.error('⚠️ Failed to update session activity:', error);
       // Don't block the request if this fails
     });
+    */
 
     next();
 

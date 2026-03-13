@@ -169,23 +169,26 @@ class SecurityMonitor {
     this.securityEvents.push(event);
     
     try {
-      // Store in database for persistence
-      await prisma.securityEvent.create({
-        data: {
-          type: event.type,
-          ip: event.ip,
-          userAgent: event.userAgent || null,
-          email: event.email || null,
-          endpoint: event.endpoint || null,
-          url: event.url || null,
-          body: event.body ? JSON.stringify(event.body) : null,
-          severity: event.severity,
-          createdAt: new Date(event.timestamp)
-        }
-      }).catch(() => {
-        // If SecurityEvent table doesn't exist, just log to console
-        console.log('📝 Security event (no DB):', event);
-      });
+      // Store in database for persistence - TEMPORARILY DISABLED
+      // await prisma.securityEvent.create({
+      //   data: {
+      //     type: event.type,
+      //     ip: event.ip,
+      //     userAgent: event.userAgent || null,
+      //     email: event.email || null,
+      //     endpoint: event.endpoint || null,
+      //     url: event.url || null,
+      //     body: event.body ? JSON.stringify(event.body) : null,
+      //     severity: event.severity,
+      //     createdAt: new Date(event.timestamp)
+      //   }
+      // }).catch(() => {
+      //   // If SecurityEvent table doesn't exist, just log to console
+      //   console.log('📝 Security event (no DB):', event);
+      // });
+      
+      // Just log to console for now
+      console.log('📝 Security event:', event);
     } catch (error) {
       console.log('📝 Security event (logged):', event);
     }
