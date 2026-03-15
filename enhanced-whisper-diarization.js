@@ -184,98 +184,189 @@ async function performAdvancedSpeakerDiarization(transcription, audioPath) {
   }
 }
 
+async function analyzeAndSplitMixedChunks(chunks) {
+  console.log('🔍 Analyzing chunks for mixed conversations...');
+  
+  const splitChunks = [];
+  
+  for (const chunk of chunks) {
+    // Check if chunk might contain mixed speakers based on patterns
+    const text = chunk.text.trim();
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    
+    if (sentences.length > 1) {
+      // Analyze if multiple sentences suggest different speakers
+      const mixedSpeakerIndicators = [
+        // Question followed by answer pattern
+        /\?(.*?)(yes|no|yeah|nah|it was|I can|sounds)/i,
+        // Contradictory statements
+        /(hello|can you hear|how's it).*?(no|yes|it was my)/i,
+        // Different perspectives
+        /(did it|was it|is it).*?(no|yes|it was|I|my)/i
+      ];
+      
+      let needsSplitting = false;
+      for (const pattern of mixedSpeakerIndicators) {
+        if (pattern.test(text)) {
+          needsSplitting = true;
+          break;
+        }
+      }
+      
+      if (needsSplitting) {
+        console.log(`🔀 Splitting potentially mixed chunk: "${text.slice(0, 50)}..."`);
+        
+        // Try to split on sentence boundaries and question marks
+        const parts = text.split(/(\?|\.)/).filter(p => p.trim().length > 0);
+        let currentText = '';
+        const chunkDuration = chunk.end - chunk.start;
+        
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].trim();
+          if (!part) continue;
+          
+          if (part === '?' || part === '.') {
+            currentText += part;
+            
+            // Check if next part indicates speaker change
+            const nextPart = parts[i + 1];
+            if (nextPart && (
+              /^(no|yes|yeah|nah|it was|I can|sounds|oh)/i.test(nextPart.trim()) ||
+              currentText.includes('?')
+            )) {
+              // Split here
+              const timePoint = chunk.start + (chunkDuration * (currentText.length / text.length));
+              splitChunks.push({
+                start: chunk.start,
+                end: timePoint,
+                text: currentText.trim()
+              });
+              
+              // Start new chunk for remaining text
+              chunk.start = timePoint;
+              currentText = '';
+            }
+          } else {
+            currentText += (currentText ? ' ' : '') + part;
+          }
+        }
+        
+        // Add remaining text as final chunk
+        if (currentText.trim()) {
+          splitChunks.push({
+            start: chunk.start,
+            end: chunk.end,
+            text: currentText.trim()
+          });
+        }
+      } else {
+        splitChunks.push(chunk);
+      }
+    } else {
+      splitChunks.push(chunk);
+    }
+  }
+  
+  console.log(`📊 Split ${chunks.length} chunks into ${splitChunks.length} segments`);
+  return splitChunks;
+}
+
 function groupWordsIntoChunks(words, silenceThreshold = 1.5) {
+  console.log(`📊 Grouping ${words.length} words with ${silenceThreshold}s silence threshold...`);
+  
+  if (words.length === 0) return [];
+  
   const chunks = [];
   let currentChunk = {
-    words: [],
-    start: 0,
-    end: 0,
-    text: ''
+    start: words[0].start,
+    end: words[0].end,
+    text: words[0].word
   };
   
-  for (let i = 0; i < words.length; i++) {
+  for (let i = 1; i < words.length; i++) {
     const word = words[i];
     const prevWord = words[i - 1];
     
     // Detect speaker changes based on significant pauses
-    const timeSinceLastWord = prevWord ? (word.start - prevWord.end) : 0;
+    const timeSinceLastWord = word.start - prevWord.end;
     
-    if (timeSinceLastWord > silenceThreshold && currentChunk.words.length > 0) {
+    if (timeSinceLastWord > silenceThreshold) {
       // End current chunk and start new one
-      currentChunk.end = prevWord.end;
-      currentChunk.text = currentChunk.words.map(w => w.word).join('');
-      chunks.push({ ...currentChunk });
+      chunks.push({
+        start: currentChunk.start,
+        end: currentChunk.end,
+        text: currentChunk.text
+      });
       
       // Start new chunk
       currentChunk = {
-        words: [word],
         start: word.start,
         end: word.end,
-        text: ''
+        text: word.word
       };
     } else {
       // Add word to current chunk
-      if (currentChunk.words.length === 0) {
-        currentChunk.start = word.start;
-      }
-      currentChunk.words.push(word);
       currentChunk.end = word.end;
+      currentChunk.text += ' ' + word.word;
     }
   }
   
   // Add final chunk
-  if (currentChunk.words.length > 0) {
-    currentChunk.text = currentChunk.words.map(w => w.word).join('');
-    chunks.push(currentChunk);
+  if (currentChunk.text) {
+    chunks.push({
+      start: currentChunk.start,
+      end: currentChunk.end,
+      text: currentChunk.text
+    });
   }
   
-  console.log(`📊 Grouped ${words.length} words into ${chunks.length} conversation chunks`);
+  console.log(`� Created ${chunks.length} conversation chunks`);
   return chunks;
 }
 
 async function identifySpeakersWithContext(chunks) {
   try {
-    console.log('🧠 Performing context-aware speaker identification...');
+    console.log('🧠 Performing advanced speaker identification with sentence-level analysis...');
+    
+    // First, analyze each chunk for potential mixed conversations
+    const analyzedChunks = await analyzeAndSplitMixedChunks(chunks);
     
     // Create detailed analysis prompt with conversation flow
-    const conversationFlow = chunks.map((chunk, i) => 
-      `Chunk ${i}: [${chunk.start.toFixed(1)}s-${chunk.end.toFixed(1)}s] "${chunk.text.trim()}"`
+    const conversationFlow = analyzedChunks.map((chunk, i) => 
+      `Segment ${i}: [${chunk.start.toFixed(1)}s-${chunk.end.toFixed(1)}s] "${chunk.text.trim()}"`
     ).join('\n');
     
     const enhancedPrompt = `
 You are an expert in analyzing business phone calls between an Agent (company representative) and a Customer.
 
-CONVERSATION CHUNKS (separated by natural pauses):
+CONVERSATION SEGMENTS (each represents a single speaker turn):
 ${conversationFlow}
 
-ANALYSIS INSTRUCTIONS:
-1. Look for conversation patterns and natural dialogue flow
-2. Identify who initiates different topics
-3. Notice professional vs casual language patterns
-4. Track question/answer patterns
-5. Consider technical vs user perspective
+CRITICAL ANALYSIS POINTS:
+1. QUESTION vs ANSWER patterns (Questions typically from Agent, answers from Customer)
+2. PROFESSIONAL vs CASUAL language (Agent uses formal tone, Customer casual)
+3. TECHNICAL vs USER perspective (Agent tests systems, Customer reports experience)
+4. CONVERSATION FLOW (natural turn-taking in business calls)
 
 SPEAKER IDENTIFICATION RULES:
-- Agent typically: Tests call quality, uses professional language, asks for feedback
-- Customer typically: Responds to questions, uses casual language, reports issues
-- Look for natural conversation turn-taking at pause boundaries
-- Consider context: who would logically say what in a business call
+- Agent typically: "Hello?", "Can you hear me?", "How's it sounding?", "Any echoes?"
+- Customer typically: "Yes, I can hear you", "No, it was my phone", "Yeah, sounds clear"
+- Agent: Professional testing and verification language
+- Customer: Casual responses and personal references ("my phone", "I can hear")
 
-For EACH chunk, determine the speaker based on:
-- Content analysis
-- Conversation flow
-- Natural turn-taking patterns
-- Professional vs casual tone
+IMPORTANT: Look for natural conversation boundaries where one person finishes speaking and another responds.
+
+For EACH segment, determine the speaker based on content and conversation flow.
 
 Respond with ONLY the speaker assignments, one per line:
-Format: "0: agent" or "0: customer" (chunk number: speaker)
+Format: "0: agent" or "0: customer" (segment number: speaker)
 `;
 
     const gptResponse = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: enhancedPrompt }],
       temperature: 0.1,
-      max_tokens: 500
+      max_tokens: 1000
     });
     
     const assignments = gptResponse.choices[0].message.content;
@@ -292,7 +383,7 @@ Format: "0: agent" or "0: customer" (chunk number: speaker)
     });
     
     // Convert chunks to segments with speaker assignments
-    const speakerSegments = chunks.map((chunk, index) => ({
+    const speakerSegments = analyzedChunks.map((chunk, index) => ({
       id: index,
       start: chunk.start,
       end: chunk.end,
