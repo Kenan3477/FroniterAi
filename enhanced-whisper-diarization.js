@@ -171,7 +171,7 @@ async function performAdvancedSpeakerDiarization(transcription, audioPath) {
     }
     
     // Group words into natural conversation chunks based on timing gaps
-    const conversationChunks = groupWordsIntoChunks(transcription.words);
+    const conversationChunks = groupWordsIntoChunks(transcription.words, 0.8); // Reduced from 1.5s to 0.8s
     
     // Use GPT-4 with enhanced prompting for speaker identification
     const speakerSegments = await identifySpeakersWithContext(conversationChunks);
@@ -190,79 +190,84 @@ async function analyzeAndSplitMixedChunks(chunks) {
   const splitChunks = [];
   
   for (const chunk of chunks) {
-    // Check if chunk might contain mixed speakers based on patterns
     const text = chunk.text.trim();
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
     
-    if (sentences.length > 1) {
-      // Analyze if multiple sentences suggest different speakers
-      const mixedSpeakerIndicators = [
-        // Question followed by answer pattern
-        /\?(.*?)(yes|no|yeah|nah|it was|I can|sounds)/i,
-        // Contradictory statements
-        /(hello|can you hear|how's it).*?(no|yes|it was my)/i,
-        // Different perspectives
-        /(did it|was it|is it).*?(no|yes|it was|I|my)/i
-      ];
-      
-      let needsSplitting = false;
-      for (const pattern of mixedSpeakerIndicators) {
-        if (pattern.test(text)) {
-          needsSplitting = true;
-          break;
-        }
-      }
-      
-      if (needsSplitting) {
-        console.log(`🔀 Splitting potentially mixed chunk: "${text.slice(0, 50)}..."`);
+    // Look for clear speaker transition patterns
+    const speakerTransitions = [
+      // Question followed by response
+      /^(.+?\?)\s*(No,|Yes,|Yeah,|Nah,|It was|I can|Sounds|Oh,)/i,
+      // Statement followed by contradictory response  
+      /^(.+?)\s+(No,|Yes,|It was my|I think|Oh,|Actually)/i,
+      // Greeting followed by response
+      /^(Hello\?|Can you hear|How's it)\s*(.+)/i
+    ];
+    
+    let wasProcessed = false;
+    
+    // Check each transition pattern
+    for (const pattern of speakerTransitions) {
+      const match = text.match(pattern);
+      if (match && match[1] && match[2]) {
+        console.log(`🔀 Splitting mixed chunk: "${text.slice(0, 60)}..."`);
+        console.log(`   Part 1: "${match[1].trim()}"`);
+        console.log(`   Part 2: "${match[2].trim()}"`);
         
-        // Try to split on sentence boundaries and question marks
-        const parts = text.split(/(\?|\.)/).filter(p => p.trim().length > 0);
-        let currentText = '';
         const chunkDuration = chunk.end - chunk.start;
+        const splitPoint = chunk.start + (chunkDuration * 0.5); // Split roughly in middle
         
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i].trim();
-          if (!part) continue;
-          
-          if (part === '?' || part === '.') {
-            currentText += part;
-            
-            // Check if next part indicates speaker change
-            const nextPart = parts[i + 1];
-            if (nextPart && (
-              /^(no|yes|yeah|nah|it was|I can|sounds|oh)/i.test(nextPart.trim()) ||
-              currentText.includes('?')
-            )) {
-              // Split here
-              const timePoint = chunk.start + (chunkDuration * (currentText.length / text.length));
-              splitChunks.push({
-                start: chunk.start,
-                end: timePoint,
-                text: currentText.trim()
-              });
-              
-              // Start new chunk for remaining text
-              chunk.start = timePoint;
-              currentText = '';
-            }
-          } else {
-            currentText += (currentText ? ' ' : '') + part;
-          }
-        }
+        // First segment
+        splitChunks.push({
+          start: chunk.start,
+          end: splitPoint,
+          text: match[1].trim()
+        });
         
-        // Add remaining text as final chunk
-        if (currentText.trim()) {
+        // Second segment (everything after the first part)
+        const remainingText = text.substring(match[1].length).trim();
+        if (remainingText) {
           splitChunks.push({
-            start: chunk.start,
+            start: splitPoint,
             end: chunk.end,
-            text: currentText.trim()
+            text: remainingText
           });
         }
-      } else {
-        splitChunks.push(chunk);
+        
+        wasProcessed = true;
+        break;
       }
-    } else {
+    }
+    
+    // If no pattern matched, try sentence-by-sentence analysis for long chunks
+    if (!wasProcessed && text.length > 50) {
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+      
+      if (sentences.length > 1) {
+        console.log(`📝 Splitting long chunk into ${sentences.length} sentences`);
+        
+        const chunkDuration = chunk.end - chunk.start;
+        let currentTime = chunk.start;
+        
+        for (let i = 0; i < sentences.length; i++) {
+          const sentence = sentences[i].trim();
+          if (!sentence) continue;
+          
+          const sentenceDuration = chunkDuration / sentences.length;
+          const sentenceEnd = currentTime + sentenceDuration;
+          
+          splitChunks.push({
+            start: currentTime,
+            end: sentenceEnd,
+            text: sentence + (sentence.match(/[.!?]$/) ? '' : '.')
+          });
+          
+          currentTime = sentenceEnd;
+        }
+        wasProcessed = true;
+      }
+    }
+    
+    // If still not processed, keep original chunk
+    if (!wasProcessed) {
       splitChunks.push(chunk);
     }
   }
@@ -342,21 +347,30 @@ You are an expert in analyzing business phone calls between an Agent (company re
 CONVERSATION SEGMENTS (each represents a single speaker turn):
 ${conversationFlow}
 
-CRITICAL ANALYSIS POINTS:
-1. QUESTION vs ANSWER patterns (Questions typically from Agent, answers from Customer)
-2. PROFESSIONAL vs CASUAL language (Agent uses formal tone, Customer casual)
-3. TECHNICAL vs USER perspective (Agent tests systems, Customer reports experience)
-4. CONVERSATION FLOW (natural turn-taking in business calls)
+CRITICAL ANALYSIS EXAMPLES:
+- "Did it just play some music?" = AGENT (asking question)
+- "No, it was my phone." = CUSTOMER (answering question, personal reference "my phone")
+- "Oh, I thought it was this playing some music." = AGENT (clarifying/explaining)
+- "Hello? Hello? Hello?" = AGENT (testing connection)
+- "Yeah, I can hear you fine" = CUSTOMER (responding to agent test)
+- "How's it sounding?" = AGENT (professional quality check)
+- "Sounds clear as a bell, mate." = CUSTOMER (casual response with "mate")
 
 SPEAKER IDENTIFICATION RULES:
-- Agent typically: "Hello?", "Can you hear me?", "How's it sounding?", "Any echoes?"
-- Customer typically: "Yes, I can hear you", "No, it was my phone", "Yeah, sounds clear"
-- Agent: Professional testing and verification language
-- Customer: Casual responses and personal references ("my phone", "I can hear")
+1. QUESTIONS typically from Agent (testing, checking, verifying)
+2. ANSWERS typically from Customer (responding, confirming, explaining)
+3. PROFESSIONAL language = Agent ("How's it sounding?", "Any echoes?")
+4. CASUAL language = Customer ("mate", "yeah", "my phone", "I can hear")
+5. PERSONAL references = Customer ("my phone", "I think", "I can")
+6. TECHNICAL testing = Agent (connection tests, audio checks)
 
-IMPORTANT: Look for natural conversation boundaries where one person finishes speaking and another responds.
+CONVERSATION FLOW LOGIC:
+- Agent usually initiates with greetings/tests
+- Customer responds to agent questions
+- Look for natural question → answer patterns
+- Personal pronouns ("my", "I") usually indicate Customer
 
-For EACH segment, determine the speaker based on content and conversation flow.
+For EACH segment, determine the speaker based on content, tone, and conversation flow.
 
 Respond with ONLY the speaker assignments, one per line:
 Format: "0: agent" or "0: customer" (segment number: speaker)
