@@ -196,6 +196,7 @@ export const CallRecordsView: React.FC = () => {
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [transcriptView, setTranscriptView] = useState<'full' | 'summary' | 'analytics'>('full');
+  const [processingStates, setProcessingStates] = useState<{ [callId: string]: boolean }>({});
 
   // Outcome color mapping
   const outcomeColors: { [key: string]: string } = {
@@ -573,10 +574,17 @@ export const CallRecordsView: React.FC = () => {
     }
 
     try {
+      // Set processing state
+      setProcessingStates(prev => ({ ...prev, [callId]: true }));
       setTranscriptLoading(true);
       setTranscriptError(null);
-      setSelectedTranscriptCallId(callId);
-      setShowTranscriptModal(true); // Open modal immediately to show progress
+      
+      // If this is a regeneration from transcript modal, keep modal open
+      const isRegenerating = transcriptData?.call?.id === callId;
+      if (!isRegenerating) {
+        setSelectedTranscriptCallId(callId);
+        setShowTranscriptModal(true); // Open modal immediately to show progress
+      }
       
       console.log('🎯 Starting Enhanced AI Transcription for call:', callId);
       
@@ -626,6 +634,7 @@ export const CallRecordsView: React.FC = () => {
             if (transcriptData.transcript?.processingProvider === 'enhanced_whisper_gpt4') {
               console.log('🎉 Enhanced AI Transcription Complete!');
               setTranscriptData(transcriptData);
+              setProcessingStates(prev => ({ ...prev, [callId]: false }));
               
               // Show success message if modal is still open
               if (showTranscriptModal) {
@@ -665,6 +674,7 @@ export const CallRecordsView: React.FC = () => {
       alert(`❌ Enhanced AI Transcription Failed\n\n${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support if the issue persists.`);
     } finally {
       setTranscriptLoading(false);
+      setProcessingStates(prev => ({ ...prev, [callId]: false }));
     }
   };
 
@@ -1411,7 +1421,26 @@ export const CallRecordsView: React.FC = () => {
                       {/* Full Transcript */}
                       {transcriptData.transcript && (
                         <div>
-                          <h3 className="text-lg font-medium text-gray-900 mb-4">Full Transcript</h3>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">Full Transcript</h3>
+                            <button
+                              onClick={() => transcriptData.call && processAdvancedTranscription(transcriptData.call.id)}
+                              disabled={!transcriptData.call || processingStates[transcriptData.call?.id || '']}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+                            >
+                              {transcriptData.call && processingStates[transcriptData.call.id] ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                  <span>Regenerating...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🔄</span>
+                                  <span>Regenerate with Enhanced AI</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                           
                           {/* Transcript Metadata */}
                           <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">
@@ -1421,9 +1450,6 @@ export const CallRecordsView: React.FC = () => {
                                 <span className="ml-4">Confidence: {transcriptData.transcript.confidence ? 
                                   `${Math.round(transcriptData.transcript.confidence * 100)}%` : 'N/A'}
                                 </span>
-                              </div>
-                              <div>
-                                Provider: {transcriptData.transcript.processingProvider || 'OpenAI'}
                               </div>
                             </div>
                           </div>
