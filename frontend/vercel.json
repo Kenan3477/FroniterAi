@@ -2,6 +2,7 @@
   "version": 2,
   "framework": "nextjs",
   "name": "omnivox",
+  "alias": ["omnivox.vercel.app"],
   "buildCommand": "npm run build",
   "installCommand": "npm install", 
   "outputDirectory": ".next",
