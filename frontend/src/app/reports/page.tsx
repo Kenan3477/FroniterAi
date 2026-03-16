@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
+import { OverviewDashboard } from '@/components/reports/OverviewDashboard';
 import { DashboardAnalytics } from '@/components/reports/DashboardAnalytics';
 import { ReportBuilder } from '@/components/reports/ReportBuilder';
 import { ReportTemplates } from '@/components/reports/ReportTemplates';
@@ -352,8 +353,8 @@ export default function ReportsPage() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Main tab state - choose between categories view or advanced features
-  const [activeMainTab, setActiveMainTab] = useState<'categories' | 'dashboard' | 'builder' | 'templates' | 'scheduled'>('categories');
+  // Main tab state - choose between overview, categories view or advanced features
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'categories' | 'dashboard' | 'builder' | 'templates' | 'scheduled'>('overview');
   
   // Legacy category navigation state
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -542,6 +543,7 @@ export default function ReportsPage() {
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex space-x-8">
             {[
+              { id: 'overview', label: 'Overview', icon: DocumentChartBarIcon },
               { id: 'categories', label: 'Report Categories', icon: ChartBarIcon },
               { id: 'dashboard', label: 'Dashboard (Not Available)', icon: ChartPieIcon },
               { id: 'builder', label: 'Report Builder (Not Available)', icon: Cog6ToothIcon },
@@ -571,6 +573,12 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab Content */}
+      {activeMainTab === 'overview' && (
+        <div className="bg-gray-50 rounded-lg p-6">
+          <OverviewDashboard refreshInterval={30000} />
+        </div>
+      )}
+
       {activeMainTab === 'categories' && (
       <div className="flex h-full bg-gray-50 rounded-lg overflow-hidden">
         {/* Left Sidebar - Collapsible Sub-Panel */}

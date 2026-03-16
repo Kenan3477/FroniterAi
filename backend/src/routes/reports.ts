@@ -100,4 +100,171 @@ router.get('/users', (req, res) => {
   }
 });
 
+/**
+ * Overview Dashboard Endpoints
+ * GET /api/reports/overview/kpis
+ * GET /api/reports/overview/call-volume
+ * GET /api/reports/overview/connection-rate
+ * GET /api/reports/overview/agent-leaderboard
+ * GET /api/reports/overview/recent-outcomes
+ */
+
+// Import the overview dashboard service
+import { overviewDashboardService } from '../services/overviewDashboardService';
+
+/**
+ * Get overview KPIs
+ * GET /api/reports/overview/kpis?filter=last_7d&start=2026-01-01&end=2026-01-31
+ */
+router.get('/overview/kpis', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { filter = 'last_7d', start, end } = req.query;
+    
+    const customStart = start ? new Date(start as string) : undefined;
+    const customEnd = end ? new Date(end as string) : undefined;
+    
+    const kpis = await overviewDashboardService.getOverviewKPIs(
+      filter as any, 
+      customStart, 
+      customEnd
+    );
+
+    res.json({
+      success: true,
+      data: kpis,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching overview KPIs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch overview KPIs'
+    });
+  }
+});
+
+/**
+ * Get call volume over time
+ * GET /api/reports/overview/call-volume?filter=last_24h
+ */
+router.get('/overview/call-volume', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { filter = 'last_7d', start, end } = req.query;
+    
+    const customStart = start ? new Date(start as string) : undefined;
+    const customEnd = end ? new Date(end as string) : undefined;
+    
+    const data = await overviewDashboardService.getCallVolumeData(
+      filter as any, 
+      customStart, 
+      customEnd
+    );
+
+    res.json({
+      success: true,
+      data,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching call volume data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch call volume data'
+    });
+  }
+});
+
+/**
+ * Get connection rate trend
+ * GET /api/reports/overview/connection-rate?filter=today
+ */
+router.get('/overview/connection-rate', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { filter = 'last_7d', start, end } = req.query;
+    
+    const customStart = start ? new Date(start as string) : undefined;
+    const customEnd = end ? new Date(end as string) : undefined;
+    
+    const data = await overviewDashboardService.getConnectionRateData(
+      filter as any, 
+      customStart, 
+      customEnd
+    );
+
+    res.json({
+      success: true,
+      data,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching connection rate data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch connection rate data'
+    });
+  }
+});
+
+/**
+ * Get agent performance leaderboard
+ * GET /api/reports/overview/agent-leaderboard?filter=last_30d
+ */
+router.get('/overview/agent-leaderboard', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { filter = 'last_7d', start, end } = req.query;
+    
+    const customStart = start ? new Date(start as string) : undefined;
+    const customEnd = end ? new Date(end as string) : undefined;
+    
+    const data = await overviewDashboardService.getAgentLeaderboard(
+      filter as any, 
+      customStart, 
+      customEnd
+    );
+
+    res.json({
+      success: true,
+      data,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching agent leaderboard:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch agent leaderboard'
+    });
+  }
+});
+
+/**
+ * Get recent call outcomes (live feed)
+ * GET /api/reports/overview/recent-outcomes?limit=30
+ */
+router.get('/overview/recent-outcomes', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { limit = '20' } = req.query;
+    
+    const data = await overviewDashboardService.getRecentCallOutcomes(
+      parseInt(limit as string)
+    );
+
+    res.json({
+      success: true,
+      data,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching recent call outcomes:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch recent call outcomes'
+    });
+  }
+});
+
 export default router;
