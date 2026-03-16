@@ -1,13 +1,23 @@
 // Enhanced Whisper AI Transcription with Proper Speaker Diarization
-// Load environment variables from .env.local first, then .env
-require('dotenv').config({ path: '.env.local' });
-require('dotenv').config();
+// Load environment variables - Railway-compatible
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: '.env.local' });
+  require('dotenv').config();
+}
 
-const OpenAI = require('openai');
-const { PrismaClient } = require('@prisma/client');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+// Import dependencies with error handling
+let OpenAI, PrismaClient, fetch, fs, path;
+
+try {
+  OpenAI = require('openai');
+  ({ PrismaClient } = require('@prisma/client'));
+  fetch = require('node-fetch');
+  fs = require('fs');
+  path = require('path');
+} catch (error) {
+  console.error('❌ Missing required dependencies:', error.message);
+  process.exit(1);
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
