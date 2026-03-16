@@ -3,20 +3,19 @@ nixPkgs = ['nodejs-18_x', 'npm-9_x']
 
 [phases.install]
 cmds = [
-  'echo "=== Railway Deployment Debug ==="',
+  'echo "=== Railway Deployment - Workspace Configuration ==="',
   'pwd',
   'ls -la',
-  'echo "Checking for backend directory..."',
-  'ls -la backend/ || echo "Backend directory not found!"',
-  'echo "Moving to backend directory for install..."',
-  'cd backend && pwd && ls -la',
-  'cd backend && npm ci'
+  'echo "Installing all workspace dependencies from root..."',
+  'npm install',
+  'echo "Checking backend directory after workspace install..."',
+  'ls -la backend/'
 ]
 
 [phases.build]
 cmds = [
-  'echo "Building from backend directory..."',
-  'cd backend && pwd',
+  'echo "Building backend via workspace..."',
+  'pwd',
   'cd backend && npm run build'
 ]
 
