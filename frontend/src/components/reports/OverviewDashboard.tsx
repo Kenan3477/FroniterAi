@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Line, Bar } from 'react-chartjs-2';
 import { io, Socket } from 'socket.io-client';
+import { analyticsAPI } from '@/services/api';
 import {
   ChartBarIcon,
   PhoneIcon,
@@ -146,18 +147,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   // Separate function for fetching recent outcomes
   const fetchRecentOutcomes = async () => {
     try {
-      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      };
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
-      const response = await fetch(`${backendUrl}/api/reports/overview/recent-outcomes?limit=20`, { headers });
-      if (response.ok) {
-        const data = await response.json();
-        setRecentOutcomes(data.data);
-      }
+      const data = await analyticsAPI.getOverviewRecentOutcomes(20);
+      setRecentOutcomes(data);
     } catch (error) {
       console.error('Failed to fetch recent outcomes:', error);
     }
@@ -166,50 +157,23 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     try {
       setError(null);
       
-      const params = new URLSearchParams({
-        filter: timeframe,
-        ...(timeframe === 'custom' && customDateRange.start && customDateRange.end && {
-          start: customDateRange.start,
-          end: customDateRange.end
-        })
-      });
+      const startDate = timeframe === 'custom' && customDateRange.start ? customDateRange.start : undefined;
+      const endDate = timeframe === 'custom' && customDateRange.end ? customDateRange.end : undefined;
 
-      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      };
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
-
-      // Fetch all data in parallel
-      const [kpisRes, volumeRes, rateRes, leaderboardRes, outcomesRes] = await Promise.all([
-        fetch(`${backendUrl}/api/reports/overview/kpis?${params}`, { headers }),
-        fetch(`${backendUrl}/api/reports/overview/call-volume?${params}`, { headers }),
-        fetch(`${backendUrl}/api/reports/overview/connection-rate?${params}`, { headers }),
-        fetch(`${backendUrl}/api/reports/overview/agent-leaderboard?${params}`, { headers }),
-        fetch(`${backendUrl}/api/reports/overview/recent-outcomes?limit=20`, { headers })
-      ]);
-
-      if (!kpisRes.ok) throw new Error('Failed to fetch KPIs');
-      if (!volumeRes.ok) throw new Error('Failed to fetch call volume data');
-      if (!rateRes.ok) throw new Error('Failed to fetch connection rate data');
-      if (!leaderboardRes.ok) throw new Error('Failed to fetch agent leaderboard');
-      if (!outcomesRes.ok) throw new Error('Failed to fetch recent outcomes');
-
+      // Fetch all data in parallel using the API service
       const [kpisData, volumeData, rateData, leaderboardData, outcomesData] = await Promise.all([
-        kpisRes.json(),
-        volumeRes.json(),
-        rateRes.json(),
-        leaderboardRes.json(),
-        outcomesRes.json()
+        analyticsAPI.getOverviewKPIs(timeframe, startDate, endDate),
+        analyticsAPI.getOverviewCallVolume(timeframe, startDate, endDate),
+        analyticsAPI.getOverviewConnectionRate(timeframe, startDate, endDate),
+        analyticsAPI.getOverviewAgentLeaderboard(timeframe, startDate, endDate),
+        analyticsAPI.getOverviewRecentOutcomes(20)
       ]);
 
-      setKpis(kpisData.data);
-      setCallVolumeData(volumeData.data);
-      setConnectionRateData(rateData.data);
-      setAgentLeaderboard(leaderboardData.data);
-      setRecentOutcomes(outcomesData.data);
+      setKpis(kpisData);
+      setCallVolumeData(volumeData);
+      setConnectionRateData(rateData);
+      setAgentLeaderboard(leaderboardData);
+      setRecentOutcomes(outcomesData);
       setLastUpdate(new Date());
 
     } catch (err) {

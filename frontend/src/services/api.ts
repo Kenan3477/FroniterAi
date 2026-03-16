@@ -313,6 +313,63 @@ class APIClient {
     throw new Error('Failed to get dashboard analytics');
   }
 
+  // Overview Dashboard APIs
+  async getOverviewKPIs(filter: string = 'last_7d', start?: string, end?: string): Promise<any> {
+    const params = new URLSearchParams({ filter });
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    
+    const response = await this.client.get<APIResponse<any>>(`/api/reports/overview/kpis?${params}`);
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error('Failed to get overview KPIs');
+  }
+
+  async getOverviewCallVolume(filter: string = 'last_7d', start?: string, end?: string): Promise<any> {
+    const params = new URLSearchParams({ filter });
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    
+    const response = await this.client.get<APIResponse<any>>(`/api/reports/overview/call-volume?${params}`);
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error('Failed to get call volume data');
+  }
+
+  async getOverviewConnectionRate(filter: string = 'last_7d', start?: string, end?: string): Promise<any> {
+    const params = new URLSearchParams({ filter });
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    
+    const response = await this.client.get<APIResponse<any>>(`/api/reports/overview/connection-rate?${params}`);
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error('Failed to get connection rate data');
+  }
+
+  async getOverviewAgentLeaderboard(filter: string = 'last_7d', start?: string, end?: string): Promise<any> {
+    const params = new URLSearchParams({ filter });
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    
+    const response = await this.client.get<APIResponse<any>>(`/api/reports/overview/agent-leaderboard?${params}`);
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error('Failed to get agent leaderboard');
+  }
+
+  async getOverviewRecentOutcomes(limit: number = 20): Promise<any> {
+    const response = await this.client.get<APIResponse<any>>(`/api/reports/overview/recent-outcomes?limit=${limit}`);
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error('Failed to get recent outcomes');
+  }
+
   // Flows
   async getFlows(): Promise<Flow[]> {
     const response = await this.client.get('/api/flows');
@@ -460,6 +517,12 @@ export const interactionsAPI = {
 
 export const analyticsAPI = {
   getDashboardAnalytics: () => apiClient.getDashboardAnalytics(),
+  // Overview Dashboard APIs
+  getOverviewKPIs: (filter?: string, start?: string, end?: string) => apiClient.getOverviewKPIs(filter, start, end),
+  getOverviewCallVolume: (filter?: string, start?: string, end?: string) => apiClient.getOverviewCallVolume(filter, start, end),
+  getOverviewConnectionRate: (filter?: string, start?: string, end?: string) => apiClient.getOverviewConnectionRate(filter, start, end),
+  getOverviewAgentLeaderboard: (filter?: string, start?: string, end?: string) => apiClient.getOverviewAgentLeaderboard(filter, start, end),
+  getOverviewRecentOutcomes: (limit?: number) => apiClient.getOverviewRecentOutcomes(limit),
 };
 
 export const flowsAPI = {
