@@ -13,7 +13,29 @@ const router = Router();
 const railwayPrisma = new PrismaClient({
   datasources: { 
     db: { 
-      url: process.env.DATABASE_URL || 'postgresql://postgres:EJhlgyhMsYUhNhaBRyHAjNSoCfTmlUPm@interchange.proxy.rlwy.net:42798/railway'
+   /**
+ * GET /enhanced-test - Simple test route
+ */
+router.get('/enhanced-test', async (req: any, res: any) => {
+  res.json({
+    success: true,
+    message: 'Enhanced route test works!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * POST /transcript/direct-ai/:callId
+ * Enhanced AI Transcription with OpenAI Whisper + GPT-4 Speaker Diarization
+ */
+router.post('/transcript/direct-ai/:callId', async (req: any, res: any) => {
+  console.log(`🎯 Enhanced AI Transcription request for call: ${req.params.callId}`);
+  res.status(202).json({
+    success: true,
+    message: 'Enhanced AI Transcription test endpoint',
+    callId: req.params.callId
+  });
+});ess.env.DATABASE_URL || 'postgresql://postgres:EJhlgyhMsYUhNhaBRyHAjNSoCfTmlUPm@interchange.proxy.rlwy.net:42798/railway'
     }
   }
 });
