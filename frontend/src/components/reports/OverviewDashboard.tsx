@@ -92,8 +92,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     const setupWebSocket = async () => {
       try {
         const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+        const backendUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
         
-        socketRef.current = io('/', {
+        socketRef.current = io(backendUrl, {
           transports: ['websocket'],
           auth: {
             token: token
@@ -151,7 +152,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       };
 
-      const response = await fetch(`/api/reports/overview/recent-outcomes?limit=20`, { headers });
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/reports/overview/recent-outcomes?limit=20`, { headers });
       if (response.ok) {
         const data = await response.json();
         setRecentOutcomes(data.data);
@@ -178,13 +180,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       };
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
+
       // Fetch all data in parallel
       const [kpisRes, volumeRes, rateRes, leaderboardRes, outcomesRes] = await Promise.all([
-        fetch(`/api/reports/overview/kpis?${params}`, { headers }),
-        fetch(`/api/reports/overview/call-volume?${params}`, { headers }),
-        fetch(`/api/reports/overview/connection-rate?${params}`, { headers }),
-        fetch(`/api/reports/overview/agent-leaderboard?${params}`, { headers }),
-        fetch(`/api/reports/overview/recent-outcomes?limit=20`, { headers })
+        fetch(`${backendUrl}/api/reports/overview/kpis?${params}`, { headers }),
+        fetch(`${backendUrl}/api/reports/overview/call-volume?${params}`, { headers }),
+        fetch(`${backendUrl}/api/reports/overview/connection-rate?${params}`, { headers }),
+        fetch(`${backendUrl}/api/reports/overview/agent-leaderboard?${params}`, { headers }),
+        fetch(`${backendUrl}/api/reports/overview/recent-outcomes?limit=20`, { headers })
       ]);
 
       if (!kpisRes.ok) throw new Error('Failed to fetch KPIs');
