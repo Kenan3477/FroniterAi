@@ -1,0 +1,27 @@
+[phases.setup]
+nixPkgs = ['nodejs-18_x', 'npm-9_x']
+
+[phases.install]
+cmds = [
+  'echo "=== Railway Deployment Debug ==="',
+  'pwd',
+  'ls -la',
+  'echo "Checking for backend directory..."',
+  'ls -la backend/ || echo "Backend directory not found!"',
+  'echo "Moving to backend directory for install..."',
+  'cd backend && pwd && ls -la',
+  'cd backend && npm ci'
+]
+
+[phases.build]
+cmds = [
+  'echo "Building from backend directory..."',
+  'cd backend && pwd',
+  'cd backend && npm run build'
+]
+
+[start]
+cmd = 'cd backend && npm run start'
+
+[variables]
+NODE_ENV = 'production'

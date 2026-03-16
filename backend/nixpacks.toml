@@ -2,10 +2,20 @@
 nixPkgs = ['nodejs-18_x', 'npm-9_x']
 
 [phases.install]
-cmds = ['npm ci']
+cmds = [
+  'pwd',
+  'ls -la',
+  'echo "Installing dependencies..."',
+  'npm ci'
+]
 
 [phases.build]
-cmds = ['npm run build']
+cmds = [
+  'echo "Building application..."',
+  'pwd', 
+  'ls -la',
+  'npm run build'
+]
 
 [start]
 cmd = 'npm run start'
