@@ -1,31 +1,39 @@
-/**
- * Overview Dashboard Component - Executive KPI Dashboard
- * Provides real-time overview of call center performance
- */
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Line, Bar } from 'react-chartjs-2';
-import { io, Socket } from 'socket.io-client';
-import { analyticsAPI } from '@/services/api';
+import React, { useEffect, useState, useRef } from 'react';
 import {
-  ChartBarIcon,
-  PhoneIcon,
-  ClockIcon,
-  UserGroupIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  CurrencyDollarIcon,
-  SignalIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/outline';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
+import { socket } from '../../lib/socket';
 
-interface OverviewKPIs {
-  totalCalls: number;
-  connectionRate: number;
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
+
+interface DashboardMetrics {
+  totalCallsToday: number;
+  connectedCallsToday: number;
+  totalRevenue: number;
+  conversionRate: number;
   averageCallDuration: number;
-  callsPerAgent: number;
-  dropRate: number;
-  revenueConversions: number;
+  agentsOnline: number;
+  callsInProgress: number;
   averageWaitTime: number;
   activeAgents: number;
 }
@@ -37,197 +45,230 @@ interface CallVolumeData {
   period: 'hourly' | 'daily';
 }
 
-interface ConnectionRateData {
+interface RevenueData {
   timestamp: string;
-  connectionRate: number;
+  revenue: number;
   period: 'hourly' | 'daily';
 }
 
-interface AgentLeaderboard {
+interface ConversionData {
+  outcome: string;
+  count: number;
+  revenue?: number;
+}
+
+interface TopAgentData {
   agentId: string;
   agentName: string;
   callsHandled: number;
-  connectionRate: number;
-  conversions: number;
-  averageCallDuration: number;
-  rank: number;
+  conversionRate: number;
+  revenue: number;
 }
 
-interface RecentCallOutcome {
-  timestamp: string;
-  agentName: string;
-  callDuration: number;
-  outcome: 'Connected' | 'Dropped' | 'No Answer' | 'Converted';
-  revenue?: number;
-  callId: string;
-}
+const KPICard: React.FC<{ title: string; value: string | number; change?: string; icon: React.ReactNode; color: string }> = ({ 
+  title, 
+  value, 
+  change, 
+  icon, 
+  color 
+}) => (
+  <div className={`bg-gradient-to-br ${color} backdrop-blur-sm bg-opacity-90 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border border-white/20`}>
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-white/80 mb-1">{title}</p>
+        <p className="text-3xl font-bold text-white mb-2">{value}</p>
+        {change && (
+          <p className="text-sm text-white/90 font-medium">
+            <span className={change.startsWith('+') ? 'text-green-200' : 'text-red-200'}>
+              {change}
+            </span>
+            {' '}vs yesterday
+          </p>
+        )}
+      </div>
+      <div className="text-white/80 text-3xl ml-4">
+        {icon}
+      </div>
+    </div>
+  </div>
+);
 
-type TimeframeFilter = 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom';
-
-interface OverviewDashboardProps {
-  refreshInterval?: number;
-}
-
-export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
-  refreshInterval = 30000 // 30 seconds default
-}) => {
-  // State management
-  const [kpis, setKpis] = useState<OverviewKPIs | null>(null);
+const OverviewDashboard: React.FC = () => {
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalCallsToday: 0,
+    connectedCallsToday: 0,
+    totalRevenue: 0,
+    conversionRate: 0,
+    averageCallDuration: 0,
+    agentsOnline: 0,
+    callsInProgress: 0,
+    averageWaitTime: 0,
+    activeAgents: 0,
+  });
+  
   const [callVolumeData, setCallVolumeData] = useState<CallVolumeData[]>([]);
-  const [connectionRateData, setConnectionRateData] = useState<ConnectionRateData[]>([]);
-  const [agentLeaderboard, setAgentLeaderboard] = useState<AgentLeaderboard[]>([]);
-  const [recentOutcomes, setRecentOutcomes] = useState<RecentCallOutcome[]>([]);
-  const [timeframe, setTimeframe] = useState<TimeframeFilter>('last_7d');
-  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [conversionData, setConversionData] = useState<ConversionData[]>([]);
+  const [topAgentsData, setTopAgentsData] = useState<TopAgentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
-  
-  // WebSocket ref
-  const socketRef = useRef<Socket | null>(null);
 
-  // WebSocket connection setup
-  useEffect(() => {
-    // Set up WebSocket connection for real-time updates
-    const setupWebSocket = async () => {
-      try {
-        const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
-        const backendUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
-        
-        socketRef.current = io(backendUrl, {
-          transports: ['websocket'],
-          auth: {
-            token: token
-          }
-        });
-
-        socketRef.current.on('connect', () => {
-          console.log('📡 Connected to real-time dashboard updates');
-          setIsRealTimeConnected(true);
-          
-          // Subscribe to admin room for dashboard updates
-          socketRef.current?.emit('join-room', 'admin');
-        });
-
-        socketRef.current.on('disconnect', () => {
-          console.log('📡 Disconnected from real-time updates');
-          setIsRealTimeConnected(false);
-        });
-
-        socketRef.current.on('dashboard.metrics.updated', (data: any) => {
-          console.log('📊 Real-time dashboard update received:', data);
-          if (data.data && data.data.kpis) {
-            setKpis(data.data.kpis);
-            setLastUpdate(new Date());
-          }
-        });
-
-        socketRef.current.on('call.ended', () => {
-          // Refresh recent outcomes when calls end
-          fetchRecentOutcomes();
-        });
-
-      } catch (error) {
-        console.error('Failed to setup WebSocket:', error);
-      }
-    };
-
-    setupWebSocket();
-
-    // Cleanup WebSocket on unmount
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        setIsRealTimeConnected(false);
-      }
-    };
-  }, []);
-
-  // Separate function for fetching recent outcomes
-  const fetchRecentOutcomes = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const data = await analyticsAPI.getOverviewRecentOutcomes(20);
-      setRecentOutcomes(data);
-    } catch (error) {
-      console.error('Failed to fetch recent outcomes:', error);
-    }
-  };
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setError(null);
+      setLoading(true);
       
-      const startDate = timeframe === 'custom' && customDateRange.start ? customDateRange.start : undefined;
-      const endDate = timeframe === 'custom' && customDateRange.end ? customDateRange.end : undefined;
+      // Fetch metrics
+      const metricsResponse = await fetch('/api/dashboard/metrics', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!metricsResponse.ok) {
+        throw new Error(`HTTP error! status: ${metricsResponse.status}`);
+      }
+      
+      const metricsData = await metricsResponse.json();
+      setMetrics(metricsData);
 
-      // Fetch all data in parallel using the API service
-      const [kpisData, volumeData, rateData, leaderboardData, outcomesData] = await Promise.all([
-        analyticsAPI.getOverviewKPIs(timeframe, startDate, endDate),
-        analyticsAPI.getOverviewCallVolume(timeframe, startDate, endDate),
-        analyticsAPI.getOverviewConnectionRate(timeframe, startDate, endDate),
-        analyticsAPI.getOverviewAgentLeaderboard(timeframe, startDate, endDate),
-        analyticsAPI.getOverviewRecentOutcomes(20)
-      ]);
+      // Fetch call volume data
+      const callVolumeResponse = await fetch('/api/dashboard/call-volume?period=hourly', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (callVolumeResponse.ok) {
+        const callVolumeData = await callVolumeResponse.json();
+        setCallVolumeData(callVolumeData);
+      }
 
-      setKpis(kpisData);
-      setCallVolumeData(volumeData);
-      setConnectionRateData(rateData);
-      setAgentLeaderboard(leaderboardData);
-      setRecentOutcomes(outcomesData);
-      setLastUpdate(new Date());
+      // Fetch revenue data
+      const revenueResponse = await fetch('/api/dashboard/revenue?period=daily', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (revenueResponse.ok) {
+        const revenueData = await revenueResponse.json();
+        setRevenueData(revenueData);
+      }
+
+      // Fetch conversion data
+      const conversionResponse = await fetch('/api/dashboard/conversions', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (conversionResponse.ok) {
+        const conversionData = await conversionResponse.json();
+        setConversionData(conversionData);
+      }
+
+      // Fetch top agents data
+      const topAgentsResponse = await fetch('/api/dashboard/top-agents', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (topAgentsResponse.ok) {
+        const topAgentsData = await topAgentsResponse.json();
+        setTopAgentsData(topAgentsData);
+      }
 
     } catch (err) {
+      console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
-      console.error('Dashboard fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [timeframe, customDateRange]);
+  };
 
-  // Initial load and refresh interval
   useEffect(() => {
     fetchDashboardData();
-    
-    const interval = setInterval(fetchDashboardData, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchDashboardData, refreshInterval]);
+
+    // Listen for real-time updates
+    socket.on('dashboard.metrics.updated', (updatedMetrics: DashboardMetrics) => {
+      setMetrics(updatedMetrics);
+    });
+
+    // Refresh data every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('dashboard.metrics.updated');
+    };
+  }, []);
 
   // Chart configurations
   const callVolumeChartData = {
-    labels: callVolumeData.map(d => d.timestamp),
+    labels: callVolumeData.map(data => 
+      new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ),
     datasets: [
       {
         label: 'Total Calls',
-        data: callVolumeData.map(d => d.totalCalls),
+        data: callVolumeData.map(data => data.totalCalls),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4
+        tension: 0.4,
+        fill: true,
       },
       {
         label: 'Connected Calls',
-        data: callVolumeData.map(d => d.connectedCalls),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.4
-      }
-    ]
+        data: callVolumeData.map(data => data.connectedCalls),
+        borderColor: 'rgb(16, 185, 129)',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        tension: 0.4,
+        fill: true,
+      },
+    ],
   };
 
-  const connectionRateChartData = {
-    labels: connectionRateData.map(d => d.timestamp),
+  const revenueChartData = {
+    labels: revenueData.map(data => 
+      new Date(data.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })
+    ),
     datasets: [
       {
-        label: 'Connection Rate (%)',
-        data: connectionRateData.map(d => d.connectionRate),
-        borderColor: 'rgb(168, 85, 247)',
-        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-        tension: 0.4
-      }
-    ]
+        label: 'Revenue ($)',
+        data: revenueData.map(data => data.revenue),
+        backgroundColor: 'rgba(147, 51, 234, 0.8)',
+        borderColor: 'rgb(147, 51, 234)',
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const conversionChartData = {
+    labels: conversionData.map(data => data.outcome),
+    datasets: [
+      {
+        data: conversionData.map(data => data.count),
+        backgroundColor: [
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(245, 101, 101, 0.8)',
+          'rgba(156, 163, 175, 0.8)',
+        ],
+        borderColor: [
+          'rgb(16, 185, 129)',
+          'rgb(59, 130, 246)',
+          'rgb(245, 101, 101)',
+          'rgb(156, 163, 175)',
+        ],
+        borderWidth: 2,
+      },
+    ],
   };
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
@@ -240,117 +281,29 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     },
   };
 
-  // KPI Card Component
-  const KPICard: React.FC<{
-    title: string;
-    value: string | number;
-    icon: React.ComponentType<any>;
-    change?: number;
-    prefix?: string;
-    suffix?: string;
-    format?: 'number' | 'percentage' | 'currency' | 'time';
-  }> = ({ title, value, icon: Icon, change, prefix = '', suffix = '', format = 'number' }) => {
-    const formatValue = (val: string | number) => {
-      const numVal = typeof val === 'string' ? parseFloat(val) : val;
-      
-      switch (format) {
-        case 'percentage':
-          return `${numVal.toFixed(1)}%`;
-        case 'currency':
-          return `$${numVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        case 'time':
-          return `${Math.floor(numVal / 60)}m ${Math.floor(numVal % 60)}s`;
-        default:
-          return numVal.toLocaleString('en-US');
-      }
-    };
-
+  if (loading) {
     return (
-      <div className="group relative bg-gradient-to-br from-white via-blue-50 to-indigo-100 rounded-2xl shadow-lg border-0 p-6 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-600 rounded-full opacity-20"></div>
-          <div className="absolute -left-2 -bottom-2 w-16 h-16 bg-indigo-600 rounded-full opacity-30"></div>
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
         </div>
-        
-        <div className="relative z-10">
-          <div className="flex items-start justify-between mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-              <Icon className="h-6 w-6 text-white" />
-            </div>
-            {change !== undefined && (
-              <div className={`flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                change >= 0 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {change >= 0 ? (
-                  <ArrowTrendingUpIcon className="h-3 w-3 mr-1" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(change).toFixed(1)}%
-              </div>
-            )}
-          </div>
-          
-          <div className="mb-2">
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
-              {title}
-            </h3>
-          </div>
-          
-          <div className="mb-4">
-            <span className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              {prefix}{formatValue(value)}{suffix}
-            </span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-1000 ease-out transform origin-left"
-              style={{ 
-                width: typeof value === 'number' 
-                  ? `${Math.min(100, Math.max(10, (value / 1000) * 100))}%` 
-                  : '65%',
-                animation: 'slideIn 1.5s ease-out'
-              }}
-            />
-          </div>
-        </div>
-        
-        <style jsx>{`
-          @keyframes slideIn {
-            from { transform: scaleX(0); }
-            to { transform: scaleX(1); }
-          }
-        `}</style>
-      </div>
-    );
-  };
-
-  if (loading && !kpis) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-        <div className="flex">
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error loading dashboard</h3>
-            <div className="mt-2 text-sm text-red-700">{error}</div>
-            <button
-              onClick={fetchDashboardData}
-              className="mt-2 bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-sm"
-            >
-              Retry
-            </button>
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Error loading dashboard
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -358,229 +311,163 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 p-6">
-      {/* Header with Time Range Selector */}
+    <div className="p-8 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
-              Executive Dashboard
-            </h1>
-            <p className="text-gray-600 mt-2">Real-time insights and performance metrics</p>
-            <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
-              {lastUpdate && (
-                <span className="flex items-center space-x-1">
-                  <ClockIcon className="h-4 w-4" />
-                  <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
-                </span>
-              )}
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
-                isRealTimeConnected 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${
-                  isRealTimeConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                }`}></div>
-                <span className="font-medium">
-                  {isRealTimeConnected ? 'Live Updates' : 'Disconnected'}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value as TimeframeFilter)}
-              className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-sm shadow-sm hover:shadow-md transition-shadow focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="today">Today</option>
-              <option value="last_24h">Last 24 Hours</option>
-              <option value="last_7d">Last 7 Days</option>
-              <option value="last_30d">Last 30 Days</option>
-              <option value="custom">Custom Range</option>
-            </select>
-
-          {timeframe === 'custom' && (
-            <>
-              <input
-                type="date"
-                value={customDateRange.start}
-                onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-              />
-              <input
-                type="date"
-                value={customDateRange.end}
-                onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-              />
-            </>
-          )}
-
-          <button
-            onClick={fetchDashboardData}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm flex items-center"
-          >
-            <ArrowPathIcon className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Executive Dashboard</h1>
+        <p className="text-gray-600">Real-time insights into your call center performance</p>
       </div>
 
-      {/* KPI Cards Row */}
-      {kpis && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <KPICard
-            title="Total Calls"
-            value={kpis.totalCalls}
-            icon={PhoneIcon}
-            format="number"
-          />
-          <KPICard
-            title="Connection Rate"
-            value={kpis.connectionRate}
-            icon={SignalIcon}
-            format="percentage"
-          />
-          <KPICard
-            title="Average Call Duration"
-            value={kpis.averageCallDuration}
-            icon={ClockIcon}
-            format="time"
-          />
-          <KPICard
-            title="Calls Per Agent"
-            value={kpis.callsPerAgent}
-            icon={UserGroupIcon}
-            format="number"
-          />
-          <KPICard
-            title="Drop Rate"
-            value={kpis.dropRate}
-            icon={ArrowTrendingDownIcon}
-            format="percentage"
-          />
-          <KPICard
-            title="Revenue / Conversions"
-            value={kpis.revenueConversions}
-            icon={CurrencyDollarIcon}
-            format="currency"
-          />
-          <KPICard
-            title="Average Wait Time"
-            value={kpis.averageWaitTime}
-            icon={ClockIcon}
-            format="time"
-          />
-          <KPICard
-            title="Active Agents"
-            value={kpis.activeAgents}
-            icon={UserGroupIcon}
-            format="number"
-          />
-        </div>
-      )}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <KPICard
+          title="Total Calls Today"
+          value={metrics.totalCallsToday.toLocaleString()}
+          change="+12%"
+          color="from-blue-500 to-blue-600"
+          icon={<span>📞</span>}
+        />
+        <KPICard
+          title="Connected Calls"
+          value={metrics.connectedCallsToday.toLocaleString()}
+          change="+8%"
+          color="from-green-500 to-green-600"
+          icon={<span>✅</span>}
+        />
+        <KPICard
+          title="Total Revenue"
+          value={`$${metrics.totalRevenue.toLocaleString()}`}
+          change="+15%"
+          color="from-purple-500 to-purple-600"
+          icon={<span>💰</span>}
+        />
+        <KPICard
+          title="Conversion Rate"
+          value={`${metrics.conversionRate.toFixed(1)}%`}
+          change="+2.1%"
+          color="from-indigo-500 to-indigo-600"
+          icon={<span>📈</span>}
+        />
+        <KPICard
+          title="Avg Call Duration"
+          value={`${Math.floor(metrics.averageCallDuration / 60)}m ${metrics.averageCallDuration % 60}s`}
+          change="-30s"
+          color="from-orange-500 to-orange-600"
+          icon={<span>⏱️</span>}
+        />
+        <KPICard
+          title="Agents Online"
+          value={metrics.agentsOnline.toString()}
+          color="from-cyan-500 to-cyan-600"
+          icon={<span>👥</span>}
+        />
+        <KPICard
+          title="Calls in Progress"
+          value={metrics.callsInProgress.toString()}
+          color="from-yellow-500 to-yellow-600"
+          icon={<span>🔄</span>}
+        />
+        <KPICard
+          title="Avg Wait Time"
+          value={`${metrics.averageWaitTime}s`}
+          change="-5s"
+          color="from-red-500 to-red-600"
+          icon={<span>⏳</span>}
+        />
+      </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Call Volume Over Time */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Call Volume Over Time</h3>
-          <div style={{ height: '300px' }}>
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Call Volume Chart */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Volume (Hourly)</h2>
+          <div className="h-80">
             <Line data={callVolumeChartData} options={chartOptions} />
           </div>
         </div>
 
-        {/* Connection Rate Trend */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Connection Rate Trend</h3>
-          <div style={{ height: '300px' }}>
-            <Line data={connectionRateChartData} options={chartOptions} />
+        {/* Revenue Chart */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Daily Revenue</h2>
+          <div className="h-80">
+            <Bar data={revenueChartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Call Outcomes Chart */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Outcomes</h2>
+          <div className="h-80">
+            <Doughnut data={conversionChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+          </div>
+        </div>
+
+        {/* Top Agents */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Top Performing Agents</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Agent
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Calls
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conversion
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Revenue
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {topAgentsData.map((agent, index) => (
+                  <tr key={agent.agentId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-medium">
+                            {agent.agentName.charAt(0)}
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {agent.agentName}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {agent.callsHandled}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {agent.conversionRate.toFixed(1)}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${agent.revenue.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {/* Agent Performance Leaderboard */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Agent Performance Leaderboard</h3>
-        </div>
+      {/* Additional Metrics Table */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Call Outcomes</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rank
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Agent
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Calls Handled
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Connection Rate
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Conversions
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Avg Call Duration
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {agentLeaderboard.slice(0, 10).map((agent) => (
-                <tr key={agent.agentId}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{agent.rank}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {agent.agentName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {agent.callsHandled}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {agent.connectionRate.toFixed(1)}%
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {agent.conversions}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {Math.floor(agent.averageCallDuration / 60)}m {Math.floor(agent.averageCallDuration % 60)}s
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Recent Call Outcomes (Live Feed) */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Recent Call Outcomes</h3>
-          <p className="text-sm text-gray-500">Live feed of recent call activity</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Timestamp
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Agent
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Outcome
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Count
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Revenue
@@ -588,19 +475,10 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recentOutcomes.map((outcome, index) => (
-                <tr key={`${outcome.callId}-${index}`}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(outcome.timestamp).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {outcome.agentName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {Math.floor(outcome.callDuration / 60)}m {Math.floor(outcome.callDuration % 60)}s
-                  </td>
+              {conversionData.map((outcome, index) => (
+                <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
                       outcome.outcome === 'Converted' ? 'bg-green-100 text-green-800' :
                       outcome.outcome === 'Connected' ? 'bg-blue-100 text-blue-800' :
                       outcome.outcome === 'Dropped' ? 'bg-red-100 text-red-800' :
@@ -608,6 +486,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     }`}>
                       {outcome.outcome}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {outcome.count}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {outcome.revenue ? `$${outcome.revenue.toFixed(2)}` : '-'}
@@ -621,3 +502,5 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     </div>
   );
 };
+
+export default OverviewDashboard;

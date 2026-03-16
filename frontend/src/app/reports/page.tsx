@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
-import { OverviewDashboard } from '@/components/reports/OverviewDashboard';
+import OverviewDashboard from '@/components/reports/OverviewDashboard';
 import { DashboardAnalytics } from '@/components/reports/DashboardAnalytics';
 import { ReportBuilder } from '@/components/reports/ReportBuilder';
 import { ReportTemplates } from '@/components/reports/ReportTemplates';
