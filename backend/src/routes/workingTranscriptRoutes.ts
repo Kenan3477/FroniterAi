@@ -147,13 +147,13 @@ router.get('/transcript-test', async (req: any, res: any) => {
   });
 });
 
-// ENHANCED AI TEST ROUTE - placed right after working route
-router.post('/transcript/direct-ai/:callId', async (req: any, res: any) => {
-  res.json({
+// Test POST route 
+router.post('/transcript-test', async (req: any, res: any) => {
+  res.json({ 
     success: true,
-    message: 'Enhanced AI endpoint works!',
-    callId: req.params.callId,
-    timestamp: new Date().toISOString()
+    message: 'POST route works!', 
+    timestamp: new Date().toISOString(),
+    body: req.body
   });
 });
 
