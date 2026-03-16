@@ -118,9 +118,10 @@ const OverviewDashboard: React.FC = () => {
       setLoading(true);
       
       // Fetch metrics
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
       const metricsResponse = await fetch('/api/reports/overview/kpis', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -146,7 +147,7 @@ const OverviewDashboard: React.FC = () => {
       // Fetch call volume data
       const callVolumeResponse = await fetch('/api/reports/overview/call-volume?filter=last_24h', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -182,7 +183,7 @@ const OverviewDashboard: React.FC = () => {
       // Fetch conversion data  
       const conversionResponse = await fetch('/api/reports/overview/recent-outcomes', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -208,7 +209,7 @@ const OverviewDashboard: React.FC = () => {
       // Fetch top agents data
       const topAgentsResponse = await fetch('/api/reports/overview/agent-leaderboard', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
