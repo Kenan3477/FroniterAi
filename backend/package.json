@@ -1,6 +1,6 @@
 {
   "name": "omnivox-ai-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Omnivox-AI Backend API Server",
   "main": "dist/index.js",
   "scripts": {
