@@ -29,6 +29,7 @@ import campaignRoutes from './routes/campaignsNew'; // NEW: Production campaign 
 import interactionRoutes from './routes/interactionsNew'; // NEW: Production interaction service
 // import queueRoutes from './routes/queue'; // TEMPORARILY DISABLED - schema conflicts
 import reportsRoutes from './routes/reports';
+import dashboardRoutes from './routes/dashboard'; // NEW: Executive dashboard API endpoints
 import contactRoutes from './routes/contacts'; // Re-enabled for dial queue integration
 // Import admin routes - RE-ENABLING CRITICAL ONES
 import systemOverviewRoutes from './routes/systemOverview'; // Re-enabled after creating missing route file
@@ -221,6 +222,7 @@ class App {
     this.app.use('/api/interactions', interactionRoutes); // NEW: Production interaction tracking service
     // this.app.use('/api/queue', queueRoutes); // Campaign queue management for agents - TEMPORARILY DISABLED
     this.app.use('/api/reports', reportsRoutes); // Reports endpoints
+    this.app.use('/api/dashboard', dashboardRoutes); // NEW: Executive dashboard endpoints
     this.app.use('/api/contacts', contactRoutes); // Contact management - re-enabled for dial queue
     this.app.use('/api/admin/users', userRoutes); // RE-ENABLED - stats endpoint for admin dashboard
     this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
