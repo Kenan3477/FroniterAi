@@ -850,4 +850,64 @@ router.post('/update-campaign-names', [
   }
 });
 
+/**
+ * POST /api/call-records/transcript/direct-ai/:callId
+ * Enhanced AI Transcription with OpenAI Whisper + GPT-4 Speaker Diarization
+ */
+router.post('/transcript/direct-ai/:callId', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { callId } = req.params;
+
+    console.log(`🎯 Enhanced AI Transcription request for call: ${callId}`);
+
+    // Get call record to verify existence and access
+    const callRecord = await prisma.callRecord.findUnique({
+      where: { id: callId },
+      include: {
+        agent: { select: { agentId: true, firstName: true, lastName: true }},
+        contact: { select: { firstName: true, lastName: true, phone: true }},
+        campaign: { select: { name: true }}
+      }
+    });
+
+    if (!callRecord) {
+      return res.status(404).json({
+        success: false,
+        error: 'Call record not found'
+      });
+    }
+
+    // Import and run enhanced whisper processing
+    const { spawn } = require('child_process');
+    const path = require('path');
+
+    console.log('🎯 Starting Enhanced AI Transcription for call:', callId);
+
+    // Run the enhanced whisper script
+    const scriptPath = path.join(__dirname, '../../enhanced-whisper-diarization.js');
+    const child = spawn('node', [scriptPath, callId], {
+      stdio: 'inherit',
+      env: { ...process.env }
+    });
+
+    // Respond immediately (processing will continue in background)
+    res.status(202).json({
+      success: true,
+      message: 'Enhanced AI Transcription started',
+      callId,
+      status: 'processing',
+      estimatedCompletion: new Date(Date.now() + 60000).toISOString(), // 1 minute estimate
+      processingProvider: 'enhanced_whisper_gpt4'
+    });
+
+  } catch (error) {
+    console.error('❌ Enhanced AI transcription error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start enhanced AI transcription',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

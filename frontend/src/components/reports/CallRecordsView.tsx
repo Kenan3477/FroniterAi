@@ -591,7 +591,7 @@ export const CallRecordsView: React.FC = () => {
       // Get auth token for backend authentication
       const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
       
-      const response = await fetch(`/api/transcript/direct-ai/${callId}`, {
+      const response = await fetch(`/api/call-records/transcript/direct-ai/${callId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
