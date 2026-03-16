@@ -1,12 +1,15 @@
-# Railway Deployment Configuration for Omnivox Backend
-# This file MUST be used - override any defaults
+# Railway Deployment Configuration for Omnivox Backend - FORCE CACHE BUST
+# This file MUST be used - override any defaults - UPDATED NODE 20.x
 
 [phases.setup]
 nixPkgs = ['nodejs-20_x', 'npm-10_x']
 
 [phases.install]
 cmds = [
-  'echo "=== FORCE RAILWAY DEPLOYMENT - WORKSPACE CONFIGURATION ==="',
+  'echo "=== FORCE RAILWAY DEPLOYMENT - NODE.JS 20.x - CACHE BUSTED ==="',
+  'echo "Railway must use Node.js 20.x - not 18.x which is EOL"',
+  'node --version',
+  'npm --version',
   'echo "Current directory:"',
   'pwd',
   'echo "Directory contents:"',
