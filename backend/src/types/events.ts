@@ -80,7 +80,7 @@ export interface SystemEvent extends BaseEvent {
 
 // KPI Events
 export interface KPIEvent extends BaseEvent {
-  type: 'kpi.updated' | 'kpi.threshold.exceeded' | 'kpi.goal.reached';
+  type: 'kpi.updated' | 'kpi.threshold.exceeded' | 'kpi.goal.reached' | 'dashboard.metrics.updated';
   metric: string;
   value: number;
   previousValue?: number;

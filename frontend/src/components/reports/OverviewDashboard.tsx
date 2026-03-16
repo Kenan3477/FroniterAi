@@ -266,34 +266,66 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     };
 
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <Icon className="h-8 w-8 text-blue-600" />
-          </div>
-          <div className="ml-5 w-0 flex-1">
-            <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">
-                {title}
-              </dt>
-              <dd className="text-lg font-medium text-gray-900">
-                {prefix}{formatValue(value)}{suffix}
-              </dd>
-            </dl>
-          </div>
-          {change !== undefined && (
-            <div className={`flex items-center ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {change >= 0 ? (
-                <ArrowTrendingUpIcon className="h-4 w-4" />
-              ) : (
-                <ArrowTrendingDownIcon className="h-4 w-4" />
-              )}
-              <span className="text-sm font-medium ml-1">
-                {Math.abs(change).toFixed(1)}%
-              </span>
-            </div>
-          )}
+      <div className="group relative bg-gradient-to-br from-white via-blue-50 to-indigo-100 rounded-2xl shadow-lg border-0 p-6 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-600 rounded-full opacity-20"></div>
+          <div className="absolute -left-2 -bottom-2 w-16 h-16 bg-indigo-600 rounded-full opacity-30"></div>
         </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+              <Icon className="h-6 w-6 text-white" />
+            </div>
+            {change !== undefined && (
+              <div className={`flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                change >= 0 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {change >= 0 ? (
+                  <ArrowTrendingUpIcon className="h-3 w-3 mr-1" />
+                ) : (
+                  <ArrowTrendingDownIcon className="h-3 w-3 mr-1" />
+                )}
+                {Math.abs(change).toFixed(1)}%
+              </div>
+            )}
+          </div>
+          
+          <div className="mb-2">
+            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+              {title}
+            </h3>
+          </div>
+          
+          <div className="mb-4">
+            <span className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              {prefix}{formatValue(value)}{suffix}
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-1000 ease-out transform origin-left"
+              style={{ 
+                width: typeof value === 'number' 
+                  ? `${Math.min(100, Math.max(10, (value / 1000) * 100))}%` 
+                  : '65%',
+                animation: 'slideIn 1.5s ease-out'
+              }}
+            />
+          </div>
+        </div>
+        
+        <style jsx>{`
+          @keyframes slideIn {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+          }
+        `}</style>
       </div>
     );
   };
@@ -326,34 +358,49 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 p-6">
       {/* Header with Time Range Selector */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Overview Dashboard</h2>
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            {lastUpdate && (
-              <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
-            )}
-            <div className={`flex items-center space-x-1 ${isRealTimeConnected ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-2 h-2 rounded-full ${isRealTimeConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span>{isRealTimeConnected ? 'Live' : 'Disconnected'}</span>
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
+              Executive Dashboard
+            </h1>
+            <p className="text-gray-600 mt-2">Real-time insights and performance metrics</p>
+            <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
+              {lastUpdate && (
+                <span className="flex items-center space-x-1">
+                  <ClockIcon className="h-4 w-4" />
+                  <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
+                </span>
+              )}
+              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
+                isRealTimeConnected 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${
+                  isRealTimeConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                }`}></div>
+                <span className="font-medium">
+                  {isRealTimeConnected ? 'Live Updates' : 'Disconnected'}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value as TimeframeFilter)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-          >
-            <option value="today">Today</option>
-            <option value="last_24h">Last 24 Hours</option>
-            <option value="last_7d">Last 7 Days</option>
-            <option value="last_30d">Last 30 Days</option>
-            <option value="custom">Custom Range</option>
-          </select>
+          
+          <div className="flex items-center space-x-4">
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value as TimeframeFilter)}
+              className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-sm shadow-sm hover:shadow-md transition-shadow focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="today">Today</option>
+              <option value="last_24h">Last 24 Hours</option>
+              <option value="last_7d">Last 7 Days</option>
+              <option value="last_30d">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
 
           {timeframe === 'custom' && (
             <>
