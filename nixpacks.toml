@@ -1,21 +1,32 @@
+# Railway Deployment Configuration for Omnivox Backend
+# This file MUST be used - override any defaults
+
 [phases.setup]
 nixPkgs = ['nodejs-18_x', 'npm-9_x']
 
 [phases.install]
 cmds = [
-  'echo "=== Railway Deployment - Workspace Configuration ==="',
+  'echo "=== FORCE RAILWAY DEPLOYMENT - WORKSPACE CONFIGURATION ==="',
+  'echo "Current directory:"',
   'pwd',
+  'echo "Directory contents:"',
   'ls -la',
-  'echo "Installing all workspace dependencies from root..."',
-  'npm install',
-  'echo "Checking backend directory after workspace install..."',
-  'ls -la backend/'
+  'echo "This is a monorepo workspace - installing all dependencies from root"',
+  'echo "Running npm install (NOT npm ci) due to workspace configuration"',
+  'npm install --verbose',
+  'echo "Workspace installation complete - checking backend:"',
+  'ls -la backend/',
+  'echo "Backend dependencies should now be available via workspace"'
 ]
 
 [phases.build]
 cmds = [
-  'echo "Building backend via workspace..."',
+  'echo "=== BUILDING BACKEND FROM WORKSPACE ==="',
+  'echo "Current directory:"',
   'pwd',
+  'echo "Changing to backend directory for build:"',
+  'cd backend && pwd',
+  'echo "Running backend build:"',
   'cd backend && npm run build'
 ]
 
