@@ -37,8 +37,6 @@ import {
   XMarkIcon,
   CheckIcon,
   UserGroupIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
   EllipsisVerticalIcon,
@@ -373,9 +371,6 @@ export default function ReportsPage() {
     filters: {} as { [key: string]: any },
     chartType: 'bar' as 'line' | 'bar' | 'pie' | 'doughnut'
   });
-
-  // Collapsible Reports state
-  const [isReportsCollapsed, setIsReportsCollapsed] = useState(false);
   
   // Add state for sub-panel (left sidebar) collapse
   const [isSubPanelCollapsed, setIsSubPanelCollapsed] = useState(false);
@@ -516,31 +511,8 @@ export default function ReportsPage() {
 
   return (
     <MainLayout>
-      <div className="mb-8">
-        <div 
-          className="flex items-center justify-between cursor-pointer hover:theme-bg-secondary p-2 rounded-lg transition-colors"
-          onClick={() => setIsReportsCollapsed(!isReportsCollapsed)}
-        >
-          <div>
-            <h1 className="text-3xl font-bold theme-text-primary">Reports</h1>
-            <p className="mt-2 text-lg theme-text-secondary">
-              Comprehensive reporting suite with real-time analytics and performance metrics.
-            </p>
-          </div>
-          <div className="ml-4">
-            {isReportsCollapsed ? (
-              <ChevronDownIcon className="h-6 w-6 theme-text-secondary" />
-            ) : (
-              <ChevronUpIcon className="h-6 w-6 theme-text-secondary" />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {!isReportsCollapsed && (
-        <>
-          {/* Tab Navigation */}
-          <div className="mb-6">
+      {/* Tab Navigation */}
+      <div className="mb-6">
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex space-x-8">
             {[
@@ -779,8 +751,6 @@ export default function ReportsPage() {
         <div className="bg-white rounded-lg p-6">
           <ScheduledReports />
         </div>
-      )}
-        </>
       )}
 
     </MainLayout>
