@@ -353,20 +353,20 @@ function DashboardContent() {
               <div className="flex items-center space-x-3">
                 <div className="text-3xl">👋</div>
                 <div>
-                  <h3 className="text-lg font-bold text-blue-800">Welcome to Omnivox-AI Preview!</h3>
-                  <p className="text-blue-700">You're viewing demo data. Sign up to access real call center features and your own dashboard.</p>
+                  <h3 className="text-lg font-bold theme-text-primary">Welcome to Omnivox-AI Preview!</h3>
+                  <p className="theme-text-secondary">You're viewing demo data. Sign up to access real call center features and your own dashboard.</p>
                 </div>
               </div>
               <div className="flex space-x-3">
                 <button 
                   onClick={() => window.location.href = '/login'}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                  className="btn-primary px-4 py-2 rounded-lg font-medium"
                 >
                   Sign In
                 </button>
                 <button 
                   onClick={() => window.location.href = '/signup'}
-                  className="bg-white text-blue-600 border-2 border-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                  className="btn-secondary px-4 py-2 rounded-lg font-medium"
                 >
                   Sign Up
                 </button>
@@ -449,8 +449,8 @@ function DashboardContent() {
         {/* Stats Cards */}
         {showPreviewBanner && (
           <div className="mb-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 text-center font-medium">
+            <div className="theme-card rounded-lg p-4">
+              <p className="text-sm theme-text-primary text-center font-medium">
                 📊 <strong>Live Dashboard Preview</strong> - These metrics represent real-time data from your system
               </p>
             </div>
@@ -509,8 +509,8 @@ function DashboardContent() {
                   onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
                   className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
                     showPreviewBanner 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
-                      : 'bg-slate-600 text-white hover:bg-slate-700'
+                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
+                      : 'btn-primary'
                   }`}
                   disabled={showPreviewBanner}
                 >
@@ -520,8 +520,8 @@ function DashboardContent() {
                   onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
                   className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
                     showPreviewBanner 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
-                      : 'bg-white text-slate-600 border border-slate-600 hover:bg-slate-50'
+                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
+                      : 'btn-secondary'
                   }`}
                   disabled={showPreviewBanner}
                 >
@@ -531,8 +531,8 @@ function DashboardContent() {
                   onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
                   className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
                     showPreviewBanner 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300' 
-                      : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
+                      : 'btn-ghost'
                   }`}
                   disabled={showPreviewBanner}
                 >
