@@ -13,7 +13,7 @@ interface DashboardCardProps {
 
 export default function DashboardCard({ title, value, icon, color, trend }: DashboardCardProps) {
   return (
-    <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+    <div className="theme-card overflow-hidden shadow-lg rounded-xl hover:shadow-xl transition-shadow duration-300">
       <div className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -21,8 +21,8 @@ export default function DashboardCard({ title, value, icon, color, trend }: Dash
               {icon}
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+              <p className="text-sm font-semibold theme-text-secondary uppercase tracking-wide">{title}</p>
+              <p className="text-3xl font-bold theme-text-primary mt-1">{value}</p>
             </div>
           </div>
           {trend && (

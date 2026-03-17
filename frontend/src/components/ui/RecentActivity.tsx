@@ -97,20 +97,20 @@ export default function RecentActivity({ activities = mockActivities }: RecentAc
   return (
     <div className="space-y-4">
       {activities.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 theme-text-secondary">
           <p>No recent activity</p>
           <p className="text-sm">Start making calls to see your activity here</p>
         </div>
       ) : (
         activities.map((activity) => (
-          <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg">
+          <div key={activity.id} className="flex items-start space-x-3 p-3 hover:theme-bg-secondary rounded-lg">
             {getIcon(activity.type)}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-900">{activity.contact}</p>
-                <span className="text-xs text-gray-500">{activity.time}</span>
+                <p className="text-sm font-medium theme-text-primary">{activity.contact}</p>
+                <span className="text-xs theme-text-secondary">{activity.time}</span>
               </div>
-              <p className="text-sm text-gray-600">{activity.description}</p>
+              <p className="text-sm theme-text-secondary">{activity.description}</p>
               <div className={`text-xs font-medium ${getStatusColor(activity.status)}`}>
                 {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
               </div>

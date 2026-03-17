@@ -272,7 +272,7 @@ function DashboardContent() {
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+              <p className="mt-4 theme-text-secondary">Loading dashboard...</p>
             </div>
           </div>
         </div>
@@ -410,7 +410,7 @@ function DashboardContent() {
         )}
         
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-2">
+          <h1 className="text-3xl font-bold theme-text-primary flex items-center space-x-2">
             <span>Welcome to</span>
             <div className="flex items-center space-x-1">
               <span>OMNI</span>
@@ -437,7 +437,7 @@ function DashboardContent() {
               <span>OX-AI</span>
             </div>
           </h1>
-          <p className="mt-2 text-lg text-gray-600">
+          <p className="mt-2 text-lg theme-text-secondary">
             Hello, {currentUser?.firstName} {currentUser?.lastName}! 
             {showPreviewBanner 
               ? " Explore our AI-powered dialer in preview mode." 
@@ -489,11 +489,11 @@ function DashboardContent() {
 
         {/* Recent Activity & Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+          <div className="theme-card shadow-sm rounded-lg">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">
                 Recent Activity
-                {showPreviewBanner && <span className="text-sm text-gray-500 ml-2">(Demo Data)</span>}
+                {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
               </h3>
               <RecentActivity 
                 activities={[]} // Real activity data would be loaded from API 
@@ -501,9 +501,9 @@ function DashboardContent() {
             </div>
           </div>
 
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+          <div className="theme-card shadow-sm rounded-lg">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button 
                   onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
@@ -545,22 +545,22 @@ function DashboardContent() {
 
         {/* Performance Chart Section */}
         <div className="mt-8">
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+          <div className="theme-card shadow-sm rounded-lg">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">
                 Performance Overview
-                {showPreviewBanner && <span className="text-sm text-gray-500 ml-2">(Demo Data)</span>}
+                {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
               </h3>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="h-64 flex items-center justify-center theme-bg-secondary rounded-lg border-2 border-dashed theme-border">
                 <div className="text-center">
                   <div className="text-4xl mb-2">📈</div>
-                  <p className="text-gray-600">
+                  <p className="theme-text-secondary">
                     {showPreviewBanner 
                       ? "Advanced analytics and charts available in full version" 
                       : "Charts and analytics will be displayed here"
                     }
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm theme-text-secondary">
                     {showPreviewBanner 
                       ? "Sign in to see your real performance data" 
                       : "Coming soon in the next update"
