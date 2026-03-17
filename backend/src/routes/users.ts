@@ -6,6 +6,7 @@
 import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
+import { organizationAwareAuth, getOrganizationFilter } from '../middleware/enhancedAuth';
 import bcrypt from 'bcryptjs';
 
 const router = express.Router();
@@ -13,14 +14,18 @@ const prisma = new PrismaClient();
 
 /**
  * @route   GET /api/admin/users
- * @desc    Get all users for admin dashboard
+ * @desc    Get all users for admin dashboard (organization-scoped)
  * @access  Private (requires authentication)
  */
-router.get('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+router.get('/', organizationAwareAuth, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
-    console.log('👥 Fetching all users...');
+    const user = (req as any).user;
+    const organizationFilter = getOrganizationFilter(user);
+    
+    console.log('👥 Fetching users for organization:', user.organizationId);
     
     const users = await prisma.user.findMany({
+      where: organizationFilter,
       select: {
         id: true,
         username: true,
@@ -34,6 +39,13 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Reque
         lastLogin: true,
         createdAt: true,
         updatedAt: true,
+        organizationId: true,
+        organization: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -54,14 +66,24 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Reque
 
 /**
  * @route   POST /api/admin/users
- * @desc    Create a new user
+ * @desc    Create a new user (within organization)
  * @access  Private (requires authentication)
  */
-router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+router.post('/', organizationAwareAuth, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
+    const currentUser = (req as any).user;
+    const organizationFilter = getOrganizationFilter(currentUser);
+    
+    if (!organizationFilter.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Organization access required'
+      });
+    }
+
     const { name, email, password, role = 'AGENT', department, phoneNumber } = req.body;
     
-    console.log('👤 Creating new user:', { name, email, role });
+    console.log('👤 Creating new user in organization:', organizationFilter.organizationId, { name, email, role });
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -155,6 +177,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Requ
         lastName,
         name,
         role: role.toUpperCase(),
+        organizationId: organizationFilter.organizationId, // Assign to same organization
         isActive: true,
         status: 'away'
       }

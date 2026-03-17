@@ -39,8 +39,16 @@ export class RealReportsController {
     try {
       console.log('📊 Fetching dashboard analytics');
 
-      const organizationId = '1'; // Default org ID for single-tenant system
-      const widgets = await realReportsService.getDashboardAnalytics(organizationId);
+      // Get user's organization from authenticated request
+      const user = (req as any).user;
+      if (!user || !user.organizationId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Organization membership required'
+        });
+      }
+
+      const widgets = await realReportsService.getDashboardAnalytics(user.organizationId);
 
       res.json({
         success: true,

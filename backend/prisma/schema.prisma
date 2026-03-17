@@ -12,6 +12,7 @@ model DataList {
   listId        String           @unique
   name          String
   campaignId    String?
+  organizationId String          // Organization ownership
   active        Boolean          @default(false)
   blendWeight   Int?
   totalContacts Int              @default(0)
@@ -19,6 +20,7 @@ model DataList {
   updatedAt     DateTime         @updatedAt
   contacts      Contact[]
   queueEntries  DialQueueEntry[]
+  organization  Organization     @relation("OrganizationDataLists", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("data_lists")
 }
@@ -27,6 +29,7 @@ model Contact {
   id                String           @id @default(cuid())
   contactId         String           @unique
   listId            String
+  organizationId    String           // Organization ownership
   firstName         String
   lastName          String
   fullName          String?
@@ -75,6 +78,7 @@ model Contact {
   callKPIs          CallKPI[]
   callRecords       CallRecord[]
   list              DataList         @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  organization      Organization     @relation("OrganizationContacts", fields: [organizationId], references: [id], onDelete: Cascade)
   queueEntries      DialQueueEntry[]
   inbound_calls     inbound_calls[]
   interactions      Interaction[]
@@ -110,6 +114,7 @@ model Campaign {
   id                   String                    @id @default(cuid())
   campaignId           String                    @unique
   name                 String
+  organizationId       String                    // Organization ownership
   dialMethod           String                    @default("Progressive")
   speed                Float                     @default(2.0)
   dropPercentage       Float                     @default(0.0)
@@ -137,6 +142,7 @@ model Campaign {
   callRecords          CallRecord[]
   campaignDispositions CampaignDisposition[]
   createdBy            User?                     @relation("CampaignCreator", fields: [createdById], references: [id])
+  organization         Organization              @relation("OrganizationCampaigns", fields: [organizationId], references: [id], onDelete: Cascade)
   interactions         Interaction[]
   tasks                Task[]
   userAssignments      UserCampaignAssignment[]  @relation("CampaignUserAssignments")
@@ -289,6 +295,7 @@ model CallRecord {
   callId                String                 @unique
   campaignId            String
   contactId             String
+  organizationId        String                 // Organization ownership
   agentId               String?
   phoneNumber           String
   dialedNumber          String?
@@ -310,6 +317,7 @@ model CallRecord {
   agent                 Agent?                 @relation(fields: [agentId], references: [agentId])
   campaign              Campaign               @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
   contact               Contact                @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  organization          Organization           @relation("OrganizationCallRecords", fields: [organizationId], references: [id], onDelete: Cascade)
   disposition           Disposition?           @relation(fields: [dispositionId], references: [id])
   disposition_tracking  disposition_tracking[]
   quality_monitoring    quality_monitoring?
@@ -383,6 +391,7 @@ model User {
   lastName                                                 String
   name                                                     String
   role                                                     String                   @default("AGENT")
+  organizationId                                           String?                  // Organization membership
   isActive                                                 Boolean                  @default(true)
   lastLogin                                                DateTime?
   lastLoginAttempt                                         DateTime?
@@ -423,6 +432,7 @@ model User {
   campaignAssignments                                      UserCampaignAssignment[] @relation("UserCampaignAssignments")
   sessions                                                 UserSession[]            @relation("UserSessions")
   webhooks                                                 Webhook[]                @relation("UserWebhooks")
+  organization                                             Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@map("users")
 }
@@ -588,6 +598,11 @@ model Organization {
   timezone               String                   @default("UTC")
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
+  members                User[]                   @relation("OrganizationMembers")
+  contacts               Contact[]                @relation("OrganizationContacts")
+  campaigns              Campaign[]               @relation("OrganizationCampaigns")
+  callRecords            CallRecord[]             @relation("OrganizationCallRecords")
+  dataLists              DataList[]               @relation("OrganizationDataLists")
   channels               Channel[]
   flow_shares            flow_shares[]
   flow_templates         flow_templates[]

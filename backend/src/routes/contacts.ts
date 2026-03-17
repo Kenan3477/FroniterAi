@@ -2,6 +2,8 @@ import express from 'express';
 import { Request, Response } from 'express';
 import { prisma } from '../database';
 import { authenticate } from '../middleware/auth';
+import { authenticateToken, requirePermission } from '../middleware/enhancedAuth';
+import { getOrganizationFilter } from '../middleware/organizationAuth';
 
 const router = express.Router();
 
@@ -28,12 +30,14 @@ interface Contact {
 
 // Get contacts
 // GET /api/contacts?campaignId=xxx&status=xxx&limit=xxx
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', authenticateToken, requirePermission('contacts.read'), async (req: Request, res: Response) => {
   try {
     const { campaignId, status, limit, page, search } = req.query;
+    const user = (req as any).user;
     
-    // Build where clause for filtering
+    // Build where clause for filtering including organization scope
     const where: any = {
+      ...getOrganizationFilter(user), // Add organization filtering
       // EXCLUDE fake imported contacts from contacts display
       NOT: {
         OR: [
@@ -169,18 +173,24 @@ router.get('/', async (req: Request, res: Response) => {
 
 // Get contact statistics
 // GET /api/contacts/stats
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', authenticateToken, requirePermission('contacts.read'), async (req: Request, res: Response) => {
   try {
     const { campaignId } = req.query;
+    const user = (req as any).user;
 
-    // Build where clause for filtering
-    let where: any = {};
+    // Build where clause for filtering including organization scope
+    let where: any = {
+      ...getOrganizationFilter(user) // Add organization filtering
+    };
 
     // Filter by campaign through data list relationships
     if (campaignId) {
       // Get data lists associated with the campaign
       const campaign = await prisma.campaign.findUnique({
-        where: { campaignId: campaignId as string }
+        where: { 
+          campaignId: campaignId as string,
+          ...getOrganizationFilter(user) // Ensure campaign belongs to user's org
+        }
       });
       
       if (campaign) {
@@ -282,12 +292,16 @@ router.get('/stats', async (req: Request, res: Response) => {
 
 // Get specific contact by ID
 // GET /api/contacts/:contactId
-router.get('/:contactId', async (req: Request, res: Response) => {
+router.get('/:contactId', authenticateToken, requirePermission('contacts.read'), async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
+    const user = (req as any).user;
 
     const contact = await prisma.contact.findUnique({
-      where: { contactId },
+      where: { 
+        contactId,
+        ...getOrganizationFilter(user) // Ensure contact belongs to user's org
+      },
       include: {
         list: {
           select: {
@@ -363,13 +377,17 @@ router.get('/:contactId', async (req: Request, res: Response) => {
 
 // Update contact status
 // PUT /api/contacts/:contactId/status
-router.put('/:contactId/status', async (req: Request, res: Response) => {
+router.put('/:contactId/status', authenticateToken, requirePermission('contacts.update'), async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
     const { status, notes, outcome } = req.body;
+    const user = (req as any).user;
 
     const contact = await prisma.contact.findUnique({
-      where: { contactId }
+      where: { 
+        contactId,
+        ...getOrganizationFilter(user) // Ensure contact belongs to user's org
+      }
     });
 
     if (!contact) {
@@ -478,9 +496,10 @@ router.put('/:contactId/status', async (req: Request, res: Response) => {
 
 // Create new contact
 // POST /api/contacts
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authenticateToken, requirePermission('contacts.create'), async (req: Request, res: Response) => {
   try {
     const { firstName, lastName, phone, email, listId, customFields } = req.body;
+    const user = (req as any).user;
 
     if (!firstName || !lastName || !phone || !listId) {
       return res.status(400).json({
@@ -489,7 +508,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    // Verify list exists
+    // Verify list exists and belongs to user's organization
     const list = await prisma.dataList.findUnique({
       where: { listId }
     });
@@ -504,6 +523,7 @@ router.post('/', async (req: Request, res: Response) => {
     const contactData = {
       contactId: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       listId,
+      organizationId: user.organizationId, // Add organization ownership
       firstName,
       lastName,
       fullName: `${firstName} ${lastName}`,
@@ -611,9 +631,10 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/contacts/:contactId
-router.delete('/:contactId', async (req: Request, res: Response) => {
+router.delete('/:contactId', authenticateToken, requirePermission('contacts.delete'), async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
+    const user = (req as any).user;
 
     if (!contactId) {
       return res.status(400).json({
@@ -624,9 +645,12 @@ router.delete('/:contactId', async (req: Request, res: Response) => {
 
     console.log(`🗑️ Deleting contact with ID: ${contactId}`);
 
-    // Check if contact exists
+    // Check if contact exists and belongs to user's organization
     const existingContact = await prisma.contact.findUnique({
-      where: { contactId },
+      where: { 
+        contactId,
+        ...getOrganizationFilter(user) // Ensure contact belongs to user's org
+      },
       include: {
         callRecords: true
       }

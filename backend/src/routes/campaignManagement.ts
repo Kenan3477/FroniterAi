@@ -3,17 +3,27 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { campaignEvents, agentEvents } from '../utils/eventHelpers';
 import { createRestApiCall } from '../services/twilioService';
+import { authenticateToken, requirePermission } from '../middleware/enhancedAuth';
+import { getOrganizationFilter } from '../middleware/organizationAuth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/admin/campaign-management/campaigns
-router.get('/campaigns', async (req: Request, res: Response) => {
+router.get('/campaigns', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
+    const organizationFilter = getOrganizationFilter(user);
+    if (!organizationFilter.organizationId) {
+      return res.status(403).json({ error: 'Organization access required' });
+    }
+
     const { status, category, type, search, page, limit } = req.query;
 
     // Build where clause for filtering
-    const where: any = {};
+    const where: any = {
+      ...organizationFilter  // Apply organization filter
+    };
     
     if (status) {
       where.status = status;
@@ -162,10 +172,17 @@ router.get('/templates', async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/campaign-management/stats
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
+    const organizationFilter = getOrganizationFilter(user);
+    if (!organizationFilter.organizationId) {
+      return res.status(403).json({ error: 'Organization access required' });
+    }
+
     // Fetch campaigns from database for stats calculation
     const campaigns = await prisma.campaign.findMany({
+      where: organizationFilter,
       include: {
         _count: {
           select: {
@@ -210,9 +227,16 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/campaign-management/data-lists - Get all available data lists
-router.get('/data-lists', async (req: Request, res: Response) => {
+router.get('/data-lists', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
+    const organizationFilter = getOrganizationFilter(user);
+    if (!organizationFilter.organizationId) {
+      return res.status(403).json({ error: 'Organization access required' });
+    }
+
     const dataLists = await prisma.dataList.findMany({
+      where: organizationFilter,
       include: {
         _count: {
           select: {
@@ -254,8 +278,14 @@ router.get('/data-lists', async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/campaign-management/data-lists - Create new data list
-router.post('/data-lists', async (req: Request, res: Response) => {
+router.post('/data-lists', organizationAwareAuth, requirePermission('campaign.create'), async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
+    const organizationFilter = getOrganizationFilter(user);
+    if (!organizationFilter.organizationId) {
+      return res.status(403).json({ error: 'Organization access required' });
+    }
+
     const { name, campaignId, blendWeight = 100, active = true } = req.body;
 
     // Validate required fields
@@ -272,6 +302,7 @@ router.post('/data-lists', async (req: Request, res: Response) => {
         listId: `list_${Date.now()}`,
         name: name.trim(),
         campaignId: campaignId || null,
+        organizationId: organizationFilter.organizationId,
         blendWeight: Math.max(1, Math.min(100, blendWeight)),
         active: active
       },

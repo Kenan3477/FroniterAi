@@ -13,8 +13,14 @@ export interface UserPermissions {
   userId: string;
   username: string;
   role: string;
+  organizationId: string | null;
   permissions: string[];
   isActive: boolean;
+  organization?: {
+    id: string;
+    name: string;
+    displayName: string;
+  } | null;
 }
 
 // Enhanced role permissions with hierarchical access
@@ -165,12 +171,14 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       where: { 
         id: parseInt(decoded.userId)
       },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        isActive: true
+      include: {
+        organization: {         // Include organization details
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        }
       }
     });
 
@@ -196,8 +204,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       userId: user.id.toString(),
       username: user.username,
       role: user.role,
+      organizationId: user.organizationId,  // Include organization membership
       permissions: rolePermissions,
-      isActive: user.isActive
+      isActive: user.isActive,
+      organization: user.organization        // Include organization details
     } as UserPermissions;
 
     console.log(`🔐 Authenticated user: ${user.username} (${user.role}) with ${rolePermissions.length} permissions`);
@@ -422,3 +432,104 @@ export const auditLog = (operation: string) => {
 
 // Export legacy authenticate for backward compatibility
 export const authenticate = authenticateToken;
+
+/**
+ * Get user permissions based on role
+ */
+const getUserPermissions = (role: string): string[] => {
+  return ENHANCED_ROLE_PERMISSIONS[role as keyof typeof ENHANCED_ROLE_PERMISSIONS] || [];
+};
+
+/**
+ * Organization-aware authentication middleware
+ * Ensures user has access to organization data
+ */
+export const organizationAwareAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '') || 
+                  req.header('x-auth-token') || 
+                  req.cookies?.authToken;
+
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Access token required' 
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+    
+    // Fetch user with organization data
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        }
+      }
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid or inactive user' 
+      });
+    }
+
+    // Check if user belongs to an organization
+    if (!user.organizationId) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Organization membership required' 
+      });
+    }
+
+    // Add user with organization context to request
+    (req as any).user = {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      organizationId: user.organizationId,
+      permissions: getUserPermissions(user.role),
+      isActive: user.isActive,
+      organization: user.organization
+    };
+
+    next();
+  } catch (error) {
+    console.error('❌ Organization-aware auth error:', error);
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Invalid authentication token' 
+    });
+  }
+};
+
+/**
+ * Get organization filter for database queries
+ */
+export const getOrganizationFilter = (user: UserPermissions) => {
+  return {
+    organizationId: user.organizationId
+  };
+};
+
+/**
+ * Middleware to require organization membership
+ */
+export const requireOrganization = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  
+  if (!user || !user.organizationId) {
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Organization access required' 
+    });
+  }
+  
+  next();
+};
