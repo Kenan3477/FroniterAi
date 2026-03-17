@@ -65,28 +65,34 @@ interface TopAgentData {
   revenue: number;
 }
 
-const KPICard: React.FC<{ title: string; value: string | number; change?: string; icon: React.ReactNode; color: string }> = ({ 
+const KPICard: React.FC<{ title: string; value: string | number; change?: string; icon: React.ReactNode; trend?: 'up' | 'down' | 'neutral' }> = ({ 
   title, 
   value, 
   change, 
-  icon, 
-  color 
+  icon,
+  trend = 'neutral'
 }) => (
-  <div className={`bg-gradient-to-br ${color} backdrop-blur-sm bg-opacity-90 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border border-white/20`}>
-    <div className="flex items-center justify-between">
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group">
+    <div className="flex items-start justify-between">
       <div className="flex-1">
-        <p className="text-sm font-medium text-white/80 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-white mb-2">{value}</p>
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">{title}</p>
+        <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">{value}</p>
         {change && (
-          <p className="text-sm text-white/90 font-medium">
-            <span className={change.startsWith('+') ? 'text-green-200' : 'text-red-200'}>
+          <div className="flex items-center gap-1">
+            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+              trend === 'up' 
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                : trend === 'down'
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+            }`}>
               {change}
             </span>
-            {' '}vs yesterday
-          </p>
+            <span className="text-xs text-slate-500 dark:text-slate-500">vs yesterday</span>
+          </div>
         )}
       </div>
-      <div className="text-white/80 text-3xl ml-4">
+      <div className="text-slate-400 dark:text-slate-500 text-xl group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
         {icon}
       </div>
     </div>
@@ -358,75 +364,75 @@ const OverviewDashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Executive Dashboard</h1>
-        <p className="text-gray-600">Real-time insights into your call center performance</p>
-      </div>
+    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Reports Overview</h1>
+          <p className="text-slate-600 dark:text-slate-400">Advanced analytics and insights for your call center operations</p>
+        </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <KPICard
-          title="Total Calls Today"
-          value={metrics.totalCallsToday.toLocaleString()}
-          change="+12%"
-          color="from-blue-500 to-blue-600"
-          icon={<span>📞</span>}
-        />
-        <KPICard
-          title="Connected Calls"
-          value={metrics.connectedCallsToday.toLocaleString()}
-          change="+8%"
-          color="from-green-500 to-green-600"
-          icon={<span>✅</span>}
-        />
-        <KPICard
-          title="Total Revenue"
-          value={`$${metrics.totalRevenue.toLocaleString()}`}
-          change="+15%"
-          color="from-purple-500 to-purple-600"
-          icon={<span>💰</span>}
-        />
-        <KPICard
-          title="Conversion Rate"
-          value={`${metrics.conversionRate.toFixed(1)}%`}
-          change="+2.1%"
-          color="from-indigo-500 to-indigo-600"
-          icon={<span>📈</span>}
-        />
-        <KPICard
-          title="Avg Call Duration"
-          value={`${Math.floor(metrics.averageCallDuration / 60)}m ${metrics.averageCallDuration % 60}s`}
-          change="-30s"
-          color="from-orange-500 to-orange-600"
-          icon={<span>⏱️</span>}
-        />
-        <KPICard
-          title="Agents Online"
-          value={metrics.agentsOnline.toString()}
-          color="from-cyan-500 to-cyan-600"
-          icon={<span>👥</span>}
-        />
-        <KPICard
-          title="Calls in Progress"
-          value={metrics.callsInProgress.toString()}
-          color="from-yellow-500 to-yellow-600"
-          icon={<span>🔄</span>}
-        />
-        <KPICard
-          title="Avg Wait Time"
-          value={`${metrics.averageWaitTime}s`}
-          change="-5s"
-          color="from-red-500 to-red-600"
-          icon={<span>⏳</span>}
-        />
-      </div>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <KPICard
+            title="Total Calls Today"
+            value={metrics.totalCallsToday.toLocaleString()}
+            change="+12%"
+            trend="up"
+            icon={<span>📞</span>}
+          />
+          <KPICard
+            title="Connected Calls"
+            value={metrics.connectedCallsToday.toLocaleString()}
+            change="+8%"
+            trend="up"
+            icon={<span>✅</span>}
+          />
+          <KPICard
+            title="Total Revenue"
+            value={`$${metrics.totalRevenue.toLocaleString()}`}
+            change="+15%"
+            trend="up"
+            icon={<span>💰</span>}
+          />
+          <KPICard
+            title="Conversion Rate"
+            value={`${metrics.conversionRate.toFixed(1)}%`}
+            change="+2.1%"
+            trend="up"
+            icon={<span>📈</span>}
+          />
+          <KPICard
+            title="Avg Call Duration"
+            value={`${Math.floor(metrics.averageCallDuration / 60)}m ${metrics.averageCallDuration % 60}s`}
+            change="-30s"
+            trend="down"
+            icon={<span>⏱️</span>}
+          />
+          <KPICard
+            title="Agents Online"
+            value={metrics.agentsOnline.toString()}
+            icon={<span>👥</span>}
+          />
+          <KPICard
+            title="Calls in Progress"
+            value={metrics.callsInProgress.toString()}
+            icon={<span>🔄</span>}
+          />
+          <KPICard
+            title="Avg Wait Time"
+            value={`${metrics.averageWaitTime}s`}
+            change="-5s"
+            trend="up"
+            icon={<span>⏳</span>}
+          />
+        </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Call Volume Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Volume (Hourly)</h2>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Call Volume (Hourly)</h3>
           <div className="h-80">
             <Line data={callVolumeChartData} options={chartOptions} />
           </div>
