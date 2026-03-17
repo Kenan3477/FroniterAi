@@ -21,7 +21,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <ThemeProvider>
       <ContactsProvider>
-        <div className="h-screen flex bg-gray-50">
+        <div className="h-screen flex theme-bg-secondary">
           {/* Sidebar */}
           <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           
@@ -31,7 +31,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <Header onSidebarToggle={toggleSidebar} />
             
             {/* Content Area */}
-            <main className="flex-1 overflow-auto p-6">
+            <main className="flex-1 overflow-auto p-6 theme-bg-secondary">
             {children}
           </main>
         </div>

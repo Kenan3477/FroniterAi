@@ -373,7 +373,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   // Note: Dialing is controlled by agent status, not manual buttons
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4">
+    <header className="theme-header border-b h-16 flex items-center justify-between px-4">
       {/* Left Section */}
       <div className="flex items-center space-x-4">
         {/* Search Bar */}
@@ -383,7 +383,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
+            className="block w-full pl-10 pr-3 py-2 rounded-md leading-5 theme-bg-primary theme-text-primary theme-border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
             placeholder="Search contacts, campaigns..."
           />
         </div>
@@ -488,11 +488,11 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+            <div className="absolute right-0 mt-2 w-80 theme-card rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
-                  <span className="text-sm text-gray-500">
+                  <h3 className="text-lg font-medium theme-text-primary">Notifications</h3>
+                  <span className="text-sm theme-text-secondary">
                     {isLoadingNotifications ? 'Loading...' : 
                      notificationData?.unreadCount > 0 ? `${notificationData.unreadCount} new` : 'No new'}
                   </span>

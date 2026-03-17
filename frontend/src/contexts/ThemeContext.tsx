@@ -53,50 +53,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const applyTheme = (selectedTheme: Theme) => {
     const root = document.documentElement;
     
-    // Remove all theme classes
-    root.classList.remove('theme-light', 'theme-dark', 'theme-blue', 'theme-neon', 'theme-pink');
+    // Set data-theme attribute for CSS targeting
+    root.setAttribute('data-theme', selectedTheme);
     
-    // Add the selected theme class
-    root.classList.add(`theme-${selectedTheme}`);
-    
-    // Set CSS custom properties based on theme
-    switch (selectedTheme) {
-      case 'light':
-        root.style.setProperty('--theme-primary', '59 130 246'); // blue-500
-        root.style.setProperty('--theme-secondary', '148 163 184'); // slate-400
-        root.style.setProperty('--theme-accent', '34 197 94'); // green-500
-        root.style.setProperty('--theme-bg', '255 255 255'); // white
-        root.style.setProperty('--theme-surface', '248 250 252'); // slate-50
-        break;
-      case 'dark':
-        root.style.setProperty('--theme-primary', '99 102 241'); // indigo-500
-        root.style.setProperty('--theme-secondary', '148 163 184'); // slate-400
-        root.style.setProperty('--theme-accent', '34 197 94'); // green-500
-        root.style.setProperty('--theme-bg', '15 23 42'); // slate-900
-        root.style.setProperty('--theme-surface', '30 41 59'); // slate-800
-        break;
-      case 'blue':
-        root.style.setProperty('--theme-primary', '37 99 235'); // blue-600
-        root.style.setProperty('--theme-secondary', '59 130 246'); // blue-500
-        root.style.setProperty('--theme-accent', '14 165 233'); // sky-500
-        root.style.setProperty('--theme-bg', '239 246 255'); // blue-50
-        root.style.setProperty('--theme-surface', '219 234 254'); // blue-100
-        break;
-      case 'neon':
-        root.style.setProperty('--theme-primary', '20 184 166'); // teal-500
-        root.style.setProperty('--theme-secondary', '6 182 212'); // cyan-500
-        root.style.setProperty('--theme-accent', '34 197 94'); // green-500
-        root.style.setProperty('--theme-bg', '3 7 18'); // slate-950
-        root.style.setProperty('--theme-surface', '15 23 42'); // slate-900
-        break;
-      case 'pink':
-        root.style.setProperty('--theme-primary', '236 72 153'); // pink-500
-        root.style.setProperty('--theme-secondary', '251 113 133'); // rose-400
-        root.style.setProperty('--theme-accent', '168 85 247'); // purple-500
-        root.style.setProperty('--theme-bg', '253 244 255'); // purple-50
-        root.style.setProperty('--theme-surface', '250 232 255'); // purple-100
-        break;
-    }
+    console.log(`🎨 Applied theme: ${selectedTheme} to document element`);
   };
 
   return (

@@ -49,18 +49,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   console.log('🔍 Sidebar - User role:', user?.role, 'Available items:', navigationItems.map(item => item.name));
   return (
-    <div className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
+    <div className={`theme-bg-primary theme-border border-r flex flex-col transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b border-gray-200">
+      <div className="flex items-center h-16 px-4 theme-border border-b">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
             <div className="flex items-center space-x-1">
-              <span className="text-lg font-bold text-gray-900">OMNI</span>
+              <span className="text-lg font-bold theme-text-primary">OMNI</span>
               
               {/* Voice Wave V replacement - smaller for sidebar, flipped upside down */}
               <div className="flex items-start justify-center h-5 space-x-0.5 mx-1">
@@ -81,7 +81,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                      style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
               </div>
               
-              <span className="text-lg font-bold text-gray-900">OX AI</span>
+              <span className="text-lg font-bold theme-text-primary">OX AI</span>
             </div>
           )}
         </div>
