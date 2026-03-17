@@ -24,21 +24,21 @@
 }
 
 :root[data-theme="dark"] {
-  /* Dark Theme - VS Code/GitHub Inspired */
-  --theme-primary: #161b22;
-  --theme-primary-hover: #21262d;
-  --theme-secondary: #0d1117;
-  --theme-accent: #58a6ff;
-  --theme-accent-hover: #79c0ff;
-  --theme-background: #0d1117;
-  --theme-background-secondary: #010409;
-  --theme-text: #f0f6fc;
-  --theme-text-secondary: #8b949e;
-  --theme-border: #30363d;
-  --theme-border-subtle: #21262d;
-  --theme-shadow: rgba(1, 4, 9, 0.3);
-  --theme-shadow-md: rgba(1, 4, 9, 0.5);
-  --theme-ring: rgba(88, 166, 255, 0.3);
+  /* Dark Theme - VS Code High Contrast */
+  --theme-primary: #000000;
+  --theme-primary-hover: #1a1a1a;
+  --theme-secondary: #0a0a0a;
+  --theme-accent: #00d4ff;
+  --theme-accent-hover: #00b8e6;
+  --theme-background: #000000;
+  --theme-background-secondary: #000000;
+  --theme-text: #ffffff;
+  --theme-text-secondary: #cccccc;
+  --theme-border: #4d4d4d;
+  --theme-border-subtle: #2d2d2d;
+  --theme-shadow: rgba(0, 212, 255, 0.2);
+  --theme-shadow-md: rgba(0, 212, 255, 0.3);
+  --theme-ring: rgba(0, 212, 255, 0.5);
 }
 
 :root[data-theme="neon"] {
@@ -111,6 +111,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
+  /* VS Code Dark High Contrast Body */
+  [data-theme="dark"] body {
+    background-color: #000000;
+    color: #ffffff;
+  }
+  
   * {
     border-color: var(--theme-border);
   }
@@ -137,6 +143,18 @@
   .theme-card:hover {
     border-color: var(--theme-accent);
     box-shadow: 0 4px 12px var(--theme-shadow-md);
+  }
+  
+  /* VS Code Dark High Contrast Enhancements */
+  [data-theme="dark"] .theme-card {
+    background-color: #000000;
+    border: 2px solid #4d4d4d;
+    box-shadow: 0 0 0 1px #2d2d2d, 0 2px 8px rgba(0, 0, 0, 0.8);
+  }
+  
+  [data-theme="dark"] .theme-card:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 0 2px #00d4ff, 0 0 20px rgba(0, 212, 255, 0.3);
   }
   
   .theme-card-elevated {
@@ -185,6 +203,21 @@
     transform: translateY(-0.5px);
   }
   
+  /* VS Code Dark High Contrast Button Enhancements */
+  [data-theme="dark"] .btn-primary {
+    background-color: #00d4ff;
+    border: 2px solid #00d4ff;
+    color: #000000;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  }
+  
+  [data-theme="dark"] .btn-primary:hover {
+    background-color: #00b8e6;
+    border-color: #00b8e6;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+  }
+  
   .btn-secondary {
     background-color: var(--theme-primary);
     color: var(--theme-text);
@@ -196,6 +229,19 @@
   .btn-secondary:hover {
     background-color: var(--theme-primary-hover);
     border-color: var(--theme-accent);
+  }
+  
+  /* VS Code Dark High Contrast Secondary Button */
+  [data-theme="dark"] .btn-secondary {
+    background-color: #000000;
+    border: 2px solid #4d4d4d;
+    color: #ffffff;
+    font-weight: 500;
+  }
+  
+  [data-theme="dark"] .btn-secondary:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
   }
   
   .btn-ghost {
@@ -240,6 +286,22 @@
     color: var(--theme-text-secondary);
   }
   
+  /* VS Code Dark High Contrast Input Enhancements */
+  [data-theme="dark"] .input-field {
+    background-color: #000000;
+    border: 2px solid #4d4d4d;
+    color: #ffffff;
+  }
+  
+  [data-theme="dark"] .input-field:focus {
+    border-color: #00d4ff;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.3), 0 0 10px rgba(0, 212, 255, 0.2);
+  }
+  
+  [data-theme="dark"] .input-field::placeholder {
+    color: #999999;
+  }
+  
   /* Sidebar System */
   .sidebar-item {
     color: var(--theme-text-secondary);
@@ -256,6 +318,58 @@
   .sidebar-item.active {
     background-color: var(--theme-accent);
     color: white;
+  }
+  
+  /* VS Code Dark High Contrast Sidebar */
+  [data-theme="dark"] .sidebar-item {
+    color: #cccccc;
+    border: 1px solid transparent;
+  }
+  
+  [data-theme="dark"] .sidebar-item:hover {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    border-color: #4d4d4d;
+  }
+  
+  [data-theme="dark"] .sidebar-item.active {
+    background-color: #00d4ff;
+    color: #000000;
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  }
+  
+  /* VS Code Dark High Contrast Text & Layout Enhancements */
+  [data-theme="dark"] .theme-text-primary {
+    color: #ffffff;
+    font-weight: 500;
+  }
+  
+  [data-theme="dark"] .theme-text-secondary {
+    color: #cccccc;
+    font-weight: 400;
+  }
+  
+  [data-theme="dark"] .theme-header {
+    background-color: #000000;
+    border-bottom: 2px solid #4d4d4d;
+    color: #ffffff;
+  }
+  
+  [data-theme="dark"] .theme-bg-primary {
+    background-color: #000000;
+  }
+  
+  [data-theme="dark"] .theme-bg-secondary {
+    background-color: #000000;
+  }
+  
+  [data-theme="dark"] .theme-border {
+    border-color: #4d4d4d;
+  }
+  
+  [data-theme="dark"] .theme-border-subtle {
+    border-color: #2d2d2d;
   }
   
   /* Neon Theme Enhancements */
