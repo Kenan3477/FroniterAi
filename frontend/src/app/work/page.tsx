@@ -659,7 +659,7 @@ export default function WorkPage() {
         <div className="flex-1 flex flex-col min-w-0">
           {selectedView === 'My Interactions' ? (
             // For My Interactions, show dialer and active call info
-            <div className="flex-1 p-6 bg-gray-50">
+            <div className="flex-1 p-6 theme-bg-secondary">
               <div className="max-w-4xl mx-auto space-y-6">
                 
                 {/* Dialer Section - Always keep RestApiDialer mounted for incoming call handling */}
@@ -672,11 +672,11 @@ export default function WorkPage() {
                 
                 {/* Auto Dialer Controls */}
                 {!activeCall.isActive && currentCampaign && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="theme-card rounded-lg p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Auto Dialer</h3>
-                        <p className="text-sm text-gray-600">
+                        <h3 className="text-lg font-semibold theme-text-primary">Auto Dialer</h3>
+                        <p className="text-sm theme-text-secondary">
                           Campaign: {currentCampaign.name} • {currentCampaign.dialMethod}
                         </p>
                       </div>
@@ -684,11 +684,11 @@ export default function WorkPage() {
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                           <div className={`h-3 w-3 rounded-full ${autoDialerStatusColor}`}></div>
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium theme-text-primary">
                             {autoDialerStatusText}
                           </span>
                           {!agentAvailable && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs theme-text-secondary">
                               (Set status to Available to enable)
                             </span>
                           )}
@@ -720,7 +720,7 @@ export default function WorkPage() {
                           disabled={!agentAvailable}
                           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                             !agentAvailable 
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
                               : autoDialerPaused
                                 ? 'bg-green-600 text-white hover:bg-green-700'
                                 : 'bg-yellow-600 text-white hover:bg-yellow-700'
@@ -783,11 +783,11 @@ export default function WorkPage() {
                     />
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                  <div className="theme-card rounded-lg p-8">
                     <div className="text-center">
-                      <PhoneIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                      <h3 className="text-xl font-medium text-gray-900 mb-2">No Active Interactions</h3>
-                      <p className="text-gray-500">Use the dialer above to start a call</p>
+                      <PhoneIcon className="h-16 w-16 mx-auto mb-4 theme-text-secondary" />
+                      <h3 className="text-xl font-medium theme-text-primary mb-2">No Active Interactions</h3>
+                      <p className="theme-text-secondary">Use the dialer above to start a call</p>
                     </div>
                   </div>
                 )}
@@ -796,28 +796,28 @@ export default function WorkPage() {
           ) : (
             <>
               {/* Header */}
-              <div className="bg-white border-b border-gray-200 px-6 py-4">
+              <div className="theme-bg-primary theme-border border-b px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <h1 className="text-xl font-semibold text-gray-900">
+                    <h1 className="text-xl font-semibold theme-text-primary">
                       {selectedView}
                     </h1>
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+                        className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md"
                       >
                         <FunnelIcon className="h-4 w-4 mr-2" />
                         Filter
                       </button>
-                      <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                      <button className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md">
                         <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
                         Sort
                       </button>
                       <button 
                         onClick={loadInteractionData}
                         disabled={isLoadingInteractions}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50"
+                        className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md disabled:opacity-50"
                       >
                         <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoadingInteractions ? 'animate-spin' : ''}`} />
                         Refresh
@@ -829,23 +829,23 @@ export default function WorkPage() {
                     {/* Search */}
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                        <MagnifyingGlassIcon className="h-5 w-5 theme-text-secondary" />
                       </div>
                       <input
                         type="text"
                         placeholder="Search interactions..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+                        className="input-field block w-80 pl-10 pr-3 py-2 rounded-md leading-5"
                       />
                     </div>
                     
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2">
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                      <button className="btn-secondary inline-flex items-center px-4 py-2 text-sm font-medium rounded-md">
                         Export
                       </button>
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                      <button className="btn-secondary inline-flex items-center px-4 py-2 text-sm font-medium rounded-md">
                         Actions
                       </button>
                     </div>
@@ -854,10 +854,10 @@ export default function WorkPage() {
 
                 {/* Filter Panel */}
                 {showFilters && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="mt-4 p-4 theme-card rounded-lg">
                     <div className="grid grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium theme-text-primary mb-1">
                           Date From
                         </label>
                         <input
@@ -931,7 +931,7 @@ export default function WorkPage() {
                             setDateToFilter('');
                             setSearchTerm('');
                           }}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+                          className="btn-secondary px-4 py-2 rounded-md text-sm font-medium"
                         >
                           Clear Filters
                         </button>

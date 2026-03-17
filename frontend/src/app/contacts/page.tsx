@@ -352,13 +352,13 @@ function AdvancedContactManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen theme-bg-secondary">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="theme-bg-primary theme-border border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Advanced Contact Management</h1>
-            <p className="text-gray-600">Smart filtering, segmentation, and bulk operations</p>
+            <h1 className="text-2xl font-bold theme-text-primary">Advanced Contact Management</h1>
+            <p className="theme-text-secondary">Smart filtering, segmentation, and bulk operations</p>
           </div>
           <div className="flex items-center space-x-3">
             <button 
@@ -368,11 +368,11 @@ function AdvancedContactManagement() {
               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
               CRM Import
             </button>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <button className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md">
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
               Export ({filteredContacts.length})
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            <button className="btn-primary inline-flex items-center px-4 py-2 text-sm font-medium rounded-md">
               <PlusIcon className="h-4 w-4 mr-2" />
               Add Contact
             </button>
@@ -382,11 +382,11 @@ function AdvancedContactManagement() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center min-h-96 bg-white">
+        <div className="flex items-center justify-center min-h-96 theme-bg-primary">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <div className="text-lg font-semibold text-gray-900 mb-2">Loading All Contacts</div>
-            <div className="text-gray-600 mb-4">
+            <div className="text-lg font-semibold theme-text-primary mb-2">Loading All Contacts</div>
+            <div className="theme-text-secondary mb-4">
               Fetching contact data from cache or backend...
             </div>
             <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
@@ -402,9 +402,9 @@ function AdvancedContactManagement() {
       {!isLoading && (
       <div className="flex">
         {/* Sidebar - Smart Lists */}
-        <div className="w-80 bg-white border-r border-gray-200 p-6">
+        <div className="w-80 theme-bg-primary theme-border border-r p-6">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Smart Lists</h3>
+            <h3 className="text-lg font-semibold theme-text-primary mb-3">Smart Lists</h3>
             <div className="space-y-2">
               {[
                 { name: 'High Value Prospects', count: smartListCounts.highValueProspects, criteria: 'leadScore > 80 AND status = qualified' },
@@ -412,10 +412,10 @@ function AdvancedContactManagement() {
                 { name: 'Never Contacted', count: smartListCounts.neverContacted, criteria: 'attemptCount = 0' },
                 { name: 'Warm Leads', count: smartListCounts.warmLeads, criteria: 'attemptCount > 0 AND status != not_interested' }
               ].map((list, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                <div key={index} className="flex items-center justify-between p-3 rounded-lg theme-border border hover:bg-opacity-50 hover:theme-bg-secondary cursor-pointer">
                   <div>
-                    <div className="font-medium text-gray-900">{list.name}</div>
-                    <div className="text-xs text-gray-500">{list.criteria}</div>
+                    <div className="font-medium theme-text-primary">{list.name}</div>
+                    <div className="text-xs theme-text-secondary">{list.criteria}</div>
                   </div>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {list.count}

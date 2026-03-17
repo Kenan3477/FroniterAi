@@ -473,14 +473,14 @@ export default function ReportsPage() {
 
   const renderReportGrid = (reports: any[], title: string) => (
     <div>
-      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-lg font-medium theme-text-primary mb-4">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reports.map((report) => {
           const IconComponent = report.icon;
           return (
             <div
               key={report.id}
-              className="bg-white p-4 rounded-lg border border-gray-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
+              className="theme-card p-4 rounded-lg hover:border-opacity-80 hover:shadow-md transition-all cursor-pointer"
               onClick={() => {
                 const targetUrl = `/reports/view?type=${report.id}&category=${selectedCategory}&subcategory=${selectedSubcategory}`;
                 console.log('🔗 Navigation Debug - Clicking report:', report.name);
@@ -495,13 +495,13 @@ export default function ReportsPage() {
             >
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">
-                  <IconComponent className="h-5 w-5 text-slate-600" />
+                  <IconComponent className="h-5 w-5 theme-text-secondary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                  <h4 className="text-sm font-medium theme-text-primary truncate">
                     {report.name}
                   </h4>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm theme-text-secondary mt-1">
                     {report.description}
                   </p>
                 </div>
@@ -517,20 +517,20 @@ export default function ReportsPage() {
     <MainLayout>
       <div className="mb-8">
         <div 
-          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+          className="flex items-center justify-between cursor-pointer hover:theme-bg-secondary p-2 rounded-lg transition-colors"
           onClick={() => setIsReportsCollapsed(!isReportsCollapsed)}
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-            <p className="mt-2 text-lg text-gray-600">
+            <h1 className="text-3xl font-bold theme-text-primary">Reports</h1>
+            <p className="mt-2 text-lg theme-text-secondary">
               Comprehensive reporting suite with real-time analytics and performance metrics.
             </p>
           </div>
           <div className="ml-4">
             {isReportsCollapsed ? (
-              <ChevronDownIcon className="h-6 w-6 text-gray-400" />
+              <ChevronDownIcon className="h-6 w-6 theme-text-secondary" />
             ) : (
-              <ChevronUpIcon className="h-6 w-6 text-gray-400" />
+              <ChevronUpIcon className="h-6 w-6 theme-text-secondary" />
             )}
           </div>
         </div>
@@ -580,11 +580,11 @@ export default function ReportsPage() {
       )}
 
       {activeMainTab === 'categories' && (
-      <div className="flex h-full bg-gray-50 rounded-lg overflow-hidden">
+      <div className="flex h-full theme-bg-secondary rounded-lg overflow-hidden">
         {/* Left Sidebar - Collapsible Sub-Panel */}
-        <div className={`${isSubPanelCollapsed ? 'w-12' : 'w-80'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+        <div className={`${isSubPanelCollapsed ? 'w-12' : 'w-80'} theme-bg-primary theme-border border-r flex flex-col transition-all duration-300`}>
           {/* Header with Collapse Button */}
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 theme-border border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {(selectedCategory || selectedSubcategory) && !isSubPanelCollapsed && (

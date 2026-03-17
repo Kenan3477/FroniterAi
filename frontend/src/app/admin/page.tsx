@@ -115,26 +115,26 @@ export default function AdminPage() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="theme-bg-primary theme-border border-b px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-xl font-semibold theme-text-primary">
                   {selectedSection}
                 </h1>
                 {selectedSection !== 'System Settings' && selectedSection !== 'Audit Logs' && selectedSection !== 'Security & Compliance' && selectedSection !== 'Network Settings' && (
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setShowFilters(!showFilters)}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+                      className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md"
                     >
                       <FunnelIcon className="h-4 w-4 mr-2" />
                       Filter
                     </button>
-                    <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                    <button className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md">
                       <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
                       Sort
                     </button>
-                    <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                    <button className="btn-secondary inline-flex items-center px-3 py-2 text-sm leading-4 font-medium rounded-md">
                       <ArrowPathIcon className="h-4 w-4 mr-2" />
                       Refresh
                     </button>
@@ -147,7 +147,7 @@ export default function AdminPage() {
                 {selectedSection !== 'System Settings' && selectedSection !== 'Security & Compliance' && (
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                      <MagnifyingGlassIcon className="h-5 w-5 theme-text-secondary" />
                     </div>
                     <input
                       type="text"
@@ -158,7 +158,7 @@ export default function AdminPage() {
                       }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+                      className="input-field block w-80 pl-10 pr-3 py-2 rounded-md leading-5"
                     />
                   </div>
                 )}
