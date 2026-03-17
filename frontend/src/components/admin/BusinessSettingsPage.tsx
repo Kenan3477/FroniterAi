@@ -573,45 +573,52 @@ const BusinessSettingsPage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Organizations List */}
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader>
             <CardTitle>Organizations</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {organizations.map((org) => (
-                <div
-                  key={org.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedOrganization?.id === org.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleOrganizationSelect(org)}
-                >
-                  <div className="font-medium">{org.displayName}</div>
-                  <div className="text-sm text-gray-500">{org.name}</div>
-                  {org._count && (
-                    <div className="flex gap-2 mt-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {org._count.businessSettings} settings
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {org._count.companyProfiles} profiles
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            {organizations.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Building className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No organizations yet</p>
+                <p className="text-sm">Create your first organization to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {organizations.map((org) => (
+                  <div
+                    key={org.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedOrganization?.id === org.id
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                    }`}
+                    onClick={() => handleOrganizationSelect(org)}
+                  >
+                    <div className="font-medium">{org.displayName}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{org.name}</div>
+                    {org._count && (
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {org._count.businessSettings} settings
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {org._count.companyProfiles} profiles
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Organization Details */}
-        <div className="lg:col-span-2">
-          {selectedOrganization ? (
+        <div className="xl:col-span-3">{selectedOrganization ? (
             <Card>
               <CardHeader>
                 <CardTitle>{selectedOrganization.displayName}</CardTitle>
@@ -895,11 +902,14 @@ const BusinessSettingsPage: React.FC = () => {
             </Card>
           ) : (
             <Card>
-              <CardContent className="flex items-center justify-center h-64">
+              <CardContent className="flex items-center justify-center h-96">
                 <div className="text-center">
-                  <Building className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                  <div className="text-lg font-medium text-gray-900">Select an organization</div>
-                  <div className="text-gray-500">Choose an organization to view its settings and profiles</div>
+                  <Building className="w-16 h-16 mx-auto text-muted-foreground mb-6 opacity-50" />
+                  <div className="text-xl font-medium mb-2">Select an organization</div>
+                  <div className="text-muted-foreground mb-6">Choose an organization from the list to view its settings and profiles</div>
+                  <div className="text-sm text-muted-foreground">
+                    Or create a new organization to get started
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -10,11 +10,14 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
   try {
     console.log('📊 Fetching organizations from Railway backend...');
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
     });
@@ -39,11 +42,14 @@ export const POST = requireRole(['ADMIN'])(async (request, user) => {
   try {
     const body = await request.json();
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
       body: JSON.stringify({
@@ -82,11 +88,14 @@ export const PUT = requireRole(['ADMIN'])(async (request, user) => {
       );
     }
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
       body: JSON.stringify({
@@ -125,11 +134,14 @@ export const DELETE = requireRole(['ADMIN'])(async (request, user) => {
       );
     }
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
     });

@@ -12,11 +12,14 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
   try {
     console.log('📊 Fetching business settings stats from Railway backend...');
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/stats`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer demo-token',
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
     });
@@ -33,10 +36,13 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
     console.error('❌ Railway backend not available, calculating real system stats...');
     
     try {
+      // Get the original auth header to pass through
+      const authHeader = request.headers.get('authorization');
+      
       const orgsResponse = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings/organizations`, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer demo-token',
+          'Authorization': authHeader || '',
           'User-ID': user.userId.toString(),
         },
       });

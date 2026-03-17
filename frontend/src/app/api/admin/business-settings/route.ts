@@ -11,11 +11,14 @@ export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) =>
   try {
     console.log('🔧 Fetching business settings from Railway backend...');
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
     });
@@ -56,11 +59,14 @@ export const PUT = requireRole(['ADMIN'])(async (request, user) => {
   try {
     const body = await request.json();
     
+    // Get the original auth header to pass through
+    const authHeader = request.headers.get('authorization');
+    
     const response = await fetch(`${RAILWAY_BACKEND_URL}/api/admin/business-settings`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer demo-token`,
+        'Authorization': authHeader || '',
         'User-ID': user.userId.toString(),
       },
       body: JSON.stringify({
