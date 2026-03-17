@@ -205,10 +205,8 @@ const OverviewDashboard: React.FC = () => {
     }
   };
 
-  const fetchDashboardData = async (campaignFilter = selectedCampaign, dateFilter = dateRange) => {
+  const fetchDashboardData = async (campaignFilter = selectedCampaign, dateFilter = dateRange, isInitialLoad = false) => {
     try {
-      setLoading(true);
-      
       // Get authentication token
       const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
       
@@ -362,38 +360,51 @@ const OverviewDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
-    } finally {
-      setLoading(false);
     }
+    // Remove finally block to prevent loading state changes
   };
 
   useEffect(() => {
     // Initial data load
+    setLoading(true); // Only set loading for initial load
+    
     fetchCampaigns();
-    fetchDashboardData();
+    fetchDashboardData('all', 'today', true).finally(() => {
+      setLoading(false); // Clear loading only after initial load
+    });
 
     // Listen for real-time updates
     socket.on('dashboard.metrics.updated', (updatedMetrics: DashboardMetrics) => {
-      setMetrics(updatedMetrics);
+      setMetrics(prevMetrics => ({
+        ...prevMetrics,
+        ...updatedMetrics
+      }));
     });
 
-    // Refresh data every 30 seconds
-    const interval = setInterval(() => fetchDashboardData(), 30000);
+    // Listen for real-time call volume updates
+    socket.on('dashboard.call_volume.updated', (volumeData: CallVolumeData[]) => {
+      setCallVolumeData(volumeData);
+    });
+
+    // Listen for real-time agent leaderboard updates
+    socket.on('dashboard.agents.updated', (agentData: TopAgentData[]) => {
+      setTopAgentsData(agentData);
+    });
+
+    // Real-time data refresh every 5 seconds for seamless updates
+    const interval = setInterval(() => {
+      fetchDashboardData(); // Background updates without loading state
+    }, 5000);
 
     return () => {
       clearInterval(interval);
       socket.off('dashboard.metrics.updated');
+      socket.off('dashboard.call_volume.updated');
+      socket.off('dashboard.agents.updated');
     };
   }, []);
 
-  // Separate effect for campaign/date range changes
-  useEffect(() => {
-    if (selectedCampaign && dateRange) {
-      fetchDashboardData(selectedCampaign, dateRange);
-    }
-  }, [selectedCampaign, dateRange]);
-
-  // Re-fetch data when filters change
+  // Effect for campaign/date range changes - immediate updates without loading
   useEffect(() => {
     if (selectedCampaign !== null && dateRange) {
       fetchDashboardData(selectedCampaign, dateRange);
@@ -580,29 +591,11 @@ const OverviewDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Refresh Button */}
-            <button
-              onClick={() => fetchDashboardData(selectedCampaign, dateRange)}
-              disabled={loading}
-              className="btn-primary inline-flex items-center px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh Data
-                </>
-              )}
-            </button>
+            {/* Real-time indicator */}
+            <div className="flex items-center text-sm theme-text-secondary">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+              <span>Live updates every 5 seconds</span>
+            </div>
           </div>
         </div>
 
