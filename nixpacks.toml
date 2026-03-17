@@ -1,38 +1,3 @@
-# Railway Deployment Configuration - FORCE NODE 20+ via engines field
-# Let nixpacks auto-detect from backend/package.json engines field  
-# TRIGGER BUILD: 2026-03-17 08:05 - File exists fix
-
-[phases.install]
-cmds = [
-  'echo "=== FORCE RAILWAY DEPLOYMENT - NODE.JS 20.x - CACHE BUSTED ==="',
-  'echo "Railway must use Node.js 20.x - not 18.x which is EOL"',
-  'node --version',
-  'npm --version',
-  'echo "Current directory:"',
-  'pwd',
-  'echo "Directory contents:"',
-  'ls -la',
-  'echo "This is a monorepo workspace - installing all dependencies from root"',
-  'echo "Running npm install (NOT npm ci) due to workspace configuration"',
-  'npm install --verbose',
-  'echo "Workspace installation complete - checking backend:"',
-  'ls -la backend/',
-  'echo "Backend dependencies should now be available via workspace"'
-]
-
-[phases.build]
-cmds = [
-  'echo "=== BUILDING BACKEND FROM WORKSPACE ==="',
-  'echo "Current directory:"',
-  'pwd',
-  'echo "Changing to backend directory for build:"',
-  'cd backend && pwd',
-  'echo "Running backend build:"',
-  'cd backend && npm run build'
-]
-
+# Minimal Railway Configuration - Node.js 20.x workspace
 [start]
 cmd = 'cd backend && npm run start'
-
-[variables]
-NODE_ENV = 'production'
