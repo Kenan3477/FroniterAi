@@ -267,6 +267,14 @@ export class WebSocketService {
   }
 
   /**
+   * Emit real-time dashboard updates
+   */
+  public async emitDashboardUpdate(updateType: string, data: any): Promise<void> {
+    this.io.emit(updateType, data);
+    console.log(`📊 Dashboard update emitted: ${updateType}`, JSON.stringify(data).substring(0, 100));
+  }
+
+  /**
    * Emit a system-wide notification
    */
   public async emitSystemNotification(message: string, level: 'info' | 'warning' | 'error' = 'info'): Promise<void> {

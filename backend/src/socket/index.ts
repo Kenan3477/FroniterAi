@@ -2,6 +2,7 @@
 import { Server } from 'socket.io';
 import WebSocketService from '../services/websocketService';
 import { eventManager } from '../services/eventManager';
+import { realTimeDashboard } from '../services/realTimeDashboardService';
 
 let webSocketService: WebSocketService;
 
@@ -13,6 +14,9 @@ export const initializeSocket = (io: Server): WebSocketService => {
 
   // Create WebSocket service for main namespace
   webSocketService = new WebSocketService(io);
+  
+  // Initialize real-time dashboard service
+  realTimeDashboard.initialize(webSocketService);
   
   // Set up dialler namespace for agent communications
   const diallerNamespace = io.of('/dialler');
