@@ -1161,9 +1161,9 @@ const CampaignManagementPage: React.FC = () => {
                         step={1}
                         className="flex-1"
                       />
-                      <span className="text-sm text-gray-600 w-12 text-right">{Math.max(1, Math.min(4, campaignForm.dialSpeed || 2))} CPM</span>
+                      <span className="text-sm theme-text-secondary w-12 text-right">{Math.max(1, Math.min(4, campaignForm.dialSpeed || 2))} CPM</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">1 CPM: Conservative • 2-3 CPM: Standard • 4 CPM: Aggressive</p>
+                    <p className="text-xs theme-text-secondary mt-1">1 CPM: Conservative • 2-3 CPM: Standard • 4 CPM: Aggressive</p>
                   </div>
                 )}
                 <div>
@@ -1193,11 +1193,11 @@ const CampaignManagementPage: React.FC = () => {
                   </Select>
                   {campaignForm.assignedDataListIds && campaignForm.assignedDataListIds.length > 0 && (
                     <div className="mt-2 space-y-1">
-                      <div className="text-sm text-gray-500">Assigned Lists:</div>
+                      <div className="text-sm theme-text-secondary">Assigned Lists:</div>
                       {campaignForm.assignedDataListIds.map((listId) => {
                         const list = dataLists.find(l => l.listId === listId);
                         return list ? (
-                          <div key={listId} className="flex items-center justify-between text-sm bg-gray-100 px-2 py-1 rounded">
+                          <div key={listId} className="flex items-center justify-between text-sm theme-bg-secondary px-2 py-1 rounded">
                             <span>{list.name} ({list.totalContacts} contacts)</span>
                             <Button 
                               size="sm" 
@@ -1274,39 +1274,39 @@ const CampaignManagementPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Campaign Name</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.displayName}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.displayName}</p>
               </div>
               <div>
                 <Label>Status</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.status}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.status}</p>
               </div>
               <div>
                 <Label>Type</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.type}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.type}</p>
               </div>
               <div>
                 <Label>Category</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.category}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.category}</p>
               </div>
               <div>
                 <Label>Dial Method</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.dialMethod}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.dialMethod}</p>
               </div>
               <div>
                 <Label>Dial Speed</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.dialSpeed} CPM</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.dialSpeed} CPM</p>
               </div>
               <div>
                 <Label>Agent Count</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.agentCount}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.agentCount}</p>
               </div>
               <div>
                 <Label>Is Active</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.isActive ? 'Yes' : 'No'}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.isActive ? 'Yes' : 'No'}</p>
               </div>
               <div className="col-span-2">
                 <Label>Description</Label>
-                <p className="text-sm text-gray-600">{selectedCampaign.description || 'No description'}</p>
+                <p className="text-sm theme-text-secondary">{selectedCampaign.description || 'No description'}</p>
               </div>
             </div>
           )}
@@ -1493,11 +1493,11 @@ const CampaignManagementPage: React.FC = () => {
               </div>
 
               {/* Queue Table */}
-              <div className="border rounded-lg bg-white">
+              <div className="border rounded-lg theme-card">
                 <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-lg text-gray-800">Queue Items</h3>
-                    <div className="text-sm text-gray-600">
+                    <h3 className="font-semibold text-lg theme-text-primary">Queue Items</h3>
+                    <div className="text-sm theme-text-secondary">
                       {queueEntries?.length || 0} contacts in queue
                     </div>
                   </div>
@@ -1505,7 +1505,7 @@ const CampaignManagementPage: React.FC = () => {
                 <div className="max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50">
+                      <TableRow className="theme-bg-secondary">
                         <TableHead className="font-semibold">Contact</TableHead>
                         <TableHead className="font-semibold">Phone Number</TableHead>
                         <TableHead className="font-semibold">Priority</TableHead>
@@ -1518,7 +1518,7 @@ const CampaignManagementPage: React.FC = () => {
                     <TableBody>
                       {queueEntries && queueEntries.length > 0 ? (
                         queueEntries.map((entry, index) => (
-                          <TableRow key={entry.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                          <TableRow key={entry.id} className={index % 2 === 0 ? "theme-bg-primary" : "theme-bg-secondary"}>
                             <TableCell className="py-3">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -1528,21 +1528,21 @@ const CampaignManagementPage: React.FC = () => {
                                   </span>
                                 </div>
                                 <div>
-                                  <div className="font-medium text-gray-900">
+                                  <div className="font-medium theme-text-primary">
                                     {entry.contact.fullName || `${entry.contact.firstName || ''} ${entry.contact.lastName || ''}`.trim()}
                                   </div>
                                   {entry.contact.company && (
-                                    <div className="text-sm text-gray-500">{entry.contact.company}</div>
+                                    <div className="text-sm theme-text-secondary">{entry.contact.company}</div>
                                   )}
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell className="py-3">
-                              <div className="font-mono text-sm font-medium text-gray-900">
+                              <div className="font-mono text-sm font-medium theme-text-primary">
                                 {entry.contact.phone}
                               </div>
                               {entry.contact.mobile && entry.contact.mobile !== entry.contact.phone && (
-                                <div className="text-xs text-gray-500">Mobile: {entry.contact.mobile}</div>
+                                <div className="text-xs theme-text-secondary">Mobile: {entry.contact.mobile}</div>
                               )}
                             </TableCell>
                             <TableCell className="py-3">
@@ -1687,7 +1687,7 @@ const CampaignManagementPage: React.FC = () => {
             <CardContent className="p-6">
               {campaigns.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm theme-text-secondary">
                     Showing all {campaigns.length} campaigns
                     {/* Debug info */}
                     <div className="text-xs text-blue-600 mt-1">
@@ -1697,7 +1697,7 @@ const CampaignManagementPage: React.FC = () => {
                   
                   {/* Simple scrollable campaign list */}
                   <div 
-                    className="space-y-4 overflow-y-auto border rounded-lg p-4 bg-gray-50"
+                    className="space-y-4 overflow-y-auto border rounded-lg p-4 theme-bg-secondary"
                     style={{
                       height: 'calc(100vh - 350px)',
                       maxHeight: '800px'
@@ -1706,13 +1706,13 @@ const CampaignManagementPage: React.FC = () => {
                     {campaigns.map((campaign, index) => (
                       <div
                         key={campaign.id}
-                        className="bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                        className="theme-card rounded-lg p-3 hover:shadow-md transition-shadow"
                       >
                         {/* Compact Header Row */}
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <h3 className="font-medium text-base">{campaign.displayName || campaign.name}</h3>
-                            <p className="text-xs text-gray-500">{campaign.description || campaign.name}</p>
+                            <h3 className="font-medium text-base theme-text-primary">{campaign.displayName || campaign.name}</h3>
+                            <p className="text-xs theme-text-secondary">{campaign.description || campaign.name}</p>
                           </div>
                           <div className="flex items-center gap-1">
                             <Button size="sm" variant="outline" onClick={() => { setSelectedCampaign(campaign); setIsCampaignViewDialogOpen(true); }} className="h-7 px-2">
@@ -1762,7 +1762,7 @@ const CampaignManagementPage: React.FC = () => {
                           <div className="col-span-2">
                             {campaign.dialMethod === 'AUTODIAL' ? (
                               <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-gray-400" />
+                                <Clock className="w-3 h-3 theme-text-secondary" />
                                 <Slider
                                   value={[Math.max(1, Math.min(4, campaign.dialSpeed || 2))]}
                                   onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
@@ -1774,14 +1774,14 @@ const CampaignManagementPage: React.FC = () => {
                                 <span className="text-xs w-8">{Math.max(1, Math.min(4, campaign.dialSpeed || 2))}</span>
                               </div>
                             ) : (
-                              <div className="text-xs text-gray-400">-</div>
+                              <div className="text-xs theme-text-secondary">-</div>
                             )}
                           </div>
 
                           {/* Agents - 1 col */}
                           <div className="col-span-1">
                             <div className="flex items-center gap-1">
-                              <Users className="w-3 h-3 text-gray-400" />
+                              <Users className="w-3 h-3 theme-text-secondary" />
                               <span className="text-xs">{campaign.agentCount || 0}</span>
                             </div>
                           </div>
