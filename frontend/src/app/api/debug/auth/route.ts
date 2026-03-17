@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Debug endpoint to test authentication and data
 export async function GET(request: NextRequest) {
   try {
