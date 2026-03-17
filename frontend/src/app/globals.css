@@ -4,6 +4,78 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
+/* CSS Custom Properties for Theme System */
+:root {
+  /* Light Theme (Default) */
+  --theme-primary: #334155;
+  --theme-primary-hover: #475569;
+  --theme-secondary: #64748b;
+  --theme-accent: #0ea5e9;
+  --theme-accent-hover: #0284c7;
+  --theme-background: #ffffff;
+  --theme-background-secondary: #f8fafc;
+  --theme-text: #1e293b;
+  --theme-text-secondary: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-shadow: rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] {
+  --theme-primary: #1e293b;
+  --theme-primary-hover: #334155;
+  --theme-secondary: #475569;
+  --theme-accent: #06b6d4;
+  --theme-accent-hover: #0891b2;
+  --theme-background: #0f172a;
+  --theme-background-secondary: #1e293b;
+  --theme-text: #f8fafc;
+  --theme-text-secondary: #cbd5e1;
+  --theme-border: #334155;
+  --theme-shadow: rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="blue"] {
+  --theme-primary: #1e40af;
+  --theme-primary-hover: #1d4ed8;
+  --theme-secondary: #3b82f6;
+  --theme-accent: #60a5fa;
+  --theme-accent-hover: #3b82f6;
+  --theme-background: #f0f9ff;
+  --theme-background-secondary: #e0f2fe;
+  --theme-text: #1e293b;
+  --theme-text-secondary: #475569;
+  --theme-border: #bfdbfe;
+  --theme-shadow: rgba(59, 130, 246, 0.2);
+}
+
+:root[data-theme="neon"] {
+  --theme-primary: #0d9488;
+  --theme-primary-hover: #0f766e;
+  --theme-secondary: #14b8a6;
+  --theme-accent: #2dd4bf;
+  --theme-accent-hover: #14b8a6;
+  --theme-background: #042f2e;
+  --theme-background-secondary: #134e4a;
+  --theme-text: #f0fdfa;
+  --theme-text-secondary: #99f6e4;
+  --theme-border: #14b8a6;
+  --theme-shadow: rgba(45, 212, 191, 0.3);
+}
+
+:root[data-theme="pink"] {
+  --theme-primary: #be185d;
+  --theme-primary-hover: #9d174d;
+  --theme-secondary: #ec4899;
+  --theme-accent: #f472b6;
+  --theme-accent-hover: #ec4899;
+  --theme-background: #fdf2f8;
+  --theme-background-secondary: #fce7f3;
+  --theme-text: #1e293b;
+  --theme-text-secondary: #475569;
+  --theme-border: #f9a8d4;
+  --theme-shadow: rgba(244, 114, 182, 0.2);
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -11,6 +83,9 @@
   
   body {
     @apply bg-gray-50 text-gray-900;
+    background-color: var(--theme-background-secondary);
+    color: var(--theme-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 

@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import CampaignSelector from '@/components/ui/CampaignSelector';
 import PauseReasonModal from '@/components/agent/PauseReasonModal';
+import ThemeSelector from '@/components/ui/ThemeSelector';
 
 // Define Campaign type locally since it's not exported from AuthContext
 interface Campaign {
@@ -730,10 +731,16 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <span>Preferences</span>
                     <Cog6ToothIcon className="h-4 w-4 text-gray-400" />
                   </Link>
+                  
+                  {/* Theme Selector */}
+                  <div className="px-4 py-2 border-t border-gray-100">
+                    <ThemeSelector />
+                  </div>
+                  
                   <button 
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 border-t border-gray-100"
                   >
                     <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                     {isLoggingOut ? (
