@@ -12,6 +12,7 @@ const organizationCreateSchema = z.object({
   name: z.string().min(1, 'Organization name is required'),
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
+  email: z.string().email('Valid email is required for Super Admin'), // Required for Super Admin
   website: z.string().url().optional().or(z.literal('')),
   industry: z.string().optional(),
   size: z.string().optional(),
@@ -139,12 +140,16 @@ export const createOrganization = async (req: Request, res: Response) => {
     console.log('🏢 Creating new organization:', req.body);
 
     const orgData = organizationCreateSchema.parse(req.body);
-    const organization = await realBusinessSettingsService.createOrganization(orgData);
+    const result = await realBusinessSettingsService.createOrganization(orgData as any);
 
     res.status(201).json({
       success: true,
-      message: 'Organization created successfully',
-      data: { organization }
+      message: 'Organization and Super Admin created successfully',
+      data: {
+        organization: result.organization,
+        superAdmin: result.superAdmin,
+        emailSent: result.emailSent
+      }
     });
 
   } catch (error) {
@@ -156,6 +161,13 @@ export const createOrganization = async (req: Request, res: Response) => {
         error: {
           message: 'Invalid organization data',
           details: error.errors
+        }
+      });
+    } else if (error instanceof Error) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: error.message
         }
       });
     } else {

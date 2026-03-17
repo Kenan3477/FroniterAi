@@ -243,6 +243,14 @@ const BusinessSettingsPage: React.FC = () => {
 
   const handleCreateOrganization = async () => {
     try {
+      // Validate required fields
+      if (!organizationForm.name || !organizationForm.displayName || !organizationForm.email) {
+        alert('Please fill in all required fields (Name, Display Name, and Email)');
+        return;
+      }
+
+      console.log('🏢 Creating organization:', organizationForm);
+
       const response = await fetch('/api/admin/business-settings/organizations', {
         method: 'POST',
         headers: {
@@ -251,18 +259,34 @@ const BusinessSettingsPage: React.FC = () => {
         body: JSON.stringify(organizationForm),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setIsOrganizationDialogOpen(false);
         setOrganizationForm({
           timezone: 'UTC',
           currency: 'USD',
           dateFormat: 'MM/dd/yyyy',
-          timeFormat: '12'
+          timeFormat: '12',
+          email: '' // Clear email
         });
+        
+        // Show success message
+        alert(
+          `✅ Organization "${organizationForm.displayName}" created successfully!\n\n` +
+          `📧 Welcome email sent to: ${organizationForm.email}\n` +
+          `👤 Super Admin account created\n\n` +
+          `The organization administrator can now set their password using the link in the email.`
+        );
+        
         fetchData();
+      } else {
+        console.error('Organization creation failed:', data);
+        alert(`❌ Failed to create organization: ${data.error?.message || data.message || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('Error creating organization:', err);
+      alert(`❌ Error creating organization: ${err instanceof Error ? err.message : 'Network error'}`);
     }
   };
 
@@ -416,13 +440,18 @@ const BusinessSettingsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email (Super Admin) *</Label>
                 <Input
                   id="email"
                   type="email"
+                  required
                   value={organizationForm.email || ''}
                   onChange={(e) => setOrganizationForm({ ...organizationForm, email: e.target.value })}
+                  placeholder="admin@yourorganization.com"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This email will be used to create a Super Administrator account for your organization
+                </p>
               </div>
               <div>
                 <Label htmlFor="phone">Phone</Label>
@@ -600,7 +629,6 @@ const BusinessSettingsPage: React.FC = () => {
                   
                   <TabsContent value="settings" className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium">Business Settings</h3>
                       <Dialog open={isSettingDialogOpen} onOpenChange={setIsSettingDialogOpen}>
                         <DialogTrigger asChild>
                           <Button size="sm">

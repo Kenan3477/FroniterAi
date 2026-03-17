@@ -4,6 +4,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import emailService, { generatePasswordSetupToken } from './emailService';
 
 const prisma = new PrismaClient();
 
@@ -56,6 +58,7 @@ export interface OrganizationData {
   name: string;
   displayName: string;
   description?: string;
+  email?: string; // Organization email for Super Admin
   website?: string;
   industry?: string;
   size?: string;
@@ -209,10 +212,27 @@ export class RealBusinessSettingsService {
   }
 
   /**
-   * Create new organization
+   * Create new organization with Super Admin user and welcome email
    */
   async createOrganization(data: OrganizationData) {
     try {
+      console.log('🏢 Creating organization with Super Admin:', data.displayName);
+
+      // Validate required email field for Super Admin
+      if (!data.email) {
+        throw new Error('Organization email is required for Super Admin creation');
+      }
+
+      // Check if user with this email already exists
+      const existingUser = await prisma.user.findFirst({
+        where: { email: data.email.toLowerCase() }
+      });
+
+      if (existingUser) {
+        throw new Error('A user with this email address already exists');
+      }
+
+      // Create organization first
       const organization = await prisma.organization.create({
         data: {
           name: data.name,
@@ -226,10 +246,66 @@ export class RealBusinessSettingsService {
       });
 
       console.log('✅ Organization created:', organization.id);
-      return organization;
+
+      // Generate password setup token
+      const { token, expires } = generatePasswordSetupToken(data.email);
+
+      // Create Super Admin user for the organization
+      const superAdminUser = await prisma.user.create({
+        data: {
+          username: data.email.toLowerCase(),
+          email: data.email.toLowerCase(),
+          password: await bcrypt.hash('TEMP_PASSWORD_CHANGE_ME', 12), // Temporary password
+          firstName: 'Organization',
+          lastName: 'Administrator',
+          name: 'Organization Administrator',
+          role: 'SUPER_ADMIN',
+          isActive: false, // Will be activated when password is set
+          organizationId: organization.id,
+          passwordResetToken: token,
+          passwordResetExpires: expires
+        }
+      });
+
+      console.log('✅ Super Admin user created:', superAdminUser.email);
+
+      // Send welcome email with password setup link
+      try {
+        const emailSent = await emailService.sendOrganizationWelcomeEmail(
+          data.email,
+          data.displayName,
+          token
+        );
+
+        if (emailSent) {
+          console.log('✅ Welcome email sent to:', data.email);
+        } else {
+          console.warn('⚠️ Welcome email failed to send, but organization was created');
+        }
+      } catch (emailError) {
+        console.error('❌ Email service error:', emailError);
+        // Don't fail the entire operation if email fails
+        console.warn('⚠️ Organization created successfully but welcome email failed');
+      }
+
+      return {
+        organization,
+        superAdmin: {
+          id: superAdminUser.id,
+          email: superAdminUser.email,
+          name: superAdminUser.name,
+          role: superAdminUser.role
+        },
+        emailSent: true // Assume success unless we want to track this more precisely
+      };
 
     } catch (error) {
       console.error('❌ Error creating organization:', error);
+      
+      if (error instanceof Error) {
+        throw new Error(`Failed to create organization: ${error.message}`);
+      }
+      
       throw new Error(`Failed to create organization: ${error}`);
     }
   }

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authRateLimiter } from '../middleware/rateLimiter';
 import { securityMonitor } from '../middleware/security'; // SECURITY: Monitor auth events
+import passwordSetupRoutes from './passwordSetup'; // Organization password setup
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -740,5 +741,8 @@ router.post('/session/heartbeat', async (req, res) => {
     });
   }
 });
+
+// Include password setup routes for organization creation
+router.use(passwordSetupRoutes);
 
 export default router;
