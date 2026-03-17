@@ -1,5 +1,6 @@
 # Railway Deployment Configuration - FORCE NODE 20+ via engines field
-# Let nixpacks auto-detect from backend/package.json engines field
+# Let nixpacks auto-detect from backend/package.json engines field  
+# TRIGGER BUILD: 2026-03-17 08:03
 
 [phases.install]
 cmds = [
