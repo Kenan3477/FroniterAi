@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/middleware/auth';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const RAILWAY_BACKEND_URL = process.env.RAILWAY_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 export const GET = requireRole(['ADMIN', 'SUPERVISOR'])(async (request, user) => {
