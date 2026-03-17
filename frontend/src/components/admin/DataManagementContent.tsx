@@ -2093,7 +2093,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                                 </button>
                                 
                                 {openDropdown === list.id && (
-                                  <div className="dropdown-menu absolute right-0 top-6 mt-1 w-44 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20">
+                                  <div className="dropdown-menu absolute right-0 top-6 mt-1 w-44 theme-card rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20">
                                     <div className="py-1">
                                       <button 
                                         onClick={(e) => {
@@ -2363,8 +2363,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Total Data Lists</dt>
-                        <dd className="text-lg font-medium text-gray-900">{analyticsData.totalLists}</dd>
+                        <dt className="text-sm font-medium theme-text-secondary truncate">Total Data Lists</dt>
+                        <dd className="text-lg font-medium theme-text-primary">{analyticsData.totalLists}</dd>
                       </dl>
                     </div>
                   </div>
