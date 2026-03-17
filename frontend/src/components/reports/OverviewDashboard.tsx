@@ -386,9 +386,11 @@ const OverviewDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+          </div>
         </div>
       </div>
     );
@@ -396,15 +398,17 @@ const OverviewDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Error loading dashboard
-              </h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
+      <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error loading dashboard
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -549,8 +553,8 @@ const OverviewDashboard: React.FC = () => {
           />
         </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Call Volume Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Call Volume (Hourly)</h3>
@@ -631,26 +635,26 @@ const OverviewDashboard: React.FC = () => {
       </div>
 
       {/* Additional Metrics Table */}
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Call Outcomes</h2>
+      <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-6 mb-8">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Recent Call Outcomes</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Outcome
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Count
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Revenue
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
               {conversionData.map((outcome, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${
                       outcome.outcome === 'Converted' ? 'bg-green-100 text-green-800' :
@@ -661,10 +665,10 @@ const OverviewDashboard: React.FC = () => {
                       {outcome.outcome}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                     {outcome.count}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                     {outcome.revenue ? `$${outcome.revenue.toFixed(2)}` : '-'}
                   </td>
                 </tr>
@@ -673,6 +677,7 @@ const OverviewDashboard: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
     </div>
   );
 };
