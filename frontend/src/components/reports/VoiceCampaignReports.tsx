@@ -317,17 +317,6 @@ export default function VoiceCampaignReports() {
   return (
     <div className="theme-bg min-h-screen">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold theme-text-primary flex items-center gap-3">
-            <PhoneIcon className="w-8 h-8 text-accent" />
-            Voice Campaign Analytics
-          </h1>
-          <p className="theme-text-secondary mt-2">
-            Comprehensive analytics and performance metrics for voice campaigns
-          </p>
-        </div>
-
         {/* Filters */}
         <div className="theme-card rounded-lg p-6 mb-8">
           <h2 className="text-lg font-semibold theme-text-primary mb-4 flex items-center gap-2">
