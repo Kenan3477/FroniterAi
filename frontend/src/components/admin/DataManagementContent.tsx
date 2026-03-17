@@ -1909,13 +1909,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   );
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col">
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-semibold text-gray-900">Data Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your contact data and upload new data lists</p>
+    <div className="h-full theme-bg flex flex-col">
+      <div className="theme-card border-b px-6 py-4">
+        <h1 className="text-2xl font-semibold theme-text-primary">Data Management</h1>
+        <p className="text-sm theme-text-secondary mt-1">Manage your contact data and upload new data lists</p>
       </div>
       
-      <div className="bg-white border-b border-gray-200 px-6">
+      <div className="theme-card border-b px-6">
         <nav className="flex space-x-8">
           {['Manage Data Lists', 'Create Data Lists', 'Data Analytics'].map((tab) => (
             <button
@@ -1923,8 +1923,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
               onClick={() => setSelectedSubTab(tab)}
               className={`py-4 px-1 text-sm font-medium border-b-2 transition-colors ${
                 selectedSubTab === tab
-                  ? 'border-slate-500 text-slate-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent theme-text-secondary hover:theme-text-primary'
               }`}
             >
               {tab}
@@ -1938,8 +1938,8 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Data Lists</h3>
-                <p className="text-sm text-gray-500">Manage your contact data lists</p>
+                <h3 className="text-lg font-semibold theme-text-primary">Data Lists</h3>
+                <p className="text-sm theme-text-secondary">Manage your contact data lists</p>
               </div>
               <div className="flex items-center space-x-2">
                 <button 
@@ -1983,51 +1983,51 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             )}
 
             {loading && (
-              <div className="bg-white rounded-lg border border-gray-200 p-8">
+              <div className="theme-card rounded-lg p-8">
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
-                  <span className="ml-3 text-gray-600">Loading data lists...</span>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+                  <span className="ml-3 theme-text-secondary">Loading data lists...</span>
                 </div>
               </div>
             )}
 
             {!loading && !error && (
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="p-4 border-b border-gray-200">
+              <div className="theme-card rounded-lg">
+                <div className="p-4 border-b theme-border">
                   <input
                     type="text"
                     placeholder="Search data lists..."
                     value={searchTerm2}
                     onChange={(e) => setSearchTerm2(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                    className="input-field w-full rounded-md"
                   />
                 </div>
 
                 {filteredLists.length === 0 && (
                   <div className="text-center py-12">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="mx-auto h-12 w-12 theme-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No data lists found</h3>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <h3 className="mt-2 text-sm font-medium theme-text-primary">No data lists found</h3>
+                    <p className="mt-1 text-sm theme-text-secondary">
                       {dataLists.length === 0 ? 'Get started by creating your first data list.' : 'Try adjusting your search terms.'}
                     </p>
                   </div>
                 )}
 
                 {filteredLists.length > 0 && (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y theme-border">
+                    <thead className="theme-bg-secondary">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">List Details</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">List Details</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">Campaign</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">Available</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="theme-bg divide-y theme-border">
                       {filteredLists.map((list) => (
                         <tr key={list.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -2233,12 +2233,12 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
 
         {selectedSubTab === 'Create Data Lists' && (
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-6">Create New Data List</h3>
+            <div className="theme-card shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium theme-text-primary mb-6">Create New Data List</h3>
               
               <form onSubmit={handleCreateDataList} className="space-y-6">
                 <div>
-                  <label htmlFor="listName" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="listName" className="block text-sm font-medium theme-text-primary">
                     List Name *
                   </label>
                   <input
@@ -2246,7 +2246,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                     id="listName"
                     value={newListData.name}
                     onChange={(e) => setNewListData(prev => ({ ...prev, name: e.target.value }))}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
+                    className="input-field mt-1 block w-full rounded-md"
                     placeholder="Enter data list name"
                     required
                   />
@@ -2525,20 +2525,20 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
       {/* Edit Data List Dialog */}
       {isEditDialogOpen && editingList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Data List</h3>
+          <div className="theme-card rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium theme-text-primary mb-4">Edit Data List</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium theme-text-primary mb-1">Name</label>
                 <input
                   type="text"
                   value={editingList.name}
                   onChange={(e) => setEditingList({ ...editingList, name: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  className="input-field w-full rounded-md"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
+                <label className="block text-sm font-medium theme-text-primary mb-1">Campaign</label>
                 <select
                   value={editingList.campaignId || ''}
                   onChange={(e) => {
@@ -2549,7 +2549,7 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
                       campaignId: selectedCampaign?.campaignId || ''
                     });
                   }}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                  className="input-field w-full rounded-md"
                 >
                   <option value="">Unassigned</option>
                   {campaigns.map((campaign) => (
@@ -2563,13 +2563,13 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setIsEditDialogOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="btn-secondary px-4 py-2 text-sm font-medium rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="px-4 py-2 text-sm font-medium text-white bg-slate-600 border border-transparent rounded-md hover:bg-slate-700"
+                className="btn-primary px-4 py-2 text-sm font-medium rounded-md"
               >
                 Save Changes
               </button>
@@ -2590,11 +2590,11 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
         return shouldRenderModal;
       })() && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="theme-card rounded-lg w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
             
             {/* Header with progress */}
-            <div className="bg-gray-50 px-6 py-4 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="theme-bg-secondary px-6 py-4 border-b theme-border">
+              <h2 className="text-xl font-semibold theme-text-primary">
                 Advanced Upload Wizard - "{uploadTargetList?.name}"
               </h2>
               <div className="mt-3 flex items-center space-x-2">
