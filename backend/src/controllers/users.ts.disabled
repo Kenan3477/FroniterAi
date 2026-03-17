@@ -1,0 +1,585 @@
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+// Validation schemas
+const createUserSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Valid email is required'),
+  role: z.enum(['ADMIN', 'MANAGER', 'AGENT', 'VIEWER']).optional().default('AGENT'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  department: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional().default('ACTIVE'),
+});
+
+const updateUserSchema = z.object({
+  name: z.string().min(1, 'Name is required').optional(),
+  email: z.string().email('Valid email is required').optional(),
+  role: z.enum(['ADMIN', 'MANAGER', 'AGENT', 'VIEWER']).optional(),
+  department: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
+/**
+ * GET /api/admin/users
+ * Get all users with pagination and filtering
+ */
+export const getUsers = async (req: Request, res: Response) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      search = '', 
+      role = '', 
+      status = '', 
+      department = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    // Build where clause
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { email: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role) where.role = role;
+    if (status) where.status = status;
+    if (department) where.department = department;
+
+    // Build orderBy clause
+    const orderBy: any = {};
+    orderBy[sortBy as string] = sortOrder;
+
+    const [users, totalCount] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+          phoneNumber: true,
+          status: true,
+          lastLoginAt: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              flows: true,
+              createdCampaigns: true,
+            }
+          }
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / take);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page: Number(page),
+          limit: take,
+          totalCount,
+          totalPages,
+          hasNextPage: Number(page) < totalPages,
+          hasPrevPage: Number(page) > 1,
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch users' 
+    });
+  }
+};
+
+/**
+ * GET /api/admin/users/:userId
+ * Get user by ID with detailed information
+ */
+export const getUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        phoneNumber: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+        flows: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+          },
+          take: 5,
+          orderBy: { createdAt: 'desc' }
+        },
+        createdCampaigns: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+            createdAt: true,
+          },
+          take: 5,
+          orderBy: { createdAt: 'desc' }
+        },
+        _count: {
+          select: {
+            flows: true,
+            createdCampaigns: true,
+          }
+        }
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch user' 
+    });
+  }
+};
+
+/**
+ * POST /api/admin/users
+ * Create a new user
+ */
+export const createUser = async (req: Request, res: Response) => {
+  try {
+    const validatedData = createUserSchema.parse(req.body);
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: validatedData.email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: 'Email already in use'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(validatedData.password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        ...validatedData,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        phoneNumber: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: user
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+    console.error('Error creating user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create user' 
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/users/:userId
+ * Update user information
+ */
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const validatedData = updateUserSchema.parse(req.body);
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Check if email is being updated and already in use
+    if (validatedData.email && validatedData.email !== existingUser.email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email: validatedData.email },
+      });
+
+      if (emailExists) {
+        return res.status(409).json({
+          success: false,
+          error: 'Email already in use'
+        });
+      }
+    }
+
+    // Hash password if being updated
+    const updateData = { ...validatedData };
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        phoneNumber: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      data: user
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+    console.error('Error updating user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update user' 
+    });
+  }
+};
+
+/**
+ * DELETE /api/admin/users/:userId
+ * Soft delete user (set status to INACTIVE)
+ */
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { permanent = false } = req.query;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    if (permanent === 'true') {
+      // Permanent deletion - handle references first
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+      
+      res.json({
+        success: true,
+        message: 'User permanently deleted'
+      });
+    } else {
+      // Soft delete - set status to INACTIVE
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { status: 'INACTIVE' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'User deactivated successfully',
+        data: user
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to delete user' 
+    });
+  }
+};
+
+/**
+ * POST /api/admin/users/:userId/change-password
+ * Change user password
+ */
+export const changeUserPassword = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const validatedData = changePasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(
+      validatedData.currentPassword, 
+      user.password || ''
+    );
+
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(validatedData.newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+    console.error('Error changing password:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to change password' 
+    });
+  }
+};
+
+/**
+ * GET /api/admin/users/stats
+ * Get user statistics
+ */
+export const getUserStats = async (req: Request, res: Response) => {
+  try {
+    const [
+      totalUsers,
+      activeUsers,
+      usersByRole,
+      usersByDepartment,
+      recentUsers
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { status: 'ACTIVE' } }),
+      prisma.user.groupBy({
+        by: ['role'],
+        _count: { role: true },
+      }),
+      prisma.user.groupBy({
+        by: ['department'],
+        _count: { department: true },
+        where: { department: { not: null } },
+      }),
+      prisma.user.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const inactiveUsers = await prisma.user.count({ 
+      where: { status: 'INACTIVE' } 
+    });
+    const suspendedUsers = await prisma.user.count({ 
+      where: { status: 'SUSPENDED' } 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalUsers,
+          activeUsers,
+          inactiveUsers,
+          suspendedUsers,
+        },
+        usersByRole: usersByRole.reduce((acc, item) => {
+          acc[item.role || 'Unknown'] = item._count.role;
+          return acc;
+        }, {} as Record<string, number>),
+        usersByDepartment: usersByDepartment.reduce((acc, item) => {
+          acc[item.department || 'Unknown'] = item._count.department;
+          return acc;
+        }, {} as Record<string, number>),
+        recentUsers,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch user statistics' 
+    });
+  }
+};
+
+/**
+ * POST /api/admin/users/bulk-actions
+ * Perform bulk actions on users
+ */
+export const bulkUserActions = async (req: Request, res: Response) => {
+  try {
+    const { action, userIds } = req.body;
+
+    if (!action || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Action and userIds array are required'
+      });
+    }
+
+    let result;
+    switch (action) {
+      case 'activate':
+        result = await prisma.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { status: 'ACTIVE' },
+        });
+        break;
+      case 'deactivate':
+        result = await prisma.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { status: 'INACTIVE' },
+        });
+        break;
+      case 'suspend':
+        result = await prisma.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { status: 'SUSPENDED' },
+        });
+        break;
+      case 'delete':
+        result = await prisma.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { status: 'INACTIVE' }, // Soft delete
+        });
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid action'
+        });
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk ${action} completed`,
+      data: { affectedCount: result.count }
+    });
+  } catch (error) {
+    console.error('Error performing bulk action:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to perform bulk action' 
+    });
+  }
+};

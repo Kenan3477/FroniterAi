@@ -1,0 +1,75 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
+
+const BACKEND_URL = process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Extract auth token from header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, message: 'No authorization token provided' },
+        { status: 401 }
+      );
+    }
+
+    // Get query parameters 
+    const searchParams = request.nextUrl.searchParams;
+    const queryString = searchParams.toString();
+    
+    console.log(`🔗 Proxying user-sessions request to: ${BACKEND_URL}/api/admin/user-sessions?${queryString}`);
+    console.log(`🔑 Auth header present: ${!!authHeader}`);
+    
+    // Forward request to Railway backend - NO MOCK DATA
+    const backendResponse = await fetch(`${BACKEND_URL}/api/admin/user-sessions?${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log(`📡 Railway backend response status: ${backendResponse.status}`);
+    
+    const data = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      console.error('❌ Railway backend error for user-sessions:', {
+        status: backendResponse.status,
+        statusText: backendResponse.statusText,
+        data: data
+      });
+      
+      return NextResponse.json(
+        { success: false, error: data.message || data.error || 'Railway backend error' },
+        { status: backendResponse.status }
+      );
+    }
+
+    console.log(`✅ Real user sessions retrieved from Railway: ${data.data?.sessions?.length || 0} sessions`);
+    
+    return NextResponse.json(data, { status: 200 });
+
+  } catch (error) {
+    console.error('❌ Error connecting to Railway backend:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Full error details:', {
+      error: errorMessage,
+      backendUrl: BACKEND_URL,
+      timestamp: new Date().toISOString()
+    });
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: 'Failed to connect to Railway backend', 
+        details: errorMessage,
+        backendUrl: BACKEND_URL,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
+  }
+}

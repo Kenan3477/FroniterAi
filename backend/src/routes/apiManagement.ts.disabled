@@ -1,0 +1,27 @@
+import { Router } from 'express';
+import {
+  getApiKeys,
+  createApiKey,
+  updateApiKey,
+  deleteApiKey,
+  getApiKeyStats,
+  getApiKeyUsage,
+  bulkUpdateApiKeys
+} from '../controllers/apiKeys';
+
+const router = Router();
+
+// API Key management routes
+router.get('/keys', getApiKeys);
+router.post('/keys', createApiKey);
+router.put('/keys/:id', updateApiKey);
+router.delete('/keys/:id', deleteApiKey);
+
+// API Key statistics and analytics
+router.get('/stats', getApiKeyStats);
+router.get('/keys/:id/usage', getApiKeyUsage);
+
+// Bulk operations
+router.post('/keys/bulk', bulkUpdateApiKeys);
+
+export default router;

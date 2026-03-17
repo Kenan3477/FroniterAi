@@ -1,0 +1,2735 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  EllipsisVerticalIcon,
+  PencilIcon,
+  DocumentDuplicateIcon,
+  TrashIcon,
+  PlayIcon,
+  PauseIcon,
+  ChevronRightIcon
+} from '@heroicons/react/24/outline';
+import OutboundQueue from './OutboundQueue';
+
+interface Campaign {
+  id: string;
+  campaignId?: string;
+  name: string;
+  dialMethod: 'Auto Dial' | 'Manual' | 'Manual, Preview And Skip' | 'Manual And Preview' | 'Predictive';
+  speed: number;
+  dropPercentage: number;
+  status: 'Active' | 'Inactive' | 'Paused';
+  description?: string;
+  maxLines?: number;
+  dialRatio?: number;
+  recordCalls?: boolean;
+  allowTransfers?: boolean;
+  campaign_script?: string;
+  hoursOfOperation?: {
+    start: string;
+    end: string;
+    days: string[];
+  };
+}
+
+interface CampaignWizard {
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+  // Step 1: Details
+  campaignId?: string;
+  campaignName: string;
+  campaignDescription: string;
+  campaignTimes?: string;
+  campaignActive: boolean;
+  createTicket: boolean;
+  channelType: 'OMNI' | 'VOICE';
+  
+  // Step 2: Voice
+  allowManualDial: boolean;
+  outboundDial: string;
+  countryCode: string;
+  poolQuota: boolean;
+  dialingSpeed: number;
+  dialOrder: string;
+  dialingOptions: string;
+  agentThreshold: number;
+  callingTimeout: number;
+  
+  // Step 3: Autodial Routing
+  addCriteria: Array<{
+    option: string;
+    operator: string;
+    order: string;
+  }>;
+  
+  // Step 4: Autodial Ranks
+  agentRank: number;
+  selectedUsers: string[];
+  
+  // Step 5: CLI
+  outboundNumberMode: string;
+  paiNumber: string;
+  cliOverride: string;
+  allowManualCliSelection: boolean;
+  useCli: boolean;
+  cliPostalCodeLookup: boolean;
+  cliAreaCodeLookup: boolean;
+  cliNorthAmericaRegionLookup: boolean;
+  cliRotation: boolean;
+  
+  // Step 6: Options
+  autoFocusOutcome: boolean;
+  autoAnswer: boolean;
+  allowStopStartRecordings: boolean;
+  recordCalls: boolean;
+  recordExternalWithTransfers: boolean;
+  recordExternalTransfers: boolean;
+  autoOutcomeVoiceCalls: boolean;
+  integration: string;
+  enableRedistribution: boolean;
+  enablePauseReasonOnAutoOutcome: boolean;
+  allowBlindTransfer: boolean;
+  allowWithTransfer: boolean;
+  
+  // Step 7: Web Form
+  showPciWebform: boolean;
+  showWebformAsPrimary: boolean;
+  webforms: Array<{
+    name: string;
+    url: string;
+    contactFields: string[];
+    interactionFields: string[];
+    miscellaneousFields: string[];
+  }>;
+  
+  // Step 8: Fields Override
+  primaryContactFields: Array<{
+    field: string;
+    hidden: boolean;
+    readOnly: boolean;
+  }>;
+  
+  // Step 9: Outcomes
+  assignedOutcomes: Array<{
+    outcome: string;
+    maxAttempts?: number;
+    totalSequentialAttempts?: number;
+    lockedTimeout?: {
+      years: number;
+      months: number;
+      days: number;
+      hours: number;
+      minutes: number;
+    };
+  }>;
+  
+  // Step 10: Pause Reasons
+  pauseReasons: Array<{
+    reason: string;
+  }>;
+  
+  // Step 11: Call Recordings
+  enableCustomRecordingFormat: boolean;
+  
+  // Step 12: Kennex AI
+  aiGain: string;
+}
+
+interface CampaignsContentProps {
+  searchTerm: string;
+  showCreateModal: boolean;
+  onCloseCreateModal: () => void;
+}
+
+const initialCampaigns: Campaign[] = [
+  {
+    id: '1125',
+    name: 'Boiler Cold',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '6002',
+    name: 'Callum',
+    dialMethod: 'Manual, Preview And Skip',
+    speed: 0.1,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '6666',
+    name: 'Cheicie Test',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '5001',
+    name: 'Claims Team',
+    dialMethod: 'Manual, Preview And Skip',
+    speed: 0.0,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '1628548',
+    name: 'CnxTest',
+    dialMethod: 'Manual, Preview And Skip',
+    speed: 0.1,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '4561',
+    name: 'kennextest',
+    dialMethod: 'Manual And Preview',
+    speed: 1.0,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '3001',
+    name: 'Customer Services',
+    dialMethod: 'Manual And Preview',
+    speed: 1.0,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '1122',
+    name: 'DAC COLD',
+    dialMethod: 'Auto Dial',
+    speed: 1.4,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '1001',
+    name: 'DAC Cold First Use',
+    dialMethod: 'Auto Dial',
+    speed: 1.0,
+    dropPercentage: 33.33,
+    status: 'Active'
+  },
+  {
+    id: '5000',
+    name: 'DAC FRS',
+    dialMethod: 'Manual, Preview And Skip',
+    speed: 1.0,
+    dropPercentage: 0.00,
+    status: 'Active'
+  },
+  {
+    id: '1123',
+    name: 'DAC HOT',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '1121',
+    name: 'DAC Inactive',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '8877',
+    name: 'DAC LAPSED',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  },
+  {
+    id: '1928',
+    name: 'DAC Lapsed NEW',
+    dialMethod: 'Auto Dial',
+    speed: 2.0,
+    dropPercentage: 0.00,
+    status: 'Inactive'
+  }
+];
+
+const dialMethods = [
+  'Auto Dial',
+  'Manual',
+  'Manual, Preview And Skip', 
+  'Manual And Preview',
+  'Predictive'
+];
+
+export default function CampaignsContent({ searchTerm, showCreateModal, onCloseCreateModal }: CampaignsContentProps) {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [showEditWizard, setShowEditWizard] = useState(false);
+  
+  // Outbound Queue State
+  const [showOutboundQueue, setShowOutboundQueue] = useState(false);
+  const [selectedQueueCampaign, setSelectedQueueCampaign] = useState<Campaign | null>(null);
+
+  // Campaign Wizard State
+  const [campaignWizard, setCampaignWizard] = useState<CampaignWizard>({
+    step: 1,
+    campaignId: '',
+    campaignName: '',
+    campaignDescription: '',
+    campaignTimes: '',
+    campaignActive: true,
+    createTicket: false,
+    channelType: 'VOICE',
+    allowManualDial: false,
+    outboundDial: 'Auto Dial',
+    countryCode: '',
+    poolQuota: false,
+    dialingSpeed: 0.1,
+    dialOrder: 'Dial Order',
+    dialingOptions: 'Waiting Agents',
+    agentThreshold: 1,
+    callingTimeout: 15,
+    addCriteria: [{
+      option: 'Interactions Total',
+      operator: 'Equals To',
+      order: 'Lowest'
+    }],
+    agentRank: 0,
+    selectedUsers: [],
+    outboundNumberMode: 'Auto Set By Campaign',
+    paiNumber: 'None',
+    cliOverride: 'None',
+    allowManualCliSelection: false,
+    useCli: false,
+    cliPostalCodeLookup: false,
+    cliAreaCodeLookup: false,
+    cliNorthAmericaRegionLookup: false,
+    cliRotation: false,
+    autoFocusOutcome: false,
+    autoAnswer: false,
+    allowStopStartRecordings: false,
+    recordCalls: true,
+    recordExternalWithTransfers: false,
+    recordExternalTransfers: false,
+    autoOutcomeVoiceCalls: false,
+    integration: 'None',
+    enableRedistribution: false,
+    enablePauseReasonOnAutoOutcome: false,
+    allowBlindTransfer: true,
+    allowWithTransfer: true,
+    showPciWebform: false,
+    showWebformAsPrimary: false,
+    webforms: [
+      {
+        name: 'Webform 1',
+        url: '',
+        contactFields: ['Address 1', 'Address 2', 'Address 3', 'Company Name', 'ID', 'Contact ID', 'Status ID'],
+        interactionFields: [],
+        miscellaneousFields: []
+      },
+      {
+        name: 'Webform 2',
+        url: '',
+        contactFields: [],
+        interactionFields: [],
+        miscellaneousFields: []
+      }
+    ],
+    primaryContactFields: [
+      { field: 'Title', hidden: false, readOnly: false },
+      { field: 'First Name', hidden: false, readOnly: false },
+      { field: 'Last Name', hidden: false, readOnly: false },
+      { field: 'Address 1', hidden: false, readOnly: false },
+      { field: 'Address 2', hidden: false, readOnly: false },
+      { field: 'Town / City', hidden: false, readOnly: false },
+      { field: 'Postal Code / Zip Code', hidden: false, readOnly: false },
+      { field: 'Email', hidden: false, readOnly: false }
+    ],
+    assignedOutcomes: [
+      { outcome: 'Answering Machine' },
+      { outcome: 'Call Transferred - XFER' },
+      { outcome: 'Completed' },
+      { outcome: 'Decision Maker Contact' }
+    ],
+    pauseReasons: [
+      { reason: '' }
+    ],
+    enableCustomRecordingFormat: false,
+    aiGain: 'None'
+  });
+
+  // Optimized wizard update functions using useCallback
+  const updateCampaignId = useCallback((value: string) => {
+    setCampaignWizard(prev => ({ ...prev, campaignId: value }));
+  }, []);
+
+  const updateCampaignName = useCallback((value: string) => {
+    setCampaignWizard(prev => ({ ...prev, campaignName: value }));
+  }, []);
+
+  const updateCampaignDescription = useCallback((value: string) => {
+    setCampaignWizard(prev => ({ ...prev, campaignDescription: value }));
+  }, []);
+
+  const updateCampaignActive = useCallback((checked: boolean) => {
+    setCampaignWizard(prev => ({ ...prev, campaignActive: checked }));
+  }, []);
+
+  const updateCreateTicket = useCallback((checked: boolean) => {
+    setCampaignWizard(prev => ({ ...prev, createTicket: checked }));
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Load campaigns from API
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        const response = await fetch('/api/campaigns');
+        if (response.ok) {
+          const data = await response.json();
+          setCampaigns(data.campaigns || []);
+        } else {
+          console.error('Failed to load campaigns');
+        }
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      }
+    };
+
+    loadCampaigns();
+  }, []);
+
+  // Wizard navigation methods
+  const nextStep = () => {
+    if (campaignWizard.step < 13) {
+      setCampaignWizard(prev => ({ ...prev, step: prev.step + 1 }));
+    }
+  };
+
+  const prevStep = () => {
+    if (campaignWizard.step > 1) {
+      setCampaignWizard(prev => ({ ...prev, step: prev.step - 1 }));
+    }
+  };
+
+  const resetWizard = () => {
+    setCampaignWizard(prev => ({ 
+      ...prev, 
+      step: 1,
+      campaignId: '',
+      campaignName: '',
+      campaignDescription: ''
+    }));
+    setEditingCampaign(null);
+  };
+
+  const closeWizard = () => {
+    if (showEditWizard) {
+      setShowEditWizard(false);
+      setEditingCampaign(null);
+    } else {
+      onCloseCreateModal();
+    }
+    resetWizard();
+  };
+
+  const completeCampaign = () => {
+    if (editingCampaign) {
+      // Update existing campaign
+      setCampaigns(prev => prev.map(campaign => 
+        campaign.id === editingCampaign.id 
+          ? {
+              ...campaign,
+              id: campaignWizard.campaignId || campaign.id,
+              name: campaignWizard.campaignName,
+              dialMethod: campaignWizard.outboundDial,
+              speed: campaignWizard.dialingSpeed,
+              status: campaignWizard.campaignActive ? 'Active' : 'Inactive',
+              description: campaignWizard.campaignDescription
+            }
+          : campaign
+      ));
+      setEditingCampaign(null);
+    } else {
+      // Add new campaign
+      const newCampaign: Campaign = {
+        id: campaignWizard.campaignId || Math.random().toString(),
+        name: campaignWizard.campaignName,
+        dialMethod: campaignWizard.outboundDial,
+        speed: campaignWizard.dialingSpeed,
+        dropPercentage: 0.00,
+        status: campaignWizard.campaignActive ? 'Active' : 'Inactive',
+        description: campaignWizard.campaignDescription
+      };
+      
+      setCampaigns(prev => [newCampaign, ...prev]);
+    }
+    
+    closeWizard();
+  };
+
+  // Step titles for the wizard
+  const stepTitles = [
+    'Details', 'Voice', 'Autodial Routing', 'Autodial Ranks', 'CLI', 
+    'Options', 'Web Form', 'Fields Override', 'Outcomes', 'Pause Reasons', 
+    'Call Recordings', 'Kennex AI', 'Success'
+  ];
+
+  // Filter campaigns based on search
+  const filteredCampaigns = campaigns.filter(campaign => 
+    campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.id.includes(searchTerm) ||
+    campaign.dialMethod.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Toggle campaign status
+  const toggleCampaignStatus = (campaignId: string) => {
+    setCampaigns(prev => prev.map(campaign => 
+      campaign.id === campaignId 
+        ? { 
+            ...campaign, 
+            status: campaign.status === 'Active' ? 'Inactive' : 'Active' 
+          }
+        : campaign
+    ));
+  };
+
+  // Update campaign dial method
+  const updateDialMethod = (campaignId: string, dialMethod: Campaign['dialMethod']) => {
+    setCampaigns(prev => prev.map(campaign => 
+      campaign.id === campaignId 
+        ? { ...campaign, dialMethod }
+        : campaign
+    ));
+  };
+
+  // Update campaign speed
+  const updateSpeed = (campaignId: string, speed: number) => {
+    setCampaigns(prev => prev.map(campaign => 
+      campaign.id === campaignId 
+        ? { ...campaign, speed }
+        : campaign
+    ));
+  };
+
+  // Wizard Modal Component
+  const WizardModal = () => {
+    if (!showCreateModal && !showEditWizard) return null;
+
+    const renderStepContent = () => {
+      switch (campaignWizard.step) {
+        case 1: // Details Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Campaign ID
+                </label>
+                <input
+                  type="text"
+                  defaultValue={campaignWizard.campaignId}
+                  onBlur={(e) => setCampaignWizard(prev => ({ ...prev, campaignId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  placeholder="Enter campaign ID"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Campaign Name *
+                </label>
+                <input
+                  type="text"
+                  defaultValue={campaignWizard.campaignName}
+                  onBlur={(e) => setCampaignWizard(prev => ({ ...prev, campaignName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  placeholder="Enter campaign name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Campaign Description
+                </label>
+                <textarea
+                  defaultValue={campaignWizard.campaignDescription}
+                  onBlur={(e) => setCampaignWizard(prev => ({ ...prev, campaignDescription: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  placeholder="Enter campaign description"
+                />
+              </div>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={campaignWizard.campaignActive}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, campaignActive: e.target.checked }))}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Campaign Active</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={campaignWizard.createTicket}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, createTicket: e.target.checked }))}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Create Ticket</span>
+                </label>
+              </div>
+            </div>
+          );
+
+        case 2: // Voice Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Channel Type
+                </label>
+                <select
+                  value={campaignWizard.channelType}
+                  onChange={(e) => setCampaignWizard(prev => ({ ...prev, channelType: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                >
+                  <option value="VOICE">VOICE</option>
+                  <option value="SMS">SMS</option>
+                  <option value="EMAIL">EMAIL</option>
+                </select>
+              </div>
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={campaignWizard.allowManualDial}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, allowManualDial: e.target.checked }))}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Allow Manual Dial</span>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Outbound Dial
+                </label>
+                <select
+                  value={campaignWizard.outboundDial}
+                  onChange={(e) => setCampaignWizard(prev => ({ ...prev, outboundDial: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                >
+                  {dialMethods.map(method => (
+                    <option key={method} value={method}>{method}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Country Code
+                </label>
+                <input
+                  type="text"
+                  value={campaignWizard.countryCode}
+                  onChange={(e) => setCampaignWizard(prev => ({ ...prev, countryCode: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                />
+              </div>
+            </div>
+          );
+
+        case 3: // Autodial Routing Step
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pool Quota
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.poolQuota}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, poolQuota: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Enable Pool Quota</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dialing Speed
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={campaignWizard.dialingSpeed}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, dialingSpeed: parseFloat(e.target.value) }))}
+                      className="flex-1 slider"
+                    />
+                    <span className="text-sm font-medium text-gray-700 w-12">{campaignWizard.dialingSpeed.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dial Order
+                  </label>
+                  <select
+                    value={campaignWizard.dialOrder}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, dialOrder: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  >
+                    <option value="Dial Order">Dial Order</option>
+                    <option value="Random">Random</option>
+                    <option value="Priority">Priority</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dialing Options
+                  </label>
+                  <select
+                    value={campaignWizard.dialingOptions}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, dialingOptions: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  >
+                    <option value="Waiting Agents">Waiting Agents</option>
+                    <option value="All Agents">All Agents</option>
+                    <option value="Available Agents">Available Agents</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agent Threshold
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={campaignWizard.agentThreshold}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, agentThreshold: parseInt(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Calling Timeout (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="60"
+                    value={campaignWizard.callingTimeout}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, callingTimeout: parseInt(e.target.value) || 15 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700">Add Criteria</h4>
+                  <button
+                    onClick={() => {
+                      setCampaignWizard(prev => ({
+                        ...prev,
+                        addCriteria: [...prev.addCriteria, {
+                          option: 'Interactions Total',
+                          operator: 'Equals To',
+                          order: 'Lowest'
+                        }]
+                      }));
+                    }}
+                    className="px-3 py-1 text-xs font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                  >
+                    + Add Criteria
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {campaignWizard.addCriteria.map((criteria, index) => (
+                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <select
+                        value={criteria.option}
+                        onChange={(e) => {
+                          const newCriteria = [...campaignWizard.addCriteria];
+                          newCriteria[index].option = e.target.value;
+                          setCampaignWizard(prev => ({ ...prev, addCriteria: newCriteria }));
+                        }}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                      >
+                        <option value="Interactions Total">Interactions Total</option>
+                        <option value="Last Contact Date">Last Contact Date</option>
+                        <option value="Priority Score">Priority Score</option>
+                        <option value="Contact Status">Contact Status</option>
+                      </select>
+                      <select
+                        value={criteria.operator}
+                        onChange={(e) => {
+                          const newCriteria = [...campaignWizard.addCriteria];
+                          newCriteria[index].operator = e.target.value;
+                          setCampaignWizard(prev => ({ ...prev, addCriteria: newCriteria }));
+                        }}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                      >
+                        <option value="Equals To">Equals To</option>
+                        <option value="Greater Than">Greater Than</option>
+                        <option value="Less Than">Less Than</option>
+                        <option value="Contains">Contains</option>
+                      </select>
+                      <select
+                        value={criteria.order}
+                        onChange={(e) => {
+                          const newCriteria = [...campaignWizard.addCriteria];
+                          newCriteria[index].order = e.target.value;
+                          setCampaignWizard(prev => ({ ...prev, addCriteria: newCriteria }));
+                        }}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                      >
+                        <option value="Lowest">Lowest</option>
+                        <option value="Highest">Highest</option>
+                        <option value="Random">Random</option>
+                      </select>
+                      <button
+                        onClick={() => {
+                          const newCriteria = campaignWizard.addCriteria.filter((_, i) => i !== index);
+                          setCampaignWizard(prev => ({ ...prev, addCriteria: newCriteria }));
+                        }}
+                        className="p-2 text-red-600 hover:text-red-800"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+
+        case 4: // Autodial Ranks Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Agent Rank
+                </label>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={campaignWizard.agentRank}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, agentRank: parseInt(e.target.value) }))}
+                    className="flex-1 slider"
+                  />
+                  <span className="text-sm font-medium text-gray-700 w-8">{campaignWizard.agentRank}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0</span>
+                  <span>10</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700">Selected Users</h4>
+                  <button
+                    onClick={() => {
+                      // Add user selection logic here
+                      setCampaignWizard(prev => ({
+                        ...prev,
+                        selectedUsers: [...prev.selectedUsers, {
+                          id: Date.now().toString(),
+                          name: 'New User',
+                          username: 'user' + (prev.selectedUsers.length + 1),
+                          rank: 1,
+                          status: 'Active'
+                        }]
+                      }));
+                    }}
+                    className="px-3 py-1 text-xs font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                  >
+                    + Add User
+                  </button>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Username
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rank
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {campaignWizard.selectedUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                            No users selected. Click "Add User" to add users to this campaign.
+                          </td>
+                        </tr>
+                      ) : (
+                        campaignWizard.selectedUsers.map((user, index) => (
+                          <tr key={user.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                              />
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {user.name}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {user.username}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={user.rank}
+                                onChange={(e) => {
+                                  const newUsers = [...campaignWizard.selectedUsers];
+                                  newUsers[index].rank = parseInt(e.target.value) || 1;
+                                  setCampaignWizard(prev => ({ ...prev, selectedUsers: newUsers }));
+                                }}
+                                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                              />
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                user.status === 'Active' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <button
+                                onClick={() => {
+                                  const newUsers = campaignWizard.selectedUsers.filter((_, i) => i !== index);
+                                  setCampaignWizard(prev => ({ ...prev, selectedUsers: newUsers }));
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 5: // CLI Step
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Outbound Number Mode
+                  </label>
+                  <select
+                    value={campaignWizard.outboundNumberMode}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, outboundNumberMode: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  >
+                    <option value="Auto Set By Campaign">Auto Set By Campaign</option>
+                    <option value="Manual Selection">Manual Selection</option>
+                    <option value="Agent Specific">Agent Specific</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    PAI Number
+                  </label>
+                  <select
+                    value={campaignWizard.paiNumber}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, paiNumber: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  >
+                    <option value="None">None</option>
+                    <option value="System Default">System Default</option>
+                    <option value="Campaign Specific">Campaign Specific</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CLI Override
+                </label>
+                <select
+                  value={campaignWizard.cliOverride}
+                  onChange={(e) => setCampaignWizard(prev => ({ ...prev, cliOverride: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                >
+                  <option value="None">None</option>
+                  <option value="System Default">System Default</option>
+                  <option value="Campaign Specific">Campaign Specific</option>
+                  <option value="Agent Specific">Agent Specific</option>
+                </select>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.allowManualCliSelection}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, allowManualCliSelection: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Allow Manual CLI Selection</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.useCli}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, useCli: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Use CLI Configuration From Dialling Campaign</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.cliPostalCodeLookup}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, cliPostalCodeLookup: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">CLI Postal Code Lookup</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.cliAreaCodeLookup}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, cliAreaCodeLookup: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">CLI Area Code Lookup</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.cliNorthAmericaRegionLookup}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, cliNorthAmericaRegionLookup: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">CLI North America Region Lookup</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.cliRotation}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, cliRotation: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">CLI Rotation</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-sm font-medium text-gray-700">CLI Numbers</h5>
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-kennex-600 hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+                  >
+                    + Add CLI
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-4 flex-1">
+                      <span className="text-sm font-medium text-gray-700">CLI</span>
+                      <select className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500 text-sm">
+                        <option value="441202068644">441202068644 (0)</option>
+                        <option value="441234567890">441234567890 (1)</option>
+                        <option value="441987654321">441987654321 (2)</option>
+                      </select>
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          defaultChecked
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">Additional CLI numbers can be added using the "Add CLI" button above.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 6: // Options Step
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">General Options</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.autoFocusOutcome}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, autoFocusOutcome: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Auto Focus Outcome</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.autoAnswer}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, autoAnswer: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Auto Answer</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.allowStopStartRecordings}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, allowStopStartRecordings: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Allow Stop/Start Recordings</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">Recording Options</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.recordCalls}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, recordCalls: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Record Calls</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.recordExternalWithTransfers}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, recordExternalWithTransfers: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Record External with Transfers</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.recordExternalTransfers}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, recordExternalTransfers: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Record External Transfers</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">Auto Outcome Options</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.autoOutcomeVoiceCalls}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, autoOutcomeVoiceCalls: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Auto Outcome Voice Calls</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.enablePauseReasonOnAutoOutcome}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, enablePauseReasonOnAutoOutcome: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Enable Pause Reason on Auto Outcome</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.enableRedistribution}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, enableRedistribution: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Enable Redistribution</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">Transfer Options</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.allowBlindTransfer}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, allowBlindTransfer: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Allow Blind Transfer</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={campaignWizard.allowWithTransfer}
+                        onChange={(e) => setCampaignWizard(prev => ({ ...prev, allowWithTransfer: e.target.checked }))}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Allow with Transfer</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Integration
+                </label>
+                <select
+                  value={campaignWizard.integration}
+                  onChange={(e) => setCampaignWizard(prev => ({ ...prev, integration: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                >
+                  <option value="None">None</option>
+                  <option value="Salesforce">Salesforce</option>
+                  <option value="HubSpot">HubSpot</option>
+                  <option value="Microsoft Dynamics">Microsoft Dynamics</option>
+                  <option value="Custom CRM">Custom CRM</option>
+                </select>
+              </div>
+            </div>
+          );
+
+        case 7: // Web Form Step
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={campaignWizard.showPciWebform}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, showPciWebform: e.target.checked }))}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Show PCI Webform</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={campaignWizard.showWebformAsPrimary}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, showWebformAsPrimary: e.target.checked }))}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Show Webform as Primary</span>
+                </label>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-4">Webform Configuration</h4>
+                {campaignWizard.webforms.map((webform, webformIndex) => (
+                  <div key={webformIndex} className="border border-gray-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-sm font-medium text-gray-900">{webform.name}</h5>
+                      {campaignWizard.webforms.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const newWebforms = campaignWizard.webforms.filter((_, i) => i !== webformIndex);
+                            setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                          }}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove Webform
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Webform URL
+                      </label>
+                      <input
+                        type="url"
+                        value={webform.url}
+                        onChange={(e) => {
+                          const newWebforms = [...campaignWizard.webforms];
+                          newWebforms[webformIndex].url = e.target.value;
+                          setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                        placeholder="https://example.com/webform"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                          Contact Fields
+                        </label>
+                        <div className="border border-gray-200 rounded-md h-32 overflow-y-auto p-2">
+                          {webform.contactFields.map((field, fieldIndex) => (
+                            <div key={fieldIndex} className="flex items-center justify-between text-xs py-1">
+                              <span>{field}</span>
+                              <button
+                                onClick={() => {
+                                  const newWebforms = [...campaignWizard.webforms];
+                                  newWebforms[webformIndex].contactFields = newWebforms[webformIndex].contactFields.filter((_, i) => i !== fieldIndex);
+                                  setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newWebforms = [...campaignWizard.webforms];
+                              newWebforms[webformIndex].contactFields.push('New Field');
+                              setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                            }}
+                            className="text-xs text-kennex-600 hover:text-kennex-800"
+                          >
+                            + Add Field
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                          Interaction Fields
+                        </label>
+                        <div className="border border-gray-200 rounded-md h-32 overflow-y-auto p-2">
+                          {webform.interactionFields.map((field, fieldIndex) => (
+                            <div key={fieldIndex} className="flex items-center justify-between text-xs py-1">
+                              <span>{field}</span>
+                              <button
+                                onClick={() => {
+                                  const newWebforms = [...campaignWizard.webforms];
+                                  newWebforms[webformIndex].interactionFields = newWebforms[webformIndex].interactionFields.filter((_, i) => i !== fieldIndex);
+                                  setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newWebforms = [...campaignWizard.webforms];
+                              newWebforms[webformIndex].interactionFields.push('New Field');
+                              setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                            }}
+                            className="text-xs text-kennex-600 hover:text-kennex-800"
+                          >
+                            + Add Field
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                          Miscellaneous Fields
+                        </label>
+                        <div className="border border-gray-200 rounded-md h-32 overflow-y-auto p-2">
+                          {webform.miscellaneousFields.map((field, fieldIndex) => (
+                            <div key={fieldIndex} className="flex items-center justify-between text-xs py-1">
+                              <span>{field}</span>
+                              <button
+                                onClick={() => {
+                                  const newWebforms = [...campaignWizard.webforms];
+                                  newWebforms[webformIndex].miscellaneousFields = newWebforms[webformIndex].miscellaneousFields.filter((_, i) => i !== fieldIndex);
+                                  setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newWebforms = [...campaignWizard.webforms];
+                              newWebforms[webformIndex].miscellaneousFields.push('New Field');
+                              setCampaignWizard(prev => ({ ...prev, webforms: newWebforms }));
+                            }}
+                            className="text-xs text-kennex-600 hover:text-kennex-800"
+                          >
+                            + Add Field
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => {
+                    setCampaignWizard(prev => ({
+                      ...prev,
+                      webforms: [...prev.webforms, {
+                        name: `Webform ${prev.webforms.length + 1}`,
+                        url: '',
+                        contactFields: [],
+                        interactionFields: [],
+                        miscellaneousFields: []
+                      }]
+                    }));
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                >
+                  + Add Webform
+                </button>
+              </div>
+            </div>
+          );
+
+        case 8: // Fields Override Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-4">Primary Contact Fields</h4>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Field
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Hidden
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Read Only
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {campaignWizard.primaryContactFields.map((field, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={field.field}
+                              onChange={(e) => {
+                                const newFields = [...campaignWizard.primaryContactFields];
+                                newFields[index].field = e.target.value;
+                                setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                              }}
+                              className="w-full px-2 py-1 text-sm font-medium text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={field.hidden}
+                              onChange={(e) => {
+                                const newFields = [...campaignWizard.primaryContactFields];
+                                newFields[index].hidden = e.target.checked;
+                                setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                              }}
+                              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={field.readOnly}
+                              onChange={(e) => {
+                                const newFields = [...campaignWizard.primaryContactFields];
+                                newFields[index].readOnly = e.target.checked;
+                                setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                              }}
+                              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => {
+                                const newFields = campaignWizard.primaryContactFields.filter((_, i) => i !== index);
+                                setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4">
+                  <button
+                    onClick={() => {
+                      setCampaignWizard(prev => ({
+                        ...prev,
+                        primaryContactFields: [...prev.primaryContactFields, {
+                          field: 'New Field',
+                          hidden: false,
+                          readOnly: false
+                        }]
+                      }));
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                  >
+                    + Add Field
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Quick Actions</h5>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        const newFields = campaignWizard.primaryContactFields.map(field => ({ ...field, hidden: true }));
+                        setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                      }}
+                      className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    >
+                      Hide All Fields
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newFields = campaignWizard.primaryContactFields.map(field => ({ ...field, hidden: false }));
+                        setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                      }}
+                      className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    >
+                      Show All Fields
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Field Options</h5>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        const newFields = campaignWizard.primaryContactFields.map(field => ({ ...field, readOnly: true }));
+                        setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                      }}
+                      className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    >
+                      Make All Read Only
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newFields = campaignWizard.primaryContactFields.map(field => ({ ...field, readOnly: false }));
+                        setCampaignWizard(prev => ({ ...prev, primaryContactFields: newFields }));
+                      }}
+                      className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    >
+                      Make All Editable
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 9: // Outcomes Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700">Assigned Outcomes</h4>
+                  <button
+                    onClick={() => {
+                      setCampaignWizard(prev => ({
+                        ...prev,
+                        assignedOutcomes: [...prev.assignedOutcomes, { 
+                          outcome: 'New Outcome',
+                          maxAttempts: 5,
+                          totalSequentialAttempts: 3,
+                          lockedTimeout: {
+                            years: 0,
+                            months: 0,
+                            days: 1,
+                            hours: 0,
+                            minutes: 0
+                          }
+                        }]
+                      }));
+                    }}
+                    className="px-3 py-1 text-xs font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                  >
+                    + Add Outcome
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {campaignWizard.assignedOutcomes.map((outcome, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <label className="text-sm font-medium text-gray-700">Outcome *</label>
+                          <div className="flex-1 max-w-xs">
+                            <select 
+                              defaultValue={outcome.outcome}
+                              onBlur={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].outcome = e.target.value;
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              <option value="Answering Machine">Answering Machine</option>
+                              <option value="Call Transferred - XFER">Call Transferred - XFER</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Decision Maker Contact">Decision Maker Contact</option>
+                              <option value="No Answer">No Answer</option>
+                              <option value="Busy">Busy</option>
+                              <option value="Wrong Number">Wrong Number</option>
+                              <option value="Do Not Call">Do Not Call</option>
+                              <option value="Callback Required">Callback Required</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6 mb-4">
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-2">Max Attempts</label>
+                          <div className="flex items-center space-x-4">
+                            <input
+                              type="range"
+                              min="1"
+                              max="20"
+                              value={outcome.maxAttempts || 5}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].maxAttempts = parseInt(e.target.value);
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="flex-1 slider"
+                            />
+                            <span className="text-sm text-gray-600 w-12">{outcome.maxAttempts || 5}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-2">Total Sequential Attempts</label>
+                          <div className="flex items-center space-x-4">
+                            <input
+                              type="range"
+                              min="1"
+                              max="10"
+                              value={outcome.totalSequentialAttempts || 3}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].totalSequentialAttempts = parseInt(e.target.value);
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="flex-1 slider"
+                            />
+                            <span className="text-sm text-gray-600 w-12">{outcome.totalSequentialAttempts || 3}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Locked Timeout</label>
+                        <div className="grid grid-cols-5 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">years</label>
+                            <select 
+                              value={outcome.lockedTimeout?.years || 0}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].lockedTimeout = {
+                                  ...newOutcomes[index].lockedTimeout,
+                                  years: parseInt(e.target.value)
+                                };
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              {[...Array(6)].map((_, i) => (
+                                <option key={i} value={i}>{i}</option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">months</label>
+                            <select 
+                              value={outcome.lockedTimeout?.months || 0}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].lockedTimeout = {
+                                  ...newOutcomes[index].lockedTimeout,
+                                  months: parseInt(e.target.value)
+                                };
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              {[...Array(12)].map((_, i) => (
+                                <option key={i} value={i}>{i}</option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">days</label>
+                            <select 
+                              value={outcome.lockedTimeout?.days || 1}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].lockedTimeout = {
+                                  ...newOutcomes[index].lockedTimeout,
+                                  days: parseInt(e.target.value)
+                                };
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              {[...Array(32)].map((_, i) => (
+                                <option key={i} value={i}>{i}</option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">hours</label>
+                            <select 
+                              value={outcome.lockedTimeout?.hours || 0}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].lockedTimeout = {
+                                  ...newOutcomes[index].lockedTimeout,
+                                  hours: parseInt(e.target.value)
+                                };
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              {[...Array(24)].map((_, i) => (
+                                <option key={i} value={i}>{i}</option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">minutes</label>
+                            <select 
+                              value={outcome.lockedTimeout?.minutes || 0}
+                              onChange={(e) => {
+                                const newOutcomes = [...campaignWizard.assignedOutcomes];
+                                newOutcomes[index].lockedTimeout = {
+                                  ...newOutcomes[index].lockedTimeout,
+                                  minutes: parseInt(e.target.value)
+                                };
+                                setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            >
+                              {[...Array(60)].map((_, i) => (
+                                <option key={i} value={i}>{i}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <button
+                          className="mt-3 w-full px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-kennex-500"
+                        >
+                          + Add Iteration
+                        </button>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <button
+                          onClick={() => {
+                            const newOutcomes = campaignWizard.assignedOutcomes.filter((_, i) => i !== index);
+                            setCampaignWizard(prev => ({ ...prev, assignedOutcomes: newOutcomes }));
+                          }}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          Remove Outcome
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {campaignWizard.assignedOutcomes.length === 0 && (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                      <p className="text-gray-500 text-sm">No outcomes configured. Click "Add Outcome" to create your first outcome.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+
+        case 10: // Pause Reasons Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700">Pause Reasons</h4>
+                  <button
+                    onClick={() => {
+                      setCampaignWizard(prev => ({
+                        ...prev,
+                        pauseReasons: [...prev.pauseReasons, { reason: '' }]
+                      }));
+                    }}
+                    className="px-3 py-1 text-xs font-medium text-kennex-600 bg-kennex-50 border border-kennex-300 rounded-md hover:bg-kennex-100"
+                  >
+                    + Add Pause Reason
+                  </button>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pause Reason
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {campaignWizard.pauseReasons.map((pauseReason, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              defaultValue={pauseReason.reason}
+                              onBlur={(e) => {
+                                const newReasons = [...campaignWizard.pauseReasons];
+                                newReasons[index].reason = e.target.value;
+                                setCampaignWizard(prev => ({ ...prev, pauseReasons: newReasons }));
+                              }}
+                              placeholder="Enter pause reason..."
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => {
+                                const newReasons = campaignWizard.pauseReasons.filter((_, i) => i !== index);
+                                setCampaignWizard(prev => ({ ...prev, pauseReasons: newReasons }));
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {campaignWizard.pauseReasons.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
+                            No pause reasons defined. Click "Add Pause Reason" to add reasons.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-3">Common Pause Reasons</h5>
+                  <div className="space-y-2">
+                    {['Break', 'Lunch', 'Training', 'Meeting', 'Technical Issues', 'Personal', 'System Maintenance'].map(commonReason => (
+                      <button
+                        key={commonReason}
+                        onClick={() => {
+                          if (!campaignWizard.pauseReasons.some(reason => reason.reason === commonReason)) {
+                            setCampaignWizard(prev => ({
+                              ...prev,
+                              pauseReasons: [...prev.pauseReasons, { reason: commonReason }]
+                            }));
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-sm text-left text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                      >
+                        + {commonReason}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-3">Pause Settings</h5>
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span>Total Pause Reasons:</span>
+                        <span className="font-medium">{campaignWizard.pauseReasons.length}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Configured Reasons:</span>
+                        <span className="font-medium text-green-600">
+                          {campaignWizard.pauseReasons.filter(r => r.reason.trim().length > 0).length}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => {
+                          setCampaignWizard(prev => ({ ...prev, pauseReasons: [] }));
+                        }}
+                        className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                      >
+                        Clear All Reasons
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 11: // Call Recordings Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-4">Recording Configuration</h4>
+                <div className="space-y-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignWizard.enableCustomRecordingFormat}
+                      onChange={(e) => setCampaignWizard(prev => ({ ...prev, enableCustomRecordingFormat: e.target.checked }))}
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Enable Custom Recording Format</span>
+                  </label>
+                </div>
+              </div>
+
+              {campaignWizard.enableCustomRecordingFormat && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-4">Custom Recording Settings</h5>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Recording Quality
+                      </label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                        <option value="standard">Standard Quality</option>
+                        <option value="high">High Quality</option>
+                        <option value="premium">Premium Quality</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Recording Format
+                      </label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                        <option value="mp3">MP3</option>
+                        <option value="wav">WAV</option>
+                        <option value="aac">AAC</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Compression Level
+                      </label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                        <option value="low">Low Compression</option>
+                        <option value="medium">Medium Compression</option>
+                        <option value="high">High Compression</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Sample Rate
+                      </label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                        <option value="8000">8 kHz</option>
+                        <option value="16000">16 kHz</option>
+                        <option value="22050">22.05 kHz</option>
+                        <option value="44100">44.1 kHz</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-4">Storage & Retention</h5>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Retention Period (days)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      defaultValue="90"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Storage Location
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                      <option value="local">Local Storage</option>
+                      <option value="cloud">Cloud Storage</option>
+                      <option value="hybrid">Hybrid Storage</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-4">Privacy & Compliance</h5>
+                <div className="space-y-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Enable encryption for stored recordings</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Anonymize personal information in recordings</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Log all access to recordings</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 12: // Kennex AI Step
+          return (
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-4">AI Configuration</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    AI Gain
+                  </label>
+                  <select
+                    value={campaignWizard.aiGain}
+                    onChange={(e) => setCampaignWizard(prev => ({ ...prev, aiGain: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500"
+                  >
+                    <option value="None">None</option>
+                    <option value="Low">Low Gain</option>
+                    <option value="Medium">Medium Gain</option>
+                    <option value="High">High Gain</option>
+                    <option value="Auto">Auto Adjust</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-4">AI Features</h5>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Real-time Sentiment Analysis</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Call Transcription</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Voice Emotion Detection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Speech Pattern Analysis</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Predictive Lead Scoring</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Agent Performance Insights</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Auto Call Outcome Prediction</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Intelligent Call Routing</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-4">AI Model Configuration</h5>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Language Model
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                      <option value="gpt-4">GPT-4 (Advanced)</option>
+                      <option value="gpt-3.5">GPT-3.5 (Standard)</option>
+                      <option value="claude">Claude (Alternative)</option>
+                      <option value="custom">Custom Model</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Processing Priority
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                      <option value="real-time">Real-time</option>
+                      <option value="near-real-time">Near Real-time</option>
+                      <option value="batch">Batch Processing</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confidence Threshold
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      defaultValue="75"
+                      className="w-full slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data Retention (AI Analysis)
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-kennex-500 focus:border-kennex-500">
+                      <option value="30">30 Days</option>
+                      <option value="90">90 Days</option>
+                      <option value="180">180 Days</option>
+                      <option value="365">1 Year</option>
+                      <option value="indefinite">Indefinite</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-4">Privacy & Security</h5>
+                <div className="space-y-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Encrypt AI processing data</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Anonymize personal information before AI processing</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Share insights with third-party AI providers</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          );
+
+        case 13: // Success Step
+          return (
+            <div className="text-center space-y-6">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Campaign Created Successfully!</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Your campaign "{campaignWizard.campaignName}" has been created and is ready to use.
+                </p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-left space-y-2">
+                <div><strong>Campaign ID:</strong> {campaignWizard.campaignId}</div>
+                <div><strong>Campaign Name:</strong> {campaignWizard.campaignName}</div>
+                <div><strong>Dial Method:</strong> {campaignWizard.outboundDial}</div>
+                <div><strong>Status:</strong> {campaignWizard.campaignActive ? 'Active' : 'Inactive'}</div>
+              </div>
+            </div>
+          );
+
+        default:
+          return (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Step {campaignWizard.step}: {stepTitles[campaignWizard.step - 1]}
+              </h3>
+              <p className="text-gray-500">This step is coming soon...</p>
+            </div>
+          );
+      }
+    };
+
+    return (
+      <div 
+        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        onClick={(e) => {
+          // Only close if clicking the background, not the modal content
+          if (e.target === e.currentTarget) {
+            resetWizard();
+            onCloseCreateModal();
+          }
+        }}
+      >
+        <div 
+          className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white"
+          onClick={(e) => e.stopPropagation()} // Prevent clicks inside modal from bubbling up
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 pb-4 border-b">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                {editingCampaign ? 'Edit Campaign' : 'Create Campaign'} - Step {campaignWizard.step} of 13
+              </h3>
+              <p className="text-sm text-gray-500">{stepTitles[campaignWizard.step - 1]}</p>
+            </div>
+            <button
+              onClick={closeWizard}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="flex justify-between text-xs text-gray-500 mb-2">
+              <span>Step {campaignWizard.step}</span>
+              <span>{Math.round((campaignWizard.step / 13) * 100)}% Complete</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-kennex-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(campaignWizard.step / 13) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Step Content */}
+          <div className="mb-8">
+            {renderStepContent()}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between pt-4 border-t">
+            <button
+              onClick={prevStep}
+              disabled={campaignWizard.step === 1}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            <div className="flex space-x-2">
+              {campaignWizard.step === 13 ? (
+                <button
+                  onClick={completeCampaign}
+                  className="px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700"
+                >
+                  Complete Campaign
+                </button>
+              ) : (
+                <button
+                  onClick={nextStep}
+                  disabled={campaignWizard.step === 1 && !campaignWizard.campaignName.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-kennex-600 border border-transparent rounded-md hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {showOutboundQueue && selectedQueueCampaign ? (
+        <OutboundQueue 
+          campaign={selectedQueueCampaign} 
+          onBack={() => {
+            setShowOutboundQueue(false);
+            setSelectedQueueCampaign(null);
+          }}
+        />
+      ) : (
+        <div className="h-full bg-white flex flex-col">
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Campaign Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Dial Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Speed
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Drop (%)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCampaigns.map((campaign) => (
+                <tr key={campaign.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <ChevronRightIcon className="h-4 w-4 text-gray-400 mr-2" />
+                      <input
+                        type="checkbox"
+                        checked={selectedCampaigns.includes(campaign.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCampaigns(prev => [...prev, campaign.id]);
+                          } else {
+                            setSelectedCampaigns(prev => prev.filter(id => id !== campaign.id));
+                          }
+                        }}
+                        className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {campaign.id}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {campaign.name}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <select
+                      value={campaign.dialMethod}
+                      onChange={(e) => updateDialMethod(campaign.id, e.target.value as Campaign['dialMethod'])}
+                      className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                    >
+                      {dialMethods.map(method => (
+                        <option key={method} value={method}>{method}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="3"
+                        step="0.1"
+                        value={campaign.speed}
+                        onChange={(e) => updateSpeed(campaign.id, parseFloat(e.target.value))}
+                        className="w-16 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <span className="text-sm text-gray-900 w-6">{campaign.speed.toFixed(1)}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {campaign.dropPercentage.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <button
+                      onClick={() => toggleCampaignStatus(campaign.id)}
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        campaign.status === 'Active'
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full mr-2 ${
+                        campaign.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'
+                      }`} />
+                      {campaign.status}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenDropdown(openDropdown === campaign.id ? null : campaign.id)}
+                        className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                      >
+                        <EllipsisVerticalIcon className="h-5 w-5" />
+                      </button>
+                      
+                      {openDropdown === campaign.id && (
+                        <div className="absolute right-0 top-8 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
+                          <div className="py-1">
+                            <button
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                // Populate wizard with existing campaign data
+                                setCampaignWizard(prev => ({
+                                  ...prev,
+                                  step: 1,
+                                  // Step 1: Details
+                                  campaignId: campaign.id,
+                                  campaignName: campaign.name,
+                                  campaignDescription: campaign.description || '',
+                                  campaignActive: campaign.status === 'Active',
+                                  createTicket: false,
+                                  channelType: 'VOICE' as const,
+                                  
+                                  // Step 2: Voice
+                                  allowManualDial: true,
+                                  outboundDial: campaign.dialMethod,
+                                  countryCode: 'UK',
+                                  poolQuota: false,
+                                  dialingSpeed: campaign.speed,
+                                  dialOrder: 'Sequential',
+                                  dialingOptions: 'Standard',
+                                  agentThreshold: 1,
+                                  callingTimeout: 30,
+                                  
+                                  // Step 3: Autodial Routing
+                                  addCriteria: [],
+                                  
+                                  // Step 4: Autodial Ranks
+                                  agentRank: 1,
+                                  selectedUsers: [],
+                                  
+                                  // Step 5: CLI
+                                  outboundNumberMode: 'Auto',
+                                  paiNumber: '',
+                                  cliOverride: '',
+                                  allowManualCliSelection: false,
+                                  useCli: true,
+                                  cliPostalCodeLookup: false,
+                                  cliAreaCodeLookup: false,
+                                  cliNorthAmericaRegionLookup: false,
+                                  cliRotation: false,
+                                  
+                                  // Step 6: Options
+                                  autoFocusOutcome: true,
+                                  autoAnswer: false,
+                                  allowStopStartRecordings: true,
+                                  recordCalls: campaign.recordCalls || false,
+                                  recordExternalWithTransfers: false,
+                                  recordExternalTransfers: false,
+                                  autoOutcomeVoiceCalls: false,
+                                  integration: 'None',
+                                  enableRedistribution: false,
+                                  enablePauseReasonOnAutoOutcome: false,
+                                  allowBlindTransfer: campaign.allowTransfers || false,
+                                  allowWithTransfer: false,
+                                  
+                                  // Step 7: Web Form
+                                  showPciWebform: false,
+                                  showWebformAsPrimary: false,
+                                  webforms: [],
+                                  
+                                  // Step 8: Fields Override
+                                  primaryContactFields: [
+                                    { field: 'firstName', hidden: false, readOnly: false },
+                                    { field: 'lastName', hidden: false, readOnly: false },
+                                    { field: 'phone', hidden: false, readOnly: false },
+                                    { field: 'email', hidden: false, readOnly: false }
+                                  ],
+                                  
+                                  // Step 9: Outcomes
+                                  assignedOutcomes: [
+                                    { outcome: 'Answered', maxAttempts: 3, totalSequentialAttempts: 1 },
+                                    { outcome: 'No Answer', maxAttempts: 5, totalSequentialAttempts: 2 },
+                                    { outcome: 'Busy', maxAttempts: 3, totalSequentialAttempts: 1 }
+                                  ],
+                                  
+                                  // Step 10: Pause Reasons
+                                  pauseReasons: [
+                                    { reason: 'Break' },
+                                    { reason: 'Lunch' },
+                                    { reason: 'Meeting' }
+                                  ],
+                                  
+                                  // Step 11: Call Recordings
+                                  enableCustomRecordingFormat: false,
+                                  
+                                  // Step 12: Kennex AI
+                                  aiGain: 'Medium'
+                                }));
+                                setEditingCampaign(campaign);
+                                setShowEditWizard(true);
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <PencilIcon className="h-4 w-4 mr-3" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                const clonedCampaign = {
+                                  ...campaign,
+                                  id: Date.now().toString(),
+                                  name: `${campaign.name} (Copy)`,
+                                  status: 'Inactive' as const
+                                };
+                                setCampaigns(prev => [...prev, clonedCampaign]);
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <DocumentDuplicateIcon className="h-4 w-4 mr-3" />
+                              Clone
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                // Open in tab functionality - placeholder for now
+                                console.log('Open in tab:', campaign.name);
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <ChevronRightIcon className="h-4 w-4 mr-3" />
+                              Open in tab
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                setSelectedQueueCampaign(campaign);
+                                setShowOutboundQueue(true);
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <ChevronRightIcon className="h-4 w-4 mr-3" />
+                              Outbound Queue
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                if (confirm(`Are you sure you want to delete "${campaign.name}"?`)) {
+                                  setCampaigns(prev => prev.filter(c => c.id !== campaign.id));
+                                }
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                            >
+                              <TrashIcon className="h-4 w-4 mr-3" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Campaign Wizard Modal */}
+      <WizardModal />
+
+      <style jsx>{`
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #10b981;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .slider::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #10b981;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+      `}</style>
+        </div>
+      )}
+    </>
+  );
+}

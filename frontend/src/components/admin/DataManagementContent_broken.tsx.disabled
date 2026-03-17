@@ -1,0 +1,2361 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  CheckIcon, 
+  ArrowDownTrayIcon, 
+  InformationCircleIcon 
+} from '@heroicons/react/24/outline';
+
+interface DataList {
+  id: string;
+  name: string;
+  description: string;
+  campaign: string;
+  total: number;
+  available: number;
+  queued: number;
+  reset: number;
+  active: boolean;
+}
+
+interface DataListCreator {
+  step: 'dataList' | 'webForm' | 'customFields' | 'costBilling' | 'review';
+  id: string;
+  name: string;
+  description: string;
+  campaign: string;
+  priority: number;
+  weight: number;
+  priorityTag: string;
+  setAsActive: boolean;
+  webFormUrl: string;
+  customFields: Array<{
+    name: string;
+    type: string;
+    label: string;
+    hidden: boolean;
+    readOnly: boolean;
+  }>;
+  enableTariff: boolean;
+}
+
+interface UploadData {
+  step: 'fileUpload' | 'uploadOptions' | 'primaryColumns' | 'customColumns' | 'uploadReview' | 'upload';
+  file: File | null;
+  fileName: string;
+  targetListId: string;
+  detectedColumns: string[];
+  primaryColumns: {
+    title: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    email: string;
+    telephone1: string;
+    telephone2: string;
+    companyName: string;
+    department: string;
+    website: string;
+    industry: string;
+    address1: string;
+    address2: string;
+    address3: string;
+    postalCode: string;
+    townCity: string;
+    county: string;
+    country: string;
+  };
+  customColumns: Array<{
+    name: string;
+    matchColumn: string;
+  }>;
+  uploadOptions: {
+    skipDuplicates: boolean;
+    validateEmails: boolean;
+    contactsNeedNumber: boolean;
+    contactsNeedEmail: boolean;
+    leadingLinesToSkip: number;
+    enableFixedWidthColumns: boolean;
+    enableCriteriaFiltering: boolean;
+    useDelimiter: boolean;
+  };
+  validationResults: {
+    validContacts: number;
+    duplicateContacts: number;
+    invalidContacts: number;
+    dncContacts: number;
+    processedData: any[];
+    invalidContactsDetails?: any[];
+    validationSummary?: {
+      missingNames: number;
+      invalidEmails: number;
+      invalidPhones: number;
+      missingRequiredEmail: number;
+      missingRequiredPhone: number;
+      emailValidationFailed: number;
+    };
+  } | null;
+}
+
+interface DataManagementContentProps {
+  searchTerm: string;
+}
+
+// Sample data lists matching Connex exactly
+const initialDataLists: DataList[] = [
+  {
+    id: '15761',
+    name: '100 day today MF!',
+    description: 'NO CAMPAIGN ON CCS - First use 0609',
+    campaign: '',
+    total: 7150,
+    available: 7124,
+    queued: 0,
+    reset: 0,
+    active: false
+  },
+  {
+    id: '15615',
+    name: '100 products',
+    description: 'first use 24/01/22',
+    campaign: 'DAC Cold First Use',
+    total: 87,
+    available: 1,
+    queued: 0,
+    reset: 0,
+    active: false
+  },
+  {
+    id: '1212121',
+    name: '1212121',
+    description: '12121212',
+    campaign: 'Claims Team',
+    total: 0,
+    available: 0,
+    queued: 0,
+    reset: 0,
+    active: true
+  }
+];
+
+// Available campaigns
+const availableCampaigns = [
+  '',
+  'DAC Cold First Use', 
+  'DAC FRS',
+  'Claims Team',
+  'Default Campaign'
+];
+
+export default function DataManagementContent({ searchTerm }: DataManagementContentProps) {
+  const [selectedSubTab, setSelectedSubTab] = useState('Manage Data Lists');
+  const [dataLists, setDataLists] = useState<DataList[]>(initialDataLists);
+  const [searchTerm2, setSearchTerm2] = useState('');
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [showDataListCreator, setShowDataListCreator] = useState(false);
+  const [showUploadWizard, setShowUploadWizard] = useState(false);
+  const [dataListCreator, setDataListCreator] = useState<DataListCreator>({
+    step: 'dataList',
+    id: Date.now().toString(),
+    name: '',
+    description: '',
+    campaign: '',
+    priority: 0,
+    weight: 0,
+    priorityTag: '',
+    setAsActive: false,
+    webFormUrl: '',
+    customFields: [
+      {
+        name: 'custom_0',
+        type: 'Text',
+        label: '',
+        hidden: false,
+        readOnly: false
+      }
+    ],
+    enableTariff: false
+  });
+  const [uploadData, setUploadData] = useState<UploadData>({
+    step: 'fileUpload',
+    file: null,
+    fileName: '',
+    targetListId: '',
+    detectedColumns: [],
+    primaryColumns: {
+      title: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      email: '',
+      telephone1: '',
+      telephone2: '',
+      companyName: '',
+      department: '',
+      website: '',
+      industry: '',
+      address1: '',
+      address2: '',
+      address3: '',
+      postalCode: '',
+      townCity: '',
+      county: '',
+      country: '',
+    },
+    customColumns: [],
+    uploadOptions: {
+      skipDuplicates: true,
+      validateEmails: true,
+      contactsNeedNumber: false,
+      contactsNeedEmail: false,
+      leadingLinesToSkip: 0,
+      enableFixedWidthColumns: false,
+      enableCriteriaFiltering: false,
+      useDelimiter: true,
+    },
+    validationResults: null,
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-menu')) {
+        setOpenDropdown(null);
+      }
+    };
+    
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openDropdown]);
+
+  const handleCampaignChange = (listId: string, newCampaign: string) => {
+    setDataLists(prev => prev.map(list => 
+      list.id === listId ? { ...list, campaign: newCampaign } : list
+    ));
+  };
+
+  const handleActiveToggle = (listId: string) => {
+    setDataLists(prev => prev.map(list => 
+      list.id === listId ? { ...list, active: !list.active } : list
+    ));
+  };
+
+  const handleCloneList = (listId: string) => {
+    const listToClone = dataLists.find(list => list.id === listId);
+    if (listToClone) {
+      const newId = (Math.max(...dataLists.map(l => parseInt(l.id))) + 1).toString();
+      const clonedList: DataList = {
+        ...listToClone,
+        id: newId,
+        name: `${listToClone.name} (Copy)`,
+        active: false
+      };
+      setDataLists(prev => [...prev, clonedList]);
+      alert(`Data list "${listToClone.name}" has been cloned successfully!`);
+    }
+  };
+
+  const handleUploadData = (listId: string) => {
+    setUploadData(prev => ({ ...prev, targetListId: listId, step: 'fileUpload' }));
+    setShowUploadWizard(true);
+  };
+
+  const handleEditSettings = (listId: string) => {
+    const list = dataLists.find(l => l.id === listId);
+    alert(`Edit settings modal for "${list?.name}" would open here.`);
+  };
+
+  const handleDownloadList = (listId: string) => {
+    const list = dataLists.find(l => l.id === listId);
+    alert(`Downloading data list "${list?.name}"...`);
+    // In a real app, this would trigger a file download
+  };
+
+  const handleDeleteList = (listId: string) => {
+    const list = dataLists.find(l => l.id === listId);
+    if (list && confirm(`Are you sure you want to delete "${list.name}"? This action cannot be undone.`)) {
+      setDataLists(prev => prev.filter(l => l.id !== listId));
+      alert(`Data list "${list.name}" has been deleted.`);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadData(prev => ({ 
+        ...prev, 
+        file, 
+        fileName: file.name,
+        validationResults: null, // Clear any previous validation results
+      }));
+      
+      // Detect columns from CSV file
+      if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          const lines = text.split('\n');
+          if (lines.length > 0) {
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            console.log('Detected headers:', headers); // Debug log
+            setUploadData(prev => ({ ...prev, detectedColumns: headers }));
+            
+            // Auto-map common columns
+            const mappings: any = {};
+            headers.forEach(header => {
+              const originalHeader = header;
+              const lowerHeader = header.toLowerCase().replace(/[^a-z0-9]/g, ''); // Remove spaces, underscores, etc.
+              console.log(`Checking header: "${originalHeader}" -> "${lowerHeader}"`); // Debug log
+              
+              // First Name variations
+              if (/firstname|fname|givenname|forename/.test(lowerHeader)) {
+                mappings.firstName = originalHeader;
+                console.log(`Mapped ${originalHeader} to firstName`);
+              }
+              // Middle Name variations
+              else if (/middlename|mname|middle/.test(lowerHeader)) {
+                mappings.middleName = originalHeader;
+                console.log(`Mapped ${originalHeader} to middleName`);
+              } 
+              // Last Name variations
+              else if (/lastname|surname|familyname|lname/.test(lowerHeader)) {
+                mappings.lastName = originalHeader;
+                console.log(`Mapped ${originalHeader} to lastName`);
+              } 
+              // Email variations
+              else if (/email|mail/.test(lowerHeader)) {
+                mappings.email = originalHeader;
+                console.log(`Mapped ${originalHeader} to email`);
+              } 
+              // Phone/Telephone variations - much broader patterns
+              else if (/phone|tel|mobile|cell|contactnumber|phonenumber|contactnum|telephone|number/.test(lowerHeader)) {
+                if (!mappings.telephone1) {
+                  mappings.telephone1 = originalHeader;
+                  console.log(`Mapped ${originalHeader} to telephone1`);
+                } else if (!mappings.telephone2) {
+                  mappings.telephone2 = originalHeader;
+                  console.log(`Mapped ${originalHeader} to telephone2`);
+                }
+              } 
+              // Company variations
+              else if (/company|business|organization|org|employer/.test(lowerHeader)) {
+                mappings.companyName = originalHeader;
+                console.log(`Mapped ${originalHeader} to companyName`);
+              }
+              // Department variations
+              else if (/department|dept|division/.test(lowerHeader)) {
+                mappings.department = originalHeader;
+                console.log(`Mapped ${originalHeader} to department`);
+              }
+              // Website variations
+              else if (/website|url|web|site/.test(lowerHeader)) {
+                mappings.website = originalHeader;
+                console.log(`Mapped ${originalHeader} to website`);
+              }
+              // Industry variations
+              else if (/industry|sector|business/.test(lowerHeader)) {
+                mappings.industry = originalHeader;
+                console.log(`Mapped ${originalHeader} to industry`);
+              } 
+              // Address variations
+              else if (/address1|address|street|addr/.test(lowerHeader) && !/address2|address3/.test(lowerHeader)) {
+                mappings.address1 = originalHeader;
+                console.log(`Mapped ${originalHeader} to address1`);
+              }
+              // Address 2 variations
+              else if (/address2/.test(lowerHeader)) {
+                mappings.address2 = originalHeader;
+                console.log(`Mapped ${originalHeader} to address2`);
+              }
+              // Address 3 variations
+              else if (/address3/.test(lowerHeader)) {
+                mappings.address3 = originalHeader;
+                console.log(`Mapped ${originalHeader} to address3`);
+              } 
+              // Postal Code variations
+              else if (/postcode|zipcode|zip|postal/.test(lowerHeader)) {
+                mappings.postalCode = originalHeader;
+                console.log(`Mapped ${originalHeader} to postalCode`);
+              } 
+              // City/Town variations
+              else if (/city|town|municipality/.test(lowerHeader)) {
+                mappings.townCity = originalHeader;
+                console.log(`Mapped ${originalHeader} to townCity`);
+              }
+              // County/State variations
+              else if (/county|state|province|region/.test(lowerHeader)) {
+                mappings.county = originalHeader;
+                console.log(`Mapped ${originalHeader} to county`);
+              }
+              // Country variations
+              else if (/country|nation/.test(lowerHeader)) {
+                mappings.country = originalHeader;
+                console.log(`Mapped ${originalHeader} to country`);
+              }
+              // Title variations
+              else if (/title|salutation|prefix/.test(lowerHeader)) {
+                mappings.title = originalHeader;
+                console.log(`Mapped ${originalHeader} to title`);
+              }
+            });
+            
+            console.log('Final mappings:', mappings); // Debug log
+            
+            setUploadData(prev => ({ 
+              ...prev, 
+              primaryColumns: { ...prev.primaryColumns, ...mappings }
+            }));
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+  };
+
+  const downloadContactsCSV = (contacts: any[], filename: string, type: 'valid' | 'duplicate' | 'invalid' | 'dnc') => {
+    if (!contacts || contacts.length === 0) {
+      alert(`No ${type} contacts to download`);
+      return;
+    }
+
+    let csvContent = '';
+    let headers: string[] = [];
+
+    if (type === 'invalid' && uploadData.validationResults?.invalidContactsDetails) {
+      // For invalid contacts, include error details
+      headers = ['Row Number', 'First Name', 'Last Name', 'Email', 'Phone', 'Validation Errors'];
+      csvContent = headers.join(',') + '\n';
+      
+      uploadData.validationResults.invalidContactsDetails.forEach(contact => {
+        const row = [
+          contact.rowNumber,
+          contact.firstName || '',
+          contact.lastName || '',
+          contact.email || '',
+          contact.telephone1 || '',
+          contact.errors.join('; ')
+        ].map(field => `"${field}"`).join(',');
+        csvContent += row + '\n';
+      });
+    } else {
+      // For other types, use standard contact format
+      if (contacts.length > 0) {
+        headers = Object.keys(contacts[0]).filter(key => !key.startsWith('_'));
+        csvContent = headers.join(',') + '\n';
+        
+        contacts.forEach(contact => {
+          const row = headers.map(header => `"${contact[header] || ''}"`).join(',');
+          csvContent += row + '\n';
+        });
+      }
+    }
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const processAndValidateData = () => {
+    if (!uploadData.file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      // Skip header and leading lines
+      const dataLines = lines.slice(1 + uploadData.uploadOptions.leadingLinesToSkip);
+      
+      let validContacts = 0;
+      let duplicateContacts = 0;
+      let invalidContacts = 0;
+      let dncContacts = 0; // This will always remain 0 since we have no DNC list
+      const processedData: any[] = [];
+      const seenContacts = new Set<string>();
+      const invalidContactsDetails: any[] = [];
+      const validationSummary = {
+        missingNames: 0,
+        invalidEmails: 0,
+        invalidPhones: 0,
+        missingRequiredEmail: 0,
+        missingRequiredPhone: 0,
+        emailValidationFailed: 0
+      };
+      
+      // Helper function to validate email format
+      const isValidEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+      
+      // Helper function to validate phone number format
+      const isValidPhone = (phone: string): boolean => {
+        if (!phone) return false;
+        // Remove all non-digit characters for validation
+        const digitsOnly = phone.replace(/\D/g, '');
+        // Accept phone numbers with 10-15 digits
+        return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+      };
+      
+      // Helper function to validate name (not empty and contains letters)
+      const isValidName = (name: string): boolean => {
+        if (!name || !name.trim()) return false;
+        // Must contain at least one letter
+        return /[a-zA-Z]/.test(name);
+      };
+      
+      dataLines.forEach((line, index) => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const contact: any = {};
+        
+        // Map values to fields based on column mapping
+        headers.forEach((header, headerIndex) => {
+          const value = values[headerIndex] || '';
+          
+          // Find which field this header maps to
+          Object.entries(uploadData.primaryColumns).forEach(([field, mappedHeader]) => {
+            if (mappedHeader === header) {
+              contact[field] = value;
+            }
+          });
+        });
+        
+        // Validate contact
+        let isValid = true;
+        let isDuplicate = false;
+        let isDNC = false;
+        let validationErrors: string[] = [];
+        
+        // Basic validation - must have either first name or last name
+        if (!isValidName(contact.firstName) && !isValidName(contact.lastName)) {
+          isValid = false;
+          validationErrors.push('Missing valid first or last name');
+          validationSummary.missingNames++;
+        }
+        
+        // Email validation if email is provided
+        if (contact.email && !isValidEmail(contact.email)) {
+          isValid = false;
+          validationErrors.push('Invalid email format');
+          validationSummary.invalidEmails++;
+        }
+        
+        // Phone validation if phone is provided
+        if (contact.telephone1 && !isValidPhone(contact.telephone1)) {
+          isValid = false;
+          validationErrors.push('Invalid phone number format');
+          validationSummary.invalidPhones++;
+        }
+        
+        // Check required fields based on upload options
+        if (uploadData.uploadOptions.contactsNeedNumber && !contact.telephone1) {
+          isValid = false;
+          validationErrors.push('Phone number required');
+          validationSummary.missingRequiredPhone++;
+        }
+        
+        if (uploadData.uploadOptions.contactsNeedEmail && !contact.email) {
+          isValid = false;
+          validationErrors.push('Email address required');
+          validationSummary.missingRequiredEmail++;
+        }
+        
+        // Additional validation if email validation is enabled
+        if (uploadData.uploadOptions.validateEmails && contact.email && !isValidEmail(contact.email)) {
+          isValid = false;
+          validationErrors.push('Email failed validation');
+          validationSummary.emailValidationFailed++;
+        }
+        
+        // Check for duplicates (using email or phone as unique identifier)
+        const uniqueKey = contact.email || contact.telephone1;
+        if (uniqueKey && uploadData.uploadOptions.skipDuplicates) {
+          if (seenContacts.has(uniqueKey.toLowerCase())) {
+            isDuplicate = true;
+          } else {
+            seenContacts.add(uniqueKey.toLowerCase());
+          }
+        }
+        
+        // NO DNC CHECK - we don't have a DNC list yet
+        isDNC = false;
+        
+        console.log(`Contact ${index + 1}: isDuplicate=${isDuplicate}, isDNC=${isDNC}, isValid=${isValid}, validationErrors=`, validationErrors);
+        
+        // Categorize the contact - simplified logic
+        if (isDuplicate) {
+          duplicateContacts++;
+        } else if (!isValid) {
+          invalidContacts++;
+          contact._validationErrors = validationErrors;
+          contact._rowNumber = index + 2; // +2 because we skip header and arrays are 0-indexed
+          invalidContactsDetails.push({
+            rowNumber: index + 2,
+            firstName: contact.firstName || '',
+            lastName: contact.lastName || '',
+            email: contact.email || '',
+            telephone1: contact.telephone1 || '',
+            errors: [...validationErrors]
+          });
+        } else {
+          // Contact is valid and not duplicate
+          validContacts++;
+          processedData.push(contact);
+        }
+        // Note: isDNC is always false, so dncContacts will always be 0
+      });
+      
+      console.log('Final validation counts:', { validContacts, duplicateContacts, invalidContacts, dncContacts });
+      console.log('Validation summary:', validationSummary);
+      console.log('Invalid contacts details:', invalidContactsDetails);
+      
+      setUploadData(prev => ({
+        ...prev,
+        validationResults: {
+          validContacts,
+          duplicateContacts,
+          invalidContacts,
+          dncContacts: 0, // Explicitly set to 0 since we have no DNC list
+          processedData,
+          invalidContactsDetails,
+          validationSummary
+        }
+      }));
+    };
+    
+    reader.readAsText(uploadData.file);
+  };
+
+  const filteredLists = dataLists.filter(list => 
+    list.name.toLowerCase().includes(searchTerm2.toLowerCase()) ||
+    list.description.toLowerCase().includes(searchTerm2.toLowerCase()) ||
+    list.campaign.toLowerCase().includes(searchTerm2.toLowerCase()) ||
+    list.id.toLowerCase().includes(searchTerm2.toLowerCase())
+  );
+
+  return (
+    <div className="h-full bg-white flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Data Management</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your contact data and upload new data lists</p>
+          </div>
+          <button 
+            onClick={() => setShowDataListCreator(true)}
+            className="bg-kennex-600 text-white px-4 py-2 rounded-lg hover:bg-kennex-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Data List
+          </button>
+        </div>
+      </div>
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <nav className="flex space-x-8">
+          {['Manage Data Lists', 'Data Analytics', 'Export Data'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSelectedSubTab(tab)}
+              className={`py-4 px-1 text-sm font-medium border-b-2 transition-colors ${
+                selectedSubTab === tab
+                  ? 'border-kennex-500 text-kennex-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-1">
+        {/* Search and Controls Bar */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchTerm2}
+                onChange={(e) => setSearchTerm2(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queued</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reset</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredLists.map((list) => (
+                <tr key={list.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{list.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{list.name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                    <div className="truncate" title={list.description}>{list.description}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative">
+                      <select
+                        value={list.campaign}
+                        onChange={(e) => handleCampaignChange(list.id, e.target.value)}
+                        className="appearance-none bg-transparent border-none text-sm text-gray-900 pr-8 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:border-transparent rounded min-w-0"
+                      >
+                        {availableCampaigns.map(campaign => (
+                          <option key={campaign || 'empty'} value={campaign}>
+                            {campaign || '—'}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.total.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.available.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.queued}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{list.reset}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => handleActiveToggle(list.id)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2 ${
+                        list.active 
+                          ? 'bg-green-600' 
+                          : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                          list.active ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdown(openDropdown === list.id ? null : list.id);
+                        }}
+                        className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2 rounded"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </button>
+
+                      {openDropdown === list.id && (
+                        <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                          <div className="py-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCloneList(list.id);
+                                setOpenDropdown(null);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Clone
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUploadData(list.id);
+                                setOpenDropdown(null);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Upload Data
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditSettings(list.id);
+                                setOpenDropdown(null);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Edit Data List Settings
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadList(list.id);
+                                setOpenDropdown(null);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Download Data List
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const confirmed = confirm(`Are you sure you want to delete "${list.name}"? This action cannot be undone.`);
+                                if (confirmed) {
+                                  setDataLists(prev => prev.filter(l => l.id !== list.id));
+                                  alert(`Data list "${list.name}" has been deleted.`);
+                                }
+                                setOpenDropdown(null);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Delete Data List
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Data List Creator Modal */}
+      {showDataListCreator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Create New Data List</h2>
+              <button
+                onClick={() => setShowDataListCreator(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Step 1: Data List Details */}
+              {dataListCreator.step === 'dataList' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Data List Information</h3>
+                    <span className="text-sm text-gray-500">Step 1 of 5</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        List Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={dataListCreator.name}
+                        onChange={(e) => setDataListCreator(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                        placeholder="Enter data list name"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                      </label>
+                      <textarea
+                        value={dataListCreator.description}
+                        onChange={(e) => setDataListCreator(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                        placeholder="Enter description (optional)"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Campaign
+                      </label>
+                      <select
+                        value={dataListCreator.campaign}
+                        onChange={(e) => setDataListCreator(prev => ({ ...prev, campaign: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                      >
+                        <option value="">No Campaign</option>
+                        {availableCampaigns.filter(c => c !== '').map(campaign => (
+                          <option key={campaign} value={campaign}>{campaign}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority
+                        </label>
+                        <input
+                          type="number"
+                          value={dataListCreator.priority}
+                          onChange={(e) => setDataListCreator(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Weight
+                        </label>
+                        <input
+                          type="number"
+                          value={dataListCreator.weight}
+                          onChange={(e) => setDataListCreator(prev => ({ ...prev, weight: parseInt(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={dataListCreator.setAsActive}
+                          onChange={(e) => setDataListCreator(prev => ({ ...prev, setAsActive: e.target.checked }))}
+                          className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Set as active immediately</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Web Form Configuration */}
+              {dataListCreator.step === 'webForm' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Web Form Configuration</h3>
+                    <span className="text-sm text-gray-500">Step 2 of 5</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Web Form URL
+                      </label>
+                      <input
+                        type="url"
+                        value={dataListCreator.webFormUrl}
+                        onChange={(e) => setDataListCreator(prev => ({ ...prev, webFormUrl: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                        placeholder="https://example.com/webform"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">Optional: Link to web form for this data list</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Form Integration Settings
+                      </label>
+                      <div className="space-y-3">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Enable real-time form submissions</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-gray-700">Require email validation</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Auto-assign to campaign</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Custom Fields */}
+              {dataListCreator.step === 'customFields' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Custom Fields</h3>
+                    <span className="text-sm text-gray-500">Step 3 of 5</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600">Configure custom fields for this data list</p>
+                      <button
+                        onClick={() => {
+                          const newField = {
+                            name: `custom_${dataListCreator.customFields.length}`,
+                            type: 'Text',
+                            label: '',
+                            hidden: false,
+                            readOnly: false
+                          };
+                          setDataListCreator(prev => ({
+                            ...prev,
+                            customFields: [...prev.customFields, newField]
+                          }));
+                        }}
+                        className="text-sm bg-kennex-600 text-white px-3 py-1 rounded-md hover:bg-kennex-700"
+                      >
+                        Add Field
+                      </button>
+                    </div>
+
+                    {dataListCreator.customFields.map((field, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Field Label
+                            </label>
+                            <input
+                              type="text"
+                              value={field.label}
+                              onChange={(e) => {
+                                const updatedFields = [...dataListCreator.customFields];
+                                updatedFields[index] = { ...field, label: e.target.value };
+                                setDataListCreator(prev => ({ ...prev, customFields: updatedFields }));
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                              placeholder="Enter field label"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Field Type
+                            </label>
+                            <select
+                              value={field.type}
+                              onChange={(e) => {
+                                const updatedFields = [...dataListCreator.customFields];
+                                updatedFields[index] = { ...field, type: e.target.value };
+                                setDataListCreator(prev => ({ ...prev, customFields: updatedFields }));
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                            >
+                              <option value="Text">Text</option>
+                              <option value="Number">Number</option>
+                              <option value="Date">Date</option>
+                              <option value="Email">Email</option>
+                              <option value="Phone">Phone</option>
+                              <option value="Boolean">Yes/No</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-3">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={field.hidden}
+                              onChange={(e) => {
+                                const updatedFields = [...dataListCreator.customFields];
+                                updatedFields[index] = { ...field, hidden: e.target.checked };
+                                setDataListCreator(prev => ({ ...prev, customFields: updatedFields }));
+                              }}
+                              className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Hidden</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={field.readOnly}
+                              onChange={(e) => {
+                                const updatedFields = [...dataListCreator.customFields];
+                                updatedFields[index] = { ...field, readOnly: e.target.checked };
+                                setDataListCreator(prev => ({ ...prev, customFields: updatedFields }));
+                              }}
+                              className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Read Only</span>
+                          </label>
+                          {dataListCreator.customFields.length > 1 && (
+                            <button
+                              onClick={() => {
+                                const updatedFields = dataListCreator.customFields.filter((_, i) => i !== index);
+                                setDataListCreator(prev => ({ ...prev, customFields: updatedFields }));
+                              }}
+                              className="text-sm text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Cost & Billing */}
+              {dataListCreator.step === 'costBilling' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Cost & Billing Settings</h3>
+                    <span className="text-sm text-gray-500">Step 4 of 5</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={dataListCreator.enableTariff}
+                          onChange={(e) => setDataListCreator(prev => ({ ...prev, enableTariff: e.target.checked }))}
+                          className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">Enable tariff billing for this data list</span>
+                      </label>
+                    </div>
+
+                    {dataListCreator.enableTariff && (
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Cost per Contact
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Currency
+                            </label>
+                            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500">
+                              <option value="GBP">GBP (£)</option>
+                              <option value="USD">USD ($)</option>
+                              <option value="EUR">EUR (€)</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Billing Method
+                          </label>
+                          <div className="space-y-2">
+                            <label className="flex items-center">
+                              <input type="radio" name="billingMethod" value="perContact" className="text-kennex-600" />
+                              <span className="ml-2 text-sm text-gray-700">Per contact used</span>
+                            </label>
+                            <label className="flex items-center">
+                              <input type="radio" name="billingMethod" value="monthly" className="text-kennex-600" />
+                              <span className="ml-2 text-sm text-gray-700">Monthly subscription</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Review & Create */}
+              {dataListCreator.step === 'review' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Review & Create</h3>
+                    <span className="text-sm text-gray-500">Step 5 of 5</span>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                    <h4 className="font-medium text-gray-900">Data List Summary</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Name:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Campaign:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.campaign || 'No Campaign'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Priority:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.priority}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Weight:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.weight}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Active:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.setAsActive ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Custom Fields:</span>
+                        <span className="ml-2 font-medium">{dataListCreator.customFields.length}</span>
+                      </div>
+                    </div>
+
+                    {dataListCreator.description && (
+                      <div>
+                        <span className="text-gray-500">Description:</span>
+                        <p className="mt-1 text-sm text-gray-900">{dataListCreator.description}</p>
+                      </div>
+                    )}
+
+                    {dataListCreator.webFormUrl && (
+                      <div>
+                        <span className="text-gray-500">Web Form URL:</span>
+                        <p className="mt-1 text-sm text-gray-900 break-all">{dataListCreator.webFormUrl}</p>
+                      </div>
+                    )}
+
+                    {dataListCreator.enableTariff && (
+                      <div>
+                        <span className="text-gray-500">Billing:</span>
+                        <span className="ml-2 font-medium text-green-600">Tariff Enabled</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick summary for other steps */}
+              {false && dataListCreator.step !== 'dataList' && (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {dataListCreator.step === 'webForm' && 'Web Form Configuration'}
+                    {dataListCreator.step === 'customFields' && 'Custom Fields'}
+                    {dataListCreator.step === 'costBilling' && 'Cost & Billing'}
+                    {dataListCreator.step === 'review' && 'Review & Create'}
+                  </h3>
+                  <p className="text-gray-500 mb-6">This step is not implemented yet.</p>
+                  <button
+                    onClick={() => setDataListCreator(prev => ({ ...prev, step: 'review' }))}
+                    className="bg-kennex-600 text-white px-4 py-2 rounded-lg hover:bg-kennex-700"
+                  >
+                    Skip to Review
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowDataListCreator(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <div className="flex gap-3">
+                {dataListCreator.step !== 'dataList' && (
+                  <button
+                    onClick={() => {
+                      const steps = ['dataList', 'webForm', 'customFields', 'costBilling', 'review'];
+                      const currentIndex = steps.indexOf(dataListCreator.step);
+                      if (currentIndex > 0) {
+                        setDataListCreator(prev => ({ ...prev, step: steps[currentIndex - 1] as any }));
+                      }
+                    }}
+                    className="px-4 py-2 text-kennex-600 border border-kennex-600 rounded-lg hover:bg-kennex-50"
+                  >
+                    Previous
+                  </button>
+                )}
+
+                {dataListCreator.step === 'review' ? (
+                  <button
+                    onClick={() => {
+                      // Create the new data list
+                      const newList: DataList = {
+                        id: dataListCreator.id,
+                        name: dataListCreator.name,
+                        description: dataListCreator.description,
+                        campaign: dataListCreator.campaign,
+                        total: 0,
+                        available: 0,
+                        queued: 0,
+                        reset: 0,
+                        active: dataListCreator.setAsActive
+                      };
+
+                      setDataLists(prev => [...prev, newList]);
+                      setShowDataListCreator(false);
+
+                      // Reset the creator
+                      setDataListCreator({
+                        step: 'dataList',
+                        id: Date.now().toString(),
+                        name: '',
+                        description: '',
+                        campaign: '',
+                        priority: 0,
+                        weight: 0,
+                        priorityTag: '',
+                        setAsActive: false,
+                        webFormUrl: '',
+                        customFields: [{ name: 'custom_0', type: 'Text', label: '', hidden: false, readOnly: false }],
+                        enableTariff: false
+                      });
+
+                      alert(`Data list "${newList.name}" created successfully!`);
+                    }}
+                    disabled={!dataListCreator.name.trim()}
+                    className="px-4 py-2 bg-kennex-600 text-white rounded-lg hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Create Data List
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const steps = ['dataList', 'webForm', 'customFields', 'costBilling', 'review'];
+                      const currentIndex = steps.indexOf(dataListCreator.step);
+                      if (currentIndex < steps.length - 1) {
+                        setDataListCreator(prev => ({ ...prev, step: steps[currentIndex + 1] as any }));
+                      }
+                    }}
+                    disabled={dataListCreator.step === 'dataList' && !dataListCreator.name.trim()}
+                    className="px-4 py-2 bg-kennex-600 text-white rounded-lg hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Data Upload Wizard Modal */}
+      {showUploadWizard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Upload Data</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Uploading to: {dataLists.find(l => l.id === uploadData.targetListId)?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUploadWizard(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Step 1: File Upload */}
+              {uploadData.step === 'fileUpload' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Select File</h3>
+                    <span className="text-sm text-gray-500">Step 1 of 6</span>
+                  </div>
+
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div className="mt-4">
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <span className="mt-2 block text-sm font-medium text-gray-900">
+                          {uploadData.fileName || 'Select a file to upload'}
+                        </span>
+                        <span className="mt-1 block text-sm text-gray-500">
+                          CSV files are supported
+                        </span>
+                        <input
+                          id="file-upload"
+                          name="file-upload"
+                          type="file"
+                          className="sr-only"
+                          accept=".csv"
+                          onChange={handleFileUpload}
+                        />
+                      </label>
+                      <button 
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                        type="button"
+                        className="mt-4 bg-kennex-600 text-white px-4 py-2 rounded-lg hover:bg-kennex-700"
+                      >
+                        Choose File
+                      </button>
+                    </div>
+                  </div>
+
+                  {uploadData.file && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="ml-2 text-sm text-green-800">
+                          File "{uploadData.fileName}" uploaded successfully
+                        </span>
+                      </div>
+                      {uploadData.detectedColumns.length > 0 && (
+                        <p className="text-sm text-green-700 mt-2">
+                          Detected {uploadData.detectedColumns.length} columns
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 2: Upload Options */}
+              {uploadData.step === 'uploadOptions' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Upload Options</h3>
+                    <span className="text-sm text-gray-500">Step 2 of 6</span>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Contacts must have a number</span>
+                        <button
+                          onClick={() => setUploadData(prev => ({
+                            ...prev,
+                            uploadOptions: { ...prev.uploadOptions, contactsNeedNumber: !prev.uploadOptions.contactsNeedNumber }
+                          }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            uploadData.uploadOptions.contactsNeedNumber ? 'bg-green-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                              uploadData.uploadOptions.contactsNeedNumber ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Contacts must have an email</span>
+                        <button
+                          onClick={() => setUploadData(prev => ({
+                            ...prev,
+                            uploadOptions: { ...prev.uploadOptions, contactsNeedEmail: !prev.uploadOptions.contactsNeedEmail }
+                          }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            uploadData.uploadOptions.contactsNeedEmail ? 'bg-green-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                              uploadData.uploadOptions.contactsNeedEmail ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Duplicate check the data you're uploading?</span>
+                        <button
+                          onClick={() => setUploadData(prev => ({
+                            ...prev,
+                            uploadOptions: { ...prev.uploadOptions, skipDuplicates: !prev.uploadOptions.skipDuplicates }
+                          }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            uploadData.uploadOptions.skipDuplicates ? 'bg-green-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                              uploadData.uploadOptions.skipDuplicates ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">DNC check the data you're uploading?</span>
+                        <button
+                          onClick={() => setUploadData(prev => ({
+                            ...prev,
+                            uploadOptions: { ...prev.uploadOptions, validateEmails: !prev.uploadOptions.validateEmails }
+                          }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            uploadData.uploadOptions.validateEmails ? 'bg-green-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                              uploadData.uploadOptions.validateEmails ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 pt-6">
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">Advanced Settings</h4>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-2">Leading lines to skip</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={uploadData.uploadOptions.leadingLinesToSkip}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, leadingLinesToSkip: parseInt(e.target.value) || 0 }
+                            }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">Enable fixed-width columns</span>
+                          <button
+                            onClick={() => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, enableFixedWidthColumns: !prev.uploadOptions.enableFixedWidthColumns }
+                            }))}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              uploadData.uploadOptions.enableFixedWidthColumns ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                                uploadData.uploadOptions.enableFixedWidthColumns ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">Enable criteria filtering</span>
+                          <button
+                            onClick={() => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, enableCriteriaFiltering: !prev.uploadOptions.enableCriteriaFiltering }
+                            }))}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              uploadData.uploadOptions.enableCriteriaFiltering ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                                uploadData.uploadOptions.enableCriteriaFiltering ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">Use delimiter</span>
+                          <button
+                            onClick={() => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, useDelimiter: !prev.uploadOptions.useDelimiter }
+                            }))}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              uploadData.uploadOptions.useDelimiter ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                                uploadData.uploadOptions.useDelimiter ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Primary Columns */}
+              {uploadData.step === 'primaryColumns' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Primary Columns</h3>
+                    <span className="text-sm text-gray-500">Step 3 of 6</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    {Object.entries({
+                      'Title': 'title',
+                      'First Name': 'firstName',
+                      'Middle Name': 'middleName',
+                      'Last Name': 'lastName',
+                      'Tel 1': 'telephone1',
+                      'Company Name': 'companyName',
+                      'Department': 'department',
+                      'Website': 'website',
+                      'Industry': 'industry',
+                      'Address1': 'address1',
+                      'Address2': 'address2',
+                      'Address3': 'address3'
+                    }).map(([label, key]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {label}
+                        </label>
+                        <select
+                          value={(uploadData.primaryColumns as any)[key]}
+                          onChange={(e) => setUploadData(prev => ({
+                            ...prev,
+                            primaryColumns: {
+                              ...prev.primaryColumns,
+                              [key]: e.target.value
+                            }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                        >
+                          <option value="">None</option>
+                          {uploadData.detectedColumns.map(col => (
+                            <option key={col} value={col}>{col}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Custom Columns */}
+              {uploadData.step === 'customColumns' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Custom Columns</h3>
+                    <span className="text-sm text-gray-500">Step 4 of 6</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600">Map additional columns to custom fields</p>
+                      <button
+                        onClick={() => {
+                          setUploadData(prev => ({
+                            ...prev,
+                            customColumns: [...prev.customColumns, { name: `custom_${prev.customColumns.length + 1}`, matchColumn: '' }]
+                          }));
+                        }}
+                        className="text-sm bg-kennex-600 text-white px-3 py-1 rounded-md hover:bg-kennex-700"
+                      >
+                        Add Custom Column
+                      </button>
+                    </div>
+
+                    {uploadData.customColumns.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No custom columns added yet.</p>
+                        <p className="text-sm">Click "Add Custom Column" to map additional fields.</p>
+                      </div>
+                    ) : (
+                      uploadData.customColumns.map((customCol, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Custom Field Name
+                              </label>
+                              <input
+                                type="text"
+                                value={customCol.name}
+                                onChange={(e) => {
+                                  const updatedCustomCols = [...uploadData.customColumns];
+                                  updatedCustomCols[index] = { ...customCol, name: e.target.value };
+                                  setUploadData(prev => ({ ...prev, customColumns: updatedCustomCols }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                                placeholder="Enter custom field name"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                CSV Column
+                              </label>
+                              <select
+                                value={customCol.matchColumn}
+                                onChange={(e) => {
+                                  const updatedCustomCols = [...uploadData.customColumns];
+                                  updatedCustomCols[index] = { ...customCol, matchColumn: e.target.value };
+                                  setUploadData(prev => ({ ...prev, customColumns: updatedCustomCols }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                              >
+                                <option value="">Select column</option>
+                                {uploadData.detectedColumns.map(col => (
+                                  <option key={col} value={col}>{col}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <button
+                              onClick={() => {
+                                const updatedCustomCols = uploadData.customColumns.filter((_, i) => i !== index);
+                                setUploadData(prev => ({ ...prev, customColumns: updatedCustomCols }));
+                              }}
+                              className="text-sm text-red-600 hover:text-red-700"
+                            >
+                              Remove Custom Column
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Upload Review */}
+              {uploadData.step === 'uploadReview' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Upload Review</h3>
+                    <span className="text-sm text-gray-500">Step 5 of 6</span>
+                  </div>
+
+                  {uploadData.validationResults ? (
+                    <div className="space-y-6">
+                      {/* Upload Statistics */}
+                      <div className="bg-gray-50 rounded-lg p-6">
+                        <h4 className="font-medium text-gray-900 mb-4">Upload Statistics</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white rounded-lg p-4 border">
+                            <div className="text-3xl font-bold text-green-600 mb-1">{uploadData.validationResults.validContacts}</div>
+                            <div className="text-sm text-gray-600">Valid Contacts</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border">
+                            <div className="text-3xl font-bold text-yellow-600 mb-1">{uploadData.validationResults.duplicateContacts}</div>
+                            <div className="text-sm text-gray-600">Duplicate Contacts</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border">
+                            <div className="text-3xl font-bold text-red-600 mb-1">{uploadData.validationResults.invalidContacts}</div>
+                            <div className="text-sm text-gray-600">Invalid Contacts</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border">
+                            <div className="text-3xl font-bold text-gray-600 mb-1">{uploadData.validationResults.dncContacts}</div>
+                            <div className="text-sm text-gray-600">DNC Contacts</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Validation Details for Invalid Contacts */}
+                      {uploadData.validationResults.invalidContacts > 0 && uploadData.validationResults.validationSummary && (
+                        <div className="bg-red-50 rounded-lg p-6">
+                          <h4 className="font-medium text-red-900 mb-4">Invalid Contacts Breakdown</h4>
+                          <div className="space-y-2 text-sm">
+                            {uploadData.validationResults.validationSummary.missingNames > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Missing valid names:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.missingNames}</span>
+                              </div>
+                            )}
+                            {uploadData.validationResults.validationSummary.invalidEmails > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Invalid email format:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.invalidEmails}</span>
+                              </div>
+                            )}
+                            {uploadData.validationResults.validationSummary.invalidPhones > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Invalid phone format:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.invalidPhones}</span>
+                              </div>
+                            )}
+                            {uploadData.validationResults.validationSummary.missingRequiredEmail > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Missing required email:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.missingRequiredEmail}</span>
+                              </div>
+                            )}
+                            {uploadData.validationResults.validationSummary.missingRequiredPhone > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Missing required phone:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.missingRequiredPhone}</span>
+                              </div>
+                            )}
+                            {uploadData.validationResults.validationSummary.emailValidationFailed > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-red-700">Email validation failed:</span>
+                                <span className="font-medium">{uploadData.validationResults.validationSummary.emailValidationFailed}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Download Options */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-gray-900">Download Contact Lists</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button 
+                            onClick={() => downloadContactsCSV(
+                              uploadData.validationResults?.processedData || [], 
+                              'valid_contacts.csv', 
+                              'valid'
+                            )}
+                            className="flex items-center justify-center px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-green-700 hover:bg-green-100 transition-colors"
+                          >
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                            Valid Contacts ({uploadData.validationResults.validContacts})
+                          </button>
+                          <button 
+                            onClick={() => downloadContactsCSV(
+                              [], // Duplicates would be stored separately in a real implementation
+                              'duplicate_contacts.csv', 
+                              'duplicate'
+                            )}
+                            disabled={uploadData.validationResults.duplicateContacts === 0}
+                            className="flex items-center justify-center px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 hover:bg-yellow-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                            Duplicates ({uploadData.validationResults.duplicateContacts})
+                          </button>
+                          <button 
+                            onClick={() => downloadContactsCSV(
+                              uploadData.validationResults?.invalidContactsDetails || [], 
+                              'invalid_contacts.csv', 
+                              'invalid'
+                            )}
+                            disabled={uploadData.validationResults.invalidContacts === 0}
+                            className="flex items-center justify-center px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                            Invalid Contacts ({uploadData.validationResults.invalidContacts})
+                          </button>
+                          <button 
+                            onClick={() => downloadContactsCSV(
+                              [], // DNC contacts would be stored separately in a real implementation
+                              'dnc_contacts.csv', 
+                              'dnc'
+                            )}
+                            disabled={uploadData.validationResults.dncContacts === 0}
+                            className="flex items-center justify-center px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                            DNC Contacts ({uploadData.validationResults.dncContacts})
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* File Summary */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">File Summary</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Target List:</span>
+                            <span className="ml-2 font-medium">
+                              {dataLists.find(l => l.id === uploadData.targetListId)?.name}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">File:</span>
+                            <span className="ml-2 font-medium">{uploadData.fileName}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Primary Mapped Fields:</span>
+                            <span className="ml-2 font-medium">
+                              {Object.values(uploadData.primaryColumns).filter(v => v).length}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Custom Columns:</span>
+                            <span className="ml-2 font-medium">{uploadData.customColumns.length}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upload Confirmation */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex">
+                          <InformationCircleIcon className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                          <div className="text-sm">
+                            <p className="text-blue-800 font-medium mb-1">Ready to Upload</p>
+                            <p className="text-blue-700">
+                              {uploadData.validationResults.validContacts} valid contacts will be added to your database.
+                              {uploadData.validationResults.duplicateContacts > 0 && ` ${uploadData.validationResults.duplicateContacts} duplicates will be skipped.`}
+                              {uploadData.validationResults.invalidContacts > 0 && ` ${uploadData.validationResults.invalidContacts} invalid contacts will be excluded.`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-kennex-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600 text-lg">Processing your data...</p>
+                      <p className="text-gray-500 text-sm mt-1">This may take a few moments</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 6: Upload Processing */}
+              {uploadData.step === 'upload' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Upload Complete</h3>
+                    <span className="text-sm text-gray-500">Step 6 of 6</span>
+                  </div>
+
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckIcon className="w-10 h-10 text-green-600" />
+                    </div>
+                    <h4 className="text-xl font-medium text-gray-900 mb-2">Upload Complete!</h4>
+                    <p className="text-gray-600 mb-6">
+                      {uploadData.validationResults ? 
+                        `Successfully added ${uploadData.validationResults.validContacts} contacts to your database.` :
+                        'Your data has been processed successfully.'
+                      }
+                    </p>
+                    
+                    {uploadData.validationResults && (
+                      <div className="bg-gray-50 rounded-lg p-4 max-w-md mx-auto mb-6">
+                        <h5 className="font-medium text-gray-900 mb-2">Final Statistics</h5>
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Added:</span>
+                            <span className="font-medium text-green-600">{uploadData.validationResults.validContacts}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Skipped (Duplicates):</span>
+                            <span className="font-medium text-yellow-600">{uploadData.validationResults.duplicateContacts}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Rejected (Invalid):</span>
+                            <span className="font-medium text-red-600">{uploadData.validationResults.invalidContacts}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Excluded (DNC):</span>
+                            <span className="font-medium text-gray-600">{uploadData.validationResults.dncContacts}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setShowUploadWizard(false);
+                        setUploadData({
+                          step: 'fileUpload',
+                          file: null,
+                          fileName: '',
+                          targetListId: '',
+                          detectedColumns: [],
+                          primaryColumns: {
+                            title: '',
+                            firstName: '',
+                            middleName: '',
+                            lastName: '',
+                            email: '',
+                            telephone1: '',
+                            telephone2: '',
+                            companyName: '',
+                            department: '',
+                            website: '',
+                            industry: '',
+                            address1: '',
+                            address2: '',
+                            address3: '',
+                            townCity: '',
+                            county: '',
+                            postalCode: '',
+                            country: '',
+                          },
+                          customColumns: [],
+                          uploadOptions: {
+                            skipDuplicates: false,
+                            validateEmails: false,
+                            contactsNeedNumber: false,
+                            contactsNeedEmail: false,
+                            leadingLinesToSkip: 0,
+                            enableFixedWidthColumns: false,
+                            enableCriteriaFiltering: false,
+                            useDelimiter: true,
+                          },
+                          validationResults: null,
+                        });
+                      }}
+                      className="px-6 py-2 bg-kennex-600 text-white rounded-lg hover:bg-kennex-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Column Mapping</h3>
+                    <span className="text-sm text-gray-500">Step 2 of 4</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    {Object.entries({
+                      'Title': 'title',
+                      'First Name': 'firstName',
+                      'Middle Name': 'middleName',
+                      'Last Name': 'lastName',
+                      'Email': 'email',
+                      'Telephone 1': 'telephone1',
+                      'Telephone 2': 'telephone2',
+                      'Company': 'companyName',
+                      'Department': 'department',
+                      'Address 1': 'address1',
+                      'Address 2': 'address2',
+                      'Postal Code': 'postalCode',
+                      'City': 'townCity',
+                      'County': 'county',
+                      'Country': 'country'
+                    }).map(([label, key]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {label}
+                        </label>
+                        <select
+                          value={(uploadData.primaryColumns as any)[key]}
+                          onChange={(e) => setUploadData(prev => ({
+                            ...prev,
+                            primaryColumns: {
+                              ...prev.primaryColumns,
+                              [key]: e.target.value
+                            }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                        >
+                          <option value="">No mapping</option>
+                          {uploadData.detectedColumns.map(col => (
+                            <option key={col} value={col}>{col}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Validation Options */}
+              {uploadData.step === 'uploadOptions' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Validation Options</h3>
+                    <span className="text-sm text-gray-500">Step 3 of 4</span>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">Data Validation</h4>
+                      <div className="space-y-3">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.uploadOptions.skipDuplicates}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, skipDuplicates: e.target.checked }
+                            }))}
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Skip duplicate entries</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.uploadOptions.validateEmails}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, validateEmails: e.target.checked }
+                            }))}
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Validate email addresses</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.uploadOptions.contactsNeedNumber}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, contactsNeedNumber: e.target.checked }
+                            }))}
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Require phone number</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={uploadData.uploadOptions.contactsNeedEmail}
+                            onChange={(e) => setUploadData(prev => ({
+                              ...prev,
+                              uploadOptions: { ...prev.uploadOptions, contactsNeedEmail: e.target.checked }
+                            }))}
+                            className="rounded border-gray-300 text-kennex-600 focus:ring-kennex-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Require email address</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Leading lines to skip
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={uploadData.uploadOptions.leadingLinesToSkip}
+                        onChange={(e) => setUploadData(prev => ({
+                          ...prev,
+                          uploadOptions: { ...prev.uploadOptions, leadingLinesToSkip: parseInt(e.target.value) || 0 }
+                        }))}
+                        className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kennex-500"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">Number of header/description lines to skip</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Review */}
+              {uploadData.step === 'uploadReview' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">Review & Upload</h3>
+                    <span className="text-sm text-gray-500">Step 4 of 4</span>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                    <h4 className="font-medium text-gray-900">Upload Summary</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Target List:</span>
+                        <span className="ml-2 font-medium">
+                          {dataLists.find(l => l.id === uploadData.targetListId)?.name}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">File:</span>
+                        <span className="ml-2 font-medium">{uploadData.fileName}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Columns Detected:</span>
+                        <span className="ml-2 font-medium">{uploadData.detectedColumns.length}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Mapped Fields:</span>
+                        <span className="ml-2 font-medium">
+                          {Object.values(uploadData.primaryColumns).filter(v => v).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 pt-4">
+                      <h5 className="text-sm font-medium text-gray-900 mb-2">Validation Options</h5>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <div>Skip Duplicates: {uploadData.uploadOptions.skipDuplicates ? '✓' : '✗'}</div>
+                        <div>Validate Emails: {uploadData.uploadOptions.validateEmails ? '✓' : '✗'}</div>
+                        <div>Require Phone: {uploadData.uploadOptions.contactsNeedNumber ? '✓' : '✗'}</div>
+                        <div>Require Email: {uploadData.uploadOptions.contactsNeedEmail ? '✓' : '✗'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowUploadWizard(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <div className="flex gap-3">
+                {uploadData.step !== 'fileUpload' && (
+                  <button
+                    onClick={() => {
+                      const steps = ['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload'];
+                      const currentIndex = steps.indexOf(uploadData.step);
+                      if (currentIndex > 0) {
+                        setUploadData(prev => ({ ...prev, step: steps[currentIndex - 1] as any }));
+                      }
+                    }}
+                    className="px-4 py-2 text-kennex-600 border border-kennex-600 rounded-lg hover:bg-kennex-50"
+                  >
+                    Previous
+                  </button>
+                )}
+
+                {uploadData.step === 'uploadReview' ? (
+                  <button
+                    onClick={() => {
+                      setUploadData(prev => ({ ...prev, step: 'upload' }));
+                      
+                      // Simulate upload process
+                      setTimeout(() => {
+                        // Process the upload
+                        const targetList = dataLists.find(l => l.id === uploadData.targetListId);
+                        if (targetList) {
+                          // In a real app, this would process the CSV file and update the list
+                          setDataLists(prev => prev.map(list => 
+                            list.id === uploadData.targetListId 
+                              ? { ...list, total: list.total + 100, available: list.available + 95 }
+                              : list
+                          ));
+                          
+                          setShowUploadWizard(false);
+                          
+                          // Reset the upload data
+                          setUploadData({
+                            step: 'fileUpload',
+                            file: null,
+                            fileName: '',
+                            targetListId: '',
+                            detectedColumns: [],
+                            primaryColumns: {
+                              title: '', firstName: '', middleName: '', lastName: '', email: '', 
+                              telephone1: '', telephone2: '', companyName: '', department: '',
+                              website: '', industry: '', address1: '', address2: '', address3: '', 
+                              postalCode: '', townCity: '', county: '', country: '',
+                            },
+                            customColumns: [],
+                            uploadOptions: {
+                              skipDuplicates: true, validateEmails: true, contactsNeedNumber: false,
+                              contactsNeedEmail: false, leadingLinesToSkip: 0,
+                              enableFixedWidthColumns: false, enableCriteriaFiltering: false, useDelimiter: true,
+                            },
+                            validationResults: null,
+                          });
+                          
+                          alert(`Data uploaded successfully to "${targetList.name}"!`);
+                        }
+                      }, 3000); // 3 second processing time
+                    }}
+                    disabled={!uploadData.file}
+                    className="px-4 py-2 bg-kennex-600 text-white rounded-lg hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Start Upload
+                  </button>
+                ) : uploadData.step === 'upload' ? (
+                  <button
+                    disabled
+                    className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+                  >
+                    Processing...
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const steps = ['fileUpload', 'uploadOptions', 'primaryColumns', 'customColumns', 'uploadReview', 'upload'];
+                      const currentIndex = steps.indexOf(uploadData.step);
+                      
+                      // Clear any existing validation results when moving between steps
+                      if (uploadData.step !== 'customColumns') {
+                        setUploadData(prev => ({ ...prev, validationResults: null }));
+                      }
+                      
+                      // Process data when moving from Custom Columns to Upload Review
+                      if (uploadData.step === 'customColumns') {
+                        // Clear existing results first
+                        setUploadData(prev => ({ ...prev, validationResults: null }));
+                        // Process new data
+                        processAndValidateData();
+                      }
+                      
+                      if (currentIndex < steps.length - 1) {
+                        setUploadData(prev => ({ ...prev, step: steps[currentIndex + 1] as any }));
+                      }
+                    }}
+                    disabled={uploadData.step === 'fileUpload' && !uploadData.file}
+                    className="px-4 py-2 bg-kennex-600 text-white rounded-lg hover:bg-kennex-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

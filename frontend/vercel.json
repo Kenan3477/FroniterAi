@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "name": "omnivox",
+  "alias": ["omnivox.vercel.app"],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install", 
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": "https://froniterai-production.up.railway.app",
+    "NEXT_PUBLIC_API_URL": "https://froniterai-production.up.railway.app",
+    "NEXT_PUBLIC_WS_URL": "wss://froniterai-production.up.railway.app"
+  }
+}

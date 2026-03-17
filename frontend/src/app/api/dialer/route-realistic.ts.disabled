@@ -1,0 +1,423 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// REALISTIC Dialer Engine - using ACTUAL working models from the database
+export async function POST(request: NextRequest) {
+  try {
+    const { action, agentId, campaignId } = await request.json();
+
+    switch (action) {
+      case 'check_for_calls':
+        return await checkForCalls(agentId);
+      
+      case 'place_call':
+        return await placeCall(agentId, campaignId);
+      
+      case 'trigger_dialer':
+        return await triggerDialer();
+      
+      case 'predictive_dial':
+        return await predictiveDialing(agentId, campaignId);
+        
+      case 'power_dial':
+        return await powerDialing(agentId, campaignId);
+      
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+
+  } catch (error) {
+    console.error('Dialer engine error:', error);
+    return NextResponse.json({ error: 'Dialer engine failed' }, { status: 500 });
+  }
+}
+
+// Check if there are calls waiting for a specific agent
+async function checkForCalls(agentId: string) {
+  try {
+    // Get queued contacts using EXISTING models that work
+    const queuedContacts = await prisma.dialQueueEntry.findMany({
+      where: {
+        status: 'queued',
+        assignedAgentId: null
+      },
+      include: {
+        contact: true,
+        list: true
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { queuedAt: 'asc' }
+      ],
+      take: 5
+    });
+
+    return NextResponse.json({
+      hasCallsWaiting: queuedContacts.length > 0,
+      nextContact: queuedContacts[0] || null,
+      totalQueued: queuedContacts.length
+    });
+  } catch (error) {
+    console.error('Error checking for calls:', error);
+    return NextResponse.json({ 
+      hasCallsWaiting: false, 
+      message: 'Error checking queue',
+      error: error.message 
+    });
+  }
+}
+
+// Place a call using EXISTING models
+async function placeCall(agentId: string, campaignId: string) {
+  try {
+    // Get next contact from queue using ACTUAL working model
+    const queueEntry = await prisma.dialQueueEntry.findFirst({
+      where: {
+        campaignId,
+        status: 'queued',
+        assignedAgentId: null
+      },
+      include: {
+        contact: true
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { queuedAt: 'asc' }
+      ]
+    });
+
+    if (!queueEntry) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'No contacts available to dial' 
+      });
+    }
+
+    // Lock the contact for this agent
+    await prisma.dialQueueEntry.update({
+      where: { id: queueEntry.id },
+      data: {
+        status: 'dialing',
+        assignedAgentId: agentId,
+        dialedAt: new Date()
+      }
+    });
+
+    // Create call record using EXISTING model
+    const callRecord = await prisma.callRecord.create({
+      data: {
+        callId: `CALL_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        campaignId,
+        contactId: queueEntry.contactId,
+        agentId,
+        phoneNumber: queueEntry.contact.phone,
+        dialedNumber: queueEntry.contact.phone,
+        callType: 'outbound',
+        startTime: new Date(),
+        outcome: null
+      }
+    });
+
+    // Create work item using EXISTING model
+    const workItem = await prisma.workItem.create({
+      data: {
+        workItemId: `WI_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        agentId,
+        campaignId,
+        contactId: queueEntry.contactId,
+        callId: callRecord.callId,
+        contactData: JSON.stringify({
+          firstName: queueEntry.contact.firstName,
+          lastName: queueEntry.contact.lastName,
+          phone: queueEntry.contact.phone,
+        }),
+        type: 'call',
+        status: 'assigned',
+        priority: 'normal',
+        assignedAt: new Date()
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      callRecord,
+      workItem,
+      contact: queueEntry.contact,
+      message: `Call placed to ${queueEntry.contact.firstName} ${queueEntry.contact.lastName}`
+    });
+
+  } catch (error) {
+    console.error('Error placing call:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to place call',
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+// Trigger dialer for all campaigns
+async function triggerDialer() {
+  try {
+    // Get active campaigns using EXISTING model
+    const activeCampaigns = await prisma.campaign.findMany({
+      where: {
+        status: 'Active'
+      }
+    });
+
+    const results = [];
+
+    for (const campaign of activeCampaigns) {
+      // Simulate agent for each campaign
+      const mockAgentId = `agent_${campaign.campaignId}`;
+      
+      // Try different dialing strategies based on campaign method
+      let dialResult;
+      switch (campaign.dialMethod) {
+        case 'Progressive':
+          dialResult = await placeCall(mockAgentId, campaign.campaignId);
+          break;
+          
+        case 'Predictive':
+          dialResult = await predictiveDialing(mockAgentId, campaign.campaignId);
+          break;
+          
+        case 'Auto Dial':
+          // Treat as power dialing
+          dialResult = await powerDialing(mockAgentId, campaign.campaignId);
+          break;
+          
+        default:
+          dialResult = await placeCall(mockAgentId, campaign.campaignId);
+      }
+      
+      if (dialResult) {
+        results.push({
+          campaignId: campaign.campaignId,
+          campaignName: campaign.name,
+          dialMethod: campaign.dialMethod,
+          result: dialResult
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      campaignsProcessed: activeCampaigns.length,
+      callsInitiated: results.length,
+      results
+    });
+
+  } catch (error) {
+    console.error('Error triggering dialer:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to trigger dialer',
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+// Progressive Dialing: One call at a time
+async function progressiveDialing(agentId: string, campaignId: string) {
+  return await placeCall(agentId, campaignId);
+}
+
+// Predictive Dialing: SIMPLIFIED but WORKING version
+async function predictiveDialing(agentId: string, campaignId: string) {
+  try {
+    // Get campaign info using EXISTING model
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId }
+    });
+
+    if (!campaign) {
+      return NextResponse.json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+
+    // Get current metrics using EXISTING models
+    const metrics = await getCampaignMetrics(campaignId);
+    
+    // SIMPLIFIED predictive logic that actually works
+    const shouldDial = metrics.queueDepth > 0;
+    const dialRatio = campaign.dialRatio || 1.5; // Use campaign setting or default
+    const callsToPlace = shouldDial ? Math.min(3, Math.floor(dialRatio)) : 0;
+
+    if (!shouldDial) {
+      return NextResponse.json({
+        success: false,
+        message: 'No contacts in queue or dialing paused',
+        metrics
+      });
+    }
+
+    // Place multiple calls for predictive mode
+    const results = [];
+    for (let i = 0; i < callsToPlace; i++) {
+      const callResult = await placeCall(agentId, campaignId);
+      if (callResult) {
+        results.push(callResult);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      dialingMode: 'predictive',
+      dialRatio: dialRatio,
+      callsPlaced: results.length,
+      metrics,
+      results
+    });
+
+  } catch (error) {
+    console.error('Predictive dialing error:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Predictive dialing failed',
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+// Power Dialing: Aggressive dialing
+async function powerDialing(agentId: string, campaignId: string) {
+  try {
+    // Get campaign info
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId }
+    });
+
+    if (!campaign) {
+      return NextResponse.json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+
+    const metrics = await getCampaignMetrics(campaignId);
+    
+    // POWER dialing: more aggressive
+    const shouldDial = metrics.queueDepth > 0;
+    const powerRatio = (campaign.dialRatio || 2.0) * 1.5; // 50% more aggressive
+    const callsToPlace = shouldDial ? Math.min(5, Math.floor(powerRatio)) : 0;
+
+    if (!shouldDial) {
+      return NextResponse.json({
+        success: false,
+        message: 'No contacts in queue',
+        metrics
+      });
+    }
+
+    // Place multiple calls aggressively
+    const results = [];
+    for (let i = 0; i < callsToPlace; i++) {
+      const callResult = await placeCall(agentId, campaignId);
+      if (callResult) {
+        results.push(callResult);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      dialingMode: 'power',
+      dialRatio: powerRatio,
+      callsPlaced: results.length,
+      metrics,
+      results
+    });
+
+  } catch (error) {
+    console.error('Power dialing error:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Power dialing failed',
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+// Get campaign metrics using EXISTING models that actually work
+async function getCampaignMetrics(campaignId: string) {
+  try {
+    // Get recent call records
+    const recentCalls = await prisma.callRecord.findMany({
+      where: {
+        campaignId,
+        startTime: { gte: new Date(Date.now() - 3600000) } // Last hour
+      }
+    });
+
+    // Get queue depth
+    const queueDepth = await prisma.dialQueueEntry.count({
+      where: {
+        campaignId,
+        status: 'queued'
+      }
+    });
+
+    // Calculate basic metrics
+    const totalCalls = recentCalls.length;
+    const answeredCalls = recentCalls.filter(call => call.outcome === 'answered').length;
+    const answerRate = totalCalls > 0 ? answeredCalls / totalCalls : 0.3;
+
+    return {
+      totalCalls,
+      answeredCalls,
+      answerRate,
+      queueDepth,
+      campaignId,
+      lastUpdated: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('Error getting campaign metrics:', error);
+    // Return default metrics if database query fails
+    return {
+      totalCalls: 0,
+      answeredCalls: 0,
+      answerRate: 0.3,
+      queueDepth: 0,
+      campaignId,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+}
+
+// GET endpoint to check dialer status
+export async function GET() {
+  try {
+    // Get dialer status using EXISTING models
+    const activeCampaigns = await prisma.campaign.count({
+      where: { status: 'Active' }
+    });
+
+    const totalQueueDepth = await prisma.dialQueueEntry.count({
+      where: { status: 'queued' }
+    });
+
+    const totalContacts = await prisma.contact.count();
+
+    return NextResponse.json({
+      status: 'online',
+      activeCampaigns,
+      totalQueueDepth,
+      totalContacts,
+      timestamp: new Date().toISOString(),
+      version: '2.0'
+    });
+
+  } catch (error) {
+    console.error('Error getting dialer status:', error);
+    return NextResponse.json({
+      status: 'error',
+      error: error.message
+    }, { status: 500 });
+  }
+}

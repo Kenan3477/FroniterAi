@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnivox - Clear Browser Cache</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #c0392b; }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success { background: rgba(39, 174, 96, 0.3); border: 1px solid #27ae60; }
+        .warning { background: rgba(230, 126, 34, 0.3); border: 1px solid #e67e22; }
+        .error { background: rgba(231, 76, 60, 0.3); border: 1px solid #e74c3c; }
+        .loading { background: rgba(52, 152, 219, 0.3); border: 1px solid #3498db; }
+        
+        .instruction {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #f39c12;
+        }
+        
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Omnivox Cache Cleanup Tool</h1>
+        
+        <div class="instruction">
+            <strong>⚠️ ISSUE IDENTIFIED:</strong><br>
+            Your browser is showing cached demo data with phone number <code>+1234567890</code> even though the backend database is clean.
+            This tool will force-clear all browser storage to show real data only.
+        </div>
+        
+        <div class="instruction">
+            <strong>📋 What this will clear:</strong><br>
+            ✅ Local Storage<br>
+            ✅ Session Storage<br>
+            ✅ IndexedDB<br>
+            ✅ All cookies for this domain<br>
+            ✅ Cache Storage<br>
+            ✅ Service Workers
+        </div>
+
+        <div id="status" class="status"></div>
+        
+        <h3>🔧 Cache Cleanup Actions</h3>
+        <button onclick="clearAllStorage()">🧹 Clear All Browser Storage</button>
+        <button onclick="clearCookiesOnly()">🍪 Clear Cookies Only</button>
+        <button onclick="forceReload()">🔄 Force Hard Reload</button>
+        <button onclick="clearAndRedirect()">🚪 Clear All & Go to Login</button>
+        
+        <h3>📊 Current Storage Status</h3>
+        <div id="storageStatus"></div>
+        
+        <script>
+            function showStatus(message, type) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+                statusEl.style.display = 'block';
+            }
+
+            async function clearAllStorage() {
+                showStatus('🔄 Clearing all browser storage...', 'loading');
+                
+                try {
+                    // Clear localStorage
+                    localStorage.clear();
+                    console.log('✅ LocalStorage cleared');
+                    
+                    // Clear sessionStorage  
+                    sessionStorage.clear();
+                    console.log('✅ SessionStorage cleared');
+                    
+                    // Clear cookies
+                    document.cookie.split(";").forEach(function(c) { 
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                    });
+                    console.log('✅ Cookies cleared');
+                    
+                    // Clear IndexedDB if available
+                    if ('indexedDB' in window) {
+                        try {
+                            const databases = await indexedDB.databases();
+                            await Promise.all(databases.map(db => {
+                                return new Promise((resolve, reject) => {
+                                    const deleteReq = indexedDB.deleteDatabase(db.name);
+                                    deleteReq.onsuccess = () => resolve();
+                                    deleteReq.onerror = () => reject();
+                                });
+                            }));
+                            console.log('✅ IndexedDB cleared');
+                        } catch (e) {
+                            console.log('⚠️ IndexedDB cleanup skipped');
+                        }
+                    }
+                    
+                    // Clear cache storage if available
+                    if ('caches' in window) {
+                        try {
+                            const cacheNames = await caches.keys();
+                            await Promise.all(cacheNames.map(name => caches.delete(name)));
+                            console.log('✅ Cache Storage cleared');
+                        } catch (e) {
+                            console.log('⚠️ Cache Storage cleanup skipped');
+                        }
+                    }
+                    
+                    // Unregister service workers if available
+                    if ('serviceWorker' in navigator) {
+                        try {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            await Promise.all(registrations.map(registration => registration.unregister()));
+                            console.log('✅ Service Workers cleared');
+                        } catch (e) {
+                            console.log('⚠️ Service Worker cleanup skipped');
+                        }
+                    }
+                    
+                    showStatus('✅ All browser storage cleared successfully! Reload the page to see clean data.', 'success');
+                    
+                } catch (error) {
+                    console.error('Cache clear error:', error);
+                    showStatus(`❌ Error clearing storage: ${error.message}`, 'error');
+                }
+            }
+            
+            function clearCookiesOnly() {
+                showStatus('🔄 Clearing cookies only...', 'loading');
+                
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                showStatus('✅ All cookies cleared! Please log in again.', 'success');
+            }
+            
+            function forceReload() {
+                showStatus('🔄 Performing hard reload...', 'loading');
+                setTimeout(() => {
+                    location.reload(true);
+                }, 1000);
+            }
+            
+            function clearAndRedirect() {
+                showStatus('🔄 Clearing all data and redirecting to login...', 'loading');
+                clearAllStorage();
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            }
+            
+            function checkStorageStatus() {
+                const statusEl = document.getElementById('storageStatus');
+                let status = [];
+                
+                // Check localStorage
+                const localStorageKeys = Object.keys(localStorage);
+                status.push(`📦 LocalStorage: ${localStorageKeys.length} items`);
+                
+                // Check sessionStorage
+                const sessionStorageKeys = Object.keys(sessionStorage);
+                status.push(`📦 SessionStorage: ${sessionStorageKeys.length} items`);
+                
+                // Check cookies
+                const cookies = document.cookie.split(';').filter(c => c.trim());
+                status.push(`🍪 Cookies: ${cookies.length} items`);
+                
+                // Show suspected demo data
+                let demoDataFound = false;
+                localStorageKeys.forEach(key => {
+                    const value = localStorage.getItem(key) || '';
+                    if (value.includes('+1234567890') || value.includes('Demo Sales Campaign')) {
+                        status.push(`🚨 DEMO DATA found in localStorage key: ${key}`);
+                        demoDataFound = true;
+                    }
+                });
+                
+                sessionStorageKeys.forEach(key => {
+                    const value = sessionStorage.getItem(key) || '';
+                    if (value.includes('+1234567890') || value.includes('Demo Sales Campaign')) {
+                        status.push(`🚨 DEMO DATA found in sessionStorage key: ${key}`);
+                        demoDataFound = true;
+                    }
+                });
+                
+                if (!demoDataFound) {
+                    status.push('✅ No obvious demo data found in storage');
+                }
+                
+                statusEl.innerHTML = status.map(s => `<div style="margin: 5px 0;">${s}</div>`).join('');
+            }
+            
+            // Check storage on load
+            checkStorageStatus();
+            
+            // Add refresh button for storage status
+            setInterval(checkStorageStatus, 5000);
+        </script>
+    </div>
+</body>
+</html>

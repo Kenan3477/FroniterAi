@@ -1,0 +1,210 @@
+import db from '../src/lib/db';
+
+/**
+ * Database Seeding Script
+ * Populates the SQLite database with test data for development
+ */
+
+async function main() {
+  console.log('🌱 Seeding database with test data...');
+
+  // Clear existing data
+  await db.dialQueueEntry.deleteMany();
+  await db.contact.deleteMany();
+  await db.dataList.deleteMany();
+  await db.campaign.deleteMany();
+  await db.agent.deleteMany();
+  await db.callRecord.deleteMany();
+
+  console.log('🗑️ Cleared existing data');
+
+  // Create test campaigns
+  const campaigns = [
+    { campaignId: '1125', name: 'Boiler Cold', dialMethod: 'Auto Dial', speed: 2.0, status: 'Inactive' },
+    { campaignId: '6002', name: 'Callium', dialMethod: 'Manual, Preview And Skip', speed: 0.1, status: 'Active' },
+    { campaignId: '6666', name: 'Chefcie Test', dialMethod: 'Auto Dial', speed: 2.0, status: 'Active' },
+    { campaignId: '5001', name: 'Claims Team', dialMethod: 'Manual, Preview And Skip', speed: 0.0, status: 'Active' },
+    { campaignId: '1628548', name: 'CnxTest', dialMethod: 'Manual, Preview And Skip', speed: 0.1, status: 'Active' },
+  ];
+
+  for (const campaign of campaigns) {
+    await db.campaign.create({
+      data: campaign
+    });
+  }
+
+  console.log(`✅ Created ${campaigns.length} test campaigns`);
+
+  // Create test data lists
+  const dataLists = [
+    { listId: 'list_001', name: 'Cold Leads Q4', totalContacts: 5000 },
+    { listId: 'list_002', name: 'Warm Prospects', totalContacts: 1200 },
+    { listId: 'list_003', name: 'Q1 Hot Prospects', totalContacts: 2500 },
+    { listId: 'list_004', name: 'Renewal Customers', totalContacts: 800 },
+    { listId: 'list_005', name: 'VIP Clients', totalContacts: 150 },
+    { listId: 'list_006', name: 'New Leads', totalContacts: 3200 },
+  ];
+
+  for (const list of dataLists) {
+    await db.dataList.create({
+      data: list
+    });
+  }
+
+  console.log(`✅ Created ${dataLists.length} test data lists`);
+
+  // Create test contacts
+  const contacts = [];
+  const firstNames = ['John', 'Jane', 'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+  const statuses = ['NotAttempted', 'Answered', 'NoAnswer', 'Busy', 'Voicemail', 'RetryEligible'];
+  
+  let contactCounter = 1;
+  
+  for (const list of dataLists) {
+    // Create a reasonable number of contacts per list (not the full amount for dev)
+    const contactCount = Math.min(50, Math.floor(list.totalContacts / 100)); 
+    
+    for (let i = 0; i < contactCount; i++) {
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const status = i === 0 ? 'NotAttempted' : statuses[Math.floor(Math.random() * statuses.length)];
+      
+      const contact = {
+        contactId: `contact_${String(contactCounter).padStart(3, '0')}`,
+        listId: list.listId,
+        firstName,
+        lastName,
+        phone: `+447700${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`,
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+        status,
+        attemptCount: status === 'NotAttempted' ? 0 : Math.floor(Math.random() * 3) + 1,
+        maxAttempts: Math.floor(Math.random() * 3) + 3, // 3-5 max attempts
+        locked: false,
+        customFields: JSON.stringify({
+          priority: Math.random() > 0.7 ? 'high' : 'normal',
+          source: Math.random() > 0.5 ? 'website' : 'phone',
+          notes: `Test contact ${contactCounter}`
+        })
+      };
+
+      contacts.push(contact);
+      contactCounter++;
+    }
+  }
+
+  for (const contact of contacts) {
+    await db.contact.create({
+      data: contact
+    });
+  }
+
+  console.log(`✅ Created ${contacts.length} test contacts`);
+
+  // Create test agents
+  const agents = [
+    { agentId: 'agent_001', firstName: 'Sarah', lastName: 'Connor', email: 'sarah@kennex.ai', status: 'Available', extension: '1001' },
+    { agentId: 'agent_002', firstName: 'John', lastName: 'Doe', email: 'john@kennex.ai', status: 'Available', extension: '1002' },
+    { agentId: 'agent_003', firstName: 'Alice', lastName: 'Wonder', email: 'alice@kennex.ai', status: 'OnCall', extension: '1003' },
+    { agentId: 'agent_004', firstName: 'Bob', lastName: 'Builder', email: 'bob@kennex.ai', status: 'Break', extension: '1004' },
+    { agentId: 'agent_005', firstName: 'Charlie', lastName: 'Chaplin', email: 'charlie@kennex.ai', status: 'Available', extension: '1005' },
+  ];
+
+  for (const agent of agents) {
+    await db.agent.create({
+      data: {
+        ...agent,
+        skills: JSON.stringify({
+          languages: ['English'],
+          campaigns: ['cold_calling', 'warm_leads'],
+          experience: Math.floor(Math.random() * 5) + 1
+        })
+      }
+    });
+  }
+
+  console.log(`✅ Created ${agents.length} test agents`);
+
+  // Assign some lists to campaigns for testing
+  console.log('🔗 Setting up test campaign assignments...');
+  
+  await db.dataList.update({
+    where: { listId: 'list_001' },
+    data: { campaignId: '1125', active: true, blendWeight: 60 }
+  });
+
+  await db.dataList.update({
+    where: { listId: 'list_002' },
+    data: { campaignId: '1125', active: true, blendWeight: 40 }
+  });
+
+  await db.dataList.update({
+    where: { listId: 'list_003' },
+    data: { campaignId: '6002', active: true, blendWeight: 70 }
+  });
+
+  await db.dataList.update({
+    where: { listId: 'list_004' },
+    data: { campaignId: '6002', active: true, blendWeight: 30 }
+  });
+
+  await db.dataList.update({
+    where: { listId: 'list_005' },
+    data: { campaignId: '6666', active: false }
+  });
+
+  console.log('✅ Set up campaign assignments');
+
+  // Create some test call records
+  const callRecords = [];
+  for (let i = 0; i < 25; i++) {
+    const startTime = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Last 7 days
+    const duration = Math.floor(Math.random() * 300) + 30; // 30-330 seconds
+    const outcomes = ['Answered', 'No Answer', 'Busy', 'Voicemail', 'Do Not Call'];
+    
+    callRecords.push({
+      callId: `call_${String(i + 1).padStart(3, '0')}`,
+      campaignId: campaigns[Math.floor(Math.random() * campaigns.length)].campaignId,
+      contactId: contacts[Math.floor(Math.random() * Math.min(contacts.length, 50))].contactId,
+      agentId: agents[Math.floor(Math.random() * agents.length)].agentId,
+      phoneNumber: `+447700${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`,
+      startTime,
+      endTime: new Date(startTime.getTime() + duration * 1000),
+      duration,
+      outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
+      disposition: Math.random() > 0.5 ? 'Positive' : 'Neutral',
+      notes: `Test call record ${i + 1}`
+    });
+  }
+
+  for (const record of callRecords) {
+    await db.callRecord.create({
+      data: record
+    });
+  }
+
+  console.log(`✅ Created ${callRecords.length} test call records`);
+
+  console.log('\n🎉 Database seeded successfully!');
+  console.log('\nTest data created:');
+  console.log(`📊 ${campaigns.length} campaigns`);
+  console.log(`📋 ${dataLists.length} data lists`);
+  console.log(`👤 ${contacts.length} contacts`);
+  console.log(`🎧 ${agents.length} agents`);
+  console.log(`📞 ${callRecords.length} call records`);
+  console.log('\n🔗 Active campaign assignments:');
+  console.log('   Campaign 1125: list_001 (60%) + list_002 (40%)');
+  console.log('   Campaign 6002: list_003 (70%) + list_004 (30%)');
+  console.log('   Campaign 6666: list_005 (inactive)');
+  
+  console.log('\n💡 Ready to test the dial queue system!');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });

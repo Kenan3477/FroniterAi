@@ -1,0 +1,13 @@
+# Railway should NOT ignore these files
+!nixpacks.toml
+!package.json
+!backend/
+!backend/**
+
+# Only ignore these
+.git/
+.env.local
+.env.development.local
+node_modules/
+*.log
+.DS_Store

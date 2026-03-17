@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Mock current agent - in production this would come from authentication
+const CURRENT_AGENT_ID = 'AGENT_001';
+
+export async function GET() {
+  try {
+    const agent = await prisma.agent.findUnique({
+      where: { id: CURRENT_AGENT_ID }
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      status: agent.currentStatus,
+      status_since: agent.lastLoginAt,
+    });
+  } catch (error) {
+    console.error('Error fetching agent status:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { status } = body;
+
+    if (!['available', 'away', 'paused'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    // Map frontend status to backend status
+    const statusMap: { [key: string]: string } = {
+      available: 'AVAILABLE',
+      away: 'OFFLINE',
+      paused: 'AWAY'
+    };
+
+    const updatedAgent = await prisma.agent.update({
+      where: { id: CURRENT_AGENT_ID },
+      data: {
+        status: statusMap[status],
+        lastStatusChange: new Date(),
+      }
+    });
+
+    return NextResponse.json({
+      status: updatedAgent.currentStatus.toLowerCase(),
+      status_since: updatedAgent.lastLoginAt,
+    });
+  } catch (error) {
+    console.error('Error updating agent status:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

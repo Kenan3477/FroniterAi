@@ -1,0 +1,1212 @@
+import { Request, Response } from 'express';
+import { prisma } from '../database';
+import { z } from 'zod';
+
+// Validation schemas
+const campaignTemplateSchema = z.object({
+  name: z.string().min(1).max(100),
+  displayName: z.string().min(1).max(100),
+  description: z.string().optional(),
+  category: z.enum(['SALES', 'MARKETING', 'SUPPORT', 'SURVEYS', 'COLLECTIONS', 'NURTURE']),
+  type: z.enum(['OUTBOUND', 'INBOUND', 'BLENDED', 'EMAIL', 'SMS', 'MULTICHANNEL']),
+  dialingMode: z.enum(['PREDICTIVE', 'PROGRESSIVE', 'PREVIEW', 'MANUAL']).default('PROGRESSIVE'),
+  maxCallsPerAgent: z.number().int().min(1).max(10).default(1),
+  maxAttemptsPerRecord: z.number().int().min(1).max(10).default(3),
+  abandonRateThreshold: z.number().min(0).max(1).default(0.05),
+  pacingMultiplier: z.number().min(0.1).max(5).default(1.0),
+  defaultTimezone: z.string().default('UTC'),
+  dialingStart: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  dialingEnd: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  openingScript: z.string().optional(),
+  closingScript: z.string().optional(),
+  emailTemplate: z.string().optional(),
+  smsTemplate: z.string().optional(),
+  configSchema: z.string().default('{}'),
+  defaultConfig: z.string().default('{}'),
+  requiresApproval: z.boolean().default(false),
+  isPublic: z.boolean().default(true),
+  tags: z.string().optional(),
+});
+
+const managementCampaignSchema = z.object({
+  name: z.string().min(1).max(100),
+  displayName: z.string().min(1).max(100),
+  description: z.string().optional(),
+  templateId: z.string().optional(),
+  organizationId: z.string().optional(),
+  type: z.enum(['OUTBOUND', 'INBOUND', 'BLENDED', 'EMAIL', 'SMS', 'MULTICHANNEL']),
+  category: z.enum(['SALES', 'MARKETING', 'SUPPORT', 'SURVEYS', 'COLLECTIONS', 'NURTURE']),
+  priority: z.number().int().min(1).max(5).default(1),
+  targetAudience: z.string().optional(),
+  totalTargets: z.number().int().min(0).default(0),
+  estimatedReach: z.number().int().min(0).optional(),
+  status: z.enum(['DRAFT', 'SCHEDULED', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED', 'ARCHIVED']).default('DRAFT'),
+  scheduledStart: z.string().datetime().optional(),
+  scheduledEnd: z.string().datetime().optional(),
+  timezone: z.string().default('UTC'),
+  budget: z.number().min(0).optional(),
+  budgetCurrency: z.string().default('USD'),
+  targetCalls: z.number().int().min(0).optional(),
+  targetConnections: z.number().int().min(0).optional(),
+  targetConversions: z.number().int().min(0).optional(),
+  targetRevenue: z.number().min(0).optional(),
+  dialingMode: z.enum(['PREDICTIVE', 'PROGRESSIVE', 'PREVIEW', 'MANUAL']).default('PROGRESSIVE'),
+  maxCallsPerAgent: z.number().int().min(1).max(10).default(1),
+  maxAttemptsPerRecord: z.number().int().min(1).max(10).default(3),
+  abandonRateThreshold: z.number().min(0).max(1).default(0.05),
+  pacingMultiplier: z.number().min(0.1).max(5).default(1.0),
+  acwRequired: z.boolean().default(true),
+  acwTimeoutSeconds: z.number().int().min(5).max(300).default(30),
+  dialingStart: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  dialingEnd: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  operatingDays: z.string().optional(),
+  openingScript: z.string().optional(),
+  closingScript: z.string().optional(),
+  emailTemplate: z.string().optional(),
+  smsTemplate: z.string().optional(),
+  dncCompliance: z.boolean().default(true),
+  tcpaCompliance: z.boolean().default(true),
+  gdprCompliance: z.boolean().default(true),
+  callTimeRestrictions: z.string().optional(),
+  configuration: z.string().default('{}'),
+  customFields: z.string().optional(),
+  tags: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+const campaignTargetSchema = z.object({
+  campaignId: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email().optional(),
+  phoneNumber: z.string().optional(),
+  company: z.string().optional(),
+  title: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  postalCode: z.string().optional(),
+  segmentId: z.string().optional(),
+  source: z.string().optional(),
+  tags: z.string().optional(),
+  maxAttempts: z.number().int().min(1).max(10).default(3),
+  preferredChannel: z.enum(['PHONE', 'EMAIL', 'SMS', 'ANY']).optional(),
+  preferredTime: z.string().optional(),
+  timezone: z.string().optional(),
+  customFields: z.string().optional(),
+  metadata: z.string().optional(),
+});
+
+const campaignSegmentSchema = z.object({
+  campaignId: z.string(),
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  criteria: z.string(),
+  filterRules: z.string().optional(),
+  estimatedSize: z.number().int().min(0).optional(),
+});
+
+const campaignScheduleSchema = z.object({
+  campaignId: z.string(),
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  scheduleType: z.enum(['IMMEDIATE', 'SCHEDULED', 'RECURRING', 'TRIGGERED']),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  timezone: z.string().default('UTC'),
+  recurrenceRule: z.string().optional(),
+  daysOfWeek: z.string().optional(),
+  daysOfMonth: z.string().optional(),
+  triggerEvent: z.string().optional(),
+  triggerConditions: z.string().optional(),
+  maxContactsPerHour: z.number().int().min(1).optional(),
+  maxContactsPerDay: z.number().int().min(1).optional(),
+  pacingStrategy: z.enum(['EVEN', 'AGGRESSIVE', 'CONSERVATIVE']).default('EVEN'),
+});
+
+const campaignAssignmentSchema = z.object({
+  campaignId: z.string(),
+  userId: z.string(),
+  role: z.enum(['AGENT', 'MANAGER', 'SUPERVISOR', 'OBSERVER']),
+  assignmentType: z.enum(['FULL', 'PARTIAL', 'BACKUP']),
+  maxTargetsPerDay: z.number().int().min(1).optional(),
+  targetQuota: z.number().int().min(1).optional(),
+  workSchedule: z.string().optional(),
+  availableFrom: z.string().datetime().optional(),
+  availableTo: z.string().datetime().optional(),
+});
+
+const campaignResultSchema = z.object({
+  campaignId: z.string(),
+  targetId: z.string(),
+  resultType: z.enum(['CALL', 'EMAIL', 'SMS', 'VISIT', 'OTHER']),
+  outcome: z.enum(['SUCCESS', 'NO_ANSWER', 'BUSY', 'VOICEMAIL', 'DECLINED', 'CONVERTED', 'DNC', 'INVALID']),
+  channel: z.enum(['PHONE', 'EMAIL', 'SMS', 'CHAT', 'SOCIAL']),
+  duration: z.number().int().min(0).optional(),
+  notes: z.string().optional(),
+  agentId: z.string().optional(),
+  agentName: z.string().optional(),
+  isConversion: z.boolean().default(false),
+  conversionValue: z.number().min(0).optional(),
+  conversionCurrency: z.string().default('USD'),
+  conversionDetails: z.string().optional(),
+  followUpRequired: z.boolean().default(false),
+  followUpDate: z.string().datetime().optional(),
+  followUpNotes: z.string().optional(),
+  consentUpdated: z.boolean().default(false),
+  dncRequested: z.boolean().default(false),
+  customData: z.string().optional(),
+});
+
+// ============================================================================
+// CAMPAIGN TEMPLATES
+// ============================================================================
+
+export const getCampaignTemplates = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+    const category = req.query.category as string;
+    const type = req.query.type as string;
+
+    const whereClause: any = { isActive: true };
+    if (category) whereClause.category = category;
+    if (type) whereClause.type = type;
+
+    const [templates, total] = await Promise.all([
+      prisma.campaignTemplate.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          createdBy: {
+            select: { id: true, name: true, email: true },
+          },
+          _count: {
+            select: { campaigns: true },
+          },
+        },
+        orderBy: { usageCount: 'desc' },
+      }),
+      prisma.campaignTemplate.count({ where: whereClause }),
+    ]);
+
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
+
+    res.json({ data: templates, pagination });
+  } catch (error) {
+    console.error('Error fetching campaign templates:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign templates',
+    });
+  }
+};
+
+export const getCampaignTemplateById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const template = await prisma.campaignTemplate.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        campaigns: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+        _count: {
+          select: { campaigns: true },
+        },
+      },
+    });
+
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign template not found',
+      });
+    }
+
+    res.json({ data: template });
+  } catch (error) {
+    console.error('Error fetching campaign template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign template',
+    });
+  }
+};
+
+export const createCampaignTemplate = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = campaignTemplateSchema.parse(req.body);
+
+    const template = await prisma.campaignTemplate.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        _count: {
+          select: { campaigns: true },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: template,
+      message: 'Campaign template created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating campaign template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create campaign template',
+    });
+  }
+};
+
+export const updateCampaignTemplate = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = campaignTemplateSchema.partial().parse(req.body);
+
+    const template = await prisma.campaignTemplate.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        _count: {
+          select: { campaigns: true },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: template,
+      message: 'Campaign template updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating campaign template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update campaign template',
+    });
+  }
+};
+
+export const deleteCampaignTemplate = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if template is in use
+    const templateUsage = await prisma.managementCampaign.count({
+      where: { templateId: id, status: { notIn: ['CANCELLED', 'ARCHIVED'] } },
+    });
+
+    if (templateUsage > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete template that is currently in use by active campaigns',
+      });
+    }
+
+    await prisma.campaignTemplate.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    res.json({
+      success: true,
+      message: 'Campaign template deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting campaign template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete campaign template',
+    });
+  }
+};
+
+// ============================================================================
+// MANAGEMENT CAMPAIGNS
+// ============================================================================
+
+export const getManagementCampaigns = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string;
+    const category = req.query.category as string;
+    const type = req.query.type as string;
+    const organizationId = req.query.organizationId as string;
+
+    const whereClause: any = { isActive: true };
+    if (status) whereClause.status = status;
+    if (category) whereClause.category = category;
+    if (type) whereClause.type = type;
+    if (organizationId) whereClause.organizationId = organizationId;
+
+    const [campaigns, total] = await Promise.all([
+      prisma.managementCampaign.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          template: {
+            select: { id: true, name: true, displayName: true },
+          },
+          organization: {
+            select: { id: true, name: true, displayName: true },
+          },
+          createdBy: {
+            select: { id: true, name: true, email: true },
+          },
+          _count: {
+            select: {
+              targets: true,
+              assignments: true,
+              results: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.managementCampaign.count({ where: whereClause }),
+    ]);
+
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
+
+    res.json({ data: campaigns, pagination });
+  } catch (error) {
+    console.error('Error fetching management campaigns:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch management campaigns',
+    });
+  }
+};
+
+export const getManagementCampaignById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const campaign = await prisma.managementCampaign.findUnique({
+      where: { id },
+      include: {
+        template: {
+          select: { id: true, name: true, displayName: true },
+        },
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        approvedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        targets: {
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+        },
+        schedules: {
+          where: { isActive: true },
+        },
+        segments: {
+          where: { isActive: true },
+        },
+        assignments: {
+          where: { isActive: true },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+        metrics: {
+          take: 7,
+          orderBy: { metricDate: 'desc' },
+        },
+        _count: {
+          select: {
+            targets: true,
+            results: true,
+            activities: true,
+          },
+        },
+      },
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Management campaign not found',
+      });
+    }
+
+    res.json({ data: campaign });
+  } catch (error) {
+    console.error('Error fetching management campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch management campaign',
+    });
+  }
+};
+
+export const createManagementCampaign = async (req: Request, res: Response) => {
+  try {
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = managementCampaignSchema.parse(req.body);
+
+    // If templateId is provided, increment usage count
+    if (validatedData.templateId) {
+      await prisma.campaignTemplate.update({
+        where: { id: validatedData.templateId },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
+
+    const campaign = await prisma.managementCampaign.create({
+      data: {
+        ...validatedData,
+        createdByUserId: userId,
+      },
+      include: {
+        template: {
+          select: { id: true, name: true, displayName: true },
+        },
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        _count: {
+          select: {
+            targets: true,
+            assignments: true,
+            results: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: campaign,
+      message: 'Management campaign created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating management campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create management campaign',
+    });
+  }
+};
+
+export const updateManagementCampaign = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = 'admin-user'; // TODO: Get from authenticated user
+    const validatedData = managementCampaignSchema.partial().parse(req.body);
+
+    const campaign = await prisma.managementCampaign.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        updatedByUserId: userId,
+      },
+      include: {
+        template: {
+          select: { id: true, name: true, displayName: true },
+        },
+        organization: {
+          select: { id: true, name: true, displayName: true },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        _count: {
+          select: {
+            targets: true,
+            assignments: true,
+            results: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: campaign,
+      message: 'Management campaign updated successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error updating management campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update management campaign',
+    });
+  }
+};
+
+export const deleteManagementCampaign = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.managementCampaign.update({
+      where: { id },
+      data: { 
+        status: 'ARCHIVED',
+        isActive: false 
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Management campaign deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting management campaign:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete management campaign',
+    });
+  }
+};
+
+// ============================================================================
+// CAMPAIGN TARGETS
+// ============================================================================
+
+export const getCampaignTargets = async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string;
+    const segmentId = req.query.segmentId as string;
+
+    const whereClause: any = { campaignId, isActive: true };
+    if (status) whereClause.status = status;
+    if (segmentId) whereClause.segmentId = segmentId;
+
+    const [targets, total] = await Promise.all([
+      prisma.campaignTarget.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          segment: {
+            select: { id: true, name: true },
+          },
+          _count: {
+            select: { results: true, activities: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.campaignTarget.count({ where: whereClause }),
+    ]);
+
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
+
+    res.json({ data: targets, pagination });
+  } catch (error) {
+    console.error('Error fetching campaign targets:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign targets',
+    });
+  }
+};
+
+export const createCampaignTarget = async (req: Request, res: Response) => {
+  try {
+    const validatedData = campaignTargetSchema.parse(req.body);
+
+    const target = await prisma.campaignTarget.create({
+      data: validatedData,
+      include: {
+        campaign: {
+          select: { id: true, name: true, displayName: true },
+        },
+        segment: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Update campaign total targets count
+    await prisma.managementCampaign.update({
+      where: { id: validatedData.campaignId },
+      data: { totalTargets: { increment: 1 } },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: target,
+      message: 'Campaign target created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating campaign target:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create campaign target',
+    });
+  }
+};
+
+export const bulkCreateCampaignTargets = async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const { targets } = req.body;
+
+    if (!Array.isArray(targets) || targets.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Targets array is required and cannot be empty',
+      });
+    }
+
+    const validatedTargets = targets.map(target => 
+      campaignTargetSchema.parse({ ...target, campaignId })
+    );
+
+    const createdTargets = await prisma.$transaction(
+      validatedTargets.map(target => 
+        prisma.campaignTarget.create({ data: target })
+      )
+    );
+
+    // Update campaign total targets count
+    await prisma.managementCampaign.update({
+      where: { id: campaignId },
+      data: { totalTargets: { increment: createdTargets.length } },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { count: createdTargets.length, targets: createdTargets },
+      message: `${createdTargets.length} campaign targets created successfully`,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error bulk creating campaign targets:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to bulk create campaign targets',
+    });
+  }
+};
+
+// ============================================================================
+// CAMPAIGN RESULTS
+// ============================================================================
+
+export const getCampaignResults = async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const skip = (page - 1) * limit;
+    const outcome = req.query.outcome as string;
+    const channel = req.query.channel as string;
+
+    const whereClause: any = { campaignId };
+    if (outcome) whereClause.outcome = outcome;
+    if (channel) whereClause.channel = channel;
+
+    const [results, total] = await Promise.all([
+      prisma.campaignResult.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          target: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phoneNumber: true,
+              company: true,
+            },
+          },
+        },
+        orderBy: { timestamp: 'desc' },
+      }),
+      prisma.campaignResult.count({ where: whereClause }),
+    ]);
+
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
+
+    res.json({ data: results, pagination });
+  } catch (error) {
+    console.error('Error fetching campaign results:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign results',
+    });
+  }
+};
+
+export const createCampaignResult = async (req: Request, res: Response) => {
+  try {
+    const validatedData = campaignResultSchema.parse(req.body);
+
+    const result = await prisma.campaignResult.create({
+      data: validatedData,
+      include: {
+        campaign: {
+          select: { id: true, name: true, displayName: true },
+        },
+        target: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+
+    // Update campaign metrics
+    const updateData: any = {};
+    if (validatedData.outcome === 'CONVERTED') {
+      updateData.totalConversions = { increment: 1 };
+      if (validatedData.conversionValue) {
+        updateData.totalRevenue = { increment: validatedData.conversionValue };
+      }
+    }
+
+    if (validatedData.resultType === 'CALL') {
+      updateData.totalCalls = { increment: 1 };
+      if (['SUCCESS', 'CONVERTED'].includes(validatedData.outcome)) {
+        updateData.totalConnections = { increment: 1 };
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.managementCampaign.update({
+        where: { id: validatedData.campaignId },
+        data: updateData,
+      });
+    }
+
+    // Update target status if needed
+    if (validatedData.outcome === 'CONVERTED') {
+      await prisma.campaignTarget.update({
+        where: { id: validatedData.targetId },
+        data: { 
+          status: 'CONVERTED',
+          lastResult: validatedData.outcome,
+          conversionValue: validatedData.conversionValue,
+          conversionCurrency: validatedData.conversionCurrency,
+        },
+      });
+    } else if (validatedData.dncRequested) {
+      await prisma.campaignTarget.update({
+        where: { id: validatedData.targetId },
+        data: { 
+          status: 'DNC',
+          dncStatus: true,
+          dncDate: new Date(),
+        },
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Campaign result created successfully',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors,
+      });
+    }
+
+    console.error('Error creating campaign result:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create campaign result',
+    });
+  }
+};
+
+// ============================================================================
+// CAMPAIGN ANALYTICS & STATS
+// ============================================================================
+
+export const getCampaignStats = async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    const [
+      campaign,
+      totalTargets,
+      totalAttempts,
+      totalResults,
+      resultsByOutcome,
+      resultsByChannel,
+      conversionMetrics,
+      recentActivities
+    ] = await Promise.all([
+      prisma.managementCampaign.findUnique({
+        where: { id: campaignId },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          status: true,
+          totalCalls: true,
+          totalConnections: true,
+          totalConversions: true,
+          totalRevenue: true,
+          targetCalls: true,
+          targetConnections: true,
+          targetConversions: true,
+          targetRevenue: true,
+        },
+      }),
+      prisma.campaignTarget.count({
+        where: { campaignId, isActive: true },
+      }),
+      prisma.campaignTarget.aggregate({
+        where: { campaignId, isActive: true },
+        _sum: { attempts: true },
+      }),
+      prisma.campaignResult.count({
+        where: { 
+          campaignId,
+          ...(Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {}),
+        },
+      }),
+      prisma.campaignResult.groupBy({
+        by: ['outcome'],
+        where: { 
+          campaignId,
+          ...(Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {}),
+        },
+        _count: true,
+      }),
+      prisma.campaignResult.groupBy({
+        by: ['channel'],
+        where: { 
+          campaignId,
+          ...(Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {}),
+        },
+        _count: true,
+      }),
+      prisma.campaignResult.aggregate({
+        where: { 
+          campaignId,
+          isConversion: true,
+          ...(Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {}),
+        },
+        _sum: { conversionValue: true },
+        _count: true,
+      }),
+      prisma.campaignActivity.findMany({
+        where: { 
+          campaignId,
+          ...(Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {}),
+        },
+        take: 20,
+        orderBy: { timestamp: 'desc' },
+        include: {
+          target: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          user: {
+            select: { id: true, name: true },
+          },
+        },
+      }),
+    ]);
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found',
+      });
+    }
+
+    const stats = {
+      campaign,
+      overview: {
+        totalTargets,
+        totalAttempts: totalAttempts._sum.attempts || 0,
+        totalResults,
+        totalConversions: conversionMetrics._count || 0,
+        totalRevenue: conversionMetrics._sum.conversionValue || 0,
+      },
+      performance: {
+        contactRate: totalAttempts._sum.attempts ? (totalResults / (totalAttempts._sum.attempts || 1)) * 100 : 0,
+        conversionRate: totalResults ? ((conversionMetrics._count || 0) / totalResults) * 100 : 0,
+        avgRevenuePerConversion: conversionMetrics._count ? (conversionMetrics._sum.conversionValue || 0) / conversionMetrics._count : 0,
+      },
+      breakdown: {
+        byOutcome: resultsByOutcome.reduce((acc: any, item: any) => {
+          acc[item.outcome] = item._count;
+          return acc;
+        }, {}),
+        byChannel: resultsByChannel.reduce((acc: any, item: any) => {
+          acc[item.channel] = item._count;
+          return acc;
+        }, {}),
+      },
+      progress: {
+        targetProgress: {
+          calls: campaign.targetCalls ? (campaign.totalCalls / campaign.targetCalls) * 100 : 0,
+          connections: campaign.targetConnections ? (campaign.totalConnections / campaign.targetConnections) * 100 : 0,
+          conversions: campaign.targetConversions ? (campaign.totalConversions / campaign.targetConversions) * 100 : 0,
+          revenue: campaign.targetRevenue ? (campaign.totalRevenue / campaign.targetRevenue) * 100 : 0,
+        },
+      },
+      recentActivities,
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching campaign stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign stats',
+    });
+  }
+};
+
+export const getCampaignManagementStats = async (req: Request, res: Response) => {
+  try {
+    const organizationId = req.query.organizationId as string;
+
+    const whereClause: any = { isActive: true };
+    if (organizationId) whereClause.organizationId = organizationId;
+
+    const [
+      totalCampaigns,
+      totalTemplates,
+      totalTargets,
+      totalResults,
+      campaignsByStatus,
+      campaignsByCategory,
+      recentCampaigns,
+      topPerformingCampaigns
+    ] = await Promise.all([
+      prisma.managementCampaign.count({ where: whereClause }),
+      prisma.campaignTemplate.count({ where: { isActive: true } }),
+      prisma.campaignTarget.count({
+        where: {
+          campaign: whereClause,
+          isActive: true,
+        },
+      }),
+      prisma.campaignResult.count({
+        where: {
+          campaign: whereClause,
+        },
+      }),
+      prisma.managementCampaign.groupBy({
+        by: ['status'],
+        where: whereClause,
+        _count: true,
+      }),
+      prisma.managementCampaign.groupBy({
+        by: ['category'],
+        where: whereClause,
+        _count: true,
+      }),
+      prisma.managementCampaign.findMany({
+        where: whereClause,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          status: true,
+          category: true,
+          totalCalls: true,
+          totalConnections: true,
+          totalConversions: true,
+          createdAt: true,
+        },
+      }),
+      prisma.managementCampaign.findMany({
+        where: { ...whereClause, status: 'ACTIVE' },
+        take: 10,
+        orderBy: { totalConversions: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          totalCalls: true,
+          totalConnections: true,
+          totalConversions: true,
+          totalRevenue: true,
+        },
+      }),
+    ]);
+
+    const stats = {
+      overview: {
+        totalCampaigns,
+        totalTemplates,
+        totalTargets,
+        totalResults,
+      },
+      breakdown: {
+        byStatus: campaignsByStatus.reduce((acc: any, item: any) => {
+          acc[item.status] = item._count;
+          return acc;
+        }, {}),
+        byCategory: campaignsByCategory.reduce((acc: any, item: any) => {
+          acc[item.category] = item._count;
+          return acc;
+        }, {}),
+      },
+      recentCampaigns,
+      topPerformingCampaigns,
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching campaign management stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign management stats',
+    });
+  }
+};

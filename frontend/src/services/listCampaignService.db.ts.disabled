@@ -1,0 +1,389 @@
+import db from '../lib/db';
+import { DataList, ListCampaignLinkResult, ListLinkError } from '../types/dialQueue';
+
+/**
+ * Database-backed List-Campaign Management Functions
+ * Real database implementation using Prisma + SQLite
+ */
+
+/**
+ * 1️⃣ Link Lists to Campaigns (Database Version)
+ */
+export async function assignListToCampaign(
+  listId: string, 
+  campaignId: string,
+  options: {
+    allowMigration?: boolean;
+    force?: boolean;
+  } = {}
+): Promise<ListCampaignLinkResult> {
+  
+  try {
+    console.log(`🔗 Assigning list ${listId} to campaign ${campaignId}`);
+
+    // Validate inputs
+    if (!listId || !campaignId) {
+      throw new ListLinkError(
+        'listId and campaignId are required',
+        'VALIDATION_ERROR',
+        listId,
+        campaignId
+      );
+    }
+
+    // Find the list
+    const list = await db.dataList.findUnique({
+      where: { listId }
+    });
+
+    if (!list) {
+      throw new ListLinkError(
+        `List ${listId} not found`,
+        'LIST_NOT_FOUND',
+        listId,
+        campaignId
+      );
+    }
+
+    // Validate campaign exists
+    const campaign = await db.campaign.findUnique({
+      where: { campaignId }
+    });
+
+    if (!campaign) {
+      throw new ListLinkError(
+        `Campaign ${campaignId} not found`,
+        'CAMPAIGN_NOT_FOUND',
+        listId,
+        campaignId
+      );
+    }
+
+    const previousCampaignId = list.campaignId;
+
+    // Check if already linked to another campaign
+    if (list.campaignId && list.campaignId !== campaignId) {
+      if (!options.allowMigration && !options.force) {
+        throw new ListLinkError(
+          `List ${listId} is already linked to campaign ${list.campaignId}. Use allowMigration flag to migrate.`,
+          'ALREADY_LINKED',
+          listId,
+          campaignId
+        );
+      }
+    }
+
+    // Perform the assignment using database transaction
+    const updatedList = await db.dataList.update({
+      where: { listId },
+      data: {
+        campaignId: campaignId,
+        active: false,        // Do not start dialing yet
+        blendWeight: null,    // Must be activated in dial strategy
+      }
+    });
+
+    console.log(`✅ List ${listId} assigned to campaign ${campaignId}`, {
+      previousCampaign: previousCampaignId,
+      newCampaign: campaignId,
+      listName: updatedList.name,
+      totalContacts: updatedList.totalContacts
+    });
+
+    return {
+      success: true,
+      message: `List ${updatedList.name} successfully assigned to campaign ${campaignId}`,
+      listId,
+      campaignId,
+      previousCampaignId
+    };
+
+  } catch (error) {
+    if (error instanceof ListLinkError) {
+      console.error(`❌ List assignment failed:`, error.message);
+      return {
+        success: false,
+        message: error.message,
+        listId,
+        campaignId
+      };
+    }
+    
+    console.error(`❌ Database error in assignListToCampaign:`, error);
+    return {
+      success: false,
+      message: 'Database error occurred',
+      listId,
+      campaignId
+    };
+  }
+}
+
+/**
+ * 2️⃣ Activate Lists in the Dial Strategy (Database Version)
+ */
+export async function activateListInDialStrategy(
+  listId: string,
+  blendWeight: number = 100
+): Promise<ListCampaignLinkResult> {
+  
+  try {
+    console.log(`🚀 Activating list ${listId} with ${blendWeight}% blend weight`);
+
+    // Validate inputs
+    if (!listId) {
+      throw new ListLinkError(
+        'listId is required',
+        'VALIDATION_ERROR',
+        listId
+      );
+    }
+
+    if (blendWeight < 1 || blendWeight > 100) {
+      throw new ListLinkError(
+        'blendWeight must be between 1 and 100',
+        'VALIDATION_ERROR',
+        listId
+      );
+    }
+
+    // Find the list
+    const list = await db.dataList.findUnique({
+      where: { listId }
+    });
+
+    if (!list) {
+      throw new ListLinkError(
+        `List ${listId} not found`,
+        'LIST_NOT_FOUND',
+        listId
+      );
+    }
+
+    // Validate list is assigned to a campaign
+    if (!list.campaignId) {
+      throw new ListLinkError(
+        `List ${listId} must be assigned to a campaign before activation`,
+        'VALIDATION_ERROR',
+        listId
+      );
+    }
+
+    // Activate the list using database transaction
+    const updatedList = await db.dataList.update({
+      where: { listId },
+      data: {
+        active: true,
+        blendWeight: blendWeight,
+      }
+    });
+
+    console.log(`✅ List ${listId} activated in dial strategy`, {
+      campaignId: updatedList.campaignId,
+      blendWeight,
+      listName: updatedList.name
+    });
+
+    return {
+      success: true,
+      message: `List ${updatedList.name} activated with ${blendWeight}% blend weight`,
+      listId,
+      campaignId: updatedList.campaignId!
+    };
+
+  } catch (error) {
+    if (error instanceof ListLinkError) {
+      console.error(`❌ List activation failed:`, error.message);
+      return {
+        success: false,
+        message: error.message,
+        listId
+      };
+    }
+
+    console.error(`❌ Database error in activateListInDialStrategy:`, error);
+    return {
+      success: false,
+      message: 'Database error occurred',
+      listId
+    };
+  }
+}
+
+/**
+ * 5️⃣ Deactivate Lists When Needed (Database Version)
+ */
+export async function deactivateList(listId: string): Promise<ListCampaignLinkResult> {
+  
+  try {
+    console.log(`⏸️ Deactivating list ${listId}`);
+
+    // Find the list
+    const list = await db.dataList.findUnique({
+      where: { listId }
+    });
+
+    if (!list) {
+      throw new ListLinkError(
+        `List ${listId} not found`,
+        'LIST_NOT_FOUND',
+        listId
+      );
+    }
+
+    // Deactivate the list using database transaction
+    const updatedList = await db.dataList.update({
+      where: { listId },
+      data: {
+        active: false,          // Stop feeding new records
+        blendWeight: null,      // Clear blend weight
+      }
+    });
+
+    console.log(`✅ List ${listId} deactivated from dial strategy`, {
+      campaignId: updatedList.campaignId,
+      listName: updatedList.name
+    });
+
+    return {
+      success: true,
+      message: `List ${updatedList.name} deactivated from dial strategy`,
+      listId,
+      campaignId: updatedList.campaignId || undefined
+    };
+
+  } catch (error) {
+    if (error instanceof ListLinkError) {
+      console.error(`❌ List deactivation failed:`, error.message);
+      return {
+        success: false,
+        message: error.message,
+        listId
+      };
+    }
+
+    console.error(`❌ Database error in deactivateList:`, error);
+    return {
+      success: false,
+      message: 'Database error occurred',
+      listId
+    };
+  }
+}
+
+/**
+ * Utility functions for database-backed list management
+ */
+export async function getListsByCampaign(campaignId: string): Promise<DataList[]> {
+  const lists = await db.dataList.findMany({
+    where: { campaignId }
+  });
+
+  return lists.map(list => ({
+    listId: list.listId,
+    name: list.name,
+    campaignId: list.campaignId || undefined,
+    active: list.active,
+    blendWeight: list.blendWeight || undefined,
+    totalContacts: list.totalContacts,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt
+  }));
+}
+
+export async function getActiveListsByCampaign(campaignId: string): Promise<DataList[]> {
+  const lists = await db.dataList.findMany({
+    where: { 
+      campaignId,
+      active: true 
+    }
+  });
+
+  return lists.map(list => ({
+    listId: list.listId,
+    name: list.name,
+    campaignId: list.campaignId || undefined,
+    active: list.active,
+    blendWeight: list.blendWeight || undefined,
+    totalContacts: list.totalContacts,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt
+  }));
+}
+
+export async function getAllLists(): Promise<DataList[]> {
+  const lists = await db.dataList.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return lists.map(list => ({
+    listId: list.listId,
+    name: list.name,
+    campaignId: list.campaignId || undefined,
+    active: list.active,
+    blendWeight: list.blendWeight || undefined,
+    totalContacts: list.totalContacts,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt
+  }));
+}
+
+export async function getListById(listId: string): Promise<DataList | undefined> {
+  const list = await db.dataList.findUnique({
+    where: { listId }
+  });
+
+  if (!list) return undefined;
+
+  return {
+    listId: list.listId,
+    name: list.name,
+    campaignId: list.campaignId || undefined,
+    active: list.active,
+    blendWeight: list.blendWeight || undefined,
+    totalContacts: list.totalContacts,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt
+  };
+}
+
+/**
+ * Database seeding functions for testing
+ */
+export async function createTestList(name: string, contactCount: number = 100): Promise<DataList> {
+  const list = await db.dataList.create({
+    data: {
+      listId: `list_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      totalContacts: contactCount,
+    }
+  });
+
+  return {
+    listId: list.listId,
+    name: list.name,
+    campaignId: list.campaignId || undefined,
+    active: list.active,
+    blendWeight: list.blendWeight || undefined,
+    totalContacts: list.totalContacts,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt
+  };
+}
+
+export async function createTestCampaign(name: string): Promise<void> {
+  await db.campaign.upsert({
+    where: { 
+      campaignId: `camp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    },
+    update: {},
+    create: {
+      campaignId: `camp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      dialMethod: 'Auto Dial',
+      speed: 2.0,
+      dropPercentage: 0.0,
+      status: 'Inactive'
+    }
+  });
+}

@@ -1,0 +1,3496 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+interface DataList {
+  id: string;
+  name: string;
+  description: string;
+  campaign: string;
+  total: number;
+  available: number;
+  status: 'Active' | 'Inactive';
+}
+
+// Sample data lists to match Connex interface
+const initialDataLists: DataList[] = [
+  {
+    id: '15761',
+    name: '100 day today MF!',
+    description: 'NO CAMPAIGN ON CCS - First use 0609',
+    campaign: 'DAC Cold First Use',
+    total: 0,
+    available: 0,
+    status: 'Inactive'
+  },
+  {
+    id: '15615',
+    name: '100 products',
+    description: 'first use 24/01/22',
+    campaign: 'DAC Cold First Use',
+    total: 87,
+    available: 1,
+    status: 'Inactive'
+  },
+  {
+    id: '15511',
+    name: '15511',
+    description: '15511',
+    campaign: 'DAC Cold First Use',
+    total: 165,
+    available: 153,
+    status: 'Inactive'
+  },
+  {
+    id: '15584',
+    name: '15 Products A Day',
+    description: 'first use 0212',
+    campaign: 'DAC Cold First Use',
+    total: 79,
+    available: 4,
+    status: 'Inactive'
+  },
+  {
+    id: '15724',
+    name: '1 FIDDY PRODUCTS',
+    description: 'NO CAMPAIGN ON CCS - First use 01.07.2022',
+    campaign: 'Default Campaign',
+    total: 0,
+    available: 0,
+    status: 'Inactive'
+  },
+  {
+    id: '15605',
+    name: '1 sale a sesh!',
+    description: 'First use 10.01.22',
+    campaign: 'DAC Cold First Use',
+    total: 48,
+    available: 3,
+    status: 'Inactive'
+  },
+  {
+    id: '15586',
+    name: '20 Products a Day',
+    description: 'First use 0312',
+    campaign: 'DAC Cold First Use',
+    total: 69,
+    available: 1,
+    status: 'Inactive'
+  },
+  {
+    id: '160229',
+    name: '3forsteHomeowner',
+    description: 'Crystal Ho week 4 2025',
+    campaign: 'DAC Cold First Use',
+    total: 2613,
+    available: 1506,
+    status: 'Active'
+  }
+];
+
+interface DataManagementContentProps {
+  searchTerm: string;
+}
+
+// Upload Data Wizard Component
+function UploadDataWizard({ 
+  onBack, 
+  onUploadComplete,
+  dataListId 
+}: { 
+  onBack: () => void; 
+  onUploadComplete: (result: any) => void;
+  dataListId: string;
+}) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [uploadData, setUploadData] = useState({
+    selectedFile: null as File | null,
+    uploadName: '',
+    originalFileName: '',
+    template: 'None',
+    uploadOptions: {
+      hasHeaders: true,
+      duplicateHandling: 'skip',
+      encoding: 'utf-8',
+      contactsMustHaveNumber: true,
+      contactsMustHaveEmail: false,
+      duplicateCheckData: true,
+      dncCheckData: false,
+      leadingLinesToSkip: 0,
+      enableFixedWidthColumns: false,
+      enableCriteriaFiltering: false,
+      useDelimiter: false
+    },
+    detectedColumns: [] as string[],
+    primaryColumns: {
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      company: '',
+      address: '',
+      town: '',
+      county: '',
+      postcode: '',
+      country: '',
+      longitude: '',
+      latitude: '',
+      dob: '',
+      gender: '',
+      sms: '',
+      tel2: '',
+      tel3: '',
+      tel4: '',
+      tel5: '',
+      tel6: '',
+      securityPhrase: '',
+      leadReference: '',
+      customerReference: '',
+      sourceReference: '',
+      leadOwner: '',
+      sortText: '',
+      sortDate: '',
+      sortNumber: '',
+      contactStatus: ''
+    },
+    customColumns: [] as string[],
+    customFields: [] as { id: string; name: string; matchColumn: string }[],
+    reviewData: [] as any[]
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Simulate column detection from CSV file
+      const detectedCols = [
+        'First Name', 'Last Name', 'Phone', 'Email', 'Company', 'Address', 
+        'Town', 'County', 'Postcode', 'Country', 'Date of Birth', 'Gender',
+        'Tel 2', 'Tel 3', 'Customer Reference', 'Lead Reference', 'SMS'
+      ];
+      
+      setUploadData(prev => ({
+        ...prev,
+        selectedFile: file,
+        originalFileName: file.name,
+        detectedColumns: detectedCols,
+        // Only set uploadName if it's empty (don't override user's custom name)
+        uploadName: prev.uploadName || file.name.replace(/\.[^/.]+$/, '') // Remove extension for initial name
+      }));
+    }
+  };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv') || file.name.endsWith('.txt'))) {
+      // Simulate column detection from CSV file
+      const detectedCols = [
+        'First Name', 'Last Name', 'Phone', 'Email', 'Company', 'Address', 
+        'Town', 'County', 'Postcode', 'Country', 'Date of Birth', 'Gender',
+        'Tel 2', 'Tel 3', 'Customer Reference', 'Lead Reference', 'SMS'
+      ];
+      
+      setUploadData(prev => ({
+        ...prev,
+        selectedFile: file,
+        originalFileName: file.name,
+        detectedColumns: detectedCols,
+        // Only set uploadName if it's empty (don't override user's custom name)
+        uploadName: prev.uploadName || file.name.replace(/\.[^/.]+$/, '') // Remove extension for initial name
+      }));
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const uploadFile = () => {
+    // Simulate file upload processing
+    alert('File uploaded successfully! Contact data has been added to the data list.');
+    onUploadComplete({ success: true, recordsAdded: 150 });
+    onBack();
+  };
+
+  const handleNext = () => {
+    if (currentStep < 6) {
+      setCurrentStep(currentStep + 1);
+    } else if (currentStep === 6) {
+      uploadFile();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="mx-auto w-32 h-32 mb-6">
+                <svg viewBox="0 0 200 200" className="w-full h-full">
+                  {/* Upload illustration */}
+                  <circle cx="100" cy="60" r="25" fill="#EF4444" />
+                  <rect x="85" y="45" width="30" height="30" fill="white" rx="3" />
+                  <path d="M95 55 L100 50 L105 55" stroke="#EF4444" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="100" y1="50" x2="100" y2="65" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
+                  
+                  {/* Stars */}
+                  <polygon points="70,30 72,36 78,36 73,40 75,46 70,42 65,46 67,40 62,36 68,36" fill="#FCD34D" />
+                  <polygon points="130,35 131,39 135,39 132,42 133,46 130,44 127,46 128,42 125,39 129,39" fill="#FCD34D" />
+                  <polygon points="50,70 51,73 54,73 52,75 53,78 50,76 47,78 48,75 46,73 49,73" fill="#FCD34D" />
+                  <polygon points="150,65 151,68 154,68 152,70 153,73 150,71 147,73 148,70 146,68 149,68" fill="#FCD34D" />
+                  
+                  {/* Document stack */}
+                  <rect x="75" y="120" width="50" height="60" fill="#6B7280" rx="5" />
+                  <rect x="80" y="115" width="50" height="60" fill="#9CA3AF" rx="5" />
+                  <rect x="85" y="110" width="50" height="60" fill="#E5E7EB" rx="5" />
+                </svg>
+              </div>
+              
+              <h3 className="text-xl font-medium text-gray-900 mb-2">Welcome to the Upload Data wizard</h3>
+              <p className="text-gray-500 mb-8">Please Select a .CSV or .TXT file.</p>
+              
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+                onClick={() => document.getElementById('fileInput')?.click()}
+              >
+                <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="text-lg text-gray-600 mb-2">Drag and drop files here, or click to select files</p>
+                <p className="text-sm text-gray-500">Supported formats: .CSV, .TXT</p>
+                
+                {uploadData.originalFileName && (
+                  <div className="mt-4 p-2 bg-green-50 border border-green-200 rounded">
+                    <p className="text-sm text-green-600">Selected: {uploadData.originalFileName}</p>
+                  </div>
+                )}
+              </div>
+              
+              <input
+                id="fileInput"
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name to identify this upload
+                </label>
+                <input
+                  type="text"
+                  value={uploadData.uploadName}
+                  onChange={(e) => setUploadData(prev => ({ ...prev, uploadName: e.target.value }))}
+                  placeholder="Enter a name for this upload"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Template
+                </label>
+                <select
+                  value={uploadData.template}
+                  onChange={(e) => setUploadData(prev => ({ ...prev, template: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                >
+                  <option value="None">None</option>
+                  <option value="Basic Contact">Basic Contact Template</option>
+                  <option value="Lead Generation">Lead Generation Template</option>
+                  <option value="Customer Data">Customer Data Template</option>
+                  <option value="Sales Prospects">Sales Prospects Template</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="max-w-2xl">
+            <div className="space-y-8">
+              {/* Main validation options */}
+              <div className="space-y-6">
+                {/* Contacts must have a number */}
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-gray-900">Contacts must have a number</h3>
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setUploadData(prev => ({
+                        ...prev,
+                        uploadOptions: { ...prev.uploadOptions, contactsMustHaveNumber: !prev.uploadOptions.contactsMustHaveNumber }
+                      }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                        uploadData.uploadOptions.contactsMustHaveNumber ? 'bg-kennex-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          uploadData.uploadOptions.contactsMustHaveNumber ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contacts must have an email */}
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-gray-900">Contacts must have an email</h3>
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setUploadData(prev => ({
+                        ...prev,
+                        uploadOptions: { ...prev.uploadOptions, contactsMustHaveEmail: !prev.uploadOptions.contactsMustHaveEmail }
+                      }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                        uploadData.uploadOptions.contactsMustHaveEmail ? 'bg-kennex-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          uploadData.uploadOptions.contactsMustHaveEmail ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Duplicate check the data you're uploading? */}
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-gray-900">Duplicate check the data you're uploading?</h3>
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setUploadData(prev => ({
+                        ...prev,
+                        uploadOptions: { ...prev.uploadOptions, duplicateCheckData: !prev.uploadOptions.duplicateCheckData }
+                      }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                        uploadData.uploadOptions.duplicateCheckData ? 'bg-kennex-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          uploadData.uploadOptions.duplicateCheckData ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* DNC check the data you're uploading? */}
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-gray-900">DNC check the data you're uploading?</h3>
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setUploadData(prev => ({
+                        ...prev,
+                        uploadOptions: { ...prev.uploadOptions, dncCheckData: !prev.uploadOptions.dncCheckData }
+                      }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                        uploadData.uploadOptions.dncCheckData ? 'bg-kennex-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          uploadData.uploadOptions.dncCheckData ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Settings */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Advanced Settings</h3>
+                
+                <div className="space-y-6">
+                  {/* Leading lines to skip */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h4 className="text-base font-medium text-gray-900">Leading lines to skip</h4>
+                      <p className="text-sm text-gray-500 mt-1">Skip header rows or unwanted data at the beginning</p>
+                    </div>
+                    <select
+                      value={uploadData.uploadOptions.leadingLinesToSkip}
+                      onChange={(e) => setUploadData(prev => ({
+                        ...prev,
+                        uploadOptions: { ...prev.uploadOptions, leadingLinesToSkip: parseInt(e.target.value) }
+                      }))}
+                      className="w-20 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                    >
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Enable fixed-width columns */}
+                  <div className="flex items-center justify-between py-4 border-b border-gray-200">
+                    <div className="flex-1">
+                      <h4 className="text-base font-medium text-gray-900">Enable fixed-width columns</h4>
+                      <p className="text-sm text-gray-500 mt-1">For files with columns separated by fixed positions</p>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setUploadData(prev => ({
+                          ...prev,
+                          uploadOptions: { ...prev.uploadOptions, enableFixedWidthColumns: !prev.uploadOptions.enableFixedWidthColumns }
+                        }))}
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                          uploadData.uploadOptions.enableFixedWidthColumns ? 'bg-kennex-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            uploadData.uploadOptions.enableFixedWidthColumns ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Enable criteria filtering */}
+                  <div className="flex items-center justify-between py-4 border-b border-gray-200">
+                    <div className="flex-1">
+                      <h4 className="text-base font-medium text-gray-900">Enable criteria filtering</h4>
+                      <p className="text-sm text-gray-500 mt-1">Apply filters to incoming data during upload</p>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setUploadData(prev => ({
+                          ...prev,
+                          uploadOptions: { ...prev.uploadOptions, enableCriteriaFiltering: !prev.uploadOptions.enableCriteriaFiltering }
+                        }))}
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                          uploadData.uploadOptions.enableCriteriaFiltering ? 'bg-kennex-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            uploadData.uploadOptions.enableCriteriaFiltering ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Use delimiter */}
+                  <div className="flex items-center justify-between py-4">
+                    <div className="flex-1">
+                      <h4 className="text-base font-medium text-gray-900">Use delimiter</h4>
+                      <p className="text-sm text-gray-500 mt-1">Specify custom delimiter for data separation</p>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setUploadData(prev => ({
+                          ...prev,
+                          uploadOptions: { ...prev.uploadOptions, useDelimiter: !prev.uploadOptions.useDelimiter }
+                        }))}
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-kennex-600 focus:ring-offset-2 ${
+                          uploadData.uploadOptions.useDelimiter ? 'bg-kennex-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            uploadData.uploadOptions.useDelimiter ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="max-w-6xl">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Field Mapping</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Map your CSV columns to contact fields for optimal display during calls.
+              </p>
+            </div>
+
+            {/* Table Layout like Connex */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {/* Table Header */}
+              <div className="bg-gray-50 border-b border-gray-200">
+                <div className="grid grid-cols-2 gap-0">
+                  <div className="px-6 py-3 border-r border-gray-200">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Data Field</span>
+                  </div>
+                  <div className="px-6 py-3">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Map To Column</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Body */}
+              <div className="divide-y divide-gray-200">
+                {/* Essential Contact Information */}
+                <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
+                  <h4 className="text-sm font-semibold text-blue-900">Essential Contact Information</h4>
+                </div>
+                
+                {[
+                  { key: 'firstName', label: 'First Name', required: true },
+                  { key: 'lastName', label: 'Last Name', required: true },
+                  { key: 'phone', label: 'Phone', required: true },
+                  { key: 'email', label: 'Email', required: false },
+                  { key: 'company', label: 'Company', required: false },
+                  { key: 'title', label: 'Title', required: false }
+                ].map((field) => (
+                  <div key={field.key} className="grid grid-cols-2 gap-0 hover:bg-gray-50">
+                    <div className="px-6 py-4 border-r border-gray-200">
+                      <span className="text-sm text-gray-900">
+                        {field.label}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </span>
+                    </div>
+                    <div className="px-6 py-4">
+                      <select
+                        value={uploadData.primaryColumns[field.key as keyof typeof uploadData.primaryColumns]}
+                        onChange={(e) => setUploadData(prev => ({
+                          ...prev,
+                          primaryColumns: { ...prev.primaryColumns, [field.key]: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white text-sm"
+                      >
+                        <option value="">None</option>
+                        {uploadData.detectedColumns.map((col, index) => (
+                          <option key={index} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Address Information */}
+                <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
+                  <h4 className="text-sm font-semibold text-blue-900">Address Information</h4>
+                </div>
+                
+                {[
+                  { key: 'address', label: 'Address' },
+                  { key: 'city', label: 'City' },
+                  { key: 'county', label: 'County' },
+                  { key: 'postcode', label: 'Postcode' }
+                ].map((field) => (
+                  <div key={field.key} className="grid grid-cols-2 gap-0 hover:bg-gray-50">
+                    <div className="px-6 py-4 border-r border-gray-200">
+                      <span className="text-sm text-gray-900">{field.label}</span>
+                    </div>
+                    <div className="px-6 py-4">
+                      <select
+                        value={uploadData.primaryColumns[field.key as keyof typeof uploadData.primaryColumns]}
+                        onChange={(e) => setUploadData(prev => ({
+                          ...prev,
+                          primaryColumns: { ...prev.primaryColumns, [field.key]: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white text-sm"
+                      >
+                        <option value="">None</option>
+                        {uploadData.detectedColumns.map((col, index) => (
+                          <option key={index} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Additional Phone Numbers */}
+                <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
+                  <h4 className="text-sm font-semibold text-blue-900">Additional Phone Numbers</h4>
+                </div>
+                
+                {[
+                  { key: 'tel2', label: 'Tel 2' },
+                  { key: 'tel3', label: 'Tel 3' },
+                  { key: 'tel4', label: 'Tel 4' },
+                  { key: 'tel5', label: 'Tel 5' },
+                  { key: 'tel6', label: 'Tel 6' }
+                ].map((field) => (
+                  <div key={field.key} className="grid grid-cols-2 gap-0 hover:bg-gray-50">
+                    <div className="px-6 py-4 border-r border-gray-200">
+                      <span className="text-sm text-gray-900">{field.label}</span>
+                    </div>
+                    <div className="px-6 py-4">
+                      <select
+                        value={uploadData.primaryColumns[field.key as keyof typeof uploadData.primaryColumns]}
+                        onChange={(e) => setUploadData(prev => ({
+                          ...prev,
+                          primaryColumns: { ...prev.primaryColumns, [field.key]: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white text-sm"
+                      >
+                        <option value="">None</option>
+                        {uploadData.detectedColumns.map((col, index) => (
+                          <option key={index} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Management Fields */}
+                <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
+                  <h4 className="text-sm font-semibold text-blue-900">Management Fields</h4>
+                </div>
+                
+                {[
+                  { key: 'securityPhrase', label: 'Security Phrase' },
+                  { key: 'leadReference', label: 'Lead Reference' },
+                  { key: 'customerReference', label: 'Customer Reference' },
+                  { key: 'notes', label: 'Notes' },
+                  { key: 'sortText', label: 'Sort Text' },
+                  { key: 'sortDate', label: 'Sort Date' },
+                  { key: 'sortNumber', label: 'Sort Number' },
+                  { key: 'contactStatus', label: 'Contact Status' }
+                ].map((field) => (
+                  <div key={field.key} className="grid grid-cols-2 gap-0 hover:bg-gray-50">
+                    <div className="px-6 py-4 border-r border-gray-200">
+                      <span className="text-sm text-gray-900">{field.label}</span>
+                    </div>
+                    <div className="px-6 py-4">
+                      <select
+                        value={uploadData.primaryColumns[field.key as keyof typeof uploadData.primaryColumns]}
+                        onChange={(e) => setUploadData(prev => ({
+                          ...prev,
+                          primaryColumns: { ...prev.primaryColumns, [field.key]: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white text-sm"
+                      >
+                        <option value="">None</option>
+                        {uploadData.detectedColumns.map((col, index) => (
+                          <option key={index} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {uploadData.detectedColumns.length > 0 && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">Smart Column Detection Active</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Detected {uploadData.detectedColumns.length} columns in your CSV file: {uploadData.detectedColumns.slice(0, 3).join(', ')}{uploadData.detectedColumns.length > 3 ? '...' : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={uploadData.primaryColumns.phone}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, phone: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <select
+                    value={uploadData.primaryColumns.email}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, email: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Company and Address */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                  <select
+                    value={uploadData.primaryColumns.company}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, company: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                  <select
+                    value={uploadData.primaryColumns.address}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, address: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Location Fields */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Town</label>
+                  <select
+                    value={uploadData.primaryColumns.town}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, town: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">County</label>
+                  <select
+                    value={uploadData.primaryColumns.county}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, county: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Postcode</label>
+                  <select
+                    value={uploadData.primaryColumns.postcode}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, postcode: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                  <select
+                    value={uploadData.primaryColumns.country}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, country: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Geographic Coordinates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                  <select
+                    value={uploadData.primaryColumns.longitude}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, longitude: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                  <select
+                    value={uploadData.primaryColumns.latitude}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, latitude: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                  <select
+                    value={uploadData.primaryColumns.dob}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, dob: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                  <select
+                    value={uploadData.primaryColumns.gender}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, gender: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">SMS</label>
+                  <select
+                    value={uploadData.primaryColumns.sms}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, sms: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Phone Numbers */}
+              <div className="grid grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tel 2</label>
+                  <select
+                    value={uploadData.primaryColumns.tel2}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, tel2: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tel 3</label>
+                  <select
+                    value={uploadData.primaryColumns.tel3}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, tel3: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tel 4</label>
+                  <select
+                    value={uploadData.primaryColumns.tel4}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, tel4: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tel 5</label>
+                  <select
+                    value={uploadData.primaryColumns.tel5}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, tel5: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tel 6</label>
+                  <select
+                    value={uploadData.primaryColumns.tel6}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, tel6: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* References and Management Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Security Phrase</label>
+                  <select
+                    value={uploadData.primaryColumns.securityPhrase}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, securityPhrase: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Lead Reference</label>
+                  <select
+                    value={uploadData.primaryColumns.leadReference}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, leadReference: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Customer Reference</label>
+                  <select
+                    value={uploadData.primaryColumns.customerReference}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, customerReference: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Source Reference</label>
+                  <select
+                    value={uploadData.primaryColumns.sourceReference}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, sourceReference: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Management and Sorting Fields */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Lead Owner</label>
+                  <select
+                    value={uploadData.primaryColumns.leadOwner}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, leadOwner: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort Text</label>
+                  <select
+                    value={uploadData.primaryColumns.sortText}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, sortText: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort Date</label>
+                  <select
+                    value={uploadData.primaryColumns.sortDate}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, sortDate: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort Number</label>
+                  <select
+                    value={uploadData.primaryColumns.sortNumber}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, sortNumber: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Status</label>
+                  <select
+                    value={uploadData.primaryColumns.contactStatus}
+                    onChange={(e) => setUploadData(prev => ({
+                      ...prev,
+                      primaryColumns: { ...prev.primaryColumns, contactStatus: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white"
+                  >
+                    <option value="">None</option>
+                    {uploadData.detectedColumns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {uploadData.detectedColumns.length > 0 && (
+              <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Smart Column Detection</h4>
+                <p className="text-sm text-blue-700">
+                  Detected {uploadData.detectedColumns.length} columns in your CSV file. 
+                  Map them to the appropriate contact fields above for optimal display during calls.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="max-w-4xl">
+            {/* Header with Add Button */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Add Custom Fields</h3>
+                <p className="text-sm text-gray-600 mt-1">Create additional fields for your contact data</p>
+              </div>
+              <button
+                onClick={() => {
+                  const newField = {
+                    id: Date.now().toString(),
+                    name: '',
+                    matchColumn: ''
+                  };
+                  setUploadData(prev => ({
+                    ...prev,
+                    customFields: [...prev.customFields, newField]
+                  }));
+                }}
+                className="inline-flex items-center justify-center w-10 h-10 bg-kennex-600 text-white rounded-md hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Table Layout */}
+            {uploadData.customFields.length > 0 ? (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                {/* Table Header */}
+                <div className="bg-gray-50 border-b border-gray-200">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3">
+                    <div className="col-span-4">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</span>
+                    </div>
+                    <div className="col-span-6">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Match Column</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Action</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-gray-200">
+                  {uploadData.customFields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50">
+                      {/* Name Field */}
+                      <div className="col-span-4">
+                        <input
+                          type="text"
+                          value={field.name}
+                          onChange={(e) => {
+                            const updatedFields = uploadData.customFields.map(f => 
+                              f.id === field.id ? { ...f, name: e.target.value } : f
+                            );
+                            setUploadData(prev => ({
+                              ...prev,
+                              customFields: updatedFields
+                            }));
+                          }}
+                          placeholder="Field name"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 text-sm"
+                        />
+                      </div>
+                      
+                      {/* Match Column Dropdown */}
+                      <div className="col-span-6">
+                        <select
+                          value={field.matchColumn}
+                          onChange={(e) => {
+                            const updatedFields = uploadData.customFields.map(f => 
+                              f.id === field.id ? { ...f, matchColumn: e.target.value } : f
+                            );
+                            setUploadData(prev => ({
+                              ...prev,
+                              customFields: updatedFields
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-kennex-500 focus:border-kennex-500 bg-white text-sm"
+                        >
+                          <option value="">None</option>
+                          {uploadData.detectedColumns.map((col, colIndex) => (
+                            <option key={colIndex} value={col}>{col}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Delete Action */}
+                      <div className="col-span-2">
+                        <button
+                          onClick={() => {
+                            const updatedFields = uploadData.customFields.filter(f => f.id !== field.id);
+                            setUploadData(prev => ({
+                              ...prev,
+                              customFields: updatedFields
+                            }));
+                          }}
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Empty State */
+              <div className="text-center py-12">
+                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Custom Fields</h3>
+                <p className="text-gray-500 mb-4">Click the + button above to add custom fields for additional contact data.</p>
+                <button
+                  onClick={() => {
+                    const newField = {
+                      id: Date.now().toString(),
+                      name: '',
+                      matchColumn: ''
+                    };
+                    setUploadData(prev => ({
+                      ...prev,
+                      customFields: [...prev.customFields, newField]
+                    }));
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-kennex-600 text-white text-sm font-medium rounded-md hover:bg-kennex-700 focus:outline-none focus:ring-2 focus:ring-kennex-500 focus:ring-offset-2"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Custom Field
+                </button>
+              </div>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Review</h3>
+              <p className="text-sm text-gray-600 mb-6">Review your upload settings before processing</p>
+              
+              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                <div>
+                  <h4 className="font-medium text-gray-900">File Information</h4>
+                  <p className="text-sm text-gray-600">Upload Name: {uploadData.uploadName || 'No name specified'}</p>
+                  <p className="text-sm text-gray-600">File: {uploadData.originalFileName || 'No file selected'}</p>
+                  <p className="text-sm text-gray-600">Template: {uploadData.template}</p>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900">Upload Options</h4>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>Contacts must have number: {uploadData.uploadOptions.contactsMustHaveNumber ? 'Yes' : 'No'}</p>
+                    <p>Contacts must have email: {uploadData.uploadOptions.contactsMustHaveEmail ? 'Yes' : 'No'}</p>
+                    <p>Duplicate check: {uploadData.uploadOptions.duplicateCheckData ? 'Yes' : 'No'}</p>
+                    <p>DNC check: {uploadData.uploadOptions.dncCheckData ? 'Yes' : 'No'}</p>
+                    <p>Leading lines to skip: {uploadData.uploadOptions.leadingLinesToSkip}</p>
+                    <p>Fixed-width columns: {uploadData.uploadOptions.enableFixedWidthColumns ? 'Yes' : 'No'}</p>
+                    <p>Criteria filtering: {uploadData.uploadOptions.enableCriteriaFiltering ? 'Yes' : 'No'}</p>
+                    <p>Use delimiter: {uploadData.uploadOptions.useDelimiter ? 'Yes' : 'No'}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900">Column Mapping</h4>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>First Name: {uploadData.primaryColumns.firstName || 'Not mapped'}</p>
+                    <p>Last Name: {uploadData.primaryColumns.lastName || 'Not mapped'}</p>
+                    <p>Phone: {uploadData.primaryColumns.phone || 'Not mapped'}</p>
+                    <p>Email: {uploadData.primaryColumns.email || 'Not mapped'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex">
+                  <svg className="w-5 h-5 text-blue-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-800">Ready to Upload</h4>
+                    <p className="text-sm text-blue-600 mt-1">Your file is ready to be processed and contacts will be added to the selected data list.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Complete!</h3>
+              <p className="text-gray-600 mb-6">Your contact data has been successfully uploaded and processed.</p>
+              
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Records Processed</p>
+                    <p className="text-2xl font-semibold text-gray-900">150</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Successfully Added</p>
+                    <p className="text-2xl font-semibold text-green-600">148</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Duplicates Skipped</p>
+                    <p className="text-2xl font-semibold text-yellow-600">2</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Errors</p>
+                    <p className="text-2xl font-semibold text-red-600">0</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="h-full bg-white flex">
+      {/* Left Sidebar - Step Navigation */}
+      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Data Lists
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900 mt-4">Uploading Data to {dataListId}</h1>
+        </div>
+        
+        <div className="flex-1 p-6">
+          <div className="space-y-4">
+            {[
+              { step: 1, label: 'File Upload', icon: '📁' },
+              { step: 2, label: 'Upload Options', icon: '⚙️' },
+              { step: 3, label: 'Primary Columns', icon: '📋' },
+              { step: 4, label: 'Custom Columns', icon: '🔧' },
+              { step: 5, label: 'Upload Review', icon: '👀' },
+              { step: 6, label: 'Upload', icon: '⬆️' }
+            ].map(({ step, label, icon }) => (
+              <div key={step} className={`flex items-center p-3 rounded-lg ${
+                step === currentStep 
+                  ? 'bg-kennex-600 text-white' 
+                  : step < currentStep 
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-white text-gray-600'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium mr-3 ${
+                  step === currentStep 
+                    ? 'bg-white text-kennex-600' 
+                    : step < currentStep 
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {step < currentStep ? '✓' : step}
+                </div>
+                <span className="font-medium">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Content */}
+        <div className="flex-1 p-8 overflow-y-auto">
+          {renderStepContent()}
+        </div>
+        
+        {/* Bottom Navigation */}
+        <div className="p-6 border-t border-gray-200 bg-white">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium ${
+                currentStep === 1
+                  ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                  : 'text-gray-700 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Previous
+            </button>
+            
+            <button
+              onClick={handleNext}
+              disabled={currentStep === 1 && !uploadData.selectedFile}
+              className={`inline-flex items-center px-6 py-2 border border-transparent rounded-md text-sm font-medium text-white ${
+                (currentStep === 1 && !uploadData.selectedFile)
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-kennex-600 hover:bg-kennex-700'
+              }`}
+            >
+              {currentStep === 6 ? 'Complete Upload' : 'Next'}
+              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Create Data List Wizard Component
+function CreateDataListWizard({ 
+  onBack, 
+  onDataListSaved, 
+  editingData 
+}: { 
+  onBack: () => void; 
+  onDataListSaved: (dataList: any) => void;
+  editingData?: DataList | null;
+}) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [expandedSections, setExpandedSections] = useState({
+    contactFields: true,
+    interactionFields: false,
+    miscellaneousFields: false
+  });
+  
+  // Initialize form data with editing data if provided
+  const [formData, setFormData] = useState({
+    id: editingData?.id || `DL${Date.now()}`,
+    name: editingData?.name || '',
+    description: editingData?.description || '',
+    campaign: editingData?.campaign || '',
+    priority: 0,
+    weight: 0,
+    priorityTag: '',
+    setAsActive: editingData?.status === 'Active' || true,
+    // Webform fields
+    formType: 'public',
+    formName: '',
+    formDescription: '',
+    successMessage: '',
+    webhookUrl: '',
+    autoAssignList: '',
+    enableCaptcha: false,
+    selectedFields: [] as string[],
+    fieldConfigurations: {} as Record<string, any>,
+    // Other fields
+    selectedContactFields: [] as string[],
+    customFields: [] as any[],
+    cliNumbers: [] as any[],
+    outcomes: [] as any[]
+  });
+
+  const steps = [
+    { number: 1, title: 'Data List', completed: currentStep > 1 },
+    { number: 2, title: 'Web Form', completed: currentStep > 2 },
+    { number: 3, title: 'Custom Fields', completed: currentStep > 3 },
+    { number: 4, title: 'CLI Selection', completed: currentStep > 4 },
+    { number: 5, title: 'Finish', completed: currentStep > 5 }
+  ];
+
+  const contactFields = [
+    'Address 1', 'Address 2', 'Address 3', 'Company Name', 'ID', 'Contact ID', 'Status ID',
+    'Country', 'County', 'Case Reference', 'Department', 'Date of Birth', 'Email', 'First Name',
+    'Gender', 'Industry', 'Last Name', 'Latitude', 'Owned by', 'Lead Reference', 'Longitude',
+    'Middle Name', 'Postal Code / Zip Code', 'SMS', 'Security Phrase', 'Sort Date', 'Sort Number',
+    'Sort Text', 'Source Reference', 'Telephone 1', 'Telephone 2', 'Telephone 3', 'Telephone 4',
+    'Telephone 5', 'Telephone 6', 'Title', 'Town / City', 'Website'
+  ];
+
+  const interactionFields = [
+    'Agent Display Name', 'Agent Extension ID', 'Agent Username', 'Campaign ID', 'Customer ID',
+    'Department', 'Direction', 'End Time', 'Flags', 'Has Unread', 'Interaction ID', 'Interaction SLA',
+    'Interaction Type ID', 'Job Position', 'Open Subtotal ID', 'Outcome ID', 'Outcome Name',
+    'Phone Number', 'Priority', 'Queue ID', 'Rating', 'Recording ID', 'Reference', 'Start Time',
+    'State', 'Status ID', 'Subject', 'Team ID', 'Ticket ID', 'Title', 'Updated Time', 'User ID'
+  ];
+
+  const miscellaneousFields = [
+    'Data List ID', 'Data List Name', 'Telephone Number Dialled', 'Telephone Number Type',
+    'Inbound Number'
+  ];
+
+  // Mock campaign phone numbers (based on selected campaign)
+  const getCampaignPhoneNumbers = (campaign: string) => {
+    const campaignNumbers: Record<string, string[]> = {
+      'DAC Cold First Use': [
+        '+44120206864',
+        '+44120206865',
+        '+44120206866',
+        '+44207123456',
+        '+44207123457'
+      ],
+      'Default Campaign': [] // Empty by default
+    };
+    return campaignNumbers[campaign] || [];
+  };
+
+  // Predefined call outcomes
+  const predefinedOutcomes = [
+    'Sale Made',
+    'Answering Machine',
+    'Do Not Call',
+    'Callback',
+    'Disconnected',
+    'Quote',
+    'Has Cover not Interested',
+    'No Answer Autodial',
+    'Answering Machine Autodial',
+    'Call Transferred'
+  ];
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const toggleFieldSelection = (field: string) => {
+    const isSelected = formData.selectedFields.includes(field);
+    if (isSelected) {
+      setFormData({
+        ...formData,
+        selectedFields: formData.selectedFields.filter(f => f !== field)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        selectedFields: [...formData.selectedFields, field]
+      });
+    }
+  };
+
+  const addCustomField = () => {
+    const newField = {
+      id: Date.now().toString(),
+      name: '',
+      label: '',
+      type: 'text',
+      required: false,
+      options: [] as string[],
+      placeholder: '',
+      defaultValue: ''
+    };
+    setFormData({
+      ...formData,
+      customFields: [...formData.customFields, newField]
+    });
+  };
+
+  const updateCustomField = (id: string, updates: any) => {
+    setFormData({
+      ...formData,
+      customFields: formData.customFields.map(field => 
+        field.id === id ? { ...field, ...updates } : field
+      )
+    });
+  };
+
+  const removeCustomField = (id: string) => {
+    setFormData({
+      ...formData,
+      customFields: formData.customFields.filter(field => field.id !== id)
+    });
+  };
+
+  const addCLINumber = () => {
+    const newCLI = {
+      id: Date.now().toString(),
+      number: '',
+      active: true,
+      callCount: 0
+    };
+    setFormData({
+      ...formData,
+      cliNumbers: [...formData.cliNumbers, newCLI]
+    });
+  };
+
+  const updateCLINumber = (id: string, updates: any) => {
+    setFormData({
+      ...formData,
+      cliNumbers: formData.cliNumbers.map(cli => 
+        cli.id === id ? { ...cli, ...updates } : cli
+      )
+    });
+  };
+
+  const removeCLINumber = (id: string) => {
+    setFormData({
+      ...formData,
+      cliNumbers: formData.cliNumbers.filter(cli => cli.id !== id)
+    });
+  };
+
+  const toggleCLINumber = (id: string) => {
+    setFormData({
+      ...formData,
+      cliNumbers: formData.cliNumbers.map(cli => 
+        cli.id === id ? { ...cli, active: !cli.active } : cli
+      )
+    });
+  };
+
+  const addOutcome = () => {
+    const newOutcome = {
+      id: Date.now().toString(),
+      name: '',
+      maxAttempts: 5, // Default to 5 attempts
+      isUnlimited: false, // Default to limited
+      active: true
+    };
+    setFormData({
+      ...formData,
+      outcomes: [...formData.outcomes, newOutcome]
+    });
+  };
+
+  const updateOutcome = (id: string, updates: any) => {
+    setFormData({
+      ...formData,
+      outcomes: formData.outcomes.map(outcome => 
+        outcome.id === id ? { ...outcome, ...updates } : outcome
+      )
+    });
+  };
+
+  const removeOutcome = (id: string) => {
+    setFormData({
+      ...formData,
+      outcomes: formData.outcomes.filter(outcome => outcome.id !== id)
+    });
+  };
+
+  const addPredefinedOutcome = (outcomeName: string) => {
+    const newOutcome = {
+      id: Date.now().toString(),
+      name: outcomeName,
+      maxAttempts: 5, // Default to 5 attempts
+      isUnlimited: false, // Default to limited
+      active: true
+    };
+    setFormData({
+      ...formData,
+      outcomes: [...formData.outcomes, newOutcome]
+    });
+  };
+
+  const saveDataList = () => {
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert('Please enter a name for the data list');
+      setCurrentStep(1);
+      return;
+    }
+    if (!formData.description.trim()) {
+      alert('Please enter a description for the data list');
+      setCurrentStep(1);
+      return;
+    }
+    if (!formData.campaign) {
+      alert('Please select a campaign for the data list');
+      setCurrentStep(1);
+      return;
+    }
+
+    const dataListData: DataList = {
+      id: formData.id || Date.now().toString(),
+      name: formData.name,
+      description: formData.description,
+      campaign: formData.campaign,
+      total: editingData?.total || 0, // Preserve existing total if editing
+      available: editingData?.available || 0, // Preserve existing available if editing
+      status: formData.setAsActive ? 'Active' : 'Inactive'
+    };
+
+    // Add to the data lists (this will update the parent component)
+    onDataListSaved(dataListData);
+    
+    // Show success message
+    alert(editingData ? 'Data list updated successfully!' : 'Data list created successfully!');
+    
+    // Return to main view
+    onBack();
+  };
+
+  const handleNext = () => {
+    if (currentStep < 5) {
+      setCurrentStep(currentStep + 1);
+    } else if (currentStep === 5) {
+      // Finish - save the data list
+      saveDataList();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ID *
+              </label>
+              <input 
+                type="text" 
+                value={formData.id}
+                onChange={(e) => setFormData({...formData, id: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                placeholder="Enter unique ID"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Name *
+              </label>
+              <input 
+                type="text" 
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                placeholder="Enter name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea 
+                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none resize-none"
+                placeholder="Enter description"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attach To Campaign *
+              </label>
+              <select 
+                value={formData.campaign}
+                onChange={(e) => setFormData({...formData, campaign: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white"
+              >
+                <option value="">Select Campaign</option>
+                <option value="DAC Cold First Use">DAC Cold First Use</option>
+                <option value="Default Campaign">Default Campaign</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <input 
+                  type="number" 
+                  value={formData.priority}
+                  onChange={(e) => setFormData({...formData, priority: parseInt(e.target.value) || 0})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Weight</label>
+                <input 
+                  type="number" 
+                  value={formData.weight}
+                  onChange={(e) => setFormData({...formData, weight: parseInt(e.target.value) || 0})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Priority Tag</label>
+              <select 
+                value={formData.priorityTag}
+                onChange={(e) => setFormData({...formData, priorityTag: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white"
+              >
+                <option value="">Select Priority Tag</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Web Form Configuration</h2>
+              <p className="text-gray-600">Configure web forms for data collection</p>
+            </div>
+            
+            {/* Webform Type Selection */}
+            <div className="border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Form Type</h3>
+              <div className="space-y-3">
+                <label className="flex items-center">
+                  <input 
+                    type="radio" 
+                    name="formType" 
+                    value="public"
+                    checked={formData.formType === 'public'}
+                    onChange={(e) => setFormData({...formData, formType: e.target.value})}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300"
+                  />
+                  <span className="ml-3">
+                    <span className="text-sm font-medium text-gray-900">Public Web Form</span>
+                    <span className="block text-xs text-gray-500">Accessible by external users for lead generation</span>
+                  </span>
+                </label>
+                <label className="flex items-center">
+                  <input 
+                    type="radio" 
+                    name="formType" 
+                    value="internal"
+                    checked={formData.formType === 'internal'}
+                    onChange={(e) => setFormData({...formData, formType: e.target.value})}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300"
+                  />
+                  <span className="ml-3">
+                    <span className="text-sm font-medium text-gray-900">Internal Form</span>
+                    <span className="block text-xs text-gray-500">Admin/agent use only</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Form Settings */}
+            <div className="border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Form Settings</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Form Name *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.formName}
+                    onChange={(e) => setFormData({...formData, formName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                    placeholder="Enter form name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Form Description
+                  </label>
+                  <textarea 
+                    rows={3}
+                    value={formData.formDescription}
+                    onChange={(e) => setFormData({...formData, formDescription: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none resize-none"
+                    placeholder="Enter form description"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Success Message
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.successMessage}
+                    onChange={(e) => setFormData({...formData, successMessage: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                    placeholder="Thank you for your submission!"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Database Fields Selection */}
+            <div className="border border-gray-200 rounded-lg">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Select Form Fields</h3>
+                <p className="text-sm text-gray-600 mt-1">Choose which fields to include in your form</p>
+              </div>
+
+              {/* Contact Fields */}
+              <div className="border-b border-gray-200">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <button 
+                    className="flex items-center justify-between w-full text-left"
+                    onClick={() => toggleSection('contactFields')}
+                  >
+                    <span className="font-medium text-gray-900">Contact Fields</span>
+                    <svg 
+                      className={`w-5 h-5 transition-transform ${expandedSections.contactFields ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {expandedSections.contactFields && (
+                  <div className="p-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      {contactFields.map((field, index) => (
+                        <label key={index} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={formData.selectedFields.includes(field)}
+                            onChange={() => toggleFieldSelection(field)}
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-900">{field}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Interaction Fields */}
+              <div className="border-b border-gray-200">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <button 
+                    className="flex items-center justify-between w-full text-left"
+                    onClick={() => toggleSection('interactionFields')}
+                  >
+                    <span className="font-medium text-gray-900">Interaction Fields</span>
+                    <svg 
+                      className={`w-5 h-5 transition-transform ${expandedSections.interactionFields ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {expandedSections.interactionFields && (
+                  <div className="p-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      {interactionFields.map((field, index) => (
+                        <label key={index} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={formData.selectedFields.includes(field)}
+                            onChange={() => toggleFieldSelection(field)}
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-900">{field}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Miscellaneous Fields */}
+              <div>
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <button 
+                    className="flex items-center justify-between w-full text-left"
+                    onClick={() => toggleSection('miscellaneousFields')}
+                  >
+                    <span className="font-medium text-gray-900">Miscellaneous Fields</span>
+                    <svg 
+                      className={`w-5 h-5 transition-transform ${expandedSections.miscellaneousFields ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {expandedSections.miscellaneousFields && (
+                  <div className="p-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      {miscellaneousFields.map((field, index) => (
+                        <label key={index} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={formData.selectedFields.includes(field)}
+                            onChange={() => toggleFieldSelection(field)}
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-900">{field}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Selected Fields Configuration */}
+            <div className="border border-gray-200 rounded-lg">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Form Field Configuration</h3>
+                <p className="text-sm text-gray-600 mt-1">Configure selected fields for your form</p>
+              </div>
+              <div className="p-4">
+                {formData.selectedFields.length > 0 ? (
+                  <div className="space-y-4">
+                    {formData.selectedFields.map((field, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-gray-900">{field}</h4>
+                          <button 
+                            onClick={() => toggleFieldSelection(field)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Field Label
+                            </label>
+                            <input 
+                              type="text" 
+                              defaultValue={field}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Input Type
+                            </label>
+                            <select className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white">
+                              <option value="text">Text</option>
+                              <option value="email">Email</option>
+                              <option value="tel">Phone</option>
+                              <option value="date">Date</option>
+                              <option value="select">Select/Dropdown</option>
+                              <option value="textarea">Textarea</option>
+                              <option value="checkbox">Checkbox</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p className="mt-2 text-sm">Select fields above to configure them</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Integration Settings */}
+            <div className="border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Integration Settings</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Webhook URL (Optional)
+                  </label>
+                  <input 
+                    type="url" 
+                    value={formData.webhookUrl}
+                    onChange={(e) => setFormData({...formData, webhookUrl: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                    placeholder="https://your-webhook-url.com/endpoint"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Send form submissions to external URL</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Auto-assign to List
+                  </label>
+                  <select 
+                    value={formData.autoAssignList}
+                    onChange={(e) => setFormData({...formData, autoAssignList: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white"
+                  >
+                    <option value="">Select a list (optional)</option>
+                    <option value="website-leads">Website Leads</option>
+                    <option value="newsletter-signups">Newsletter Signups</option>
+                    <option value="contact-requests">Contact Requests</option>
+                  </select>
+                </div>
+                <div className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="enableCaptcha"
+                    checked={formData.enableCaptcha}
+                    onChange={(e) => setFormData({...formData, enableCaptcha: e.target.checked})}
+                    className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="enableCaptcha" className="ml-2 text-sm text-gray-900">
+                    Enable CAPTCHA for public forms
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Custom Fields</h2>
+              <button 
+                onClick={addCustomField}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-kennex-600 hover:bg-kennex-700"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Custom Field
+              </button>
+            </div>
+
+            {formData.customFields.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p>No custom fields added yet.</p>
+                <p className="text-sm mt-1">Click "Add Custom Field" to create one.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {formData.customFields.map((field, index) => (
+                  <div key={field.id} className="border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        Custom Field {index + 1}
+                      </h3>
+                      <button 
+                        onClick={() => removeCustomField(field.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Field Name *
+                        </label>
+                        <input 
+                          type="text" 
+                          value={field.name}
+                          onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                          placeholder="e.g., customer_segment"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Internal name (no spaces, alphanumeric + underscore)</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Display Label *
+                        </label>
+                        <input 
+                          type="text" 
+                          value={field.label}
+                          onChange={(e) => updateCustomField(field.id, { label: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                          placeholder="e.g., Customer Segment"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Label shown to users</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Field Type *
+                        </label>
+                        <select 
+                          value={field.type}
+                          onChange={(e) => updateCustomField(field.id, { type: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white"
+                        >
+                          <option value="text">Text</option>
+                          <option value="textarea">Long Text</option>
+                          <option value="email">Email</option>
+                          <option value="phone">Phone</option>
+                          <option value="number">Number</option>
+                          <option value="date">Date</option>
+                          <option value="select">Dropdown Select</option>
+                          <option value="checkbox">Checkbox</option>
+                          <option value="radio">Radio Buttons</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Placeholder
+                        </label>
+                        <input 
+                          type="text" 
+                          value={field.placeholder}
+                          onChange={(e) => updateCustomField(field.id, { placeholder: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                          placeholder="Enter placeholder text"
+                        />
+                      </div>
+
+                      {(field.type === 'select' || field.type === 'radio') && (
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Options (one per line)
+                          </label>
+                          <textarea 
+                            rows={4}
+                            value={field.options.join('\n')}
+                            onChange={(e) => updateCustomField(field.id, { 
+                              options: e.target.value.split('\n').filter(opt => opt.trim()) 
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none resize-none"
+                            placeholder="Option 1&#10;Option 2&#10;Option 3"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Default Value
+                        </label>
+                        <input 
+                          type="text" 
+                          value={field.defaultValue}
+                          onChange={(e) => updateCustomField(field.id, { defaultValue: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                          placeholder="Enter default value"
+                        />
+                      </div>
+
+                      <div className="flex items-center space-x-6">
+                        <label className="flex items-center">
+                          <input 
+                            type="checkbox" 
+                            checked={field.required}
+                            onChange={(e) => updateCustomField(field.id, { required: e.target.checked })}
+                            className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-2 text-sm text-gray-900">Required field</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Field Preview */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Preview:</h4>
+                      <div className="bg-gray-50 p-4 rounded-md">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {field.label || 'Field Label'} {field.required && <span className="text-red-500">*</span>}
+                        </label>
+                        {field.type === 'textarea' ? (
+                          <textarea 
+                            placeholder={field.placeholder}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                            disabled
+                          />
+                        ) : field.type === 'select' ? (
+                          <select className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white" disabled>
+                            <option>{field.placeholder || 'Select an option'}</option>
+                            {field.options.map((option: string, i: number) => (
+                              <option key={i} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        ) : field.type === 'checkbox' ? (
+                          <div className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-kennex-600 border-gray-300 rounded" disabled />
+                            <span className="ml-2 text-sm text-gray-700">{field.label}</span>
+                          </div>
+                        ) : field.type === 'radio' && field.options.length > 0 ? (
+                          <div className="space-y-2">
+                            {field.options.map((option: string, i: number) => (
+                              <div key={i} className="flex items-center">
+                                <input type="radio" name={`preview-${field.id}`} className="h-4 w-4 text-kennex-600 border-gray-300" disabled />
+                                <span className="ml-2 text-sm text-gray-700">{option}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <input 
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            defaultValue={field.defaultValue}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                            disabled
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">CLI Selection</h2>
+              <button 
+                onClick={addCLINumber}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-kennex-600 hover:bg-kennex-700"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add CLI Number
+              </button>
+            </div>
+
+            {formData.campaign && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-blue-900 mb-2">
+                  Available numbers for campaign: {formData.campaign}
+                </h3>
+                {getCampaignPhoneNumbers(formData.campaign).length > 0 ? (
+                  <div className="space-y-2">
+                    {getCampaignPhoneNumbers(formData.campaign).map((number, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          const newCLI = {
+                            id: Date.now().toString() + index,
+                            number: number,
+                            active: true,
+                            callCount: Math.floor(Math.random() * 500) // Mock call count
+                          };
+                          setFormData({
+                            ...formData,
+                            cliNumbers: [...formData.cliNumbers, newCLI]
+                          });
+                        }}
+                        className="block w-full text-left px-3 py-2 text-sm bg-white border border-blue-300 rounded hover:bg-blue-50 transition-colors"
+                      >
+                        {number} (Click to add)
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <svg className="mx-auto h-8 w-8 text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-blue-800">No phone numbers assigned to this campaign yet.</p>
+                    <p className="text-xs text-blue-600 mt-1">Use "Add CLI Number" to manually add numbers.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                CLI Override
+              </label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none bg-white"
+                disabled={formData.cliNumbers.filter(cli => cli.active).length === 0}
+              >
+                <option value="">
+                  {formData.cliNumbers.filter(cli => cli.active).length === 0 
+                    ? "No active CLI numbers available" 
+                    : "Select CLI Override"
+                  }
+                </option>
+                {formData.cliNumbers.filter(cli => cli.active).map(cli => (
+                  <option key={cli.id} value={cli.number}>
+                    {cli.number} ({cli.callCount} calls)
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.cliNumbers.filter(cli => cli.active).length === 0
+                  ? "Add CLI numbers below to enable override functionality"
+                  : "Override the automatic CLI selection with a specific number"
+                }
+              </p>
+            </div>
+
+            {formData.cliNumbers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <p>No CLI numbers added yet.</p>
+                <p className="text-sm mt-1">
+                  {formData.campaign 
+                    ? "Select numbers from the available campaign numbers above, or click 'Add CLI Number' to add a custom number."
+                    : "Please select a campaign in step 1 to see available numbers, or click 'Add CLI Number' to add a custom number."
+                  }
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-lg font-medium text-gray-900">Active CLI Numbers</h3>
+                {formData.cliNumbers.map((cli, index) => (
+                  <div key={cli.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              CLI Number
+                            </label>
+                            <input 
+                              type="tel"
+                              value={cli.number}
+                              onChange={(e) => updateCLINumber(cli.id, { number: e.target.value })}
+                              className="w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                              placeholder="+44XXXXXXXXX"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Call Count
+                            </label>
+                            <div className="px-3 py-2 bg-gray-100 rounded-md text-sm text-gray-600 w-20 text-center">
+                              {cli.callCount}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Status
+                              </label>
+                              <button
+                                onClick={() => toggleCLINumber(cli.id)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                  cli.active ? 'bg-kennex-600' : 'bg-gray-200'
+                                }`}
+                              >
+                                <span 
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    cli.active ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {cli.active ? 'Active' : 'Inactive'}
+                              </p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Actions
+                              </label>
+                              <button 
+                                onClick={() => removeCLINumber(cli.id)}
+                                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md"
+                                title="Remove CLI Number"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CLI Statistics */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Total Calls:</span>
+                          <span className="ml-2 font-medium">{cli.callCount}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Success Rate:</span>
+                          <span className="ml-2 font-medium text-green-600">{Math.floor(Math.random() * 30 + 20)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Avg Duration:</span>
+                          <span className="ml-2 font-medium">{Math.floor(Math.random() * 3 + 1)}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Status:</span>
+                          <span className={`ml-2 font-medium ${cli.active ? 'text-green-600' : 'text-gray-500'}`}>
+                            {cli.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.cliNumbers.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">CLI Summary</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Total Numbers:</span>
+                    <span className="ml-2 font-semibold">{formData.cliNumbers.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Active:</span>
+                    <span className="ml-2 font-semibold text-green-600">
+                      {formData.cliNumbers.filter(cli => cli.active).length}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Total Calls Made:</span>
+                    <span className="ml-2 font-semibold">
+                      {formData.cliNumbers.reduce((sum, cli) => sum + cli.callCount, 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Outcomes Assigned To This Data List</h2>
+              <button 
+                onClick={addOutcome}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-kennex-600 hover:bg-kennex-700"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Custom Outcome
+              </button>
+            </div>
+
+            {/* Predefined Outcomes */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-blue-900 mb-3">Quick Add - Common Outcomes</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {predefinedOutcomes
+                  .filter(outcome => !formData.outcomes.some(existing => existing.name === outcome))
+                  .map((outcome, index) => (
+                    <button
+                      key={index}
+                      onClick={() => addPredefinedOutcome(outcome)}
+                      className="text-left px-3 py-2 text-sm bg-white border border-blue-300 rounded hover:bg-blue-50 transition-colors"
+                    >
+                      {outcome}
+                    </button>
+                  ))
+                }
+              </div>
+              {predefinedOutcomes.filter(outcome => !formData.outcomes.some(existing => existing.name === outcome)).length === 0 && (
+                <p className="text-sm text-blue-700">All common outcomes have been added.</p>
+              )}
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Search outcomes..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+              />
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            {/* Outcomes List */}
+            {formData.outcomes.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p>No outcomes configured yet.</p>
+                <p className="text-sm mt-1">Add outcomes from the quick list above or create custom outcomes.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {formData.outcomes.map((outcome, index) => (
+                  <div key={outcome.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Outcome Name *
+                            </label>
+                            <input 
+                              type="text"
+                              value={outcome.name}
+                              onChange={(e) => updateOutcome(outcome.id, { name: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                              placeholder="Enter outcome name"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Max Attempts
+                            </label>
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-1">
+                                  <input 
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    value={outcome.isUnlimited ? 20 : outcome.maxAttempts}
+                                    onChange={(e) => updateOutcome(outcome.id, { 
+                                      maxAttempts: parseInt(e.target.value),
+                                      isUnlimited: false 
+                                    })}
+                                    disabled={outcome.isUnlimited}
+                                    className={`w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ${
+                                      outcome.isUnlimited ? 'opacity-50' : ''
+                                    }`}
+                                  />
+                                </div>
+                                <div className="w-20 text-sm text-gray-600 text-center font-medium">
+                                  {outcome.isUnlimited ? 'Unlimited' : `${outcome.maxAttempts} attempt${outcome.maxAttempts !== 1 ? 's' : ''}`}
+                                </div>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-500">
+                                <span>1</span>
+                                <span>10</span>
+                                <span>20</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-4">
+                          <label className="flex items-center">
+                            <input 
+                              type="checkbox"
+                              checked={outcome.isUnlimited}
+                              onChange={(e) => updateOutcome(outcome.id, { 
+                                isUnlimited: e.target.checked,
+                                maxAttempts: e.target.checked ? 0 : (outcome.maxAttempts || 5)
+                              })}
+                              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm text-gray-900">Unlimited attempts</span>
+                          </label>
+
+                          <label className="flex items-center">
+                            <input 
+                              type="checkbox"
+                              checked={outcome.active}
+                              onChange={(e) => updateOutcome(outcome.id, { active: e.target.checked })}
+                              className="h-4 w-4 text-kennex-600 focus:ring-kennex-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm text-gray-900">Active</span>
+                          </label>
+                        </div>
+
+                        {/* Outcome Statistics */}
+                        <div className="bg-gray-50 rounded-md p-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">Usage Statistics</h4>
+                          <div className="grid grid-cols-3 gap-4 text-xs">
+                            <div>
+                              <span className="text-gray-500">Times Used:</span>
+                              <span className="ml-1 font-medium">{Math.floor(Math.random() * 100)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Success Rate:</span>
+                              <span className="ml-1 font-medium">{Math.floor(Math.random() * 60 + 20)}%</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Avg. Time:</span>
+                              <span className="ml-1 font-medium">{Math.floor(Math.random() * 5 + 1)}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="ml-4">
+                        <button 
+                          onClick={() => removeOutcome(outcome.id)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md"
+                          title="Remove Outcome"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Outcomes Summary */}
+            {formData.outcomes.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Outcomes Summary</h4>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Total Outcomes:</span>
+                    <span className="ml-2 font-semibold">{formData.outcomes.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Active:</span>
+                    <span className="ml-2 font-semibold text-green-600">
+                      {formData.outcomes.filter(outcome => outcome.active).length}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Unlimited:</span>
+                    <span className="ml-2 font-semibold text-blue-600">
+                      {formData.outcomes.filter(outcome => outcome.isUnlimited).length}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">With Limits:</span>
+                    <span className="ml-2 font-semibold text-orange-600">
+                      {formData.outcomes.filter(outcome => !outcome.isUnlimited).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="h-full bg-white flex flex-col">
+      {/* Step Navigation */}
+      <div className="border-b border-gray-200 bg-gray-50">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-lg font-medium text-gray-900">
+              {editingData ? 'Edit Data List' : 'Create Data Lists'}
+            </h1>
+            <button 
+              onClick={onBack}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-8">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div 
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step.number === currentStep 
+                      ? 'bg-kennex-600 text-white' 
+                      : step.completed 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {step.completed ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    step.number
+                  )}
+                </div>
+                <span className={`ml-2 text-sm ${
+                  step.number === currentStep 
+                    ? 'text-kennex-600 font-medium' 
+                    : step.completed 
+                      ? 'text-green-600' 
+                      : 'text-gray-500'
+                }`}>
+                  {step.title}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className="ml-8 w-8 h-0.5 bg-gray-200"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Step Content - Full Height with Gray Background */}
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="w-full max-w-4xl mx-auto p-12 bg-white rounded-lg shadow-sm">
+            {renderStepContent()}
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Buttons - Always visible */}
+      <div className="border-t border-gray-200 bg-white px-8 py-4 flex-shrink-0">
+        <div className="flex justify-end space-x-4">
+          {currentStep > 1 && (
+            <button 
+              onClick={handleBack}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Back
+            </button>
+          )}
+          <button 
+            onClick={handleNext}
+            className="px-6 py-2 bg-kennex-600 text-white rounded-md text-sm font-medium hover:bg-kennex-700"
+          >
+            {currentStep === 5 ? 'Finish' : 'Next'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DataManagementContent({ searchTerm }: DataManagementContentProps) {
+  const [selectedSubTab, setSelectedSubTab] = useState('Manage Data Lists');
+  const [dataLists, setDataLists] = useState<DataList[]>(initialDataLists);
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState<string | null>(null);
+  const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
+  const [editingDataList, setEditingDataList] = useState<DataList | null>(null);
+  const [uploadingToList, setUploadingToList] = useState<string | null>(null);
+
+  const handleDataListSaved = (newDataList: DataList) => {
+    if (editingDataList) {
+      // Update existing data list
+      setDataLists(prev => prev.map(item => 
+        item.id === editingDataList.id ? newDataList : item
+      ));
+      setEditingDataList(null);
+    } else {
+      // Add new data list
+      setDataLists(prev => [...prev, newDataList]);
+    }
+  };
+
+  const handleBackToList = () => {
+    setSelectedSubTab('Manage Data Lists');
+    setEditingDataList(null);
+    setUploadingToList(null);
+  };
+
+  const handleUploadComplete = (result: any) => {
+    if (result.success && uploadingToList) {
+      // Update the total and available counts for the uploaded list
+      setDataLists(prev => prev.map(item => 
+        item.id === uploadingToList 
+          ? { ...item, total: item.total + (result.recordsAdded || 0), available: item.available + (result.recordsAdded || 0) }
+          : item
+      ));
+    }
+    setUploadingToList(null);
+  };
+
+  const toggleStatus = (id: string) => {
+    setDataLists(prev => prev.map(item => 
+      item.id === id 
+        ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
+        : item
+    ));
+  };
+
+  const deleteDataList = (id: string) => {
+    if (confirm('Are you sure you want to delete this data list? This action cannot be undone.')) {
+      setDataLists(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const editDataList = (id: string) => {
+    const dataListToEdit = dataLists.find(item => item.id === id);
+    if (dataListToEdit) {
+      setEditingDataList(dataListToEdit);
+      setSelectedSubTab('Create Data Lists');
+    }
+  };
+
+  const uploadData = (id: string) => {
+    setUploadingToList(id);
+    setSelectedSubTab('Upload Data');
+  };
+
+  const downloadData = (id: string) => {
+    alert(`Downloading data for list ${id}...`);
+    // In a real implementation, this would trigger a CSV/Excel download
+  };
+
+  const viewOutcomeSummary = (id: string) => {
+    alert(`Outcome Summary for list ${id} - Opening summary view...`);
+    // In a real implementation, this would open a modal with outcome statistics
+  };
+
+  const cloneDataList = (id: string) => {
+    const originalList = dataLists.find(item => item.id === id);
+    if (originalList) {
+      const clonedList = {
+        ...originalList,
+        id: `${originalList.id}-copy`,
+        name: `${originalList.name} (Copy)`,
+        status: 'Inactive' as const
+      };
+      setDataLists(prev => [...prev, clonedList]);
+      alert(`Data list cloned successfully!`);
+    }
+  };
+
+  const changeCampaign = (id: string, newCampaign: string) => {
+    setDataLists(prev => prev.map(item => 
+      item.id === id 
+        ? { ...item, campaign: newCampaign }
+        : item
+    ));
+    setShowDropdown(null);
+  };
+
+  const deleteDataAndList = (id: string) => {
+    if (confirm('Are you sure you want to delete this data list and all its data? This action cannot be undone.')) {
+      setDataLists(prev => prev.filter(item => item.id !== id));
+      alert('Data list and all associated data deleted successfully.');
+    }
+  };
+
+  // Combine both search terms for filtering
+  const combinedSearchTerm = searchTerm || localSearchTerm;
+  const filteredData = dataLists.filter((item: DataList) =>
+    item.name.toLowerCase().includes(combinedSearchTerm.toLowerCase()) ||
+    item.description.toLowerCase().includes(combinedSearchTerm.toLowerCase()) ||
+    item.campaign.toLowerCase().includes(combinedSearchTerm.toLowerCase())
+  );
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        setShowDropdown(null);
+        setShowActionMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // If Create Data Lists is selected, render the wizard component
+  if (selectedSubTab === 'Create Data Lists') {
+    return <CreateDataListWizard 
+      onBack={handleBackToList} 
+      onDataListSaved={handleDataListSaved}
+      editingData={editingDataList}
+    />;
+  }
+
+  // If Upload Data is selected, render the upload wizard component
+  if (selectedSubTab === 'Upload Data') {
+    return <UploadDataWizard 
+      onBack={handleBackToList} 
+      onUploadComplete={handleUploadComplete}
+      dataListId={uploadingToList || ''}
+    />;
+  }
+
+  return (
+    <div className="h-full bg-white flex flex-col">
+      {/* Sub-navigation */}
+      <div className="border-b border-gray-200 bg-gray-50">
+        <div className="px-6 py-2">
+          <div className="flex space-x-6">
+            {['Manage Data Lists', 'Create Data Lists', 'Data Autoload'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSelectedSubTab(tab)}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  selectedSubTab === tab
+                    ? 'text-kennex-600 border-b-2 border-kennex-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        {selectedSubTab === 'Manage Data Lists' && (
+        <>
+          {/* Action Bar */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+                  </svg>
+                  Filter
+                </button>
+                <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  Sort
+                </button>
+                <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Search data lists..."
+                    value={localSearchTerm}
+                    onChange={(e) => setLocalSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-md focus:border-kennex-500 focus:ring-kennex-500 focus:outline-none"
+                  />
+                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-kennex-600 hover:bg-kennex-700">
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Table Header */}
+            <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <div className="flex text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <div className="w-20 px-6 py-3 text-left">ID</div>
+                <div className="w-48 px-6 py-3 text-left">Name</div>
+                <div className="flex-1 px-6 py-3 text-left">Description</div>
+                <div className="w-48 px-6 py-3 text-left">Campaign</div>
+                <div className="w-20 px-6 py-3 text-center">Total</div>
+                <div className="w-24 px-6 py-3 text-center">Available</div>
+                <div className="w-20 px-6 py-3 text-center">Queued</div>
+                <div className="w-16 px-6 py-3 text-center">Reset</div>
+                <div className="w-16 px-6 py-3 text-center">Active</div>
+                <div className="w-16 px-6 py-3 text-center">Action</div>
+              </div>
+            </div>
+
+            {/* Table Content */}
+            <div className="bg-white overflow-y-auto flex-1">
+              {filteredData.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center py-12">
+                    <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Lists</h3>
+                    <p className="text-gray-500 mb-4">
+                      {combinedSearchTerm ? 'No data lists match your search criteria.' : 'Get started by creating your first data list.'}
+                    </p>
+                    <button 
+                      onClick={() => setSelectedSubTab('Create Data Lists')}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-kennex-600 hover:bg-kennex-700"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Create Data List
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredData.map((item: DataList, index: number) => (
+                    <div 
+                      key={item.id} 
+                      className={`flex text-sm hover:bg-gray-50 transition-colors ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                      }`}
+                    >
+                      {/* ID */}
+                      <div className="w-20 px-6 py-4 flex items-center">
+                        <span className="font-medium text-gray-900">{item.id}</span>
+                      </div>
+
+                      {/* Name */}
+                      <div className="w-48 px-6 py-4 flex items-center">
+                        <span className="font-medium text-gray-900 truncate">{item.name}</span>
+                      </div>
+
+                      {/* Description */}
+                      <div className="flex-1 px-6 py-4 flex items-center">
+                        <span className="text-gray-700 truncate">{item.description}</span>
+                      </div>
+
+                      {/* Campaign */}
+                      <div className="w-48 px-6 py-4 flex items-center">
+                        <div className="flex items-center w-full">
+                          <span className="text-gray-900 truncate">{item.campaign}</span>
+                          <div className="relative ml-2 dropdown-container">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDropdown(showDropdown === item.id ? null : item.id);
+                              }}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {showDropdown === item.id && (
+                              <div className="absolute right-0 top-6 z-50 bg-white border border-gray-200 rounded-md shadow-lg min-w-48">
+                                <div className="py-1">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changeCampaign(item.id, 'DAC Cold First Use');
+                                    }}
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                  >
+                                    DAC Cold First Use
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changeCampaign(item.id, 'Default Campaign');
+                                    }}
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                  >
+                                    Default Campaign
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changeCampaign(item.id, 'Crystal Ho Campaign');
+                                    }}
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                  >
+                                    Crystal Ho Campaign
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total */}
+                      <div className="w-20 px-6 py-4 flex items-center justify-center">
+                        <span className="font-medium text-gray-900">{item.total}</span>
+                      </div>
+
+                      {/* Available */}
+                      <div className="w-24 px-6 py-4 flex items-center justify-center">
+                        <span className="font-medium text-gray-900">{item.available}</span>
+                      </div>
+
+                      {/* Queued */}
+                      <div className="w-20 px-6 py-4 flex items-center justify-center">
+                        <span className="font-medium text-gray-900">0</span>
+                      </div>
+
+                      {/* Reset */}
+                      <div className="w-16 px-6 py-4 flex items-center justify-center">
+                        <span className="font-medium text-gray-900">0</span>
+                      </div>
+
+                      {/* Active Toggle */}
+                      <div className="w-16 px-6 py-4 flex items-center justify-center">
+                        <button 
+                          onClick={() => toggleStatus(item.id)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            item.status === 'Active' ? 'bg-teal-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span 
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              item.status === 'Active' ? 'translate-x-5' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Action */}
+                      <div className="w-16 px-6 py-4 flex items-center justify-center">
+                        <div className="relative dropdown-container">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowActionMenu(showActionMenu === item.id ? null : item.id);
+                            }}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
+                          {showActionMenu === item.id && (
+                            <div className="absolute right-0 top-6 z-50 bg-white border border-gray-200 rounded-md shadow-lg min-w-48">
+                              <div className="py-1">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    editDataList(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  Edit
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    uploadData(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                  </svg>
+                                  Upload Data
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadData(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  Download
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    viewOutcomeSummary(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                  </svg>
+                                  Outcome Summary
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    cloneDataList(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Clone
+                                </button>
+                                <div className="border-t border-gray-100 my-1"></div>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteDataAndList(item.id);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                                >
+                                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  Delete Data & List
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+        )}      {selectedSubTab === 'Data Autoload' && (
+        <div className="p-6">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🔄</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Data Autoload</h3>
+              <p className="text-gray-500 mb-4">
+                Configure automated data loading and synchronization
+              </p>
+              <div className="bg-gray-50 rounded-lg p-4 text-left max-w-md mx-auto">
+                <h4 className="font-medium text-gray-900 mb-2">Coming Soon:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Scheduled data imports</li>
+                  <li>• Real-time synchronization</li>
+                  <li>• Data validation rules</li>
+                  <li>• Error handling and notifications</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}

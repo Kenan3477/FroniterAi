@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const agentId = searchParams.get('agentId');
+    const campaignId = searchParams.get('campaignId');
+
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    const where: any = {};
+    if (Object.keys(dateFilter).length > 0) {
+      where.startTime = dateFilter;
+    }
+    if (agentId) where.agentId = agentId;
+    if (campaignId) where.campaignId = campaignId;
+
+    // Get call statistics
+    const totalCalls = await prisma.callRecord.count({ where });
+    
+    const answeredCalls = await prisma.callRecord.count({
+      where: { ...where, outcome: 'answered' }
+    });
+
+    const callsByOutcome = await prisma.callRecord.groupBy({
+      by: ['outcome'],
+      where,
+      _count: { outcome: true }
+    });
+
+    const callsByDisposition = await prisma.callRecord.groupBy({
+      by: ['dispositionId'],
+      where: { ...where, dispositionId: { not: null } },
+      _count: { dispositionId: true },
+      _sum: { duration: true }
+    });
+
+    // Get disposition names
+    const dispositionStats = await Promise.all(
+      callsByDisposition.map(async (stat) => {
+        const disposition = await prisma.disposition.findUnique({
+          where: { id: stat.dispositionId! }
+        });
+        return {
+          dispositionName: disposition?.name || 'Unknown',
+          count: stat._count.dispositionId,
+          totalDuration: stat._sum.duration || 0
+        };
+      })
+    );
+
+    // Get agent performance
+    const agentStats = await prisma.callRecord.groupBy({
+      by: ['agentId'],
+      where: { ...where, agentId: { not: null } },
+      _count: { agentId: true },
+      _sum: { duration: true },
+      _avg: { duration: true }
+    });
+
+    const agentPerformance = await Promise.all(
+      agentStats.map(async (stat) => {
+        const agent = await prisma.agent.findUnique({
+          where: { agentId: stat.agentId! }
+        });
+        
+        const answeredByAgent = await prisma.callRecord.count({
+          where: { ...where, agentId: stat.agentId, outcome: 'answered' }
+        });
+
+        return {
+          agentId: stat.agentId,
+          agentName: agent ? `${agent.firstName} ${agent.lastName}` : 'Unknown',
+          totalCalls: stat._count.agentId,
+          answeredCalls: answeredByAgent,
+          totalTalkTime: stat._sum.duration || 0,
+          averageCallDuration: Math.round(stat._avg.duration || 0),
+          answerRate: stat._count.agentId > 0 ? ((answeredByAgent / stat._count.agentId) * 100) : 0
+        };
+      })
+    );
+
+    // Get campaign performance
+    const campaignStats = await prisma.callRecord.groupBy({
+      by: ['campaignId'],
+      where,
+      _count: { campaignId: true },
+      _sum: { duration: true }
+    });
+
+    const campaignPerformance = await Promise.all(
+      campaignStats.map(async (stat) => {
+        const campaign = await prisma.campaign.findUnique({
+          where: { campaignId: stat.campaignId }
+        });
+
+        const answeredByCampaign = await prisma.callRecord.count({
+          where: { ...where, campaignId: stat.campaignId, outcome: 'answered' }
+        });
+
+        return {
+          campaignId: stat.campaignId,
+          campaignName: campaign?.name || 'Unknown',
+          totalCalls: stat._count.campaignId,
+          answeredCalls: answeredByCampaign,
+          totalDuration: stat._sum.duration || 0,
+          answerRate: stat._count.campaignId > 0 ? ((answeredByCampaign / stat._count.campaignId) * 100) : 0
+        };
+      })
+    );
+
+    // Get real-time agent status
+    const agentStatusCounts = await prisma.agent.groupBy({
+      by: ['status'],
+      _count: { status: true }
+    });
+
+    // Get queue statistics
+    const queueStats = await prisma.dialQueueEntry.groupBy({
+      by: ['status'],
+      _count: { status: true }
+    });
+
+    return NextResponse.json({
+      summary: {
+        totalCalls,
+        answeredCalls,
+        answerRate: totalCalls > 0 ? ((answeredCalls / totalCalls) * 100) : 0,
+        callsByOutcome: callsByOutcome.map(stat => ({
+          outcome: stat.outcome,
+          count: stat._count.outcome
+        }))
+      },
+      dispositionStats,
+      agentPerformance,
+      campaignPerformance,
+      agentStatusCounts: agentStatusCounts.map(stat => ({
+        status: stat.status,
+        count: stat._count.status
+      })),
+      queueStats: queueStats.map(stat => ({
+        status: stat.status,
+        count: stat._count.status
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 });
+  }
+}

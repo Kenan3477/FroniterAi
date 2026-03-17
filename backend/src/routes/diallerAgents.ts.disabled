@@ -1,0 +1,145 @@
+import express from 'express';
+import { agentService } from '../services/agentService';
+
+const router = express.Router();
+
+// Create new agent
+router.post('/', async (req, res) => {
+  try {
+    const agent = await agentService.createAgent(req.body);
+    res.status(201).json(agent);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// List all agents
+router.get('/', async (req, res) => {
+  try {
+    const { status, campaignId, isActive, limit, offset } = req.query;
+    const agents = await agentService.listAgents({
+      status: status as any,
+      campaignId: campaignId as string,
+      isActive: isActive === 'true',
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+    });
+    res.json(agents);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get agent by ID
+router.get('/:agentId', async (req, res) => {
+  try {
+    const agent = await agentService.getAgent(req.params.agentId);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    res.json(agent);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update agent
+router.patch('/:agentId', async (req, res) => {
+  try {
+    const agent = await agentService.updateAgent(req.params.agentId, req.body);
+    res.json(agent);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update agent status
+router.patch('/:agentId/status', async (req, res) => {
+  try {
+    const { status, campaignId, sessionData } = req.body;
+    const agent = await agentService.updateAgentStatus(
+      req.params.agentId,
+      status,
+      campaignId,
+      sessionData
+    );
+    res.json(agent);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Assign agent to campaign
+router.post('/:agentId/campaigns/:campaignId', async (req, res) => {
+  try {
+    const { priority = 1 } = req.body;
+    const assignment = await agentService.assignAgentToCampaign(
+      req.params.agentId,
+      req.params.campaignId,
+      priority
+    );
+    res.status(201).json(assignment);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Remove agent from campaign
+router.delete('/:agentId/campaigns/:campaignId', async (req, res) => {
+  try {
+    await agentService.unassignAgentFromCampaign(
+      req.params.agentId,
+      req.params.campaignId
+    );
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get agent statistics
+router.get('/:agentId/stats', async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const stats = await agentService.getAgentStats(
+      req.params.agentId,
+      from ? new Date(from as string) : undefined,
+      to ? new Date(to as string) : undefined
+    );
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get available agents for campaign
+router.get('/available/:campaignId', async (req, res) => {
+  try {
+    const agents = await agentService.getAvailableAgents(req.params.campaignId);
+    res.json(agents);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get active sessions
+router.get('/sessions/active', async (req, res) => {
+  try {
+    const sessions = agentService.getActiveSessions();
+    res.json(sessions);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deactivate agent
+router.delete('/:agentId', async (req, res) => {
+  try {
+    const agent = await agentService.deactivateAgent(req.params.agentId);
+    res.json(agent);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+export default router;

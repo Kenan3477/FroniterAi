@@ -1,0 +1,744 @@
+import { Router } from 'express';
+import { prisma } from '../database';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { authRateLimiter } from '../middleware/rateLimiter';
+import { securityMonitor } from '../middleware/security'; // SECURITY: Monitor auth events
+
+const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+// Security check - fail fast if no secrets provided
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  throw new Error('SECURITY ERROR: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+}
+
+// Production authentication with database lookup and security features
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    const loginIdentifier = email || username;
+
+    console.log('🔐 Production login attempt for:', loginIdentifier);
+
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username/email and password are required'
+      });
+    }
+
+    // Find user by email or username
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: loginIdentifier.toLowerCase() },
+          { username: loginIdentifier }
+        ]
+      }
+    });
+
+    if (!user) {
+      // Log failed attempt without revealing if user exists
+      console.log(`❌ Login failed: User not found for identifier: ${loginIdentifier}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if account is locked
+    if (user.accountLockedUntil && new Date() < user.accountLockedUntil) {
+      console.log(`🔒 Login blocked: Account locked until ${user.accountLockedUntil} for user: ${user.username}`);
+      return res.status(423).json({
+        success: false,
+        message: 'Account temporarily locked due to multiple failed attempts. Please try again later.'
+      });
+    }
+
+    // Check if account is active
+    if (!user.isActive) {
+      console.log(`❌ Login blocked: Inactive account for user: ${user.username}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Account is disabled. Please contact administrator.'
+      });
+    }
+
+    // Verify password
+    console.log('🔍 Password verification details:');
+    console.log('  - Login identifier:', JSON.stringify(loginIdentifier));
+    console.log('  - Login type:', email ? 'EMAIL' : 'USERNAME');
+    console.log('  - Input password:', JSON.stringify(password));
+    console.log('  - Input password type:', typeof password);
+    console.log('  - Input password length:', password?.length || 0);
+    console.log('  - Found user ID:', user.id);
+    console.log('  - Found user email:', user.email);
+    console.log('  - Found user username:', user.username);
+    console.log('  - Stored hash:', user.password);
+    console.log('  - Hash length:', user.password?.length || 0);
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log('🔍 Password comparison result:', isPasswordValid);
+    
+    // Additional debug: test with known working password
+    // Additional debug: test with known working password
+    if (!isPasswordValid && user.email === 'Kennen_02@icloud.com') {
+      console.log('🔍 Testing with demo password for debug...');
+      // REMOVED: Hardcoded password tests for security
+      console.log('🔍 Hardcoded password tests disabled for security');
+    }
+    
+    if (!isPasswordValid) {
+      // Increment failed login attempts
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: user.failedLoginAttempts + 1,
+          lastLoginAttempt: new Date(),
+          // Lock account after 5 failed attempts for 30 minutes
+          accountLockedUntil: user.failedLoginAttempts >= 4 ? 
+            new Date(Date.now() + 30 * 60 * 1000) : undefined
+        }
+      });
+
+      console.log(`❌ Login failed: Invalid password for user: ${user.username}. Failed attempts: ${updatedUser.failedLoginAttempts}`);
+      
+      // SECURITY: Log failed authentication attempt
+      securityMonitor.logFailedAuth(
+        user.email,
+        req.ip || req.connection.remoteAddress || 'unknown',
+        req.get('User-Agent') || 'unknown'
+      );
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+        attemptsRemaining: Math.max(0, 5 - updatedUser.failedLoginAttempts)
+      });
+    }
+
+    // Successful login - reset failed attempts and update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: 0,
+        lastLogin: new Date(),
+        lastLoginAttempt: new Date(),
+        accountLockedUntil: null
+      }
+    });
+
+    // Generate tokens
+    const accessToken = jwt.sign(
+      { 
+        userId: user.id, 
+        username: user.username, 
+        role: user.role,
+        email: user.email
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '8h' } // 8-hour access token for call center shifts
+    );
+
+    const refreshToken = jwt.sign(
+      { 
+        userId: user.id, 
+        tokenVersion: user.refreshTokenVersion 
+      }, 
+      JWT_REFRESH_SECRET, 
+      { expiresIn: '7d' } // Longer-lived refresh token
+    );
+
+    // Generate session ID
+    const sessionId = `sess_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const userAgent = req.get('User-Agent') || 'unknown';
+
+    // Detect device type
+    const deviceType = userAgent.includes('Mobile') ? 'mobile' : 
+                       userAgent.includes('Tablet') ? 'tablet' : 'desktop';
+
+    // Close any existing active sessions for this user to prevent multiple active sessions
+    // TEMPORARILY DISABLED - userSession table not in schema
+    // const existingActiveSessions = await prisma.userSession.findMany({
+    //   where: { 
+    //     userId: user.id, 
+    //     status: 'active' 
+    //   }
+    // });
+
+    // TEMPORARILY DISABLED - userSession management
+    // if (existingActiveSessions.length > 0) {
+    //   console.log(`🔄 Closing ${existingActiveSessions.length} existing active session(s) for user: ${user.username}`);
+    //   
+    //   const loginTime = new Date();
+    //   
+    //   // Update all active sessions to logged_out with calculated duration
+    //   for (const session of existingActiveSessions) {
+    //     const sessionDuration = Math.floor((loginTime.getTime() - session.loginTime.getTime()) / 1000);
+    //     await prisma.userSession.update({
+    //       where: { id: session.id },
+    //       data: {
+    //         status: 'logged_out',
+    //         logoutTime: loginTime,
+    //         sessionDuration
+    //       }
+    //     });
+    //   }
+    // }
+
+    // Create user session record - TEMPORARILY DISABLED
+    // await prisma.userSession.create({
+    //   data: {
+    //     sessionId,
+    //     userId: user.id,
+    //     loginTime: new Date(),
+    //     ipAddress: clientIP,
+    //     userAgent,
+    //     status: 'active',
+    //     lastActivity: new Date(),
+    //     browserInfo: userAgent,
+    //     deviceType
+    //   }
+    // });
+
+    console.log('📝 User session logging temporarily disabled - schema not available');
+
+    // Store refresh token in database
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        userAgent: req.headers['user-agent'] || 'Unknown',
+        ipAddress: req.ip || 'Unknown'
+      }
+    });
+
+    // Create audit log entry for login
+    await prisma.auditLog.create({
+      data: {
+        action: 'USER_LOGIN',
+        entityType: 'User',
+        entityId: user.id.toString(),
+        performedByUserId: user.id.toString(),
+        performedByUserEmail: user.email,
+        performedByUserName: `${user.firstName} ${user.lastName}`,
+        ipAddress: clientIP,
+        userAgent,
+        sessionId,
+        metadata: JSON.stringify({
+          sessionId,
+          loginMethod: 'password',
+          deviceType,
+          userRole: user.role,
+          browserInfo: userAgent
+        }),
+        severity: 'INFO',
+        timestamp: new Date()
+      }
+    });
+
+    console.log(`✅ Successful login for user: ${user.username} (${user.email}), Session: ${sessionId}`);
+
+    // SECURITY: Log admin login specifically
+    if (user.role === 'ADMIN') {
+      securityMonitor.logAdminLogin(
+        user.email,
+        req.ip || req.connection.remoteAddress || 'unknown',
+        req.get('User-Agent') || 'unknown'
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isActive: user.isActive,
+          twoFactorEnabled: user.twoFactorEnabled,
+          lastLogin: user.lastLogin,
+          preferences: user.preferences ? JSON.parse(user.preferences) : null
+        },
+        token: accessToken, // For backward compatibility
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        sessionId: sessionId, // Include session ID for tracking
+        expiresIn: 8 * 60 * 60 // 8 hours in seconds
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Authentication service temporarily unavailable'
+    });
+  }
+});
+
+// Refresh token endpoint
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token required'
+      });
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as any;
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
+
+    // Check if refresh token exists in database and is not expired
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: {
+        token: refreshToken,
+        userId: decoded.userId,
+        expiresAt: { gt: new Date() },
+        isRevoked: false
+      },
+      include: { user: true }
+    });
+
+    if (!storedToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token not found or expired'
+      });
+    }
+
+    // Check if token version matches (for token invalidation)
+    if (storedToken.user.refreshTokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token has been revoked'
+      });
+    }
+
+    // Generate new access token
+    const newAccessToken = jwt.sign(
+      {
+        userId: storedToken.user.id,
+        username: storedToken.user.username,
+        role: storedToken.user.role,
+        email: storedToken.user.email
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    // Update last used timestamp
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: { lastUsed: new Date() }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        accessToken: newAccessToken,
+        token: newAccessToken, // For backward compatibility
+        expiresIn: 8 * 60 * 60
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Token refresh service temporarily unavailable'
+    });
+  }
+});
+
+// Profile endpoint with proper authentication middleware
+router.get('/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    // Get fresh user data from database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        twoFactorEnabled: true,
+        lastLogin: true,
+        preferences: true,
+        status: true,
+        statusSince: true
+      }
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'User account not found or inactive'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          ...user,
+          preferences: user.preferences ? JSON.parse(user.preferences) : null
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Profile service temporarily unavailable'
+    });
+  }
+});
+
+// Profile update endpoint with proper authentication middleware
+router.put('/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    const userId = decoded.userId;
+    const { firstName, lastName, email, preferences } = req.body;
+
+    // Validate input
+    if (!firstName && !lastName && !email && !preferences) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one field (firstName, lastName, email, preferences) is required'
+      });
+    }
+
+    // Build update data
+    const updateData: any = {};
+    
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    
+    // Update name if first or last name changed
+    if (firstName || lastName) {
+      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (currentUser) {
+        updateData.name = `${firstName || currentUser.firstName} ${lastName || currentUser.lastName}`;
+      }
+    }
+    
+    // Handle email change (also updates username)
+    if (email) {
+      updateData.email = email.toLowerCase();
+      updateData.username = email.split('@')[0];
+    }
+    
+    // Handle preferences
+    if (preferences) {
+      updateData.preferences = JSON.stringify(preferences);
+    }
+
+    // Update user in database
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        preferences: true,
+        status: true,
+        statusSince: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    console.log(`✅ Profile updated for user: ${updatedUser.name} (${updatedUser.email})`);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          ...updatedUser,
+          preferences: updatedUser.preferences ? JSON.parse(updatedUser.preferences) : null
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Profile update service temporarily unavailable'
+    });
+  }
+});
+
+// Logout endpoint with token revocation
+router.post('/logout', async (req, res) => {
+  try {
+    const { refreshToken, sessionId } = req.body;
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    let userInfo = null;
+
+    // Try to get user info from token if available
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        userId = decoded.userId;
+        
+        // Get user info for audit log
+        userInfo = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, email: true, firstName: true, lastName: true, username: true }
+        });
+      } catch (tokenError) {
+        console.log('Token verification failed during logout:', (tokenError as Error).message);
+      }
+    }
+
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const userAgent = req.get('User-Agent') || 'unknown';
+    const logoutTime = new Date();
+
+    // Update user session if sessionId provided - TEMPORARILY DISABLED
+    if (sessionId && userId) {
+      // const session = await prisma.userSession.findFirst({
+      //   where: { 
+      //     sessionId: sessionId,
+      //     userId: userId,
+      //     status: 'active'
+      //   }
+      // });
+
+      // if (session) {
+      //   const sessionDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
+      //   
+      //   await prisma.userSession.update({
+      //     where: { id: session.id },
+      //     data: {
+      //       logoutTime,
+      //       status: 'logged_out',
+      //       sessionDuration
+      //     }
+      //   });
+      //   
+      //   console.log(`📊 Session duration for ${userInfo?.username}: ${sessionDuration} seconds`);
+      // }
+      
+      console.log('📝 User session logout temporarily disabled - schema not available');
+    }
+
+    // Revoke refresh token if provided
+    if (refreshToken) {
+      await prisma.refreshToken.updateMany({
+        where: { token: refreshToken },
+        data: { isRevoked: true }
+      });
+    }
+
+    // Create audit log entry for logout
+    if (userInfo) {
+      await prisma.auditLog.create({
+        data: {
+          action: 'USER_LOGOUT',
+          entityType: 'User',
+          entityId: userId.toString(),
+          performedByUserId: userId.toString(),
+          performedByUserEmail: userInfo.email,
+          performedByUserName: `${userInfo.firstName} ${userInfo.lastName}`,
+          ipAddress: clientIP,
+          userAgent,
+          sessionId: sessionId || null,
+          metadata: JSON.stringify({
+            sessionId: sessionId || null,
+            logoutMethod: 'manual',
+            userAgent
+          }),
+          severity: 'INFO',
+          timestamp: logoutTime
+        }
+      });
+
+      console.log(`✅ Successful logout for user: ${userInfo.username} (${userInfo.email})`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Logout service temporarily unavailable'
+    });
+  }
+});
+
+// Registration endpoint for admin user creation
+router.post('/register', async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName, role = 'AGENT' } = req.body;
+    
+    console.log('🔐 Registration attempt for:', username);
+
+    // Validate required fields
+    if (!username || !email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required: username, email, password, firstName, lastName'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: email.toLowerCase() },
+          { username: username }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email or username already exists'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create user
+    const newUser = await prisma.user.create({
+      data: {
+        username: username,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        firstName: firstName,
+        lastName: lastName,
+        name: `${firstName} ${lastName}`,
+        role: role.toUpperCase(),
+        isActive: true
+      }
+    });
+
+    console.log(`✅ User created successfully: ${newUser.username} (${newUser.email})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: {
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+          name: newUser.name,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          role: newUser.role,
+          isActive: newUser.isActive
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Registration service temporarily unavailable'
+    });
+  }
+});
+
+// Session heartbeat endpoint to keep sessions alive and reduce 404 noise
+router.post('/session/heartbeat', async (req, res) => {
+  try {
+    res.json({ 
+      success: true, 
+      message: 'Session heartbeat received',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Session heartbeat error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Session heartbeat failed' 
+    });
+  }
+});
+
+export default router;

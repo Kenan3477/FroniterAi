@@ -1,0 +1,11 @@
+# Railway Configuration - Node.js 20.x workspace with Prisma fix
+
+[phases.build]
+cmds = [
+  'echo "Building backend with workspace dependencies..."',
+  'cd backend && npx prisma generate',
+  'cd backend && npm run build'
+]
+
+[start]
+cmd = 'cd backend && npm run start'

@@ -1,0 +1,337 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model DataList {
+  id            String   @id @default(cuid())
+  listId        String   @unique
+  name          String
+  campaignId    String?
+  active        Boolean  @default(false)
+  blendWeight   Int?
+  totalContacts Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  contacts      Contact[]
+  queueEntries  DialQueueEntry[]
+  
+  @@map("data_lists")
+}
+
+model Contact {
+  id             String        @id @default(cuid())
+  contactId      String        @unique
+  listId         String
+  firstName      String
+  lastName       String
+  fullName       String?
+  phone          String
+  mobile         String?
+  workPhone      String?
+  homePhone      String?
+  email          String?
+  company        String?
+  jobTitle       String?
+  department     String?
+  industry       String?
+  address        String?
+  address2       String?
+  city           String?
+  state          String?
+  zipCode        String?
+  country        String?
+  website        String?
+  linkedIn       String?
+  notes          String?
+  tags           String?
+  leadSource     String?
+  leadScore      Int           @default(0)
+  custom1        String?
+  custom2        String?
+  custom3        String?
+  custom4        String?
+  custom5        String?
+  status         String        @default("new") // ContactStatus as String
+  attemptCount   Int           @default(0)
+  maxAttempts    Int           @default(3)
+  locked         Boolean       @default(false)
+  lockedBy       String?
+  lockedAt       DateTime?
+  lastAttempt    DateTime?
+  nextAttempt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  // Relations
+  list           DataList      @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  queueEntries   DialQueueEntry[]
+  workItems      WorkItem[]
+  callRecords    CallRecord[]
+  interactions   Interaction[]
+  sales          Sale[]
+  tasks          Task[]
+  
+  @@map("contacts")
+}
+
+model DialQueueEntry {
+  id              String      @id @default(cuid())
+  queueId         String      @unique
+  campaignId      String
+  listId          String
+  contactId       String
+  status          String      @default("queued") // QueueStatus as String
+  assignedAgentId String?
+  priority        Int         @default(100)
+  queuedAt        DateTime    @default(now())
+  dialedAt        DateTime?
+  completedAt     DateTime?
+  outcome         String?
+  notes           String?
+  
+  // Relations
+  list            DataList    @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  contact         Contact     @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  
+  @@map("dial_queue")
+}
+
+model Campaign {
+  id              String                    @id @default(cuid())
+  campaignId      String                    @unique
+  name            String
+  dialMethod      String                    @default("Progressive") // "Progressive" | "Predictive" | "Preview"
+  speed           Float                     @default(2.0)
+  dropPercentage  Float                     @default(0.0)
+  status          String                    @default("Inactive") // "Active" | "Inactive" | "Paused"
+  description     String?
+  maxLines        Int?
+  dialRatio       Float?                    // For predictive dialing
+  recordCalls     Boolean                   @default(false)
+  allowTransfers  Boolean                   @default(false)
+  campaignScript  String?
+  fieldMapping    String?                   // JSON string for field mappings
+  retrySettings   String?                   // JSON string for retry rules
+  hoursOfOperation String?                  // JSON string for operating hours
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  // Relations
+  agentAssignments      AgentCampaignAssignment[]
+  campaignDispositions  CampaignDisposition[]
+  workItems             WorkItem[]
+  callRecords           CallRecord[]
+  interactions          Interaction[]
+  tasks                 Task[]
+  
+  @@map("campaigns")
+}
+
+model Agent {
+  id              String                 @id @default(cuid())
+  agentId         String                 @unique
+  firstName       String
+  lastName        String
+  email           String                 @unique
+  status          String                 @default("Offline") // AgentStatus as String
+  lastStatusChange DateTime              @default(now())
+  extension       String?
+  skills          String?                // JSON as String
+  isLoggedIn      Boolean                @default(false)
+  currentCall     String?                // Current call ID if on call
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  
+  // Relations
+  campaignAssignments AgentCampaignAssignment[]
+  workItems           WorkItem[]
+  callRecords         CallRecord[]
+  interactions        Interaction[]
+  sales               Sale[]
+  tasks               Task[]
+  
+  @@map("agents")
+}
+
+model AgentCampaignAssignment {
+  id         String   @id @default(cuid())
+  agentId    String
+  campaignId String
+  isActive   Boolean  @default(true)
+  assignedAt DateTime @default(now())
+  
+  // Relations
+  agent      Agent    @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  
+  @@unique([agentId, campaignId])
+  @@map("agent_campaign_assignments")
+}
+
+model WorkItem {
+  id            String    @id @default(cuid())
+  workItemId    String    @unique
+  agentId       String
+  campaignId    String
+  contactId     String
+  callId        String?
+  status        String    @default("active") // "active" | "completed" | "abandoned"
+  contactData   String?   // JSON string with mapped contact fields
+  scriptData    String?   // JSON string with script prompts
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  
+  // Relations
+  agent         Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  campaign      Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact       Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  
+  @@map("work_items")
+}
+
+model Disposition {
+  id          String                @id @default(cuid())
+  name        String
+  description String?
+  category    String?               // "sale" | "callback" | "not_interested" | "invalid" etc
+  isActive    Boolean               @default(true)
+  retryEligible Boolean             @default(false)
+  retryDelay  Int?                  // minutes before retry
+  createdAt   DateTime              @default(now())
+  
+  // Relations
+  campaignDispositions CampaignDisposition[]
+  callRecords          CallRecord[]
+  
+  @@map("dispositions")
+}
+
+model CampaignDisposition {
+  id            String      @id @default(cuid())
+  campaignId    String
+  dispositionId String
+  isRequired    Boolean     @default(false)
+  sortOrder     Int         @default(0)
+  
+  // Relations
+  campaign      Campaign    @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  disposition   Disposition @relation(fields: [dispositionId], references: [id], onDelete: Cascade)
+  
+  @@unique([campaignId, dispositionId])
+  @@map("campaign_dispositions")
+}
+
+model CallRecord {
+  id            String        @id @default(cuid())
+  callId        String        @unique
+  campaignId    String
+  contactId     String
+  agentId       String?
+  phoneNumber   String
+  dialedNumber  String?       // In case of number formatting
+  callType      String        @default("outbound") // "outbound" | "inbound" | "transfer"
+  startTime     DateTime
+  endTime       DateTime?
+  duration      Int?          // seconds
+  outcome       String?       // "answered" | "no_answer" | "busy" | "failed" | "voicemail"
+  dispositionId String?
+  notes         String?
+  recording     String?       // file path
+  transferTo    String?       // If transferred, agent/queue ID
+  createdAt     DateTime      @default(now())
+  
+  // Relations
+  campaign      Campaign      @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  contact       Contact       @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  agent         Agent?        @relation(fields: [agentId], references: [agentId], onDelete: SetNull)
+  disposition   Disposition?  @relation(fields: [dispositionId], references: [id], onDelete: SetNull)
+  
+  @@map("call_records")
+}
+
+// SQLite compatible schema - using Strings instead of Enums
+// ContactStatus: "new" | "attempted" | "answered" | "no_answer" | "busy" | "voicemail" | "callback" | "completed" | "do_not_call" | "invalid"
+// QueueStatus: "queued" | "dialing" | "connected" | "completed" | "failed" | "abandoned"  
+// AgentStatus: "Available" | "OnCall" | "AfterCall" | "Break" | "Lunch" | "Meeting" | "Offline" | "Training"
+// CallOutcome: "answered" | "no_answer" | "busy" | "failed" | "voicemail" | "abandoned"
+
+// Dashboard-specific models for Kennex call center interface
+model Interaction {
+  id               String    @id @default(cuid())
+  agentId          String
+  contactId        String
+  campaignId       String
+  channel          String    @default("voice") // "voice" | "sms" | "email" | "chat"
+  outcome          String    // "positive" | "neutral" | "negative"
+  isDmc            Boolean   @default(false)
+  startedAt        DateTime
+  endedAt          DateTime?
+  durationSeconds  Int?
+  result           String?   // "sale" | "callback" | "no_answer"
+  
+  // Relations
+  agent            Agent     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  contact          Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  campaign         Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  sales            Sale[]
+  
+  @@map("interactions")
+}
+
+model Sale {
+  id             String      @id @default(cuid())
+  interactionId  String
+  contactId      String
+  agentId        String
+  amount         Float
+  status         String      @default("success") // "success" | "cancelled" | "refunded"
+  createdAt      DateTime    @default(now())
+  
+  // Relations
+  interaction    Interaction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+  contact        Contact     @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  agent          Agent       @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  
+  @@map("sales")
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  assignedUserId   String
+  contactId        String
+  campaignId       String
+  type             String    @default("callback") // "callback" | "follow_up" | "email" | "other"
+  notes            String?
+  dueAt            DateTime
+  status           String    @default("open") // "open" | "completed" | "cancelled"
+  createdAt        DateTime  @default(now())
+  
+  // Relations
+  assignedUser     Agent     @relation(fields: [assignedUserId], references: [agentId], onDelete: Cascade)
+  contact          Contact   @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
+  campaign         Campaign  @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+  
+  @@map("tasks")
+}
+
+// User model for dashboard compatibility (maps to Agent)
+model User {
+  id          Int       @id @default(autoincrement())
+  name        String
+  email       String    @unique
+  status      String    @default("away") // "available" | "away" | "paused"
+  statusSince DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  
+  @@map("users")
+}

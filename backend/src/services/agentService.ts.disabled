@@ -1,0 +1,510 @@
+import { PrismaClient } from '@prisma/client';
+import { EventEmitter } from 'events';
+
+const prisma = new PrismaClient();
+
+export interface AgentData {
+  email: string;
+  firstName: string;
+  lastName: string;
+  extension?: string;
+  sipUsername?: string;
+  sipPassword?: string;
+}
+
+export interface AgentStatusUpdate {
+  agentId: string;
+  status: AgentStatus;
+  campaignId?: string;
+  sessionData?: any;
+}
+
+export interface AgentSession {
+  agentId: string;
+  socketId?: string;
+  status: AgentStatus;
+  campaignId?: string;
+  lastActivity: Date;
+}
+
+export type AgentStatus = 'AVAILABLE' | 'AWAY' | 'ON_CALL' | 'ACW' | 'OFFLINE';
+
+export class AgentService extends EventEmitter {
+  private activeSessions: Map<string, AgentSession> = new Map();
+  private socketToAgent: Map<string, string> = new Map();
+
+  /**
+   * Create a new agent
+   */
+  async createAgent(agentData: AgentData) {
+    const agent = await prisma.agent.create({
+      data: {
+        ...agentData,
+        currentStatus: 'OFFLINE',
+      },
+    });
+
+    // Create initial status history entry
+    await this.updateAgentStatus(agent.id, 'OFFLINE');
+
+    this.emit('agentCreated', { agent });
+    return agent;
+  }
+
+  /**
+   * Get agent by ID
+   */
+  async getAgent(agentId: string) {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      include: {
+        currentCampaign: true,
+        statusHistory: {
+          orderBy: { startTime: 'desc' },
+          take: 10,
+        },
+        campaignAgents: {
+          where: { isActive: true },
+          include: {
+            campaign: {
+              select: { id: true, name: true, isActive: true },
+            },
+          },
+        },
+      },
+    });
+
+    return agent;
+  }
+
+  /**
+   * Get agent by email
+   */
+  async getAgentByEmail(email: string) {
+    const agent = await prisma.agent.findUnique({
+      where: { email },
+      include: {
+        currentCampaign: true,
+        campaignAgents: {
+          where: { isActive: true },
+          include: {
+            campaign: {
+              select: { id: true, name: true, isActive: true },
+            },
+          },
+        },
+      },
+    });
+
+    return agent;
+  }
+
+  /**
+   * List all agents with optional filters
+   */
+  async listAgents(filters: {
+    status?: AgentStatus;
+    campaignId?: string;
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {}) {
+    const where: any = {};
+    
+    if (filters.status) {
+      where.currentStatus = filters.status;
+    }
+    
+    if (filters.campaignId) {
+      where.currentCampaignId = filters.campaignId;
+    }
+    
+    if (filters.isActive !== undefined) {
+      where.isActive = filters.isActive;
+    }
+
+    const agents = await prisma.agent.findMany({
+      where,
+      include: {
+        currentCampaign: {
+          select: { id: true, name: true },
+        },
+        statusHistory: {
+          where: { endTime: null },
+          orderBy: { startTime: 'desc' },
+          take: 1,
+        },
+        _count: {
+          select: { callLegs: true, dispositions: true },
+        },
+      },
+      orderBy: { firstName: 'asc' },
+      take: filters.limit,
+      skip: filters.offset,
+    });
+
+    return agents;
+  }
+
+  /**
+   * Update agent status with session tracking
+   */
+  async updateAgentStatus(
+    agentId: string, 
+    newStatus: AgentStatus, 
+    campaignId?: string,
+    sessionData?: any
+  ) {
+    // End current status history entry
+    await prisma.agentStatusHistory.updateMany({
+      where: {
+        agentId,
+        endTime: null,
+      },
+      data: {
+        endTime: new Date(),
+      },
+    });
+
+    // Create new status history entry
+    const statusHistory = await prisma.agentStatusHistory.create({
+      data: {
+        agentId,
+        status: newStatus,
+        campaignId,
+        sessionData: sessionData ? JSON.stringify(sessionData) : null,
+      },
+    });
+
+    // Update agent's current status
+    const agent = await prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        currentStatus: newStatus,
+        currentCampaignId: campaignId,
+        lastLoginAt: newStatus === 'OFFLINE' ? undefined : new Date(),
+      },
+      include: {
+        currentCampaign: true,
+      },
+    });
+
+    // Update in-memory session
+    if (this.activeSessions.has(agentId)) {
+      const session = this.activeSessions.get(agentId)!;
+      session.status = newStatus;
+      session.campaignId = campaignId;
+      session.lastActivity = new Date();
+    }
+
+    // Emit status change event
+    this.emit('agentStatusChanged', {
+      agent,
+      previousStatus: statusHistory,
+      newStatus,
+      campaignId,
+    });
+
+    return agent;
+  }
+
+  /**
+   * Register agent session (when they connect via WebSocket)
+   */
+  async registerAgentSession(agentId: string, socketId?: string, initialData?: any) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new Error('Agent not found');
+    }
+
+    // Create session
+    const session: AgentSession = {
+      agentId,
+      socketId,
+      status: agent.currentStatus as AgentStatus,
+      campaignId: agent.currentCampaignId || undefined,
+      lastActivity: new Date(),
+    };
+
+    this.activeSessions.set(agentId, session);
+    if (socketId) {
+      this.socketToAgent.set(socketId, agentId);
+    }
+
+    // Update last login
+    await prisma.agent.update({
+      where: { id: agentId },
+      data: { lastLoginAt: new Date() },
+    });
+
+    this.emit('agentSessionStarted', { agent, session, initialData });
+    return session;
+  }
+
+  /**
+   * Unregister agent session (when they disconnect)
+   */
+  async unregisterAgentSession(agentId: string, socketId?: string) {
+    const session = this.activeSessions.get(agentId);
+    if (!session) {
+      return;
+    }
+
+    // Set agent offline if they were online
+    if (session.status !== 'OFFLINE') {
+      await this.updateAgentStatus(agentId, 'OFFLINE');
+    }
+
+    this.activeSessions.delete(agentId);
+    if (socketId) {
+      this.socketToAgent.delete(socketId);
+    }
+
+    this.emit('agentSessionEnded', { agentId, session });
+  }
+
+  /**
+   * Assign agent to campaign
+   */
+  async assignAgentToCampaign(agentId: string, campaignId: string, priority: number = 1) {
+    // Check if assignment already exists
+    const existingAssignment = await prisma.campaignAgent.findUnique({
+      where: {
+        campaignId_agentId: { campaignId, agentId },
+      },
+    });
+
+    if (existingAssignment) {
+      // Update existing assignment
+      const updated = await prisma.campaignAgent.update({
+        where: { id: existingAssignment.id },
+        data: { 
+          priority, 
+          isActive: true,
+          assignedAt: new Date(),
+        },
+        include: {
+          campaign: true,
+          agent: true,
+        },
+      });
+      
+      this.emit('agentCampaignAssigned', { assignment: updated });
+      return updated;
+    }
+
+    // Create new assignment
+    const assignment = await prisma.campaignAgent.create({
+      data: {
+        agentId,
+        campaignId,
+        priority,
+        isActive: true,
+      },
+      include: {
+        campaign: true,
+        agent: true,
+      },
+    });
+
+    this.emit('agentCampaignAssigned', { assignment });
+    return assignment;
+  }
+
+  /**
+   * Remove agent from campaign
+   */
+  async unassignAgentFromCampaign(agentId: string, campaignId: string) {
+    const assignment = await prisma.campaignAgent.findUnique({
+      where: {
+        campaignId_agentId: { campaignId, agentId },
+      },
+    });
+
+    if (assignment) {
+      await prisma.campaignAgent.update({
+        where: { id: assignment.id },
+        data: { isActive: false },
+      });
+
+      // If agent is currently assigned to this campaign, remove current assignment
+      const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+      if (agent?.currentCampaignId === campaignId) {
+        await this.updateAgentStatus(agentId, agent.currentStatus as AgentStatus);
+      }
+
+      this.emit('agentCampaignUnassigned', { agentId, campaignId, assignment });
+    }
+  }
+
+  /**
+   * Get agents available for a campaign
+   */
+  async getAvailableAgents(campaignId: string) {
+    const agents = await prisma.agent.findMany({
+      where: {
+        isActive: true,
+        currentStatus: 'AVAILABLE',
+        campaignAgents: {
+          some: {
+            campaignId,
+            isActive: true,
+          },
+        },
+      },
+      include: {
+        currentCampaign: true,
+        statusHistory: {
+          where: { endTime: null },
+          take: 1,
+        },
+      },
+      orderBy: [
+        { currentStatus: 'asc' }, // Available first
+        { lastLoginAt: 'desc' }, // Most recently active
+      ],
+    });
+
+    return agents;
+  }
+
+  /**
+   * Get agent activity stats
+   */
+  async getAgentStats(agentId: string, from?: Date, to?: Date) {
+    const fromDate = from || new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const toDate = to || new Date();
+
+    // Get status history for the period
+    const statusHistory = await prisma.agentStatusHistory.findMany({
+      where: {
+        agentId,
+        startTime: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    // Get call stats
+    const callStats = await prisma.callRecordLeg.groupBy({
+      by: ['status'],
+      where: {
+        agentId,
+        startTime: { gte: fromDate, lte: toDate },
+      },
+      _count: { status: true },
+      _sum: { duration: true },
+    });
+
+    // Get disposition stats
+    const dispositionStats = await prisma.disposition.groupBy({
+      by: ['categoryId'],
+      where: {
+        agentId,
+        createdAt: { gte: fromDate, lte: toDate },
+      },
+      _count: { categoryId: true },
+    });
+
+    return {
+      statusHistory,
+      callStats,
+      dispositionStats,
+      period: { from: fromDate, to: toDate },
+    };
+  }
+
+  /**
+   * Get current active sessions
+   */
+  getActiveSessions() {
+    return Array.from(this.activeSessions.values());
+  }
+
+  /**
+   * Get agent ID by socket ID
+   */
+  getAgentBySocket(socketId: string): string | undefined {
+    return this.socketToAgent.get(socketId);
+  }
+
+  /**
+   * Clean up inactive sessions (should be called periodically)
+   */
+  cleanupInactiveSessions(inactiveThresholdMs: number = 5 * 60 * 1000) { // 5 minutes
+    const now = new Date();
+    const expiredSessions: string[] = [];
+
+    for (const [agentId, session] of this.activeSessions.entries()) {
+      if (now.getTime() - session.lastActivity.getTime() > inactiveThresholdMs) {
+        expiredSessions.push(agentId);
+      }
+    }
+
+    // Remove expired sessions
+    for (const agentId of expiredSessions) {
+      this.unregisterAgentSession(agentId);
+    }
+
+    return expiredSessions.length;
+  }
+
+  /**
+   * Update agent profile
+   */
+  async updateAgent(agentId: string, updates: Partial<AgentData>) {
+    const agent = await prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        ...updates,
+        updatedAt: new Date(),
+      },
+    });
+
+    this.emit('agentUpdated', { agent });
+    return agent;
+  }
+
+  /**
+   * Deactivate agent
+   */
+  async deactivateAgent(agentId: string) {
+    // Set agent offline first
+    await this.updateAgentStatus(agentId, 'OFFLINE');
+    
+    // Deactivate all campaign assignments
+    await prisma.campaignAgent.updateMany({
+      where: { agentId, isActive: true },
+      data: { isActive: false },
+    });
+
+    // Mark agent as inactive
+    const agent = await prisma.agent.update({
+      where: { id: agentId },
+      data: { isActive: false },
+    });
+
+    // Remove from active sessions
+    this.unregisterAgentSession(agentId);
+
+    this.emit('agentDeactivated', { agent });
+    return agent;
+  }
+
+  /**
+   * Validate agent status transition
+   */
+  isValidStatusTransition(currentStatus: AgentStatus, newStatus: AgentStatus): boolean {
+    const validTransitions: Record<AgentStatus, AgentStatus[]> = {
+      OFFLINE: ['AVAILABLE', 'AWAY'],
+      AVAILABLE: ['AWAY', 'ON_CALL', 'OFFLINE'],
+      AWAY: ['AVAILABLE', 'OFFLINE'],
+      ON_CALL: ['ACW', 'AVAILABLE', 'OFFLINE'],
+      ACW: ['AVAILABLE', 'AWAY', 'OFFLINE'],
+    };
+
+    return validTransitions[currentStatus]?.includes(newStatus) || false;
+  }
+}
+
+// Export singleton instance
+export const agentService = new AgentService();

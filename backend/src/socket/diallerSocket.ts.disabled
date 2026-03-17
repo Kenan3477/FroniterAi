@@ -1,0 +1,402 @@
+import { Server, Socket } from 'socket.io';
+import { agentService } from '../services/agentService';
+import { campaignService } from '../services/campaignService';
+import { callService } from '../services/callService';
+
+interface AuthenticatedSocket extends Socket {
+  agentId?: string;
+  userId?: string;
+}
+
+export function initializeDiallerSocket(io: Server) {
+  const diallerNamespace = io.of('/dialler');
+
+  diallerNamespace.on('connection', (socket: AuthenticatedSocket) => {
+    console.log('Dialler client connected:', socket.id);
+
+    // Agent Authentication
+    socket.on('authenticate-agent', async (data: { agentId: string; token?: string }) => {
+      try {
+        // Validate agent (you might want to validate token here)
+        const agent = await agentService.getAgent(data.agentId);
+        if (!agent) {
+          socket.emit('auth-error', { message: 'Agent not found' });
+          return;
+        }
+
+        socket.agentId = data.agentId;
+        socket.join(`agent:${data.agentId}`);
+
+        // Register agent session
+        await agentService.registerAgentSession(data.agentId, socket.id);
+
+        socket.emit('authenticated', { 
+          agent: {
+            id: agent.id,
+            firstName: agent.firstName,
+            lastName: agent.lastName,
+            currentStatus: agent.currentStatus,
+            currentCampaign: agent.currentCampaign,
+          }
+        });
+
+        console.log(`Agent ${agent.firstName} ${agent.lastName} authenticated`);
+
+      } catch (error: any) {
+        console.error('Agent authentication error:', error);
+        socket.emit('auth-error', { message: error.message });
+      }
+    });
+
+    // Agent Status Updates
+    socket.on('update-status', async (data: { status: string; campaignId?: string }) => {
+      if (!socket.agentId) {
+        socket.emit('error', { message: 'Not authenticated' });
+        return;
+      }
+
+      try {
+        const agent = await agentService.updateAgentStatus(
+          socket.agentId,
+          data.status as any,
+          data.campaignId
+        );
+
+        // Notify all connected clients about status change
+        diallerNamespace.emit('agent-status-updated', {
+          agentId: socket.agentId,
+          status: data.status,
+          campaignId: data.campaignId,
+          timestamp: new Date(),
+        });
+
+        socket.emit('status-updated', { agent });
+
+      } catch (error: any) {
+        console.error('Status update error:', error);
+        socket.emit('error', { message: error.message });
+      }
+    });
+
+    // Join Campaign Room
+    socket.on('join-campaign', (data: { campaignId: string }) => {
+      socket.join(`campaign:${data.campaignId}`);
+      socket.emit('joined-campaign', { campaignId: data.campaignId });
+    });
+
+    // Leave Campaign Room
+    socket.on('leave-campaign', (data: { campaignId: string }) => {
+      socket.leave(`campaign:${data.campaignId}`);
+      socket.emit('left-campaign', { campaignId: data.campaignId });
+    });
+
+    // Call Events
+    socket.on('call-event', async (data: { 
+      type: 'DIAL' | 'ANSWER' | 'HANGUP' | 'TRANSFER' | 'HOLD' | 'UNHOLD';
+      callId?: string;
+      phoneNumber?: string;
+      campaignId?: string;
+      metadata?: any;
+    }) => {
+      if (!socket.agentId) {
+        socket.emit('error', { message: 'Not authenticated' });
+        return;
+      }
+
+      try {
+        switch (data.type) {
+          case 'DIAL':
+            if (data.phoneNumber && data.campaignId) {
+              // Create new call
+              const call = await callService.createCall({
+                campaignId: data.campaignId,
+                callDirection: 'OUTBOUND',
+                phoneNumber: data.phoneNumber,
+              });
+
+              // Create agent leg
+              const leg = await callService.createCallLeg({
+                callId: call.id,
+                agentId: socket.agentId,
+                legType: 'AGENT',
+                phoneNumber: data.phoneNumber, // Required field
+                status: 'INITIATED',
+              });
+
+              // Notify campaign participants
+              diallerNamespace.to(`campaign:${data.campaignId}`).emit('call-started', {
+                call,
+                agentId: socket.agentId,
+                leg,
+              });
+            }
+            break;
+
+          case 'ANSWER':
+            if (data.callId) {
+              await callService.updateCallStatus(data.callId, 'ANSWERED');
+              
+              // Update agent status
+              await agentService.updateAgentStatus(socket.agentId, 'ON_CALL');
+
+              diallerNamespace.emit('call-answered', {
+                callId: data.callId,
+                agentId: socket.agentId,
+                timestamp: new Date(),
+              });
+            }
+            break;
+
+          case 'HANGUP':
+            if (data.callId) {
+              await callService.updateCallStatus(data.callId, 'ENDED', 'AGENT_HANGUP');
+              
+              // Update agent status
+              await agentService.updateAgentStatus(socket.agentId, 'ACW');
+
+              diallerNamespace.emit('call-ended', {
+                callId: data.callId,
+                agentId: socket.agentId,
+                reason: 'AGENT_HANGUP',
+                timestamp: new Date(),
+              });
+            }
+            break;
+        }
+
+      } catch (error: any) {
+        console.error('Call event error:', error);
+        socket.emit('error', { message: error.message });
+      }
+    });
+
+    // Disposition Submission
+    socket.on('submit-disposition', async (data: {
+      callId: string;
+      categoryId: string;
+      subcategoryId?: string;
+      notes?: string;
+      isCallback?: boolean;
+      callbackDateTime?: string;
+    }) => {
+      if (!socket.agentId) {
+        socket.emit('error', { message: 'Not authenticated' });
+        return;
+      }
+
+      try {
+        const disposition = await callService.addDisposition({
+          callId: data.callId,
+          agentId: socket.agentId,
+          categoryId: data.categoryId,
+          subcategoryId: data.subcategoryId,
+          notes: data.notes,
+          isCallback: data.isCallback,
+          callbackDateTime: data.callbackDateTime ? new Date(data.callbackDateTime) : undefined,
+        });
+
+        // Update agent status to available
+        await agentService.updateAgentStatus(socket.agentId, 'AVAILABLE');
+
+        socket.emit('disposition-submitted', { disposition });
+
+        // Notify campaign about disposition
+        const call = await callService.getCall(data.callId);
+        if (call) {
+          diallerNamespace.to(`campaign:${call.campaignId}`).emit('disposition-added', {
+            callId: data.callId,
+            agentId: socket.agentId,
+            disposition,
+            timestamp: new Date(),
+          });
+        }
+
+      } catch (error: any) {
+        console.error('Disposition submission error:', error);
+        socket.emit('error', { message: error.message });
+      }
+    });
+
+    // Request Next Record
+    socket.on('request-next-record', async (data: { campaignId: string }) => {
+      if (!socket.agentId) {
+        socket.emit('error', { message: 'Not authenticated' });
+        return;
+      }
+
+      try {
+        const records = await campaignService.getNextRecordsToDial(
+          data.campaignId,
+          socket.agentId,
+          1
+        );
+
+        if (records.length > 0) {
+          socket.emit('next-record', { record: records[0] });
+        } else {
+          socket.emit('no-records', { message: 'No records available to dial' });
+        }
+
+      } catch (error: any) {
+        console.error('Next record request error:', error);
+        socket.emit('error', { message: error.message });
+      }
+    });
+
+    // Heartbeat for keeping connection alive
+    socket.on('heartbeat', () => {
+      socket.emit('heartbeat-ack', { timestamp: new Date() });
+    });
+
+    // Disconnect handler
+    socket.on('disconnect', async (reason) => {
+      console.log(`Agent disconnected: ${socket.agentId}, reason: ${reason}`);
+
+      if (socket.agentId) {
+        try {
+          // Unregister agent session
+          await agentService.unregisterAgentSession(socket.agentId, socket.id);
+
+          // Notify other clients
+          diallerNamespace.emit('agent-disconnected', {
+            agentId: socket.agentId,
+            timestamp: new Date(),
+          });
+
+        } catch (error) {
+          console.error('Disconnect cleanup error:', error);
+        }
+      }
+    });
+  });
+
+  // Service event listeners for broadcasting updates
+  setupServiceEventListeners(diallerNamespace);
+
+  return diallerNamespace;
+}
+
+function setupServiceEventListeners(namespace: any) {
+  // Agent Service Events
+  agentService.on('agentStatusChanged', (data) => {
+    namespace.emit('agent-status-changed', {
+      agentId: data.agent.id,
+      status: data.newStatus,
+      campaignId: data.campaignId,
+      timestamp: new Date(),
+    });
+  });
+
+  agentService.on('agentCampaignAssigned', (data) => {
+    namespace.emit('agent-campaign-assigned', {
+      agentId: data.assignment.agentId,
+      campaignId: data.assignment.campaignId,
+      priority: data.assignment.priority,
+      timestamp: new Date(),
+    });
+  });
+
+  // Campaign Service Events
+  campaignService.on('campaignStatusChanged', (data) => {
+    namespace.to(`campaign:${data.campaign.id}`).emit('campaign-status-changed', {
+      campaignId: data.campaign.id,
+      status: data.status,
+      timestamp: new Date(),
+    });
+  });
+
+  campaignService.on('campaignRecordsAdded', (data) => {
+    namespace.to(`campaign:${data.campaignId}`).emit('campaign-records-added', {
+      campaignId: data.campaignId,
+      recordCount: data.recordCount,
+      totalRecords: data.totalRecords,
+      timestamp: new Date(),
+    });
+  });
+
+  // Call Service Events
+  callService.on('callCreated', (data) => {
+    namespace.to(`campaign:${data.call.campaignId}`).emit('call-created', {
+      call: data.call,
+      timestamp: new Date(),
+    });
+  });
+
+  callService.on('callStatusUpdated', (data) => {
+    namespace.to(`campaign:${data.call.campaignId}`).emit('call-status-updated', {
+      callId: data.call.id,
+      previousStatus: data.previousStatus,
+      newStatus: data.newStatus,
+      timestamp: new Date(),
+    });
+  });
+
+  callService.on('dispositionAdded', (data) => {
+    namespace.to(`campaign:${data.disposition.call.campaignId}`).emit('disposition-added', {
+      callId: data.disposition.callId,
+      agentId: data.disposition.agentId,
+      disposition: data.disposition,
+      timestamp: new Date(),
+    });
+  });
+
+  callService.on('callTransferred', (data) => {
+    namespace.emit('call-transferred', {
+      callId: data.call.id,
+      fromAgentId: data.fromAgentId,
+      toAgentId: data.toAgentId,
+      transferType: data.transferType,
+      timestamp: new Date(),
+    });
+  });
+
+  callService.on('callbackScheduled', (data) => {
+    namespace.emit('callback-scheduled', {
+      originalCallId: data.originalCall.id,
+      callbackCallId: data.callbackCall.id,
+      callbackDateTime: data.callbackDateTime,
+      agentId: data.agentId,
+      timestamp: new Date(),
+    });
+  });
+}
+
+// Export utility functions for sending targeted messages
+export const diallerSocketUtils = {
+  sendToAgent: (io: Server, agentId: string, event: string, data: any) => {
+    io.of('/dialler').to(`agent:${agentId}`).emit(event, data);
+  },
+
+  sendToCampaign: (io: Server, campaignId: string, event: string, data: any) => {
+    io.of('/dialler').to(`campaign:${campaignId}`).emit(event, data);
+  },
+
+  broadcast: (io: Server, event: string, data: any) => {
+    io.of('/dialler').emit(event, data);
+  },
+
+  getConnectedAgents: (io: Server): string[] => {
+    const sockets = io.of('/dialler').sockets;
+    const agentIds: string[] = [];
+    
+    sockets.forEach((socket: any) => {
+      if (socket.agentId) {
+        agentIds.push(socket.agentId);
+      }
+    });
+    
+    return agentIds;
+  },
+
+  getAgentSocketId: (io: Server, agentId: string): string | undefined => {
+    const sockets = io.of('/dialler').sockets;
+    
+    for (const socket of sockets.values()) {
+      if ((socket as any).agentId === agentId) {
+        return socket.id;
+      }
+    }
+    
+    return undefined;
+  },
+};

@@ -1,0 +1,75 @@
+import express from 'express';
+import {
+  // Campaign Templates
+  getCampaignTemplates,
+  getCampaignTemplateById,
+  createCampaignTemplate,
+  updateCampaignTemplate,
+  deleteCampaignTemplate,
+  
+  // Management Campaigns
+  getManagementCampaigns,
+  getManagementCampaignById,
+  createManagementCampaign,
+  updateManagementCampaign,
+  deleteManagementCampaign,
+  
+  // Campaign Targets
+  getCampaignTargets,
+  createCampaignTarget,
+  bulkCreateCampaignTargets,
+  
+  // Campaign Results
+  getCampaignResults,
+  createCampaignResult,
+  
+  // Analytics & Stats
+  getCampaignStats,
+  getCampaignManagementStats,
+} from '../controllers/campaignManagement';
+
+const router = express.Router();
+
+// ============================================================================
+// CAMPAIGN TEMPLATES ROUTES
+// ============================================================================
+
+router.get('/templates', getCampaignTemplates);
+router.get('/templates/:id', getCampaignTemplateById);
+router.post('/templates', createCampaignTemplate);
+router.put('/templates/:id', updateCampaignTemplate);
+router.delete('/templates/:id', deleteCampaignTemplate);
+
+// ============================================================================
+// MANAGEMENT CAMPAIGNS ROUTES
+// ============================================================================
+
+router.get('/campaigns', getManagementCampaigns);
+router.get('/campaigns/:id', getManagementCampaignById);
+router.post('/campaigns', createManagementCampaign);
+router.put('/campaigns/:id', updateManagementCampaign);
+router.delete('/campaigns/:id', deleteManagementCampaign);
+
+// ============================================================================
+// CAMPAIGN TARGETS ROUTES
+// ============================================================================
+
+router.get('/campaigns/:campaignId/targets', getCampaignTargets);
+router.post('/targets', createCampaignTarget);
+router.post('/campaigns/:campaignId/targets/bulk', bulkCreateCampaignTargets);
+
+// ============================================================================
+// CAMPAIGN RESULTS ROUTES
+// ============================================================================
+
+router.get('/campaigns/:campaignId/results', getCampaignResults);
+router.post('/results', createCampaignResult);
+
+// ============================================================================
+// ANALYTICS & STATS ROUTES
+// ============================================================================
+
+router.get('/campaigns/:campaignId/stats', getCampaignStats);
+router.get('/stats', getCampaignManagementStats);
+
+export default router;

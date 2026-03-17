@@ -1,0 +1,213 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getAgentPerformance, getKPISummary } from '@/services/kpiTrackingService';
+
+/**
+ * POST /api/reports/users
+ * Generate user/agent performance reports
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { reportType, filters } = await request.json();
+
+    console.log(`👥 Generating user ${reportType} report`);
+
+    const startDate = filters.startDate ? new Date(filters.startDate) : undefined;
+    const endDate = filters.endDate ? new Date(filters.endDate) : undefined;
+
+    const filterParams = {
+      startDate,
+      endDate,
+      campaignId: filters.campaignId,
+      agentId: filters.agentId
+    };
+
+    let reportData;
+
+    switch (reportType) {
+      case 'activity_breakdown':
+        reportData = await getActivityBreakdown(filterParams);
+        break;
+        
+      case 'interaction_transfer':
+        reportData = await getInteractionTransfer(filterParams);
+        break;
+        
+      case 'login_logout':
+        reportData = await getLoginLogout(filterParams);
+        break;
+        
+      case 'pause_reasons':
+        reportData = await getPauseReasons(filterParams);
+        break;
+        
+      case 'pause_reasons_summary':
+        reportData = await getPauseReasonsSummary(filterParams);
+        break;
+        
+      default:
+        return NextResponse.json(
+          { error: `Unknown report type: ${reportType}` },
+          { status: 400 }
+        );
+    }
+
+    return NextResponse.json({
+      success: true,
+      reportType,
+      data: reportData,
+      filters: filterParams
+    });
+
+  } catch (error) {
+    console.error('❌ Error generating user report:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to generate user report',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Activity Breakdown Report
+ * Shows agent activity and performance metrics
+ */
+async function getActivityBreakdown(filters: any) {
+  const agentPerformance = await getAgentPerformance(filters);
+  
+  return {
+    title: 'Activity Breakdown',
+    summary: {
+      totalAgents: agentPerformance.length,
+      totalCalls: agentPerformance.reduce((sum, agent) => sum + agent.totalCalls, 0),
+      avgSuccessRate: agentPerformance.length > 0 
+        ? Math.round(agentPerformance.reduce((sum, agent) => sum + agent.successRate, 0) / agentPerformance.length)
+        : 0
+    },
+    agents: agentPerformance.map(agent => ({
+      ...agent,
+      efficiency: agent.totalCalls > 0 ? Math.round((agent.totalDuration / agent.totalCalls) / 60) : 0 // minutes per call
+    }))
+  };
+}
+
+/**
+ * Interaction Transfer Report
+ * Shows call transfer patterns and success rates
+ */
+async function getInteractionTransfer(filters: any) {
+  // This would analyze transfer patterns from call records
+  // For now, return placeholder structure
+  return {
+    title: 'Interaction Transfer',
+    summary: {
+      totalTransfers: 0,
+      successfulTransfers: 0,
+      transferRate: 0
+    },
+    transfers: [],
+    agents: []
+  };
+}
+
+/**
+ * Login/Logout Report
+ * Shows agent session times and patterns
+ */
+async function getLoginLogout(filters: any) {
+  // This would analyze agent login sessions
+  // For now, return placeholder structure
+  return {
+    title: 'Login Logout',
+    summary: {
+      avgSessionDuration: 0,
+      totalSessions: 0,
+      activeAgents: 0
+    },
+    sessions: [],
+    patterns: []
+  };
+}
+
+/**
+ * Pause Reasons Report
+ * Shows why agents pause and for how long
+ */
+async function getPauseReasons(filters: any) {
+  return {
+    title: 'Pause Reasons',
+    summary: {
+      totalPauses: 0,
+      avgPauseDuration: 0,
+      topReason: 'Break'
+    },
+    reasons: [
+      { reason: 'Break', count: 0, duration: 0 },
+      { reason: 'Meeting', count: 0, duration: 0 },
+      { reason: 'Technical', count: 0, duration: 0 },
+      { reason: 'Training', count: 0, duration: 0 }
+    ]
+  };
+}
+
+/**
+ * Pause Reasons Summary Report
+ */
+async function getPauseReasonsSummary(filters: any) {
+  return {
+    title: 'Pause Reasons Summary',
+    summary: {
+      totalPauseTime: 0,
+      avgPauseTime: 0,
+      pauseFrequency: 0
+    },
+    breakdown: []
+  };
+}
+
+/**
+ * GET /api/reports/users
+ * Get available user report types
+ */
+export async function GET() {
+  const reportTypes = [
+    {
+      id: 'activity_breakdown',
+      name: 'Activity Breakdown',
+      description: 'Agent activity and performance metrics',
+      category: 'users'
+    },
+    {
+      id: 'interaction_transfer',
+      name: 'Interaction Transfer', 
+      description: 'Call transfer patterns and rates',
+      category: 'users'
+    },
+    {
+      id: 'login_logout',
+      name: 'Login Logout',
+      description: 'Agent session times and patterns',
+      category: 'users'
+    },
+    {
+      id: 'pause_reasons',
+      name: 'Pause Reasons',
+      description: 'Agent pause analysis',
+      category: 'users'
+    },
+    {
+      id: 'pause_reasons_summary', 
+      name: 'Pause Reasons Summary',
+      description: 'Summary of pause patterns',
+      category: 'users'
+    }
+  ];
+
+  return NextResponse.json({
+    success: true,
+    reportTypes
+  });
+}

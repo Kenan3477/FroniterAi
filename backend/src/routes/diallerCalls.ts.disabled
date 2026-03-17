@@ -1,0 +1,197 @@
+import express from 'express';
+import { callService } from '../services/callService';
+
+const router = express.Router();
+
+// Create new call
+router.post('/', async (req, res) => {
+  try {
+    const call = await callService.createCall(req.body);
+    res.status(201).json(call);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// List calls with filters
+router.get('/', async (req, res) => {
+  try {
+    const { campaignId, agentId, status, direction, dateFrom, dateTo, limit, offset } = req.query;
+    const calls = await callService.getCalls({
+      campaignId: campaignId as string,
+      agentId: agentId as string,
+      status: status as any,
+      direction: direction as any,
+      dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo: dateTo ? new Date(dateTo as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+    });
+    res.json(calls);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get call by ID
+router.get('/:callId', async (req, res) => {
+  try {
+    const call = await callService.getCall(req.params.callId);
+    if (!call) {
+      return res.status(404).json({ error: 'Call not found' });
+    }
+    res.json(call);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update call status
+router.patch('/:callId/status', async (req, res) => {
+  try {
+    const { status, endReason } = req.body;
+    const call = await callService.updateCallStatus(req.params.callId, status, endReason);
+    res.json(call);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Create call leg
+router.post('/:callId/legs', async (req, res) => {
+  try {
+    const legData = { ...req.body, callId: req.params.callId };
+    const leg = await callService.createCallLeg(legData);
+    res.status(201).json(leg);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update call leg status
+router.patch('/legs/:legId/status', async (req, res) => {
+  try {
+    const { status, endReason } = req.body;
+    const leg = await callService.updateCallLegStatus(req.params.legId, status, endReason);
+    res.json(leg);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Add disposition to call
+router.post('/:callId/dispositions', async (req, res) => {
+  try {
+    const dispositionData = { ...req.body, callId: req.params.callId };
+    const disposition = await callService.addDisposition(dispositionData);
+    res.status(201).json(disposition);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get agent active calls
+router.get('/agents/:agentId/active', async (req, res) => {
+  try {
+    const calls = await callService.getAgentActiveCalls(req.params.agentId);
+    res.json(calls);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get campaign call statistics
+router.get('/campaigns/:campaignId/stats', async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const stats = await callService.getCampaignCallStats(
+      req.params.campaignId,
+      dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo ? new Date(dateTo as string) : undefined
+    );
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Transfer call
+router.post('/:callId/transfer', async (req, res) => {
+  try {
+    const { fromAgentId, toAgentId, transferType = 'COLD' } = req.body;
+    const result = await callService.transferCall(
+      req.params.callId,
+      fromAgentId,
+      toAgentId,
+      transferType
+    );
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Start conference
+router.post('/:callId/conference', async (req, res) => {
+  try {
+    const { agentId, conferenceNumber } = req.body;
+    const result = await callService.startConference(
+      req.params.callId,
+      agentId,
+      conferenceNumber
+    );
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Schedule callback
+router.post('/:callId/callback', async (req, res) => {
+  try {
+    const { agentId, callbackDateTime, notes } = req.body;
+    const result = await callService.scheduleCallback(
+      req.params.callId,
+      agentId,
+      new Date(callbackDateTime),
+      notes
+    );
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+//Recording management
+router.post('/:callId/recording/start', async (req, res) => {
+  try {
+    const recordingOptions = req.body;
+    const result = await callService.startRecording(req.params.callId, recordingOptions);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/:callId/recording/stop', async (req, res) => {
+  try {
+    const recordingMetadata = req.body;
+    const result = await callService.stopRecording(req.params.callId, recordingMetadata);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get calls ready to dial
+router.get('/ready-to-dial', async (req, res) => {
+  try {
+    const { campaignId } = req.query;
+    const calls = await callService.getCallsReadyToDial(campaignId as string);
+    res.json(calls);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

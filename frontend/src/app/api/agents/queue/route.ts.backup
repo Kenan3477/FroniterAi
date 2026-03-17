@@ -1,0 +1,471 @@
+/**
+ * Agent Queue Management API
+ * Handles agent availability and automatic queue assignment for Kennex dialer system
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function POST(request: NextRequest) {
+  try {
+    const { action, agentId, campaignId, status } = await request.json();
+
+    switch (action) {
+      case 'set_available':
+        return await setAgentAvailable(agentId, campaignId);
+      
+      case 'set_unavailable':
+        return await setAgentUnavailable(agentId);
+      
+      case 'get_queue_status':
+        return await getQueueStatus(agentId, campaignId);
+      
+      case 'request_next_call':
+        return await requestNextCall(agentId, campaignId);
+        
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+
+  } catch (error) {
+    console.error('Agent queue API error:', error);
+    return NextResponse.json({ error: 'Queue management failed' }, { status: 500 });
+  }
+}
+
+/**
+ * Set agent available and auto-assign to campaign queue
+ */
+async function setAgentAvailable(agentId: string, campaignId: string) {
+  try {
+    // 1. Update agent status
+    const agent = await prisma.agent.update({
+      where: { agentId },
+      data: {
+        status: 'Available',
+        lastStatusChange: new Date(),
+        isLoggedIn: true
+      }
+    });
+
+    // 2. Create or update campaign assignment
+    await prisma.agentCampaignAssignment.upsert({
+      where: {
+        agentId_campaignId: {
+          agentId,
+          campaignId
+        }
+      },
+      update: {
+        isActive: true,
+        assignedAt: new Date()
+      },
+      create: {
+        agentId,
+        campaignId,
+        isActive: true,
+        assignedAt: new Date()
+      }
+    });
+
+    // 3. Get campaign info to ensure proper queue isolation
+    const campaign = await prisma.campaign.findUnique({
+      where: { campaignId },
+      include: {
+        agentAssignments: {
+          include: {
+            agent: true
+          }
+        }
+      }
+    });
+
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    // 4. Start the dial queue engine for this campaign if not already running
+    await ensureDialQueueRunning(campaignId);
+
+    // 5. Check if there are any calls immediately available
+    const availableCall = await getNextQueuedCall(agentId, campaignId);
+
+    // 6. Get data lists for this campaign (from queue entries)
+    const campaignLists = await prisma.dataList.findMany({
+      where: {
+        queueEntries: {
+          some: {
+            campaignId: campaignId
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      agent,
+      campaign: {
+        id: campaign.campaignId,
+        name: campaign.name,
+        dialMethod: campaign.dialMethod,
+        dataLists: campaignLists.map(list => ({
+          listId: list.listId,
+          listName: list.name,
+          contactCount: list.totalContacts
+        }))
+      },
+      queueStatus: {
+        hasImmediateCall: !!availableCall,
+        queueDepth: await getQueueDepth(campaignId),
+        position: await getAgentQueuePosition(agentId, campaignId)
+      },
+      message: `Agent ${agentId} is now available for campaign ${campaign.name}`
+    });
+
+  } catch (error) {
+    console.error('Error setting agent available:', error);
+    throw error;
+  }
+}
+
+/**
+ * Set agent unavailable and remove from all queues
+ */
+async function setAgentUnavailable(agentId: string) {
+  try {
+    // 1. Update agent status
+    const agent = await prisma.agent.update({
+      where: { agentId },
+      data: {
+        status: 'Offline',
+        lastStatusChange: new Date(),
+        isLoggedIn: false
+      }
+    });
+
+    // 2. Deactivate all campaign assignments
+    await prisma.agentCampaignAssignment.updateMany({
+      where: { agentId },
+      data: {
+        isActive: false
+      }
+    });
+
+    // 3. Release any assigned queue entries back to the pool
+    await prisma.dialQueueEntry.updateMany({
+      where: {
+        assignedAgentId: agentId,
+        status: { in: ['queued', 'dialing'] }
+      },
+      data: {
+        assignedAgentId: null,
+        status: 'queued',
+        dialedAt: null
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      agent,
+      message: `Agent ${agentId} is now unavailable and removed from all queues`
+    });
+
+  } catch (error) {
+    console.error('Error setting agent unavailable:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get current queue status for agent
+ */
+async function getQueueStatus(agentId: string, campaignId: string) {
+  try {
+    const queueDepth = await getQueueDepth(campaignId);
+    const position = await getAgentQueuePosition(agentId, campaignId);
+    const availableCall = await getNextQueuedCall(agentId, campaignId);
+
+    return NextResponse.json({
+      success: true,
+      queueStatus: {
+        campaignId,
+        queueDepth,
+        agentPosition: position,
+        hasCallWaiting: !!availableCall,
+        estimatedWaitTime: calculateEstimatedWaitTime(queueDepth, position),
+        callData: availableCall
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting queue status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Request next call from campaign queue with proper isolation
+ */
+async function requestNextCall(agentId: string, campaignId: string) {
+  try {
+    // 1. Verify agent is available and assigned to this campaign
+    const agentAssignment = await prisma.campaignAgent.findUnique({
+      where: {
+        agentId_campaignId: {
+          agentId,
+          campaignId
+        }
+      },
+      include: {
+        agent: true,
+        campaign: {
+          include: {
+            listCampaignLinks: {
+              include: {
+                list: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!agentAssignment || !agentAssignment.isActive) {
+      return NextResponse.json({
+        success: false,
+        message: 'Agent not assigned to this campaign'
+      }, { status: 403 });
+    }
+
+    if (agentAssignment.agent.status !== 'Available') {
+      return NextResponse.json({
+        success: false,
+        message: 'Agent not available'
+      }, { status: 400 });
+    }
+
+    // 2. Get next call from THIS CAMPAIGN'S queue ONLY
+    const queueEntry = await prisma.dialQueueEntry.findFirst({
+      where: {
+        campaignId: campaignId, // STRICT campaign isolation
+        status: 'queued',
+        assignedAgentId: null,
+        // Ensure contact comes from this campaign's data lists only
+        contact: {
+          listId: {
+            in: agentAssignment.campaign.listCampaignLinks.map(link => link.listId)
+          }
+        }
+      },
+      include: {
+        contact: true,
+        list: true
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { queuedAt: 'asc' }
+      ]
+    });
+
+    if (!queueEntry) {
+      return NextResponse.json({
+        success: false,
+        message: 'No contacts available in this campaign queue',
+        queueStatus: {
+          queueDepth: 0,
+          campaignId,
+          listsChecked: agentAssignment.campaign.listCampaignLinks.map(link => link.list.name)
+        }
+      });
+    }
+
+    // 3. Lock the contact for this agent
+    const lockedEntry = await prisma.dialQueueEntry.update({
+      where: { id: queueEntry.id },
+      data: {
+        status: 'dialing',
+        assignedAgentId: agentId,
+        dialedAt: new Date()
+      },
+      include: {
+        contact: true,
+        list: true
+      }
+    });
+
+    // 4. Update agent status to ON_CALL
+    await prisma.agent.update({
+      where: { agentId },
+      data: {
+        status: 'OnCall',
+        currentCall: queueEntry.id,
+        lastStatusChange: new Date()
+      }
+    });
+
+    // 5. Create call record
+    const callRecord = await prisma.callRecord.create({
+      data: {
+        callId: `call_${Date.now()}_${agentId}`,
+        agentId,
+        campaignId,
+        contactId: queueEntry.contactId,
+        phoneNumber: queueEntry.contact.phone,
+        status: 'Dialing',
+        startTime: new Date(),
+        direction: 'Outbound',
+        listId: queueEntry.listId
+      }
+    });
+
+    // 6. Create work item with complete contact data
+    const workItem = await prisma.workItem.create({
+      data: {
+        workItemId: `work_${Date.now()}_${agentId}`,
+        agentId,
+        campaignId,
+        contactId: queueEntry.contactId,
+        callId: callRecord.callId,
+        status: 'assigned',
+        contactData: JSON.stringify({
+          firstName: queueEntry.contact.firstName,
+          lastName: queueEntry.contact.lastName,
+          fullName: queueEntry.contact.fullName,
+          title: queueEntry.contact.title,
+          phone: queueEntry.contact.phone,
+          email: queueEntry.contact.email || '',
+          company: queueEntry.contact.company || '',
+          address: queueEntry.contact.address,
+          address2: queueEntry.contact.address2,
+          address3: queueEntry.contact.address3,
+          city: queueEntry.contact.city,
+          state: queueEntry.contact.state,
+          zipCode: queueEntry.contact.zipCode,
+          ageRange: queueEntry.contact.ageRange,
+          residentialStatus: queueEntry.contact.residentialStatus,
+          deliveryDate: queueEntry.contact.deliveryDate,
+          attemptCount: queueEntry.contact.attemptCount,
+          lastAttempt: queueEntry.contact.lastAttempt,
+          lastOutcome: queueEntry.contact.lastOutcome,
+          status: queueEntry.contact.status,
+          listName: queueEntry.list.name
+        }),
+        type: 'call',
+        priority: 'normal',
+        assignedAt: new Date()
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      call: {
+        callId: callRecord.callId,
+        queueEntryId: queueEntry.id,
+        workItemId: workItem.workItemId,
+        contact: {
+          id: queueEntry.contact.id,
+          firstName: queueEntry.contact.firstName,
+          lastName: queueEntry.contact.lastName,
+          phone: queueEntry.contact.phone,
+          email: queueEntry.contact.email,
+          company: queueEntry.contact.company,
+          listName: queueEntry.list.name,
+          lastCallDate: queueEntry.contact.lastCallDate,
+          callCount: queueEntry.contact.callCount,
+          status: queueEntry.contact.status
+        },
+        campaign: {
+          id: agentAssignment.campaign.campaignId,
+          name: agentAssignment.campaign.name,
+          dialMethod: agentAssignment.campaign.dialMethod
+        }
+      },
+      queueStatus: {
+        remainingInQueue: await getQueueDepth(campaignId) - 1,
+        campaignId,
+        listSource: queueEntry.list.name
+      },
+      message: `Call assigned to agent ${agentId} from campaign ${agentAssignment.campaign.name}`
+    });
+
+  } catch (error) {
+    console.error('Error requesting next call:', error);
+    throw error;
+  }
+}
+
+/**
+ * Helper Functions for Queue Management
+ */
+
+async function ensureDialQueueRunning(campaignId: string) {
+  // This would start/ensure the dial queue engine is running for this campaign
+  // For now, we'll just log that it should be running
+  console.log(`🚀 Ensuring dial queue is running for campaign ${campaignId}`);
+  
+  // In a real implementation, this would:
+  // 1. Check if there's a running queue process for this campaign
+  // 2. Start one if not running
+  // 3. Ensure it's fed with contacts from the campaign's data lists
+}
+
+async function getQueueDepth(campaignId: string): Promise<number> {
+  return await prisma.dialQueueEntry.count({
+    where: {
+      campaignId,
+      status: { in: ['queued', 'dialing'] }
+    }
+  });
+}
+
+async function getAgentQueuePosition(agentId: string, campaignId: string): Promise<number> {
+  // Get agent's position in the queue (based on assignment time)
+  const assignment = await prisma.campaignAgent.findUnique({
+    where: {
+      agentId_campaignId: {
+        agentId,
+        campaignId
+      }
+    }
+  });
+
+  if (!assignment) return -1;
+
+  const agentsAhead = await prisma.campaignAgent.count({
+    where: {
+      campaignId,
+      isActive: true,
+      assignedAt: {
+        lt: assignment.assignedAt
+      }
+    }
+  });
+
+  return agentsAhead + 1;
+}
+
+async function getNextQueuedCall(agentId: string, campaignId: string) {
+  return await prisma.dialQueueEntry.findFirst({
+    where: {
+      campaignId,
+      status: 'queued',
+      assignedAgentId: null
+    },
+    include: {
+      contact: true,
+      list: true
+    },
+    orderBy: [
+      { priority: 'asc' },
+      { queuedAt: 'asc' }
+    ]
+  });
+}
+
+function calculateEstimatedWaitTime(queueDepth: number, agentPosition: number): number {
+  // Simple calculation: assume 3 minutes per call on average
+  const avgCallDuration = 3; // minutes
+  return Math.max(0, (queueDepth / agentPosition) * avgCallDuration);
+}
