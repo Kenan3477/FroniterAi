@@ -6,6 +6,8 @@
 import { Router } from 'express';
 import { authenticateToken, requirePermission } from '../middleware/enhancedAuth';
 import { realReportsController } from '../controllers/realReportsController';
+import { getVoiceCampaignAnalytics, getVoiceCampaignFiltersData } from '../services/voiceCampaignReportsService';
+import { trackCallEvent, bulkImportCallEvents, getCallEventsSummary } from '../services/callEventTrackingService';
 
 const router = Router();
 
@@ -44,6 +46,156 @@ router.post('/scheduled', requirePermission('reports.admin'), realReportsControl
  * GET /api/reports/:reportId/export?format=pdf|excel|csv
  */
 router.get('/:reportId/export', requirePermission('reports.export'), realReportsController.exportReport.bind(realReportsController));
+
+/**
+ * Voice Campaign Analytics - Requires reports.read permission
+ * GET /api/reports/voice/campaign
+ * Query params: campaignId, dateFrom, dateTo, agentIds[], leadListIds[]
+ */
+router.get('/voice/campaign', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { campaignId, dateFrom, dateTo, agentIds, leadListIds } = req.query;
+
+    const filters: any = {};
+    
+    if (campaignId) {
+      filters.campaignId = campaignId as string;
+    }
+    
+    if (dateFrom) {
+      filters.dateFrom = new Date(dateFrom as string);
+    }
+    
+    if (dateTo) {
+      filters.dateTo = new Date(dateTo as string);
+    }
+    
+    if (agentIds) {
+      filters.agentIds = Array.isArray(agentIds) ? agentIds as string[] : [agentIds as string];
+    }
+    
+    if (leadListIds) {
+      filters.leadListIds = Array.isArray(leadListIds) ? leadListIds as string[] : [leadListIds as string];
+    }
+
+    const result = await getVoiceCampaignAnalytics(filters);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error in voice campaign analytics endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * Voice Campaign Filters Data - Requires reports.read permission
+ * GET /api/reports/voice/campaign/filters
+ */
+router.get('/voice/campaign/filters', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const result = await getVoiceCampaignFiltersData();
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error in voice campaign filters endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * Track Call Event - Requires reports.create permission
+ * POST /api/reports/call-events
+ */
+router.post('/call-events', requirePermission('reports.create'), async (req, res) => {
+  try {
+    const result = await trackCallEvent(req.body);
+    
+    if (result.success) {
+      res.status(201).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in track call event endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * Bulk Import Call Events - Requires reports.admin permission
+ * POST /api/reports/call-events/bulk
+ */
+router.post('/call-events/bulk', requirePermission('reports.admin'), async (req, res) => {
+  try {
+    const { events } = req.body;
+    
+    if (!Array.isArray(events)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Events must be an array'
+      });
+    }
+    
+    const result = await bulkImportCallEvents(events);
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error in bulk import call events endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * Get Call Events Summary - Requires reports.read permission
+ * GET /api/reports/call-events/summary
+ */
+router.get('/call-events/summary', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { dateFrom, dateTo, campaignId } = req.query;
+    
+    const filters: any = {};
+    
+    if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
+    if (dateTo) filters.dateTo = new Date(dateTo as string);
+    if (campaignId) filters.campaignId = campaignId as string;
+    
+    const result = await getCallEventsSummary(filters.dateFrom, filters.dateTo, filters.campaignId);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error in call events summary endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
 
 /**
  * Report Builder Configuration - Requires reports.read permission

@@ -14,6 +14,7 @@ import { ReportBuilder } from '@/components/reports/ReportBuilder';
 import { ReportTemplates } from '@/components/reports/ReportTemplates';
 import { ScheduledReports } from '@/components/reports/ScheduledReports';
 import { CallRecordsView } from '@/components/reports/CallRecordsView';
+import VoiceCampaignReports from '@/components/reports/VoiceCampaignReports';
 import { 
   ChartBarIcon, 
   UsersIcon, 
@@ -699,6 +700,10 @@ export default function ReportsPage() {
               console.log('🔍 CLI Debug - should render CLI:', selectedCategory === 'voice' && selectedSubcategory === 'cli');
               return null;
             })()}
+
+            {selectedCategory === 'voice' && selectedSubcategory === 'campaign' && (
+              <VoiceCampaignReports />
+            )}
 
             {selectedCategory === 'voice' && selectedSubcategory === 'cli' && (
               <CLIManagement />
