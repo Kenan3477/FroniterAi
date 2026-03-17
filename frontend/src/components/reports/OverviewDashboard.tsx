@@ -36,6 +36,13 @@ interface DashboardMetrics {
   callsInProgress: number;
   averageWaitTime: number;
   activeAgents: number;
+  // Add previous period data for comparison
+  totalCallsYesterday: number;
+  connectedCallsYesterday: number;
+  totalRevenueYesterday: number;
+  conversionRateYesterday: number;
+  averageCallDurationYesterday: number;
+  averageWaitTimeYesterday: number;
 }
 
 interface CallVolumeData {
@@ -65,39 +72,81 @@ interface TopAgentData {
   revenue: number;
 }
 
-const KPICard: React.FC<{ title: string; value: string | number; change?: string; icon: React.ReactNode; trend?: 'up' | 'down' | 'neutral' }> = ({ 
+const KPICard: React.FC<{ 
+  title: string; 
+  value: string | number; 
+  previousValue?: number;
+  icon: React.ReactNode; 
+  trend?: 'up' | 'down' | 'neutral';
+  isPercentage?: boolean;
+  isDuration?: boolean;
+}> = ({ 
   title, 
   value, 
-  change, 
+  previousValue,
   icon,
-  trend = 'neutral'
-}) => (
-  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group">
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">{title}</p>
-        <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">{value}</p>
-        {change && (
-          <div className="flex items-center gap-1">
-            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-              trend === 'up' 
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                : trend === 'down'
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-            }`}>
-              {change}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-500">vs yesterday</span>
-          </div>
-        )}
-      </div>
-      <div className="text-slate-400 dark:text-slate-500 text-xl group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-        {icon}
+  trend = 'neutral',
+  isPercentage = false,
+  isDuration = false
+}) => {
+  
+  // Calculate percentage change if we have previous data
+  const calculateChange = (): { changeText: string; changeColor: string; showChange: boolean } => {
+    if (previousValue === undefined) {
+      return { changeText: '', changeColor: '', showChange: false };
+    }
+
+    const currentNumeric = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : value;
+    
+    // Don't show change if both values are 0
+    if (currentNumeric === 0 && previousValue === 0) {
+      return { changeText: 'No change', changeColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400', showChange: true };
+    }
+
+    // Handle case where we had 0 yesterday but have data today
+    if (previousValue === 0 && currentNumeric > 0) {
+      return { changeText: 'New data', changeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', showChange: true };
+    }
+
+    // Calculate percentage change
+    const percentChange = ((currentNumeric - previousValue) / previousValue) * 100;
+    
+    if (Math.abs(percentChange) < 0.1) {
+      return { changeText: 'No change', changeColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400', showChange: true };
+    }
+
+    const changeText = `${percentChange > 0 ? '+' : ''}${percentChange.toFixed(1)}%`;
+    const changeColor = percentChange > 0 
+      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    
+    return { changeText, changeColor, showChange: true };
+  };
+
+  const { changeText, changeColor, showChange } = calculateChange();
+
+  return (
+    <div className="theme-card rounded-lg p-6 group">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium theme-text-secondary mb-2">{title}</p>
+          <p className="text-2xl font-semibold theme-text-primary mb-3">{value}</p>
+          {showChange && (
+            <div className="flex items-center gap-1">
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${changeColor}`}>
+                {changeText}
+              </span>
+              <span className="text-xs theme-text-secondary">vs yesterday</span>
+            </div>
+          )}
+        </div>
+        <div className="theme-text-secondary text-xl group-hover:theme-text-primary transition-colors">
+          {icon}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const OverviewDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -110,6 +159,13 @@ const OverviewDashboard: React.FC = () => {
     callsInProgress: 0,
     averageWaitTime: 0,
     activeAgents: 0,
+    // Previous period data for comparison
+    totalCallsYesterday: 0,
+    connectedCallsYesterday: 0,
+    totalRevenueYesterday: 0,
+    conversionRateYesterday: 0,
+    averageCallDurationYesterday: 0,
+    averageWaitTimeYesterday: 0,
   });
   
   const [callVolumeData, setCallVolumeData] = useState<CallVolumeData[]>([]);
@@ -177,8 +233,31 @@ const OverviewDashboard: React.FC = () => {
       }
       
       const metricsData = await metricsResponse.json();
-      // Transform backend response to frontend format
-      const transformedMetrics = {
+      
+      // Fetch yesterday's data for comparison
+      const yesterdayParams = new URLSearchParams();
+      if (campaignFilter && campaignFilter !== 'all') {
+        yesterdayParams.append('campaignId', campaignFilter);
+      }
+      yesterdayParams.append('filter', 'yesterday');
+      
+      let yesterdayMetrics = null;
+      try {
+        const yesterdayResponse = await fetch(`/api/reports/overview/kpis?${yesterdayParams.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (yesterdayResponse.ok) {
+          const yesterdayData = await yesterdayResponse.json();
+          yesterdayMetrics = yesterdayData.data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch yesterday data:', err);
+      }
+      
+      // Transform backend response to frontend format with comparison data
+      const transformedMetrics: DashboardMetrics = {
         totalCallsToday: metricsData.data?.totalCalls || 0,
         connectedCallsToday: Math.round((metricsData.data?.totalCalls || 0) * (metricsData.data?.connectionRate || 0) / 100),
         totalRevenue: metricsData.data?.revenueConversions || 0,
@@ -187,7 +266,14 @@ const OverviewDashboard: React.FC = () => {
         agentsOnline: metricsData.data?.activeAgents || 0,
         callsInProgress: Math.floor((metricsData.data?.totalCalls || 0) * 0.1),
         averageWaitTime: metricsData.data?.averageWaitTime || 0,
-        activeAgents: metricsData.data?.activeAgents || 0
+        activeAgents: metricsData.data?.activeAgents || 0,
+        // Yesterday's data for comparison
+        totalCallsYesterday: yesterdayMetrics?.totalCalls || 0,
+        connectedCallsYesterday: Math.round((yesterdayMetrics?.totalCalls || 0) * (yesterdayMetrics?.connectionRate || 0) / 100),
+        totalRevenueYesterday: yesterdayMetrics?.revenueConversions || 0,
+        conversionRateYesterday: yesterdayMetrics?.connectionRate || 0,
+        averageCallDurationYesterday: yesterdayMetrics?.averageCallDuration || 0,
+        averageWaitTimeYesterday: yesterdayMetrics?.averageWaitTime || 0,
       };
       setMetrics(transformedMetrics);
 
@@ -300,6 +386,13 @@ const OverviewDashboard: React.FC = () => {
     };
   }, []);
 
+  // Separate effect for campaign/date range changes
+  useEffect(() => {
+    if (selectedCampaign && dateRange) {
+      fetchDashboardData(selectedCampaign, dateRange);
+    }
+  }, [selectedCampaign, dateRange]);
+
   // Re-fetch data when filters change
   useEffect(() => {
     if (selectedCampaign !== null && dateRange) {
@@ -398,16 +491,26 @@ const OverviewDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+      <div className="theme-bg-secondary min-h-screen">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                  Error loading dashboard
+          <div className="theme-card rounded-md p-6 border-l-4 border-red-400">
+            <div className="flex items-center">
+              <div className="text-red-600 mr-3 text-2xl">⚠️</div>
+              <div>
+                <h3 className="text-lg font-medium theme-text-primary">
+                  Error Loading Dashboard
                 </h3>
-                <div className="mt-2 text-sm text-red-700">
+                <div className="mt-2 text-sm theme-text-secondary">
                   <p>{error}</p>
+                  <button 
+                    onClick={() => {
+                      setError(null);
+                      fetchDashboardData();
+                    }}
+                    className="mt-3 btn-secondary px-4 py-2 text-sm rounded-md"
+                  >
+                    Try Again
+                  </button>
                 </div>
               </div>
             </div>
@@ -418,28 +521,31 @@ const OverviewDashboard: React.FC = () => {
   }
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+    <div className="theme-bg-secondary min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Reports Overview</h1>
-          <p className="text-slate-600 dark:text-slate-400">Advanced analytics and insights for your call center operations</p>
+          <h1 className="text-3xl font-semibold theme-text-primary mb-2">Reports Overview</h1>
+          <p className="theme-text-secondary">Advanced analytics and insights for your call center operations</p>
         </div>
 
         {/* Filtering Controls */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-6 mb-8">
+        <div className="theme-card rounded-lg p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Campaign Filter */}
               <div className="min-w-[200px]">
-                <label htmlFor="campaign-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label htmlFor="campaign-select" className="block text-sm font-medium theme-text-primary mb-2">
                   Campaign
                 </label>
                 <select
                   id="campaign-select"
                   value={selectedCampaign}
-                  onChange={(e) => setSelectedCampaign(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-800 dark:text-slate-100"
+                  onChange={(e) => {
+                    setSelectedCampaign(e.target.value);
+                    fetchDashboardData(e.target.value, dateRange);
+                  }}
+                  className="input-field w-full px-3 py-2 rounded-md"
                 >
                   <option value="all">All Campaigns</option>
                   {campaigns.map((campaign) => (
@@ -452,14 +558,17 @@ const OverviewDashboard: React.FC = () => {
 
               {/* Date Range Filter */}
               <div className="min-w-[150px]">
-                <label htmlFor="date-range-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label htmlFor="date-range-select" className="block text-sm font-medium theme-text-primary mb-2">
                   Date Range
                 </label>
                 <select
                   id="date-range-select"
                   value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-800 dark:text-slate-100"
+                  onChange={(e) => {
+                    setDateRange(e.target.value);
+                    fetchDashboardData(selectedCampaign, e.target.value);
+                  }}
+                  className="input-field w-full px-3 py-2 rounded-md"
                 >
                   <option value="today">Today</option>
                   <option value="yesterday">Yesterday</option>
@@ -475,7 +584,7 @@ const OverviewDashboard: React.FC = () => {
             <button
               onClick={() => fetchDashboardData(selectedCampaign, dateRange)}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary inline-flex items-center px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -497,41 +606,57 @@ const OverviewDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Data Status Alert */}
+        {(metrics.totalCallsToday === 0 && metrics.totalRevenue === 0) && (
+          <div className="theme-card rounded-lg p-4 mb-6 border-l-4 border-yellow-400">
+            <div className="flex items-center">
+              <div className="text-yellow-600 mr-3">⚠️</div>
+              <div>
+                <h4 className="text-sm font-medium theme-text-primary">No Call Data Available</h4>
+                <p className="text-sm theme-text-secondary mt-1">
+                  {selectedCampaign === 'all' 
+                    ? `No call activity found across all campaigns for ${dateRange === 'today' ? 'today' : 'the selected period'}.`
+                    : `No call activity found for the selected campaign (${campaigns.find(c => c.id === selectedCampaign)?.name || 'Unknown'}) in ${dateRange === 'today' ? 'today' : 'the selected period'}.`
+                  } 
+                  {dateRange === 'today' ? ' Try selecting a different date range or check if calls have been made.' : ' Consider selecting "All Campaigns" or a different date range.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <KPICard
             title="Total Calls Today"
             value={metrics.totalCallsToday.toLocaleString()}
-            change="+12%"
-            trend="up"
+            previousValue={metrics.totalCallsYesterday}
             icon={<span>📞</span>}
           />
           <KPICard
             title="Connected Calls"
             value={metrics.connectedCallsToday.toLocaleString()}
-            change="+8%"
-            trend="up"
+            previousValue={metrics.connectedCallsYesterday}
             icon={<span>✅</span>}
           />
           <KPICard
             title="Total Revenue"
             value={`$${metrics.totalRevenue.toLocaleString()}`}
-            change="+15%"
-            trend="up"
+            previousValue={metrics.totalRevenueYesterday}
             icon={<span>💰</span>}
           />
           <KPICard
             title="Conversion Rate"
             value={`${metrics.conversionRate.toFixed(1)}%`}
-            change="+2.1%"
-            trend="up"
+            previousValue={metrics.conversionRateYesterday}
+            isPercentage={true}
             icon={<span>📈</span>}
           />
           <KPICard
             title="Avg Call Duration"
             value={`${Math.floor(metrics.averageCallDuration / 60)}m ${metrics.averageCallDuration % 60}s`}
-            change="-30s"
-            trend="down"
+            previousValue={metrics.averageCallDurationYesterday}
+            isDuration={true}
             icon={<span>⏱️</span>}
           />
           <KPICard
@@ -547,8 +672,7 @@ const OverviewDashboard: React.FC = () => {
           <KPICard
             title="Avg Wait Time"
             value={`${metrics.averageWaitTime}s`}
-            change="-5s"
-            trend="up"
+            previousValue={metrics.averageWaitTimeYesterday}
             icon={<span>⏳</span>}
           />
         </div>
@@ -556,53 +680,53 @@ const OverviewDashboard: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Call Volume Chart */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Call Volume (Hourly)</h3>
+        <div className="theme-card rounded-xl p-6">
+            <h3 className="text-lg font-semibold theme-text-primary mb-4">Call Volume (Hourly)</h3>
           <div className="h-80">
             <Line data={callVolumeChartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Revenue Chart */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Daily Revenue</h2>
+        <div className="theme-card rounded-xl p-6">
+          <h2 className="text-xl font-semibold theme-text-primary mb-4">Daily Revenue</h2>
           <div className="h-80">
             <Bar data={revenueChartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Call Outcomes Chart */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Outcomes</h2>
+        <div className="theme-card rounded-xl p-6">
+          <h2 className="text-xl font-semibold theme-text-primary mb-4">Call Outcomes</h2>
           <div className="h-80">
             <Doughnut data={conversionChartData} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
 
         {/* Top Agents */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Top Performing Agents</h2>
+        <div className="theme-card rounded-xl p-6">
+          <h2 className="text-xl font-semibold theme-text-primary mb-4">Top Performing Agents</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y theme-border">
+              <thead className="theme-bg-secondary">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Agent
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Calls
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Conversion
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Revenue
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="theme-bg-primary divide-y theme-border">
                 {topAgentsData.map((agent, index) => (
-                  <tr key={agent.agentId} className="hover:bg-gray-50">
+                  <tr key={agent.agentId} className="hover:theme-bg-secondary">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -611,19 +735,19 @@ const OverviewDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium theme-text-primary">
                             {agent.agentName}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                       {agent.callsHandled}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                       {agent.conversionRate.toFixed(1)}%
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                       ${agent.revenue.toFixed(2)}
                     </td>
                   </tr>
@@ -635,8 +759,8 @@ const OverviewDashboard: React.FC = () => {
       </div>
 
       {/* Additional Metrics Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-6 mb-8">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Recent Call Outcomes</h3>
+      <div className="theme-card rounded-lg p-6 mb-8">
+        <h3 className="text-lg font-semibold theme-text-primary mb-4">Recent Call Outcomes</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-slate-800">
