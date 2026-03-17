@@ -3,6 +3,10 @@
   "version": "1.0.3",
   "description": "Omnivox-AI Backend API Server - Railway Deploy Fix",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "npx prisma generate",
