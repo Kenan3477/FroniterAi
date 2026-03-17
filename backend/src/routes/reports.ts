@@ -118,7 +118,7 @@ import { overviewDashboardService } from '../services/overviewDashboardService';
  */
 router.get('/overview/kpis', requirePermission('reports.read'), async (req, res) => {
   try {
-    const { filter = 'last_7d', start, end } = req.query;
+    const { filter = 'last_7d', start, end, campaignId } = req.query;
     
     const customStart = start ? new Date(start as string) : undefined;
     const customEnd = end ? new Date(end as string) : undefined;
@@ -126,7 +126,8 @@ router.get('/overview/kpis', requirePermission('reports.read'), async (req, res)
     const kpis = await overviewDashboardService.getOverviewKPIs(
       filter as any, 
       customStart, 
-      customEnd
+      customEnd,
+      campaignId as string
     );
 
     res.json({
@@ -150,7 +151,7 @@ router.get('/overview/kpis', requirePermission('reports.read'), async (req, res)
  */
 router.get('/overview/call-volume', requirePermission('reports.read'), async (req, res) => {
   try {
-    const { filter = 'last_7d', start, end } = req.query;
+    const { filter = 'last_7d', start, end, campaignId } = req.query;
     
     const customStart = start ? new Date(start as string) : undefined;
     const customEnd = end ? new Date(end as string) : undefined;
@@ -158,7 +159,8 @@ router.get('/overview/call-volume', requirePermission('reports.read'), async (re
     const data = await overviewDashboardService.getCallVolumeData(
       filter as any, 
       customStart, 
-      customEnd
+      customEnd,
+      campaignId as string
     );
 
     res.json({
@@ -214,7 +216,7 @@ router.get('/overview/connection-rate', requirePermission('reports.read'), async
  */
 router.get('/overview/agent-leaderboard', requirePermission('reports.read'), async (req, res) => {
   try {
-    const { filter = 'last_7d', start, end } = req.query;
+    const { filter = 'last_7d', start, end, campaignId } = req.query;
     
     const customStart = start ? new Date(start as string) : undefined;
     const customEnd = end ? new Date(end as string) : undefined;
@@ -222,7 +224,8 @@ router.get('/overview/agent-leaderboard', requirePermission('reports.read'), asy
     const data = await overviewDashboardService.getAgentLeaderboard(
       filter as any, 
       customStart, 
-      customEnd
+      customEnd,
+      campaignId as string
     );
 
     res.json({

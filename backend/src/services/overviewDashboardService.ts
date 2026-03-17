@@ -116,17 +116,21 @@ export class OverviewDashboardService {
   /**
    * Get all overview KPIs for the dashboard
    */
-  async getOverviewKPIs(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date): Promise<OverviewKPIs> {
+  async getOverviewKPIs(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date, campaignId?: string): Promise<OverviewKPIs> {
     try {
       const { startDate, endDate } = this.getTimeframe(filter, customStart, customEnd);
 
-      // Get all call records in the timeframe
+      // Build campaign filter
+      const campaignFilter = campaignId && campaignId !== 'all' ? { campaignId } : {};
+
+      // Get all call records in the timeframe with optional campaign filter
       const callRecords = await prisma.callRecord.findMany({
         where: {
           startTime: {
             gte: startDate,
             lte: endDate
-          }
+          },
+          ...campaignFilter
         },
         include: {
           agent: {
@@ -139,13 +143,14 @@ export class OverviewDashboardService {
         }
       });
 
-      // Get sales/conversion data
+      // Get sales/conversion data with campaign filter
       const salesData = await prisma.sale.findMany({
         where: {
           createdAt: {
             gte: startDate,
             lte: endDate
-          }
+          },
+          ...(campaignId && campaignId !== 'all' ? { campaignId } : {})
         }
       });
 
@@ -207,7 +212,7 @@ export class OverviewDashboardService {
   /**
    * Get call volume over time data for charts
    */
-  async getCallVolumeData(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date): Promise<CallVolumeData[]> {
+  async getCallVolumeData(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date, campaignId?: string): Promise<CallVolumeData[]> {
     try {
       const { startDate, endDate } = this.getTimeframe(filter, customStart, customEnd);
       
@@ -276,7 +281,7 @@ export class OverviewDashboardService {
   /**
    * Get connection rate trend over time
    */
-  async getConnectionRateData(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date): Promise<ConnectionRateData[]> {
+  async getConnectionRateData(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date, campaignId?: string): Promise<ConnectionRateData[]> {
     try {
       const volumeData = await this.getCallVolumeData(filter, customStart, customEnd);
       
@@ -295,7 +300,7 @@ export class OverviewDashboardService {
   /**
    * Get agent performance leaderboard
    */
-  async getAgentLeaderboard(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date): Promise<AgentLeaderboard[]> {
+  async getAgentLeaderboard(filter: 'today' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom', customStart?: Date, customEnd?: Date, campaignId?: string): Promise<AgentLeaderboard[]> {
     try {
       const { startDate, endDate } = this.getTimeframe(filter, customStart, customEnd);
 
