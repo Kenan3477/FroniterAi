@@ -13,23 +13,26 @@ interface DashboardCardProps {
 
 export default function DashboardCard({ title, value, icon, color, trend }: DashboardCardProps) {
   return (
-    <div className="theme-card overflow-hidden shadow-lg rounded-xl hover:shadow-xl transition-shadow duration-300">
-      <div className="p-6">
-        <div className="flex items-center justify-between">
+    <div className="theme-card overflow-hidden shadow-2xl rounded-2xl hover:shadow-2xl transition-all duration-500 group backdrop-blur-xl">
+      <div className="p-6 relative">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl"></div>
+        
+        <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center space-x-4">
-            <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shadow-sm`}>
+            <div className={`w-14 h-14 ${color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
               {icon}
             </div>
             <div>
-              <p className="text-sm font-semibold theme-text-secondary uppercase tracking-wide">{title}</p>
-              <p className="text-3xl font-bold theme-text-primary mt-1">{value}</p>
+              <p className="text-sm font-semibold theme-text-secondary uppercase tracking-wider">{title}</p>
+              <p className="text-4xl font-bold theme-text-primary mt-2 group-hover:scale-105 transition-transform duration-300">{value}</p>
             </div>
           </div>
           {trend && (
-            <div className={`flex items-center text-sm font-semibold px-3 py-1 rounded-full ${
+            <div className={`flex items-center text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-md border ${
               trend.direction === 'up' 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                : 'bg-red-500/20 text-red-300 border-red-500/30'
             }`}>
               {trend.direction === 'up' ? (
                 <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">

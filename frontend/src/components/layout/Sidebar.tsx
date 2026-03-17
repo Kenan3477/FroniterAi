@@ -49,13 +49,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   console.log('🔍 Sidebar - User role:', user?.role, 'Available items:', navigationItems.map(item => item.name));
   return (
-    <div className={`theme-bg-primary theme-border border-r flex flex-col transition-all duration-300 ${
+    <div className={`theme-bg-primary theme-border border-r flex flex-col transition-all duration-300 backdrop-blur-xl ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 theme-border border-b">
+      <div className="flex items-center h-16 px-4 theme-border border-b backdrop-blur-md">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
