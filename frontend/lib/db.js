@@ -44,7 +44,7 @@ class Database {
   }
 
   async createDefaultUser() {
-    const hashedPassword = await bcrypt.hash('3477', 10);
+    const hashedPassword = await bcrypt.hash('CHANGE_THIS_DEFAULT_PASSWORD', 12);
     
     const insertUser = `
       INSERT OR IGNORE INTO users (username, password, email, firstName, lastName, role)

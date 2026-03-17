@@ -1,8 +1,12 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'kennex-ai-secret-key-2025';
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 
 class Auth {
   static generateToken(user) {
@@ -27,7 +31,7 @@ class Auth {
   }
 
   static async hashPassword(password) {
-    return await bcrypt.hash(password, 10);
+    return await bcrypt.hash(password, 12);
   }
 
   static async comparePassword(password, hashedPassword) {
