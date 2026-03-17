@@ -4,112 +4,146 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
-/* CSS Custom Properties for Theme System */
+/* Premium Design System - VS Code Inspired */
 :root {
-  /* Light Theme (Default) */
-  --theme-primary: #334155;
-  --theme-primary-hover: #475569;
-  --theme-secondary: #64748b;
-  --theme-accent: #0ea5e9;
-  --theme-accent-hover: #0284c7;
+  /* Light Theme - Premium SaaS */
+  --theme-primary: #ffffff;
+  --theme-primary-hover: #f8fafc;
+  --theme-secondary: #f1f5f9;
+  --theme-accent: #2563eb;
+  --theme-accent-hover: #1d4ed8;
   --theme-background: #ffffff;
   --theme-background-secondary: #f8fafc;
-  --theme-text: #1e293b;
+  --theme-text: #0f172a;
   --theme-text-secondary: #64748b;
   --theme-border: #e2e8f0;
-  --theme-shadow: rgba(0, 0, 0, 0.1);
+  --theme-border-subtle: #f1f5f9;
+  --theme-shadow: rgba(15, 23, 42, 0.04);
+  --theme-shadow-md: rgba(15, 23, 42, 0.08);
+  --theme-ring: rgba(37, 99, 235, 0.2);
 }
 
 :root[data-theme="dark"] {
-  --theme-primary: #1e1e2e;
-  --theme-primary-hover: #313244;
-  --theme-secondary: #45475a;
-  --theme-accent: #89b4fa;
-  --theme-accent-hover: #74c7ec;
-  --theme-background: #11111b;
-  --theme-background-secondary: #181825;
-  --theme-text: #cdd6f4;
-  --theme-text-secondary: #a6adc8;
-  --theme-border: #313244;
-  --theme-shadow: rgba(0, 0, 0, 0.5);
-}
-
-:root[data-theme="blue"] {
-  --theme-primary: #1e40af;
-  --theme-primary-hover: #1d4ed8;
-  --theme-secondary: #3b82f6;
-  --theme-accent: #60a5fa;
-  --theme-accent-hover: #3b82f6;
-  --theme-background: #f0f9ff;
-  --theme-background-secondary: #e0f2fe;
-  --theme-text: #1e293b;
-  --theme-text-secondary: #475569;
-  --theme-border: #bfdbfe;
-  --theme-shadow: rgba(59, 130, 246, 0.2);
+  /* Dark Theme - VS Code/GitHub Inspired */
+  --theme-primary: #161b22;
+  --theme-primary-hover: #21262d;
+  --theme-secondary: #0d1117;
+  --theme-accent: #58a6ff;
+  --theme-accent-hover: #79c0ff;
+  --theme-background: #0d1117;
+  --theme-background-secondary: #010409;
+  --theme-text: #f0f6fc;
+  --theme-text-secondary: #8b949e;
+  --theme-border: #30363d;
+  --theme-border-subtle: #21262d;
+  --theme-shadow: rgba(1, 4, 9, 0.3);
+  --theme-shadow-md: rgba(1, 4, 9, 0.5);
+  --theme-ring: rgba(88, 166, 255, 0.3);
 }
 
 :root[data-theme="neon"] {
-  --theme-primary: #0d9488;
-  --theme-primary-hover: #0f766e;
-  --theme-secondary: #14b8a6;
-  --theme-accent: #2dd4bf;
-  --theme-accent-hover: #14b8a6;
-  --theme-background: #042f2e;
-  --theme-background-secondary: #134e4a;
-  --theme-text: #f0fdfa;
-  --theme-text-secondary: #99f6e4;
-  --theme-border: #14b8a6;
-  --theme-shadow: rgba(45, 212, 191, 0.3);
+  /* Neon Theme - Enterprise Cyberpunk */
+  --theme-primary: #0f0f23;
+  --theme-primary-hover: #1a1a3a;
+  --theme-secondary: #070713;
+  --theme-accent: #00d4ff;
+  --theme-accent-hover: #00b8e6;
+  --theme-background: #030308;
+  --theme-background-secondary: #000000;
+  --theme-text: #ffffff;
+  --theme-text-secondary: #a1a1aa;
+  --theme-border: #2d2d4d;
+  --theme-border-subtle: #1a1a3a;
+  --theme-shadow: rgba(0, 212, 255, 0.15);
+  --theme-shadow-md: rgba(0, 212, 255, 0.25);
+  --theme-ring: rgba(0, 212, 255, 0.4);
+}
+
+:root[data-theme="blue"] {
+  /* Blue Theme - Clean Professional */
+  --theme-primary: #dbeafe;
+  --theme-primary-hover: #bfdbfe;
+  --theme-secondary: #eff6ff;
+  --theme-accent: #1d4ed8;
+  --theme-accent-hover: #1e40af;
+  --theme-background: #f8fafc;
+  --theme-background-secondary: #eff6ff;
+  --theme-text: #1e293b;
+  --theme-text-secondary: #475569;
+  --theme-border: #cbd5e1;
+  --theme-border-subtle: #e2e8f0;
+  --theme-shadow: rgba(29, 78, 216, 0.05);
+  --theme-shadow-md: rgba(29, 78, 216, 0.1);
+  --theme-ring: rgba(29, 78, 216, 0.2);
 }
 
 :root[data-theme="pink"] {
-  --theme-primary: #be185d;
-  --theme-primary-hover: #9d174d;
-  --theme-secondary: #ec4899;
-  --theme-accent: #f472b6;
-  --theme-accent-hover: #ec4899;
-  --theme-background: #fdf2f8;
-  --theme-background-secondary: #fce7f3;
+  /* Pink Theme - Elegant Professional */
+  --theme-primary: #fce7f3;
+  --theme-primary-hover: #fbcfe8;
+  --theme-secondary: #fdf2f8;
+  --theme-accent: #db2777;
+  --theme-accent-hover: #be185d;
+  --theme-background: #fefcfe;
+  --theme-background-secondary: #fdf2f8;
   --theme-text: #1e293b;
   --theme-text-secondary: #475569;
-  --theme-border: #f9a8d4;
-  --theme-shadow: rgba(244, 114, 182, 0.2);
+  --theme-border: #e5e7eb;
+  --theme-border-subtle: #f3f4f6;
+  --theme-shadow: rgba(219, 39, 119, 0.05);
+  --theme-shadow-md: rgba(219, 39, 119, 0.1);
+  --theme-ring: rgba(219, 39, 119, 0.2);
 }
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
   
   body {
-    background: linear-gradient(135deg, var(--theme-background-secondary) 0%, var(--theme-background) 100%);
+    background-color: var(--theme-background);
     color: var(--theme-text);
-    transition: background 0.5s ease, color 0.3s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
     min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  * {
+    border-color: var(--theme-border);
   }
 }
 
 @layer components {
-  /* Theme-aware component styles */
+  /* Premium Theme-Aware Components */
+  
   .theme-header {
-    background-color: var(--theme-background);
-    color: var(--theme-text);
+    background-color: var(--theme-primary);
     border-color: var(--theme-border);
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    color: var(--theme-text);
+    transition: all 0.15s ease;
   }
   
   .theme-card {
-    background: linear-gradient(135deg, var(--theme-background) 0%, var(--theme-primary) 100%);
-    color: var(--theme-text);
+    background-color: var(--theme-primary);
     border: 1px solid var(--theme-border);
-    box-shadow: 0 8px 32px var(--theme-shadow);
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    color: var(--theme-text);
+    box-shadow: 0 1px 3px var(--theme-shadow);
+    transition: all 0.2s ease;
   }
   
   .theme-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px var(--theme-shadow);
+    border-color: var(--theme-accent);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
+  }
+  
+  .theme-card-elevated {
+    background-color: var(--theme-primary);
+    border: 1px solid var(--theme-border);
+    box-shadow: 0 4px 16px var(--theme-shadow-md);
+    transition: all 0.2s ease;
   }
   
   .theme-text-primary {
@@ -121,55 +155,120 @@
   }
   
   .theme-bg-primary {
-    background-color: var(--theme-background);
+    background-color: var(--theme-primary);
   }
   
   .theme-bg-secondary {
-    background: linear-gradient(135deg, var(--theme-background-secondary) 0%, var(--theme-primary) 50%);
+    background-color: var(--theme-secondary);
   }
   
   .theme-border {
     border-color: var(--theme-border);
   }
   
-  .theme-accent {
-    background: linear-gradient(135deg, var(--theme-accent) 0%, var(--theme-accent-hover) 100%);
-    color: white;
-    box-shadow: 0 4px 20px rgba(137, 180, 250, 0.3);
+  .theme-border-subtle {
+    border-color: var(--theme-border-subtle);
   }
   
-  .theme-accent:hover {
-    background: linear-gradient(135deg, var(--theme-accent-hover) 0%, var(--theme-accent) 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 25px rgba(137, 180, 250, 0.4);
-  }
-
+  /* Button System */
   .btn-primary {
-    @apply bg-omnivox-600 hover:bg-omnivox-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-omnivox-500 focus:ring-offset-2;
+    background-color: var(--theme-accent);
+    color: white;
+    border: 1px solid var(--theme-accent);
+    font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--theme-accent-hover);
+    border-color: var(--theme-accent-hover);
+    transform: translateY(-0.5px);
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    background-color: var(--theme-primary);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    font-weight: 500;
+    transition: all 0.15s ease;
   }
   
-  .btn-outline {
-    @apply border border-omnivox-600 text-omnivox-600 hover:bg-omnivox-600 hover:text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-omnivox-500 focus:ring-offset-2;
+  .btn-secondary:hover {
+    background-color: var(--theme-primary-hover);
+    border-color: var(--theme-accent);
   }
   
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--theme-text-secondary);
+    border: 1px solid transparent;
+    font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  
+  .btn-ghost:hover {
+    background-color: var(--theme-primary-hover);
+    color: var(--theme-text);
+    border-color: var(--theme-border);
+  }
+  
+  /* Focus Ring System */
+  .focus-ring:focus {
+    outline: 2px solid var(--theme-accent);
+    outline-offset: 2px;
+  }
+  
+  .focus-ring-inset:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--theme-ring);
+  }
+  
+  /* Input System */
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-omnivox-500 focus:border-omnivox-500;
+    background-color: var(--theme-primary);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+    transition: all 0.15s ease;
   }
   
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  .input-field:focus {
+    border-color: var(--theme-accent);
+    box-shadow: 0 0 0 3px var(--theme-ring);
   }
   
+  .input-field::placeholder {
+    color: var(--theme-text-secondary);
+  }
+  
+  /* Sidebar System */
   .sidebar-item {
-    @apply flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-gray-100 transition-colors duration-150;
+    color: var(--theme-text-secondary);
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  
+  .sidebar-item:hover {
+    background-color: var(--theme-primary-hover);
+    color: var(--theme-text);
   }
   
   .sidebar-item.active {
-    @apply bg-omnivox-100 text-omnivox-900 border-r-2 border-omnivox-600;
+    background-color: var(--theme-accent);
+    color: white;
+  }
+  
+  /* Neon Theme Enhancements */
+  [data-theme="neon"] .theme-card:hover {
+    box-shadow: 0 4px 20px var(--theme-shadow-md), 0 0 0 1px var(--theme-accent);
+  }
+  
+  [data-theme="neon"] .btn-primary {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+  }
+  
+  [data-theme="neon"] .btn-primary:hover {
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
   }
 }
 
