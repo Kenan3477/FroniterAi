@@ -119,13 +119,54 @@ const OverviewDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDashboardData = async () => {
+  // Campaign filtering state
+  const [selectedCampaign, setSelectedCampaign] = useState<string>('all');
+  const [campaigns, setCampaigns] = useState<Array<{id: string; name: string}>>([]);
+  const [dateRange, setDateRange] = useState<string>('last_7d');
+
+  // Fetch available campaigns for filtering
+  const fetchCampaigns = async () => {
+    try {
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      const response = await fetch('/api/admin/campaign-management/campaigns', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const campaignsData = await response.json();
+        const activeCampaigns = (campaignsData.data || campaignsData || [])
+          .filter((campaign: any) => !campaign.isDeleted && campaign.status === 'Active')
+          .map((campaign: any) => ({
+            id: campaign.id || campaign.campaignId,
+            name: campaign.name || campaign.campaignName || 'Unnamed Campaign'
+          }));
+        setCampaigns(activeCampaigns);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch campaigns:', error);
+    }
+  };
+
+  const fetchDashboardData = async (campaignFilter = selectedCampaign, dateFilter = dateRange) => {
     try {
       setLoading(true);
       
-      // Fetch metrics
+      // Get authentication token
       const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
-      const metricsResponse = await fetch('/api/reports/overview/kpis', {
+      
+      // Build query parameters for filtering
+      const queryParams = new URLSearchParams();
+      if (campaignFilter && campaignFilter !== 'all') {
+        queryParams.append('campaignId', campaignFilter);
+      }
+      queryParams.append('filter', dateFilter);
+      
+      const queryString = queryParams.toString();
+      
+      // Fetch KPIs with filtering
+      const metricsResponse = await fetch(`/api/reports/overview/kpis?${queryString}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -241,6 +282,8 @@ const OverviewDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    // Initial data load
+    fetchCampaigns();
     fetchDashboardData();
 
     // Listen for real-time updates
@@ -249,13 +292,20 @@ const OverviewDashboard: React.FC = () => {
     });
 
     // Refresh data every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
+    const interval = setInterval(() => fetchDashboardData(), 30000);
 
     return () => {
       clearInterval(interval);
       socket.off('dashboard.metrics.updated');
     };
   }, []);
+
+  // Re-fetch data when filters change
+  useEffect(() => {
+    if (selectedCampaign !== null && dateRange) {
+      fetchDashboardData(selectedCampaign, dateRange);
+    }
+  }, [selectedCampaign, dateRange]);
 
   // Chart configurations
   const callVolumeChartData = {
@@ -370,6 +420,77 @@ const OverviewDashboard: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Reports Overview</h1>
           <p className="text-slate-600 dark:text-slate-400">Advanced analytics and insights for your call center operations</p>
+        </div>
+
+        {/* Filtering Controls */}
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-6 mb-8">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Campaign Filter */}
+              <div className="min-w-[200px]">
+                <label htmlFor="campaign-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Campaign
+                </label>
+                <select
+                  id="campaign-select"
+                  value={selectedCampaign}
+                  onChange={(e) => setSelectedCampaign(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value="all">All Campaigns</option>
+                  {campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="min-w-[150px]">
+                <label htmlFor="date-range-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Date Range
+                </label>
+                <select
+                  id="date-range-select"
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="last_7d">Last 7 Days</option>
+                  <option value="last_30d">Last 30 Days</option>
+                  <option value="this_month">This Month</option>
+                  <option value="last_month">Last Month</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={() => fetchDashboardData(selectedCampaign, dateRange)}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Data
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* KPI Cards */}
