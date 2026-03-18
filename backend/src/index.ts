@@ -68,6 +68,7 @@ import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management syst
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
 // import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails - TEMPORARILY DISABLED
 import testRoutes from './routes/test'; // Testing and debugging endpoints
+import updateOrgAdminRoutes from './routes/updateOrgAdmin'; // Temporary route to fix existing org admin names
 import migrationRoutes from './routes/migration'; // Database migration endpoints
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
@@ -253,6 +254,7 @@ class App {
     this.app.use('/api/calls', callsRoutes); // Frontend compatibility for save-call-data
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
+    this.app.use('/api/admin', updateOrgAdminRoutes); // TEMPORARY: Fix existing organization administrator names
     this.app.use('/api/admin', migrationRoutes); // Database migration endpoints
     this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
     this.app.use('/api/emergency', emergencyRoutes); // EMERGENCY: Account unlock and debugging endpoints (no auth required)
