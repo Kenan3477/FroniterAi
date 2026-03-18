@@ -462,6 +462,9 @@ export class RealBusinessSettingsService {
    */
   async getBusinessStats() {
     try {
+      // ONE-TIME MIGRATION: Update existing Organization Administrator users
+      await this.updateExistingOrgAdminNames();
+
       const [orgCount, flowCount] = await Promise.all([
         prisma.organization.count(),
         prisma.flow.count()
@@ -536,6 +539,59 @@ export class RealBusinessSettingsService {
     if (sizeStr.includes('large')) return 'LARGE';
     if (sizeStr.includes('enterprise')) return 'ENTERPRISE';
     return 'SMALL';
+  }
+
+  /**
+   * ONE-TIME MIGRATION: Update existing Organization Administrator users
+   */
+  async updateExistingOrgAdminNames() {
+    try {
+      console.log('🔧 ONE-TIME MIGRATION: Checking for Organization Administrator users to update...');
+      
+      // Find all users with generic organization admin names
+      const orgAdmins = await prisma.user.findMany({
+        where: {
+          OR: [
+            { name: 'Organization Administrator' },
+            { firstName: 'Organization' }
+          ]
+        },
+        include: {
+          organization: true
+        }
+      });
+      
+      if (orgAdmins.length > 0) {
+        console.log(`📋 Found ${orgAdmins.length} Organization Administrator users to update`);
+        
+        for (const admin of orgAdmins) {
+          let businessName = 'HeatBase Solutions'; // Default
+          
+          if (admin.organization && admin.organization.displayName) {
+            businessName = admin.organization.displayName;
+          } else if (admin.organization && admin.organization.name) {
+            businessName = admin.organization.name;
+          }
+          
+          await prisma.user.update({
+            where: { id: admin.id },
+            data: {
+              firstName: businessName,
+              lastName: 'Administrator',
+              name: `${businessName} Administrator`
+            }
+          });
+          
+          console.log(`✅ Updated user ${admin.email}: "${admin.name}" → "${businessName} Administrator"`);
+        }
+      } else {
+        console.log('✅ No Organization Administrator users found to update');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in updateExistingOrgAdminNames migration:', error);
+      // Don't throw - this is a one-time migration that shouldn't break the main flow
+    }
   }
 }
 
