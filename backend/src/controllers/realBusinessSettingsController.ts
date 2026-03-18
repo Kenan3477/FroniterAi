@@ -13,7 +13,14 @@ const organizationCreateSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
   email: z.string().email('Valid email is required for Super Admin'), // Required for Super Admin
-  website: z.string().url().optional().or(z.literal('')),
+  website: z.string().optional().transform((val) => {
+    if (!val || val === '') return '';
+    // Auto-prepend https:// if no protocol is provided
+    if (!val.startsWith('http://') && !val.startsWith('https://')) {
+      return `https://${val}`;
+    }
+    return val;
+  }),
   industry: z.string().optional(),
   size: z.string().optional(),
   timezone: z.string().optional()
