@@ -12,7 +12,7 @@ model DataList {
   listId        String           @unique
   name          String
   campaignId    String?
-  organizationId String          // Organization ownership
+  organizationId String?         // Organization ownership - optional for migration
   active        Boolean          @default(false)
   blendWeight   Int?
   totalContacts Int              @default(0)
@@ -20,7 +20,7 @@ model DataList {
   updatedAt     DateTime         @updatedAt
   contacts      Contact[]
   queueEntries  DialQueueEntry[]
-  organization  Organization     @relation("OrganizationDataLists", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization  Organization?    @relation("OrganizationDataLists", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("data_lists")
 }
@@ -29,7 +29,7 @@ model Contact {
   id                String           @id @default(cuid())
   contactId         String           @unique
   listId            String
-  organizationId    String           // Organization ownership
+  organizationId    String?          // Organization ownership - optional for migration
   firstName         String
   lastName          String
   fullName          String?
@@ -78,7 +78,7 @@ model Contact {
   callKPIs          CallKPI[]
   callRecords       CallRecord[]
   list              DataList         @relation(fields: [listId], references: [listId], onDelete: Cascade)
-  organization      Organization     @relation("OrganizationContacts", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization      Organization?    @relation("OrganizationContacts", fields: [organizationId], references: [id], onDelete: Cascade)
   queueEntries      DialQueueEntry[]
   inbound_calls     inbound_calls[]
   interactions      Interaction[]
@@ -114,7 +114,7 @@ model Campaign {
   id                   String                    @id @default(cuid())
   campaignId           String                    @unique
   name                 String
-  organizationId       String                    // Organization ownership
+  organizationId       String?                   // Organization ownership - optional for migration
   dialMethod           String                    @default("Progressive")
   speed                Float                     @default(2.0)
   dropPercentage       Float                     @default(0.0)
@@ -142,7 +142,7 @@ model Campaign {
   callRecords          CallRecord[]
   campaignDispositions CampaignDisposition[]
   createdBy            User?                     @relation("CampaignCreator", fields: [createdById], references: [id])
-  organization         Organization              @relation("OrganizationCampaigns", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization?             @relation("OrganizationCampaigns", fields: [organizationId], references: [id], onDelete: Cascade)
   interactions         Interaction[]
   tasks                Task[]
   userAssignments      UserCampaignAssignment[]  @relation("CampaignUserAssignments")
@@ -295,7 +295,7 @@ model CallRecord {
   callId                String                 @unique
   campaignId            String
   contactId             String
-  organizationId        String                 // Organization ownership
+  organizationId        String?                // Organization ownership - optional for migration
   agentId               String?
   phoneNumber           String
   dialedNumber          String?
@@ -317,7 +317,7 @@ model CallRecord {
   agent                 Agent?                 @relation(fields: [agentId], references: [agentId])
   campaign              Campaign               @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
   contact               Contact                @relation(fields: [contactId], references: [contactId], onDelete: Cascade)
-  organization          Organization           @relation("OrganizationCallRecords", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization          Organization?          @relation("OrganizationCallRecords", fields: [organizationId], references: [id], onDelete: Cascade)
   disposition           Disposition?           @relation(fields: [dispositionId], references: [id])
   disposition_tracking  disposition_tracking[]
   quality_monitoring    quality_monitoring?
