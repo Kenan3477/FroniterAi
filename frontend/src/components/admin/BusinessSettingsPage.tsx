@@ -635,8 +635,8 @@ const BusinessSettingsPage: React.FC = () => {
             {organizations.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <Building className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No organizations yet</p>
-                <p className="text-sm">Create your first organization to get started</p>
+                <p className="text-foreground">No organizations yet</p>
+                <p className="text-sm text-muted-foreground">Create your first organization to get started</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -650,7 +650,7 @@ const BusinessSettingsPage: React.FC = () => {
                     }`}
                     onClick={() => handleOrganizationSelect(org)}
                   >
-                    <div className="font-medium">{org.displayName}</div>
+                    <div className="font-medium text-foreground">{org.displayName}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">{org.name}</div>
                     {org._count && (
                       <div className="flex gap-2 mt-2">
