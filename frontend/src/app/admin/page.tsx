@@ -8,7 +8,7 @@ import DataManagementContent from '@/components/admin/DataManagementContent';
 import UserManagement from '@/components/admin/UserManagement';
 import ApiManagement from '@/components/admin/ApiManagement';
 import AppsIntegrations from '@/components/admin/AppsIntegrations';
-import BusinessSettingsPage from '@/components/admin/BusinessSettingsPage';
+import MultiTenantBusinessSettings from '@/components/admin/MultiTenantBusinessSettings';
 import CampaignManagementPage from '@/components/admin/CampaignManagementPage';
 import DoNotCallPage from '@/components/admin/DoNotCallPage';
 import FlowsManagement from '@/components/flows/FlowsManagement';
@@ -556,7 +556,7 @@ export default function AdminPage() {
             ) : selectedSection === 'Apps and Integrations' ? (
               <AppsIntegrations />
             ) : selectedSection === 'Business Settings' ? (
-              <BusinessSettingsPage />
+              <MultiTenantBusinessSettings />
             ) : selectedSection === 'Campaigns' ? (
               <CampaignManagementPage />
             ) : selectedSection === 'Do Not Call (DNC)' ? (

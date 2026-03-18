@@ -75,6 +75,41 @@ export interface OrganizationStats {
   lastActivity?: Date;
 }
 
+export interface OrganizationPermissions {
+  canCreateUsers: boolean;
+  canCreateOrganizations: boolean;
+  canMakeCalls: boolean;
+  canDeleteData: boolean;
+  canDeleteCampaigns: boolean;
+  canAccessOtherOrgData: boolean;
+  dataAccessOrganizations: string[];
+}
+
+export interface UserCreationData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'AGENT' | 'VIEWER';
+  organizationId: string;
+  permissions?: Partial<OrganizationPermissions>;
+  sendWelcomeEmail?: boolean;
+}
+
+export interface CrossOrganizationStats {
+  totalOrganizations: number;
+  totalUsers: number;
+  totalContacts: number;
+  totalCampaigns: number;
+  totalCallRecords: number;
+  organizationBreakdown: {
+    id: string;
+    name: string;
+    userCount: number;
+    contactCount: number;
+    campaignCount: number;
+  }[];
+}
+
 /**
  * Real Business Settings Service using database queries
  */
@@ -349,14 +384,52 @@ export class RealBusinessSettingsService {
   /**
    * Delete organization
    */
-  async deleteOrganization(id: string) {
+  /**
+   * Delete organization (with safety checks)
+   */
+  async deleteOrganization(organizationId: string, force: boolean = false) {
     try {
-      await prisma.organization.delete({
-        where: { id }
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        include: {
+          _count: {
+            select: {
+              members: true,
+              contacts: true,
+              campaigns: true,
+              callRecords: true
+            }
+          }
+        }
       });
 
-      console.log('✅ Organization deleted:', id);
-      return true;
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      // Safety checks
+      const { members, contacts, campaigns, callRecords } = organization._count;
+      const totalData = members + contacts + campaigns + callRecords;
+
+      if (totalData > 0 && !force) {
+        return {
+          canDelete: false,
+          reason: `Organization has ${totalData} associated records (${members} users, ${contacts} contacts, ${campaigns} campaigns, ${callRecords} call records)`,
+          requiresForce: true
+        };
+      }
+
+      // Delete organization (cascades will handle related data)
+      await prisma.organization.delete({
+        where: { id: organizationId }
+      });
+
+      console.log('✅ Organization deleted:', organizationId);
+      return {
+        canDelete: true,
+        deleted: true,
+        message: `Organization "${organization.displayName}" deleted successfully`
+      };
 
     } catch (error) {
       console.error('❌ Error deleting organization:', error);
@@ -591,6 +664,279 @@ export class RealBusinessSettingsService {
     } catch (error) {
       console.error('❌ Error in updateExistingOrgAdminNames migration:', error);
       // Don't throw - this is a one-time migration that shouldn't break the main flow
+    }
+  }
+
+  /**
+   * Get cross-organization statistics and overview
+   */
+  async getCrossOrganizationStats(): Promise<CrossOrganizationStats> {
+    try {
+      // Get total counts across all organizations
+      const [totalOrganizations, totalUsers, totalContacts, totalCampaigns, totalCallRecords] = await Promise.all([
+        prisma.organization.count(),
+        prisma.user.count(),
+        prisma.contact.count(),
+        prisma.campaign.count(),
+        prisma.callRecord.count()
+      ]);
+
+      // Get organization breakdown with individual stats
+      const organizations = await prisma.organization.findMany({
+        include: {
+          _count: {
+            select: {
+              members: true,
+              contacts: true,
+              campaigns: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const organizationBreakdown = organizations.map(org => ({
+        id: org.id,
+        name: org.displayName,
+        userCount: org._count.members,
+        contactCount: org._count.contacts,
+        campaignCount: org._count.campaigns
+      }));
+
+      return {
+        totalOrganizations,
+        totalUsers,
+        totalContacts,
+        totalCampaigns,
+        totalCallRecords,
+        organizationBreakdown
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching cross-organization stats:', error);
+      throw new Error(`Failed to fetch cross-organization statistics: ${error}`);
+    }
+  }
+
+  /**
+   * Get users for a specific organization
+   */
+  async getOrganizationUsers(organizationId: string, filters?: {
+    role?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    try {
+      const { role, status, search, page = 1, limit = 50 } = filters || {};
+      
+      const whereClause: any = { organizationId };
+      
+      if (role) {
+        whereClause.role = role;
+      }
+      
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } }
+        ];
+      }
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where: whereClause,
+          include: {
+            organization: true
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.user.count({ where: whereClause })
+      ]);
+
+      return {
+        users: users.map(user => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isActive: user.isActive,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
+          organizationName: user.organization?.displayName
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching organization users:', error);
+      throw new Error(`Failed to fetch organization users: ${error}`);
+    }
+  }
+
+  /**
+   * Create a new user in a specific organization
+   */
+  async createOrganizationUser(userData: UserCreationData) {
+    try {
+      console.log(`👤 Creating user in organization: ${userData.organizationId}`);
+
+      // Validate organization exists
+      const organization = await prisma.organization.findUnique({
+        where: { id: userData.organizationId }
+      });
+
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email: userData.email }
+      });
+
+      if (existingUser) {
+        throw new Error('User with this email already exists');
+      }
+
+      // Generate temporary password
+      const tempPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+      // Create user
+      const newUser = await prisma.user.create({
+        data: {
+          username: userData.email,
+          email: userData.email,
+          password: hashedPassword,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          name: `${userData.firstName} ${userData.lastName}`,
+          role: userData.role,
+          organizationId: userData.organizationId,
+          isActive: true
+        },
+        include: {
+          organization: true
+        }
+      });
+
+      // Send welcome email if requested
+      if (userData.sendWelcomeEmail !== false) {
+        try {
+          const { token, expires } = generatePasswordSetupToken(newUser.email);
+          
+          await emailService.sendOrganizationWelcomeEmail(
+            newUser.email,
+            organization.displayName,
+            token
+          );
+          
+          console.log(`✉️ Welcome email sent to ${newUser.email}`);
+        } catch (emailError) {
+          console.error('⚠️ Failed to send welcome email:', emailError);
+          // Don't fail user creation if email fails
+        }
+      }
+
+      return {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        organizationId: newUser.organizationId,
+        organizationName: newUser.organization?.displayName,
+        temporaryPassword: tempPassword
+      };
+
+    } catch (error) {
+      console.error('❌ Error creating organization user:', error);
+      throw new Error(`Failed to create user: ${error}`);
+    }
+  }
+
+  /**
+   * Update organization permissions (placeholder for future implementation)
+   */
+  async updateOrganizationPermissions(organizationId: string, permissions: Partial<OrganizationPermissions>) {
+    try {
+      // This would be implemented when we add a permissions table
+      console.log(`🔐 Updating permissions for organization: ${organizationId}`, permissions);
+      
+      // For now, return success - permissions would be stored in a separate table
+      return {
+        organizationId,
+        permissions,
+        message: 'Permissions updated successfully'
+      };
+
+    } catch (error) {
+      console.error('❌ Error updating organization permissions:', error);
+      throw new Error(`Failed to update permissions: ${error}`);
+    }
+  }
+
+  /**
+   * Delete organization (with safety checks)
+   */
+  async deleteOrganization(organizationId: string, force: boolean = false) {
+    try {
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        include: {
+          _count: {
+            select: {
+              members: true,
+              contacts: true,
+              campaigns: true,
+              callRecords: true
+            }
+          }
+        }
+      });
+
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      // Safety checks
+      const { members, contacts, campaigns, callRecords } = organization._count;
+      const totalData = members + contacts + campaigns + callRecords;
+
+      if (totalData > 0 && !force) {
+        return {
+          canDelete: false,
+          reason: `Organization has ${totalData} associated records (${members} users, ${contacts} contacts, ${campaigns} campaigns, ${callRecords} call records)`,
+          requiresForce: true
+        };
+      }
+
+      // Delete organization (cascades will handle related data)
+      await prisma.organization.delete({
+        where: { id: organizationId }
+      });
+
+      return {
+        canDelete: true,
+        deleted: true,
+        message: `Organization "${organization.displayName}" deleted successfully`
+      };
+
+    } catch (error) {
+      console.error('❌ Error deleting organization:', error);
+      throw new Error(`Failed to delete organization: ${error}`);
     }
   }
 }

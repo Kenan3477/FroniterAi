@@ -50,6 +50,30 @@ router.put('/organizations/:id', businessSettingsController.updateOrganization);
 router.delete('/organizations/:id', businessSettingsController.deleteOrganization);
 
 /**
+ * GET /api/admin/business-settings/dashboard
+ * Get cross-organization dashboard statistics
+ */
+router.get('/dashboard', businessSettingsController.getDashboardStats);
+
+/**
+ * GET /api/admin/business-settings/organizations/:organizationId/users
+ * Get users for specific organization
+ */
+router.get('/organizations/:organizationId/users', businessSettingsController.getOrganizationUsers);
+
+/**
+ * POST /api/admin/business-settings/organizations/:organizationId/users
+ * Create new user in organization
+ */
+router.post('/organizations/:organizationId/users', businessSettingsController.createOrganizationUser);
+
+/**
+ * PUT /api/admin/business-settings/organizations/:organizationId/permissions
+ * Update organization permissions
+ */
+router.put('/organizations/:organizationId/permissions', businessSettingsController.updateOrganizationPermissions);
+
+/**
  * GET /api/admin/business-settings/organizations/:id/settings
  * Get business settings for organization
  */

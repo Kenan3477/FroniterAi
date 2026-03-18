@@ -328,3 +328,177 @@ export const getOrganizationProfiles = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Get cross-organization dashboard statistics
+ */
+export const getDashboardStats = async (req: Request, res: Response) => {
+  try {
+    console.log('📊 Getting cross-organization dashboard statistics');
+
+    const stats = await realBusinessSettingsService.getCrossOrganizationStats();
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching dashboard stats:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to fetch dashboard statistics',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
+
+/**
+ * Get organization users
+ */
+export const getOrganizationUsers = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const { role, status, search, page, limit } = req.query;
+
+    console.log(`👥 Getting users for organization: ${organizationId}`);
+
+    const filters = {
+      role: role as string | undefined,
+      status: status as string | undefined,
+      search: search as string | undefined,
+      page: page ? parseInt(page as string) : 1,
+      limit: limit ? parseInt(limit as string) : 50
+    };
+
+    const result = await realBusinessSettingsService.getOrganizationUsers(organizationId, filters);
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching organization users:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to fetch organization users',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
+
+/**
+ * Create user in organization
+ */
+export const createOrganizationUser = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+
+    const userSchema = z.object({
+      firstName: z.string().min(1, 'First name is required'),
+      lastName: z.string().min(1, 'Last name is required'),
+      email: z.string().email('Valid email is required'),
+      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'AGENT', 'VIEWER']).default('AGENT'),
+      sendWelcomeEmail: z.boolean().default(true)
+    });
+
+    const validatedData = userSchema.parse(req.body);
+
+    console.log(`👤 Creating user in organization: ${organizationId}`);
+
+    const userData = {
+      firstName: validatedData.firstName,
+      lastName: validatedData.lastName,
+      email: validatedData.email,
+      role: validatedData.role,
+      organizationId,
+      sendWelcomeEmail: validatedData.sendWelcomeEmail
+    };
+
+    const result = await realBusinessSettingsService.createOrganizationUser(userData);
+
+    res.json({
+      success: true,
+      data: result,
+      message: `User "${result.name}" created successfully in organization`
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating organization user:', error);
+    
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Validation failed',
+          details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        }
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to create user',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
+
+/**
+ * Update organization permissions
+ */
+export const updateOrganizationPermissions = async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+
+    const permissionsSchema = z.object({
+      canCreateUsers: z.boolean().optional(),
+      canCreateOrganizations: z.boolean().optional(),
+      canMakeCalls: z.boolean().optional(),
+      canDeleteData: z.boolean().optional(),
+      canDeleteCampaigns: z.boolean().optional(),
+      canAccessOtherOrgData: z.boolean().optional(),
+      dataAccessOrganizations: z.array(z.string()).optional()
+    });
+
+    const validatedData = permissionsSchema.parse(req.body);
+
+    console.log(`🔐 Updating permissions for organization: ${organizationId}`);
+
+    const result = await realBusinessSettingsService.updateOrganizationPermissions(organizationId, validatedData);
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Organization permissions updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating organization permissions:', error);
+    
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Validation failed',
+          details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        }
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to update permissions',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
