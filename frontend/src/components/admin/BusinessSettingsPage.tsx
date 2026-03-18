@@ -201,8 +201,10 @@ const BusinessSettingsPage: React.FC = () => {
       console.log('🏢 Organizations API response:', orgsData);
       console.log('📊 Stats API response:', statsData);
 
-      setOrganizations(orgsData.data || []);
-      console.log('🏢 Organizations set to state:', orgsData.data || []);
+      // Handle the actual API response format: { success: true, data: { organizations: [...], pagination: {...} } }
+      const organizations = orgsData?.data?.organizations || orgsData?.data || [];
+      setOrganizations(Array.isArray(organizations) ? organizations : []);
+      console.log('🏢 Organizations set to state:', organizations);
       
       // Initialize other arrays to ensure they're always arrays
       setBusinessSettings([]);
