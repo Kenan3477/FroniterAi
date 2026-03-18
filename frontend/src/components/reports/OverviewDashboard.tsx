@@ -604,12 +604,6 @@ const OverviewDashboard: React.FC = () => {
   return (
     <div className="theme-bg-secondary min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold theme-text-primary mb-2">Reports Overview</h1>
-          <p className="theme-text-secondary">Advanced analytics and insights for your call center operations</p>
-        </div>
-
         {/* Filtering Controls */}
         <div className="theme-card rounded-lg p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -668,25 +662,6 @@ const OverviewDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Data Status Alert */}
-        {(metrics.totalCallsToday === 0 && metrics.totalRevenue === 0) && (
-          <div className="theme-card rounded-lg p-4 mb-6 border-l-4 border-yellow-400">
-            <div className="flex items-center">
-              <div className="text-yellow-600 mr-3">⚠️</div>
-              <div>
-                <h4 className="text-sm font-medium theme-text-primary">No Call Data Available</h4>
-                <p className="text-sm theme-text-secondary mt-1">
-                  {selectedCampaign === 'all' 
-                    ? `No call activity found across all campaigns for ${dateRange === 'today' ? 'today' : 'the selected period'}.`
-                    : `No call activity found for the selected campaign (${campaigns.find(c => c.id === selectedCampaign)?.name || 'Unknown'}) in ${dateRange === 'today' ? 'today' : 'the selected period'}.`
-                  } 
-                  {dateRange === 'today' ? ' Try selecting a different date range or check if calls have been made.' : ' Consider selecting "All Campaigns" or a different date range.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
