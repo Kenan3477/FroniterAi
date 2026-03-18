@@ -20,12 +20,26 @@ const prisma = new PrismaClient();
 router.get('/', organizationAwareAuth, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const organizationFilter = getOrganizationFilter(user);
     
-    console.log('👥 Fetching users for organization:', user.organizationId);
+    console.log('👥 User requesting users:', { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role, 
+      organizationId: user.organizationId 
+    });
+    
+    // For SUPER_ADMIN or users without organization, show all users
+    // For organization users, show only users in their organization
+    let whereClause = {};
+    if (user.organizationId && user.role !== 'SUPER_ADMIN') {
+      whereClause = { organizationId: user.organizationId };
+      console.log('👥 Filtering by organization:', user.organizationId);
+    } else {
+      console.log('👥 Showing all users (SUPER_ADMIN or no organization)');
+    }
     
     const users = await prisma.user.findMany({
-      where: organizationFilter,
+      where: whereClause,
       select: {
         id: true,
         username: true,
@@ -601,14 +615,31 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
  */
 router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
-    console.log('📊 Fetching user statistics...');
+    const user = (req as any).user;
+    
+    console.log('📊 User requesting stats:', { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role, 
+      organizationId: user.organizationId 
+    });
+    
+    // For SUPER_ADMIN or users without organization, show all user stats
+    // For organization users, show only stats for their organization
+    let whereClause = {};
+    if (user.organizationId && user.role !== 'SUPER_ADMIN') {
+      whereClause = { organizationId: user.organizationId };
+      console.log('📊 Stats filtering by organization:', user.organizationId);
+    } else {
+      console.log('📊 Stats showing all users (SUPER_ADMIN or no organization)');
+    }
     
     // Get total user count
-    const totalUsers = await prisma.user.count();
+    const totalUsers = await prisma.user.count({ where: whereClause });
     
     // Get active users (using isActive boolean from schema)
     const activeUsers = await prisma.user.count({
-      where: { isActive: true }
+      where: { ...whereClause, isActive: true }
     });
     
     // Calculate inactive users
@@ -617,6 +648,7 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: 
     // Get role distribution using actual role field from schema
     const roleStats = await prisma.user.groupBy({
       by: ['role'],
+      where: whereClause,
       _count: {
         _all: true,
       },
