@@ -200,6 +200,10 @@ const BusinessSettingsPage: React.FC = () => {
 
       setOrganizations(orgsData.data || []);
       
+      // Initialize other arrays to ensure they're always arrays
+      setBusinessSettings([]);
+      setCompanyProfiles([]);
+      
       // Provide default structure if API doesn't return expected format
       const defaultStats: BusinessSettingsStats = {
         organizations: { total: 0 },
@@ -248,6 +252,9 @@ const BusinessSettingsPage: React.FC = () => {
       setCompanyProfiles(profilesData.data || []);
     } catch (err) {
       console.error('Error fetching organization details:', err);
+      // Ensure arrays are always arrays even on error
+      setBusinessSettings([]);
+      setCompanyProfiles([]);
     }
   };
 
@@ -627,7 +634,7 @@ const BusinessSettingsPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {organizations.map((org) => (
+                {Array.isArray(organizations) && organizations.map((org) => (
                   <div
                     key={org.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -767,7 +774,7 @@ const BusinessSettingsPage: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {businessSettings.map((setting) => (
+                        {Array.isArray(businessSettings) && businessSettings.map((setting) => (
                           <TableRow key={setting.id}>
                             <TableCell>
                               <Badge className={getCategoryColor(setting.category)}>
@@ -896,7 +903,7 @@ const BusinessSettingsPage: React.FC = () => {
 
                     {companyProfiles.length > 0 ? (
                       <div className="space-y-4">
-                        {companyProfiles.map((profile) => (
+                        {Array.isArray(companyProfiles) && companyProfiles.map((profile) => (
                           <Card key={profile.id}>
                             <CardHeader>
                               <CardTitle className="text-lg">{profile.legalName}</CardTitle>
