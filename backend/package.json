@@ -1,7 +1,7 @@
 {
   "name": "omnivox-ai-backend",
-  "version": "1.0.4",
-  "description": "Omnivox-AI Backend API Server - Permission Fix Deploy",
+  "version": "1.0.5",
+  "description": "Omnivox-AI Backend API Server - Schema Migration Fix",
   "main": "dist/index.js",
   "engines": {
     "node": ">=20.0.0",

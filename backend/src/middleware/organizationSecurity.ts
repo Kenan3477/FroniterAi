@@ -5,24 +5,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import '../types/auth'; // Import unified auth types
+import { OrganizationUser } from '../types/auth'; // Import the type explicitly
 
 const prisma = new PrismaClient();
-
-export interface OrganizationUser {
-  userId: number;
-  username: string;
-  role: string;
-  organizationId: string | null;
-  permissions: string[];
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user: OrganizationUser;
-    }
-  }
-}
 
 /**
  * Middleware to enforce organization-level access control
@@ -55,7 +41,7 @@ export const requireOrganizationAccess = (allowCrossOrgForSuperAdmin: boolean = 
       // Validate organization exists and user has access
       const orgAccess = await prisma.user.findFirst({
         where: {
-          id: req.user.userId,
+          id: parseInt(req.user.userId),
           organizationId: req.user.organizationId,
           isActive: true
         },
@@ -80,7 +66,9 @@ export const requireOrganizationAccess = (allowCrossOrgForSuperAdmin: boolean = 
 
       // Add organization context to request for use in controllers
       req.organizationId = req.user.organizationId;
-      req.organization = orgAccess.organization;
+      if (orgAccess.organization) {
+        req.organization = orgAccess.organization;
+      }
 
       next();
 

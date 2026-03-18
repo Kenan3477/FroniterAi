@@ -6,22 +6,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import '../types/auth'; // Import unified auth types
 
 const prisma = new PrismaClient();
-
-// Extend Express Request interface
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        username: string;
-        role: string;
-        permissions: string[];
-      };
-    }
-  }
-}
 
 // Role-based permissions
 export const ROLE_PERMISSIONS = {
@@ -115,7 +102,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         id: true,
         name: true,
         role: true,
-        isActive: true  // Check the correct field for account activation
+        isActive: true,  // Check the correct field for account activation
+        organizationId: true  // Include organization membership
       }
     });
 
@@ -149,7 +137,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       userId: user.id.toString(),
       username: user.name,
       role: user.role,
-      permissions
+      permissions,
+      id: user.id,
+      organizationId: user.organizationId || null,
+      isActive: user.isActive
     };
 
     console.log('✅ Auth middleware - authentication successful for user:', user.id);
@@ -358,7 +349,8 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
             id: true,
             name: true,
             role: true,
-            isActive: true  // Check the correct field for account activation
+            isActive: true,  // Check the correct field for account activation
+            organizationId: true  // Include organization membership
           }
         });
 
@@ -369,7 +361,10 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
             userId: user.id.toString(),
             username: user.name,
             role: user.role,
-            permissions
+            permissions,
+            id: user.id,
+            organizationId: user.organizationId || null,
+            isActive: user.isActive
           };
         }
       }

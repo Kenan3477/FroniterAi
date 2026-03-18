@@ -6,28 +6,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import '../types/auth'; // Import unified auth types
+import { OrganizationUser } from '../types/auth'; // Import the type explicitly
 
 const prisma = new PrismaClient();
-
-export interface OrganizationUser {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  organizationId: string | null;
-  organizationName?: string;
-  organizationRole?: string;
-  isActive: boolean;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: OrganizationUser;
-    }
-  }
-}
 
 /**
  * Enhanced authentication middleware that includes organization context
@@ -74,13 +56,13 @@ export const authenticateWithOrganization = async (
 
     // Create organization-aware user object
     req.user = {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      userId: user.id.toString(),
+      username: user.username,
       role: user.role,
+      permissions: [], // Will be populated by role-based middleware if needed
+      id: user.id,
       organizationId: user.organizationId,
-      organizationName: user.organization?.displayName,
+      organization: user.organization,
       isActive: user.isActive
     };
 
