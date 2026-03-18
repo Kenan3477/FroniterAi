@@ -13,6 +13,7 @@ const organizationCreateSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
   email: z.string().email('Valid email is required for Super Admin'), // Required for Super Admin
+  phone: z.string().optional(),
   website: z.string().optional().transform((val) => {
     if (!val || val === '') return '';
     // Auto-prepend https:// if no protocol is provided
@@ -21,9 +22,13 @@ const organizationCreateSchema = z.object({
     }
     return val;
   }),
+  timezone: z.string().optional(),
+  currency: z.string().optional(),
+  primaryColor: z.string().optional(),
+  dateFormat: z.string().optional(),
+  timeFormat: z.string().optional(),
   industry: z.string().optional(),
-  size: z.string().optional(),
-  timezone: z.string().optional()
+  size: z.string().optional()
 });
 
 const organizationUpdateSchema = organizationCreateSchema.partial();
