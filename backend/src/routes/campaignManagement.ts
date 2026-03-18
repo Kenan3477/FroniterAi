@@ -3,8 +3,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { campaignEvents, agentEvents } from '../utils/eventHelpers';
 import { createRestApiCall } from '../services/twilioService';
-import { authenticateToken, requirePermission, organizationAwareAuth } from '../middleware/enhancedAuth';
-import { getOrganizationFilter } from '../middleware/organizationAuth';
+import { authenticateToken, requirePermission, organizationAwareAuth, getOrganizationFilter } from '../middleware/enhancedAuth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
