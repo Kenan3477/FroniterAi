@@ -1,6 +1,7 @@
 /**
  * Enhanced Security Middleware - Proper Role-Based Authorization
  * Replaces hardcoded permissions with database-driven authorization
+ * Updated: 2026-03-18 - Added settings.admin permission for ADMIN role
  */
 
 import { Request, Response, NextFunction } from 'express';
