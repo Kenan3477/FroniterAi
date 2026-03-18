@@ -583,7 +583,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.organizations?.total || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.organizations?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -592,7 +592,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.settings?.total || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.settings?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -601,7 +601,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.profiles?.total || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.profiles?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -610,7 +610,7 @@ const BusinessSettingsPage: React.FC = () => {
               <BarChart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.parameters?.total || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.parameters?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -619,7 +619,7 @@ const BusinessSettingsPage: React.FC = () => {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.rules?.total || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.rules?.total || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -654,10 +654,10 @@ const BusinessSettingsPage: React.FC = () => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">{org.name}</div>
                     {org._count && (
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs text-gray-700 dark:text-gray-300">
                           {org._count.businessSettings} settings
                         </Badge>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs text-gray-700 dark:text-gray-300">
                           {org._count.companyProfiles} profiles
                         </Badge>
                       </div>
@@ -810,7 +810,7 @@ const BusinessSettingsPage: React.FC = () => {
 
                   <TabsContent value="profiles" className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium">Company Profiles</h3>
+                      <h3 className="text-lg font-medium text-foreground">Company Profiles</h3>
                       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
                         <DialogTrigger asChild>
                           <Button size="sm">
@@ -945,7 +945,7 @@ const BusinessSettingsPage: React.FC = () => {
 
                   <TabsContent value="dnc" className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium">Do Not Call Management</h3>
+                      <h3 className="text-lg font-medium text-foreground">Do Not Call Management</h3>
                     </div>
                     <DoNotCallManager />
                   </TabsContent>
@@ -957,7 +957,7 @@ const BusinessSettingsPage: React.FC = () => {
               <CardContent className="flex items-center justify-center h-96">
                 <div className="text-center">
                   <Building className="w-16 h-16 mx-auto text-muted-foreground mb-6 opacity-50" />
-                  <div className="text-xl font-medium mb-2">Select an organization</div>
+                  <div className="text-xl font-medium mb-2 text-foreground">Select an organization</div>
                   <div className="text-muted-foreground mb-6">Choose an organization from the list to view its settings and profiles</div>
                   <div className="text-sm text-muted-foreground">
                     Or create a new organization to get started
