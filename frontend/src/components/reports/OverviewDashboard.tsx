@@ -72,6 +72,18 @@ interface TopAgentData {
   revenue: number;
 }
 
+interface AgentCallActivity {
+  agentId: string;
+  agentName: string;
+  hourlyData: Array<{
+    hour: number;
+    callCount: number;
+    timestamp: string;
+  }>;
+  totalCallsToday: number;
+  color: string;
+}
+
 const KPICard: React.FC<{ 
   title: string; 
   value: string | number; 
@@ -172,6 +184,7 @@ const OverviewDashboard: React.FC = () => {
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [conversionData, setConversionData] = useState<ConversionData[]>([]);
   const [topAgentsData, setTopAgentsData] = useState<TopAgentData[]>([]);
+  const [agentCallActivityData, setAgentCallActivityData] = useState<AgentCallActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -293,6 +306,24 @@ const OverviewDashboard: React.FC = () => {
         setCallVolumeData(transformedData);
       }
 
+      // Fetch agent call activity data
+      const agentActivityParams = new URLSearchParams();
+      agentActivityParams.append('filter', 'today');
+      if (campaignFilter && campaignFilter !== 'all') {
+        agentActivityParams.append('campaignId', campaignFilter);
+      }
+      
+      const agentActivityResponse = await fetch(`/api/reports/overview/agent-call-activity?${agentActivityParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (agentActivityResponse.ok) {
+        const agentActivityData = await agentActivityResponse.json();
+        setAgentCallActivityData(agentActivityData.data || []);
+      }
+
       // Generate synthetic revenue data
       const days = 7;
       const generatedRevenueData = [];
@@ -386,6 +417,11 @@ const OverviewDashboard: React.FC = () => {
       setCallVolumeData(volumeData);
     });
 
+    // Listen for real-time agent call activity updates
+    socket.on('dashboard.agent_call_activity.updated', (activityData: AgentCallActivity[]) => {
+      setAgentCallActivityData(activityData);
+    });
+
     // Listen for real-time agent leaderboard updates
     socket.on('dashboard.agents.updated', (agentData: TopAgentData[]) => {
       setTopAgentsData(agentData);
@@ -400,6 +436,7 @@ const OverviewDashboard: React.FC = () => {
       clearInterval(interval);
       socket.off('dashboard.metrics.updated');
       socket.off('dashboard.call_volume.updated');
+      socket.off('dashboard.agent_call_activity.updated');
       socket.off('dashboard.agents.updated');
     };
   }, []);
@@ -412,6 +449,24 @@ const OverviewDashboard: React.FC = () => {
   }, [selectedCampaign, dateRange]);
 
   // Chart configurations
+  const agentCallActivityChartData = {
+    labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`),
+    datasets: agentCallActivityData.map(agent => ({
+      label: `${agent.agentName} (${agent.totalCallsToday} calls)`,
+      data: agent.hourlyData.map(hour => hour.callCount),
+      borderColor: agent.color,
+      backgroundColor: agent.color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+      tension: 0.4,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: agent.color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      fill: false,
+      borderWidth: 3,
+    })),
+  };
+
   const callVolumeChartData = {
     labels: callVolumeData.map(data => 
       new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -672,12 +727,88 @@ const OverviewDashboard: React.FC = () => {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Call Volume Chart */}
+        {/* Agent Call Activity Chart */}
         <div className="theme-card rounded-xl p-6">
-            <h3 className="text-lg font-semibold theme-text-primary mb-4">Call Volume (Hourly)</h3>
-          <div className="h-80">
-            <Line data={callVolumeChartData} options={chartOptions} />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold theme-text-primary">Agent Call Activity (Today)</h3>
+            <div className="flex items-center space-x-2">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-xs theme-text-secondary">Live</span>
+            </div>
           </div>
+          <div className="h-80">
+            {agentCallActivityData.length > 0 ? (
+              <Line 
+                data={agentCallActivityChartData} 
+                options={{
+                  ...chartOptions,
+                  interaction: {
+                    intersect: false,
+                    mode: 'index'
+                  },
+                  scales: {
+                    x: {
+                      title: {
+                        display: true,
+                        text: 'Hour of Day'
+                      }
+                    },
+                    y: {
+                      title: {
+                        display: true,
+                        text: 'Calls Made'
+                      },
+                      beginAtZero: true,
+                      ticks: {
+                        stepSize: 1
+                      }
+                    }
+                  },
+                  plugins: {
+                    ...chartOptions.plugins,
+                    tooltip: {
+                      callbacks: {
+                        title: (context: any) => {
+                          const hour = context[0].label;
+                          return `${hour} - ${(parseInt(hour) + 1).toString().padStart(2, '0')}:00`;
+                        },
+                        label: (context: any) => {
+                          const agentName = context.dataset.label.split(' (')[0];
+                          const calls = context.parsed.y;
+                          return `${agentName}: ${calls} call${calls !== 1 ? 's' : ''}`;
+                        }
+                      }
+                    }
+                  }
+                }} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full theme-text-secondary">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">📞</div>
+                  <p>No agent call data available</p>
+                  <p className="text-xs mt-1">Data will appear when agents start making calls</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {agentCallActivityData.length > 0 && (
+            <div className="mt-4 pt-4 border-t theme-border">
+              <div className="flex flex-wrap gap-2">
+                {agentCallActivityData.map(agent => (
+                  <div key={agent.agentId} className="flex items-center space-x-1 text-xs">
+                    <div 
+                      className="h-3 w-3 rounded-full" 
+                      style={{ backgroundColor: agent.color }}
+                    ></div>
+                    <span className="theme-text-secondary">
+                      {agent.agentName}: {agent.totalCallsToday} calls
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Revenue Chart */}

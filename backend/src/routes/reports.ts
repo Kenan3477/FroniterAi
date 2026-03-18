@@ -8,6 +8,7 @@ import { authenticateToken, requirePermission } from '../middleware/enhancedAuth
 import { realReportsController } from '../controllers/realReportsController';
 import { getVoiceCampaignAnalytics, getVoiceCampaignFiltersData } from '../services/voiceCampaignReportsService';
 import { trackCallEvent, bulkImportCallEvents, getCallEventsSummary } from '../services/callEventTrackingService';
+import { overviewDashboardService } from '../services/overviewDashboardService';
 
 const router = Router();
 
@@ -261,9 +262,6 @@ router.get('/users', (req, res) => {
  * GET /api/reports/overview/recent-outcomes
  */
 
-// Import the overview dashboard service
-import { overviewDashboardService } from '../services/overviewDashboardService';
-
 /**
  * Get overview KPIs
  * GET /api/reports/overview/kpis?filter=last_7d&start=2026-01-01&end=2026-01-31
@@ -326,6 +324,41 @@ router.get('/overview/call-volume', requirePermission('reports.read'), async (re
     res.status(500).json({
       success: false,
       error: 'Failed to fetch call volume data'
+    });
+  }
+});
+
+/**
+ * Get real-time agent call activity for live tracking chart
+ * GET /api/reports/overview/agent-call-activity?filter=today
+ */
+router.get('/overview/agent-call-activity', requirePermission('reports.read'), async (req, res) => {
+  try {
+    const { filter = 'today', campaignId } = req.query;
+    
+    console.log('📊 Fetching agent call activity data, filter:', filter, 'campaign:', campaignId);
+    
+    const data = await overviewDashboardService.getAgentCallActivityData(
+      filter as 'today' | 'last_24h',
+      campaignId as string
+    );
+
+    res.json({
+      success: true,
+      data,
+      generatedAt: new Date().toISOString(),
+      metadata: {
+        totalAgents: data.length,
+        filter,
+        campaignId: campaignId || 'all'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching agent call activity data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch agent call activity data'
     });
   }
 });

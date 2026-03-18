@@ -48,6 +48,18 @@ export interface AgentLeaderboard {
   rank: number;
 }
 
+export interface AgentCallActivity {
+  agentId: string;
+  agentName: string;
+  hourlyData: Array<{
+    hour: number;
+    callCount: number;
+    timestamp: string;
+  }>;
+  totalCallsToday: number;
+  color: string;
+}
+
 export interface RecentCallOutcome {
   timestamp: Date;
   agentName: string;
@@ -275,6 +287,127 @@ export class OverviewDashboardService {
     } catch (error) {
       console.error('❌ Error getting call volume data:', error);
       throw new Error(`Failed to get call volume data: ${error}`);
+    }
+  }
+
+  /**
+   * Get real-time agent call activity data for live tracking chart
+   */
+  async getAgentCallActivityData(filter: 'today' | 'last_24h' = 'today', campaignId?: string): Promise<AgentCallActivity[]> {
+    try {
+      const { startDate, endDate } = this.getTimeframe(filter);
+      
+      // Build campaign filter
+      const campaignFilter = campaignId && campaignId !== 'all' ? { campaignId } : {};
+
+      // Get all call records for today with agent information
+      const callRecords = await prisma.callRecord.findMany({
+        where: {
+          startTime: {
+            gte: startDate,
+            lte: endDate
+          },
+          agentId: { not: null },
+          ...campaignFilter
+        },
+        include: {
+          agent: {
+            select: {
+              agentId: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        },
+        orderBy: {
+          startTime: 'asc'
+        }
+      });
+
+      // Group by agent
+      const agentCallMap = new Map<string, {
+        agentId: string;
+        agentName: string;
+        callsByHour: Map<number, number>;
+        totalCalls: number;
+      }>();
+
+      // Process call records
+      for (const call of callRecords) {
+        if (!call.agentId || !call.agent) continue;
+
+        const agentKey = call.agentId;
+        const hour = new Date(call.startTime).getHours();
+        const agentName = `${call.agent.firstName} ${call.agent.lastName}`;
+
+        if (!agentCallMap.has(agentKey)) {
+          agentCallMap.set(agentKey, {
+            agentId: call.agentId,
+            agentName,
+            callsByHour: new Map(),
+            totalCalls: 0
+          });
+        }
+
+        const agent = agentCallMap.get(agentKey)!;
+        agent.totalCalls++;
+        
+        const hourCount = agent.callsByHour.get(hour) || 0;
+        agent.callsByHour.set(hour, hourCount + 1);
+      }
+
+      // Generate colors for agents
+      const colors = [
+        'rgb(59, 130, 246)',   // blue
+        'rgb(16, 185, 129)',   // green
+        'rgb(245, 101, 101)',  // red
+        'rgb(245, 158, 11)',   // amber
+        'rgb(139, 92, 246)',   // violet
+        'rgb(236, 72, 153)',   // pink
+        'rgb(20, 184, 166)',   // teal
+        'rgb(251, 146, 60)',   // orange
+        'rgb(34, 197, 94)',    // emerald
+        'rgb(168, 85, 247)'    // purple
+      ];
+
+      // Convert to output format
+      const agentActivities: AgentCallActivity[] = [];
+      let colorIndex = 0;
+
+      for (const [agentId, agentData] of agentCallMap.entries()) {
+        // Create hourly data array (0-23 hours)
+        const hourlyData = [];
+        for (let hour = 0; hour < 24; hour++) {
+          const callCount = agentData.callsByHour.get(hour) || 0;
+          const timestamp = `${hour.toString().padStart(2, '0')}:00`;
+          
+          hourlyData.push({
+            hour,
+            callCount,
+            timestamp
+          });
+        }
+
+        agentActivities.push({
+          agentId,
+          agentName: agentData.agentName,
+          hourlyData,
+          totalCallsToday: agentData.totalCalls,
+          color: colors[colorIndex % colors.length]
+        });
+        
+        colorIndex++;
+      }
+
+      // Sort by total calls today (descending)
+      agentActivities.sort((a, b) => b.totalCallsToday - a.totalCallsToday);
+
+      // Limit to top 10 agents for performance
+      return agentActivities.slice(0, 10);
+
+    } catch (error) {
+      console.error('❌ Error getting agent call activity data:', error);
+      throw new Error(`Failed to get agent call activity data: ${error}`);
     }
   }
 
