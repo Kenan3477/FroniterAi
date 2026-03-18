@@ -17,20 +17,16 @@ const prisma = new PrismaClient();
  * @desc    Get all users for admin dashboard (organization-scoped)
  * @access  Private (requires authentication)
  */
-router.get('/', authenticate, async (req: Request, res: Response) => {
+router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     
-    console.log('👥 User requesting users (DEBUG):', { 
+    console.log('👥 User requesting users:', { 
       id: user.id, 
       email: user.email, 
       role: user.role, 
-      organizationId: user.organizationId,
-      permissions: user.permissions || 'No permissions found'
+      organizationId: user.organizationId 
     });
-    
-    // Temporarily allow any authenticated user to debug the issue
-    // TODO: Add back role checking once we confirm the data is working
     
     // For SUPER_ADMIN or users without organization, show all users
     // For organization users, show only users in their organization

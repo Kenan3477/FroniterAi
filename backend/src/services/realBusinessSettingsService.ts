@@ -265,9 +265,9 @@ export class RealBusinessSettingsService {
           username: data.email.toLowerCase(),
           email: data.email.toLowerCase(),
           password: await bcrypt.hash('TEMP_PASSWORD_CHANGE_ME', 12), // Temporary password
-          firstName: 'Organization',
+          firstName: data.displayName || data.name,
           lastName: 'Administrator',
-          name: 'Organization Administrator',
+          name: `${data.displayName || data.name} Administrator`,
           role: 'SUPER_ADMIN',
           isActive: false, // Will be activated when password is set
           organizationId: organization.id,
