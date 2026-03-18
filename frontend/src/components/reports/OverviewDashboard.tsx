@@ -58,6 +58,17 @@ interface RevenueData {
   period: 'hourly' | 'daily';
 }
 
+interface RecentCallOutcome {
+  timestamp: string;
+  agentName: string;
+  phoneNumber: string;
+  customerName?: string;
+  callDuration: number;
+  outcome: 'Connected' | 'Dropped' | 'No Answer' | 'Converted';
+  revenue?: number;
+  callId: string;
+}
+
 interface ConversionData {
   outcome: string;
   count: number;
@@ -183,6 +194,7 @@ const OverviewDashboard: React.FC = () => {
   const [callVolumeData, setCallVolumeData] = useState<CallVolumeData[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [conversionData, setConversionData] = useState<ConversionData[]>([]);
+  const [recentOutcomes, setRecentOutcomes] = useState<RecentCallOutcome[]>([]);
   const [topAgentsData, setTopAgentsData] = useState<TopAgentData[]>([]);
   const [agentCallActivityData, setAgentCallActivityData] = useState<AgentCallActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -351,8 +363,11 @@ const OverviewDashboard: React.FC = () => {
       
       if (conversionResponse.ok) {
         const conversionData = await conversionResponse.json();
-        // Transform recent outcomes to conversion format
+        // Store the detailed recent outcomes
         const outcomes = (conversionData.data || []);
+        setRecentOutcomes(outcomes);
+        
+        // Transform recent outcomes to aggregated conversion format
         const conversionMap = new Map();
         
         outcomes.forEach((outcome: any) => {
@@ -882,7 +897,7 @@ const OverviewDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Additional Metrics Table */}
+      {/* Recent Call Outcomes Table */}
       <div className="theme-card rounded-lg p-6 mb-8">
         <h3 className="text-lg font-semibold theme-text-primary mb-4">Recent Call Outcomes</h3>
         <div className="overflow-x-auto">
@@ -890,10 +905,19 @@ const OverviewDashboard: React.FC = () => {
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Outcome
+                  Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Count
+                  Agent
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Phone / Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Call Outcome
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Duration
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Revenue
@@ -901,26 +925,51 @@ const OverviewDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-              {conversionData.map((outcome, index) => (
-                <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      outcome.outcome === 'Converted' ? 'bg-green-100 text-green-800' :
-                      outcome.outcome === 'Connected' ? 'bg-blue-100 text-blue-800' :
-                      outcome.outcome === 'Dropped' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {outcome.outcome}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
-                    {outcome.count}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
-                    {outcome.revenue ? `$${outcome.revenue.toFixed(2)}` : '-'}
+              {recentOutcomes.length > 0 ? (
+                recentOutcomes.map((call, index) => (
+                  <tr key={call.callId || index} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
+                      {new Date(call.timestamp).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
+                      {call.agentName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
+                      <div>
+                        <div className="font-medium">{call.customerName || 'Unknown Customer'}</div>
+                        <div className="text-xs text-slate-500">{call.phoneNumber}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                        call.outcome === 'Converted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        call.outcome === 'Connected' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        call.outcome === 'Dropped' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {call.outcome}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
+                      {Math.floor(call.callDuration / 60)}:{(call.callDuration % 60).toString().padStart(2, '0')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
+                      {call.revenue ? `$${call.revenue.toFixed(2)}` : '-'}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No recent call outcomes available
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

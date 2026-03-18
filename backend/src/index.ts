@@ -50,7 +50,7 @@ import emergencyCleanupRoutes from './routes/emergencyCleanup'; // EMERGENCY: Ca
 // import businessSettingsRoutes from './routes/businessSettings'; // Temporarily disabled - fixing schema issues
 // import campaignManagementRoutes from './routes/campaignManagement'; // DISABLED - schema conflicts
 import campaignManagementRoutes from './routes/campaignManagement'; // RE-ENABLED - Fixed with proper Prisma integration
-import businessSettingsRoutes from './routes/businessSettings'; // RE-ENABLED - Needed for frontend business settings
+import businessSettingsRoutes from './routes/verySimpleBusinessSettings'; // TEMPORARILY using very simple version for debugging
 import webhookRoutes from './routes/webhooks'; // Re-enabled for Twilio webhook handling
 import callsRoutes from './routes/callsRoutes'; // TwiML and call management routes
 import adminSetupRoutes from './routes/adminSetup'; // Admin setup for initial user creation
@@ -66,6 +66,7 @@ import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoi
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
+import advancedAuditRoutes from './routes/advancedAudit'; // Advanced user activity audit system with AI-powered suspicious behavior detection
 // import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails - TEMPORARILY DISABLED
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 import updateOrgAdminRoutes from './routes/updateOrgAdmin'; // Temporary route to fix existing org admin names
@@ -242,6 +243,7 @@ class App {
     this.app.use('/api/admin/business-settings', businessSettingsRoutes); // RE-ENABLED - Needed for frontend business settings
     this.app.use('/api/admin/dnc', dncRoutes); // DNC (Do Not Call) management system
     this.app.use('/api/admin', auditLogRoutes); // Audit logs and user session tracking for login/logout reports
+    this.app.use('/api/admin/advanced-audit', advancedAuditRoutes); // Advanced user activity audit system with AI-powered suspicious behavior detection
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts

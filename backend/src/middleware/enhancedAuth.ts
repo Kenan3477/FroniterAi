@@ -11,6 +11,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export interface UserPermissions {
+  id: number;
   userId: string;
   username: string;
   role: string;
@@ -98,6 +99,9 @@ export const ENHANCED_ROLE_PERMISSIONS = {
     'agent.manage',
     'predictive.admin',
     'performance.admin',
+    // Live Call Monitoring
+    'calls.monitor',
+    'calls.listen',
     // AI & Sentiment Analysis
     'sentiment.read',
     'coaching.read',
@@ -205,6 +209,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     // Attach enhanced user info to request
     req.user = {
+      id: user.id,
       userId: user.id.toString(),
       username: user.username,
       role: user.role,

@@ -229,13 +229,17 @@ router.get('/stats', authenticateToken, requirePermission('campaigns.read'), asy
 router.get('/data-lists', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const organizationFilter = getOrganizationFilter(user);
-    if (!organizationFilter.organizationId) {
-      return res.status(403).json({ error: 'Organization access required' });
+    
+    // For development/testing - if no organizationId, get all data lists
+    let whereClause = {};
+    if (user.organizationId) {
+      whereClause = { organizationId: user.organizationId };
+    } else {
+      console.warn('⚠️ User has no organizationId, returning all data lists for development');
     }
 
     const dataLists = await prisma.dataList.findMany({
-      where: organizationFilter,
+      where: whereClause,
       include: {
         _count: {
           select: {

@@ -188,11 +188,18 @@ router.get('/stats', requireRole('SUPERVISOR', 'ADMIN'), (req: Request, res: Res
  * GET /api/live-analysis/active-calls
  * Get all currently active call analyses
  */
-router.get('/active-calls', requireRole('SUPERVISOR', 'ADMIN'), (req: Request, res: Response) => {
+router.get('/active-calls', requireRole('SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'), (req: Request, res: Response) => {
   try {
     const activeCalls = Array.from(liveCallAnalyzer.getAllActiveAnalyses().entries()).map(
       ([callId, analysis]) => ({
         callId,
+        agentId: analysis.agentId || 'Unknown',
+        agentName: analysis.agentName || 'Unknown Agent',
+        phoneNumber: analysis.phoneNumber || 'Unknown',
+        campaignId: analysis.campaignId || 'Unknown',
+        campaignName: analysis.campaignName || 'Unknown Campaign',
+        callDuration: Math.floor((Date.now() - analysis.startTime.getTime()) / 1000),
+        callStatus: analysis.callStatus || 'active',
         isAnsweringMachine: analysis.isAnsweringMachine,
         confidence: analysis.confidence,
         speechPattern: analysis.speechPattern,
@@ -452,6 +459,75 @@ router.post('/amd/update-thresholds', authenticate, requireRole('admin'), async 
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/live-analysis/listen-live
+ * Enable live listening for a specific call (Admin/Super Admin only)
+ * Required permission: calls.monitor
+ */
+router.post('/listen-live', requireRole('ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { callId } = req.body;
+    const user = (req as any).user;
+    
+    if (!callId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Call ID is required'
+      });
+    }
+
+    // Verify call is active
+    const analysis = liveCallAnalyzer.getActiveAnalysis(callId);
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: 'Call not found or not currently active'
+      });
+    }
+
+    // Generate Twilio access token for live monitoring
+    const twilioService = await import('../services/twilioService');
+    const accessToken = await twilioService.generateAccessToken(
+      `monitor_${user.userId}_${Date.now()}`, // identity
+      { 
+        allowOutgoing: false, // Monitor only, no outgoing calls
+        allowIncoming: false  // Monitor only, no incoming calls
+      }
+    );
+
+    // Log monitoring action for audit trail
+    console.log(`🎧 Live monitoring initiated by ${user.username} (${user.role}) for call ${callId}`);
+    
+    res.json({
+      success: true,
+      data: {
+        callId,
+        accessToken,
+        monitoringSessionId: `monitor_${user.userId}_${Date.now()}`,
+        callInfo: {
+          agentId: analysis.agentId,
+          agentName: analysis.agentName,
+          phoneNumber: analysis.phoneNumber,
+          campaignId: analysis.campaignId,
+          callDuration: Math.floor((Date.now() - analysis.startTime.getTime()) / 1000)
+        },
+        instructions: {
+          webSocketUrl: `wss://${process.env.BACKEND_URL || 'localhost:8080'}/media-stream`,
+          mediaStreamName: `monitor-${callId}`,
+          description: 'Connect to WebSocket to receive live audio stream'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error setting up live monitoring:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to setup live monitoring session'
     });
   }
 });

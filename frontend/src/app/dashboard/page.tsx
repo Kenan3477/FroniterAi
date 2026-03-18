@@ -7,7 +7,27 @@ import { useState, useEffect, Suspense } from 'react';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
-import { kpiApi, DashboardStats } from '@/services/kpiApi';
+import LiveCallsModule from '@/components/dashboard/LiveCallsModule';
+import { kpiApi,         {/* Recent Activity & Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Role-based Activity Module */}
+          {user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? (
+            // Show Live Calls Module for Admins and Super Admins
+            <LiveCallsModule />
+          ) : (
+            // Show Recent Activity for Agents and other roles
+            <div className="theme-card shadow-sm rounded-lg">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold theme-text-primary mb-4">
+                  Recent Activity
+                  {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
+                </h3>
+                <RecentActivity 
+                  activities={[]} // Real activity data would be loaded from API 
+                />
+              </div>
+            </div>
+          )}s } from '@/services/kpiApi';
 import { demoDataService, DemoStats } from '@/services/demoDataService';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';

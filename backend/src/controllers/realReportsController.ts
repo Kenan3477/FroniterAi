@@ -161,7 +161,10 @@ export class RealReportsController {
       }
 
       const reportData = {
-        ...validation.data,
+        name: validation.data.name,
+        templateId: validation.data.templateId,
+        frequency: validation.data.frequency,
+        recipients: validation.data.recipients,
         enabled: validation.data.enabled ?? true,
         filters: validation.data.filters || {}
       };

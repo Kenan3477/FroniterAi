@@ -433,6 +433,9 @@ model User {
   sessions                                                 UserSession[]            @relation("UserSessions")
   webhooks                                                 Webhook[]                @relation("UserWebhooks")
   organization                                             Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
+  // Enhanced audit relationships
+  userActivityLogs                                         UserActivityLog[]        @relation("UserActivityLogs")
+  suspiciousAlerts                                         SuspiciousActivityAlert[] @relation("UserSuspiciousAlerts")
 
   @@map("users")
 }
@@ -608,6 +611,10 @@ model Organization {
   flow_templates         flow_templates[]
   flows                  Flow[]
   organization_analytics organization_analytics[]
+  // Enhanced audit relationships
+  auditLogs              AuditLog[]               @relation("OrganizationAuditLogs")
+  userActivityLogs       UserActivityLog[]        @relation("OrganizationActivityLogs")
+  suspiciousAlerts       SuspiciousActivityAlert[] @relation("OrganizationSuspiciousAlerts")
 
   @@map("organizations")
 }
@@ -1191,13 +1198,97 @@ model AuditLog {
   metadata             String?
   severity             String   @default("INFO")
   timestamp            DateTime @default(now())
+  // Enhanced fields for advanced auditing
+  organizationId       String?
+  organization         Organization? @relation("OrganizationAuditLogs", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([action])
   @@index([entityType])
   @@index([performedByUserId])
   @@index([timestamp])
   @@index([severity])
+  @@index([organizationId])
   @@map("audit_logs")
+}
+
+model UserActivityLog {
+  id             String       @id @default(cuid())
+  userId         Int
+  organizationId String
+  sessionId      String
+  activityType   String       // 'click', 'page_view', 'tab_switch', 'idle_start', 'idle_end'
+  elementType    String?      // button, link, input, etc.
+  elementId      String?      // DOM element identifier
+  pagePath       String       // /admin, /dashboard, etc.
+  pageTitle      String?      // Human readable page title
+  timeOnPage     Int?         // Milliseconds spent on page
+  clickData      String?      // JSON with click coordinates, element info
+  metadata       String?      // Additional context data
+  timestamp      DateTime     @default(now())
+  user           User         @relation("UserActivityLogs", fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation("OrganizationActivityLogs", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([sessionId])
+  @@index([activityType])
+  @@index([timestamp])
+  @@index([pagePath])
+  @@map("user_activity_logs")
+}
+
+model SuspiciousActivityAlert {
+  id             String                    @id @default(cuid())
+  userId         Int
+  organizationId String
+  alertType      SuspiciousActivityType
+  severity       AlertSeverity
+  title          String
+  description    String
+  detectionData  String                    // JSON with detection details
+  reviewStatus   SuspiciousAlertStatus     @default(PENDING)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  reviewNotes    String?
+  isActive       Boolean                   @default(true)
+  triggeredAt    DateTime                  @default(now())
+  user           User                      @relation("UserSuspiciousAlerts", fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization              @relation("OrganizationSuspiciousAlerts", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([alertType])
+  @@index([severity])
+  @@index([reviewStatus])
+  @@index([triggeredAt])
+  @@index([isActive])
+  @@map("suspicious_activity_alerts")
+}
+
+enum SuspiciousActivityType {
+  AFTER_HOURS_ACCESS
+  RAPID_CLICKING
+  MASS_DATA_EXPORT
+  UNUSUAL_PAGE_ACCESS
+  EXCESSIVE_FAILED_ATTEMPTS
+  SUSPICIOUS_NAVIGATION_PATTERN
+  DATA_MINING_BEHAVIOR
+  PROLONGED_IDLE_SESSIONS
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SuspiciousAlertStatus {
+  PENDING
+  UNDER_REVIEW
+  FALSE_POSITIVE
+  CONFIRMED_THREAT
+  RESOLVED
 }
 
 model EmailVerification {

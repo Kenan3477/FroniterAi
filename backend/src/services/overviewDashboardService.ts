@@ -63,6 +63,8 @@ export interface AgentCallActivity {
 export interface RecentCallOutcome {
   timestamp: Date;
   agentName: string;
+  phoneNumber: string;
+  customerName?: string;
   callDuration: number;
   outcome: 'Connected' | 'Dropped' | 'No Answer' | 'Converted';
   revenue?: number;
@@ -497,6 +499,13 @@ export class OverviewDashboardService {
               firstName: true,
               lastName: true
             }
+          },
+          contact: {
+            select: {
+              firstName: true,
+              lastName: true,
+              fullName: true
+            }
           }
         },
         orderBy: {
@@ -537,9 +546,17 @@ export class OverviewDashboardService {
           }
         }
 
+        // Get customer name from contact information
+        const customerName = call.contact?.fullName || 
+                           (call.contact?.firstName && call.contact?.lastName 
+                             ? `${call.contact.firstName} ${call.contact.lastName}` 
+                             : undefined);
+
         return {
           timestamp: call.endTime || call.startTime,
           agentName: call.agent ? `${call.agent.firstName} ${call.agent.lastName}` : 'Unknown',
+          phoneNumber: call.phoneNumber,
+          customerName,
           callDuration: call.duration || 0,
           outcome,
           revenue: salesMap.get(call.id) || undefined,

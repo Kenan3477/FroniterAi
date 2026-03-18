@@ -29,6 +29,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { 
   Building, 
   Users, 
@@ -43,8 +49,11 @@ import {
   Activity,
   BarChart3,
   UserPlus,
-  Building2
+  Building2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import AdvancedAuditDashboard from './AdvancedAuditDashboard';
 
 interface Organization {
   id: string;
@@ -104,11 +113,13 @@ export default function MultiTenantBusinessSettings() {
   const [crossOrgStats, setCrossOrgStats] = useState<CrossOrgStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [authError, setAuthError] = useState(false);
 
   // Dialog states
   const [isNewOrgDialogOpen, setIsNewOrgDialogOpen] = useState(false);
   const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
+  const [isAdvancedAuditOpen, setIsAdvancedAuditOpen] = useState(false);
 
   // Form states
   const [newOrgForm, setNewOrgForm] = useState({
@@ -161,6 +172,10 @@ export default function MultiTenantBusinessSettings() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      setAuthError(false);
+      
+      console.log('🚀 Loading dashboard data...');
+      console.log('🔑 Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
 
       const [orgsResponse, dashboardResponse] = await Promise.all([
         fetch('/api/admin/business-settings/organizations', { 
@@ -171,9 +186,15 @@ export default function MultiTenantBusinessSettings() {
         })
       ]);
 
+      console.log('📊 Organizations response:', orgsResponse.status, orgsResponse.statusText);
+      console.log('📊 Dashboard response:', dashboardResponse.status, dashboardResponse.statusText);
+
       if (orgsResponse.ok && dashboardResponse.ok) {
         const orgsData = await orgsResponse.json();
         const dashboardData = await dashboardResponse.json();
+
+        console.log('✅ Organizations data:', orgsData);
+        console.log('✅ Dashboard data:', dashboardData);
 
         const orgsArray = Array.isArray(orgsData?.data) 
           ? orgsData.data 
@@ -183,7 +204,7 @@ export default function MultiTenantBusinessSettings() {
 
         // Enhance organizations with stats from dashboard
         const enhancedOrgs = orgsArray.map((org: any) => {
-          const breakdown = dashboardData.data.organizationBreakdown.find((b: any) => b.id === org.id);
+          const breakdown = dashboardData.data?.organizationBreakdown?.find((b: any) => b.id === org.id);
           return {
             ...org,
             userCount: breakdown?.userCount || 0,
@@ -199,9 +220,80 @@ export default function MultiTenantBusinessSettings() {
         if (enhancedOrgs.length > 0) {
           setSelectedOrg(enhancedOrgs[0]);
         }
+      } else {
+        // Handle API errors - set auth error flag and provide fallback data
+        console.warn('❌ API request failed - status:', orgsResponse.status, dashboardResponse.status);
+        setAuthError(true);
+        
+        // Try to create a mock organization for development
+        const mockOrg = {
+          id: 'default-org',
+          name: 'default-organization', 
+          displayName: 'Default Organization',
+          description: 'Default organization for development',
+          industry: 'Technology',
+          type: 'Business',
+          status: 'Active',
+          userCount: 2,
+          contactCount: 0,
+          campaignCount: 0,
+          createdAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString()
+        };
+        
+        setOrganizations([mockOrg]);
+        setCrossOrgStats({
+          totalOrganizations: 1,
+          totalUsers: 2,
+          totalContacts: 0,
+          totalCampaigns: 0,
+          totalCallRecords: 0,
+          organizationBreakdown: [{
+            id: 'default-org',
+            name: 'Default Organization', 
+            userCount: 2,
+            contactCount: 0,
+            campaignCount: 0
+          }]
+        });
+        setSelectedOrg(mockOrg);
       }
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      console.error('❌ Failed to load dashboard data:', error);
+      setAuthError(true);
+      
+      // Provide fallback data in case of network errors
+      const fallbackOrg = {
+        id: 'fallback-org',
+        name: 'fallback-organization',
+        displayName: 'Fallback Organization', 
+        description: 'Fallback organization (API unavailable)',
+        industry: 'Technology',
+        type: 'Business',
+        status: 'Active',
+        userCount: 1,
+        contactCount: 0,
+        campaignCount: 0,
+        createdAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      
+      setOrganizations([fallbackOrg]);
+      setCrossOrgStats({
+        totalOrganizations: 1,
+        totalUsers: 1, 
+        totalContacts: 0,
+        totalCampaigns: 0,
+        totalCallRecords: 0,
+        organizationBreakdown: [{
+          id: 'fallback-org',
+          name: 'Fallback Organization',
+          userCount: 1,
+          contactCount: 0,
+          campaignCount: 0
+        }]
+      });
+      setSelectedOrg(fallbackOrg);
     } finally {
       setLoading(false);
     }
@@ -321,6 +413,25 @@ export default function MultiTenantBusinessSettings() {
           New Organization
         </Button>
       </div>
+
+      {/* Auth Error Notice */}
+      {authError && (
+        <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-900/10">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                <Shield className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h4 className="font-medium text-orange-800 dark:text-orange-200">API Connection Issue</h4>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  Unable to connect to the backend API. Showing fallback data for development.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Global Statistics */}
       {crossOrgStats && (
@@ -564,6 +675,19 @@ export default function MultiTenantBusinessSettings() {
                   Organization Settings
                 </Button>
 
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2"
+                  onClick={() => setIsAdvancedAuditOpen(!isAdvancedAuditOpen)}
+                >
+                  <Shield className="w-4 h-4" />
+                  Advanced Audit System
+                  {isAdvancedAuditOpen ? 
+                    <ChevronUp className="w-4 h-4 ml-auto" /> : 
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  }
+                </Button>
+
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <Activity className="w-4 h-4" />
                   View Activity Log
@@ -597,6 +721,13 @@ export default function MultiTenantBusinessSettings() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Advanced Audit Dashboard */}
+      {selectedOrg && isAdvancedAuditOpen && (
+        <div className="mt-6">
+          <AdvancedAuditDashboard organizationId={selectedOrg.id} />
+        </div>
+      )}
 
       {/* Create Organization Dialog */}
       <Dialog open={isNewOrgDialogOpen} onOpenChange={setIsNewOrgDialogOpen}>

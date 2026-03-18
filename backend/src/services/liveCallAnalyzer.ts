@@ -31,6 +31,12 @@ interface AudioChunk {
 interface LiveCallAnalysis {
   callId: string;
   agentId: string;
+  agentName?: string;
+  phoneNumber?: string;
+  campaignId?: string;
+  campaignName?: string;
+  callStatus?: string;
+  startTime: Date;
   isAnsweringMachine: boolean;
   confidence: number;
   speechPattern: 'human' | 'machine' | 'unknown';
@@ -132,31 +138,71 @@ export class LiveCallAnalyzer extends EventEmitter {
   }
 
   private async startCallAnalysis(callId: string, agentId: string = 'unknown'): Promise<void> {
-    const analysis: LiveCallAnalysis = {
-      callId,
-      agentId,
-      isAnsweringMachine: false,
-      confidence: 0,
-      speechPattern: 'unknown',
-      sentimentScore: 0.5,
-      intentClassification: 'analyzing',
-      keywordDetection: {
-        answeringMachineKeywords: [],
-        interestKeywords: [],
-        objectionKeywords: []
-      },
-      coachingActive: false,
-      lastUpdate: new Date()
-    };
+    try {
+      // Fetch call details from database
+      let callDetails = null;
+      let agentDetails = null;
+      let campaignDetails = null;
 
-    this.activeCalls.set(callId, analysis);
-    this.transcriptBuffer.set(callId, '');
-    this.audioBuffer.set(callId, []);
+      try {
+        callDetails = await prisma.callRecord.findFirst({
+          where: { callId },
+          include: {
+            agent: {
+              select: {
+                agentId: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            campaign: {
+              select: {
+                campaignId: true,
+                name: true
+              }
+            }
+          }
+        });
+      } catch (dbError) {
+        console.warn(`⚠️ Could not fetch call details from database for ${callId}:`, dbError);
+      }
 
-    // Emit to dashboard that analysis has started
-    this.broadcastCallUpdate(callId, analysis);
+      const analysis: LiveCallAnalysis = {
+        callId,
+        agentId: callDetails?.agentId || agentId,
+        agentName: callDetails?.agent 
+          ? `${callDetails.agent.firstName} ${callDetails.agent.lastName}`
+          : 'Unknown Agent',
+        phoneNumber: callDetails?.phoneNumber || 'Unknown',
+        campaignId: callDetails?.campaignId || 'Unknown',
+        campaignName: callDetails?.campaign?.name || 'Unknown Campaign',
+        callStatus: 'active',
+        startTime: callDetails?.startTime || new Date(),
+        isAnsweringMachine: false,
+        confidence: 0,
+        speechPattern: 'unknown',
+        sentimentScore: 0.5,
+        intentClassification: 'analyzing',
+        keywordDetection: {
+          answeringMachineKeywords: [],
+          interestKeywords: [],
+          objectionKeywords: []
+        },
+        coachingActive: false,
+        lastUpdate: new Date()
+      };
 
-    console.log(`🧠 Started live analysis for call: ${callId}`);
+      this.activeCalls.set(callId, analysis);
+      this.transcriptBuffer.set(callId, '');
+      this.audioBuffer.set(callId, []);
+
+      // Emit to dashboard that analysis has started
+      this.broadcastCallUpdate(callId, analysis);
+
+      console.log(`🧠 Started live analysis for call: ${callId} (Agent: ${analysis.agentName})`);
+    } catch (error) {
+      console.error(`❌ Error starting call analysis for ${callId}:`, error);
+    }
   }
 
   private async processAudioChunk(mediaMessage: any): Promise<void> {
