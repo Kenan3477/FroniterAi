@@ -198,7 +198,11 @@ const BusinessSettingsPage: React.FC = () => {
       const orgsData = await orgsResponse.json();
       const statsData = await statsResponse.json();
 
+      console.log('🏢 Organizations API response:', orgsData);
+      console.log('📊 Stats API response:', statsData);
+
       setOrganizations(orgsData.data || []);
+      console.log('🏢 Organizations set to state:', orgsData.data || []);
       
       // Initialize other arrays to ensure they're always arrays
       setBusinessSettings([]);
