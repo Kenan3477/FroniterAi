@@ -223,13 +223,22 @@ export class RealBusinessSettingsService {
         throw new Error('Organization email is required for Super Admin creation');
       }
 
-      // Check if user with this email already exists
-      const existingUser = await prisma.user.findFirst({
-        where: { email: data.email.toLowerCase() }
-      });
+      // Check if user with this email already exists in either User or Agent tables
+      const [existingUser, existingAgent] = await Promise.all([
+        prisma.user.findFirst({
+          where: { email: data.email.toLowerCase() }
+        }),
+        prisma.agent.findFirst({
+          where: { email: data.email.toLowerCase() }
+        })
+      ]);
 
       if (existingUser) {
-        throw new Error('A user with this email address already exists');
+        throw new Error(`A user account with email "${data.email}" already exists`);
+      }
+
+      if (existingAgent) {
+        throw new Error(`An agent account with email "${data.email}" already exists`);
       }
 
       // Create organization first

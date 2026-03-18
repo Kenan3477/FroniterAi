@@ -168,26 +168,36 @@ export const createOrganization = async (req: Request, res: Response) => {
     console.error('❌ Error creating organization:', error);
     
     if (error instanceof z.ZodError) {
+      console.error('❌ Validation errors:', error.errors);
       res.status(400).json({
         success: false,
         error: {
           message: 'Invalid organization data',
-          details: error.errors
+          details: error.errors,
+          validationErrors: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message,
+            code: err.code
+          }))
         }
       });
     } else if (error instanceof Error) {
+      console.error('❌ Business logic error:', error.message);
       res.status(400).json({
         success: false,
         error: {
-          message: error.message
+          message: error.message,
+          type: 'BusinessLogicError'
         }
       });
     } else {
+      console.error('❌ Unknown error:', error);
       res.status(500).json({
         success: false,
         error: {
           message: 'Failed to create organization',
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
+          type: 'UnknownError'
         }
       });
     }
