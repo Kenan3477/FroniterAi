@@ -71,17 +71,32 @@ export default function UserManagement() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper function for authenticated requests
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  };
+
   // Fetch users and stats
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/admin/users', {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('👥 Users API response:', data);
+        
         // Handle the backend format: { success: true, data: { users: [...] } }
         let users = [];
         if (Array.isArray(data)) {
@@ -90,10 +105,14 @@ export default function UserManagement() {
           users = data.data.users;
         } else if (data?.data) {
           users = Array.isArray(data.data) ? data.data : [];
+        } else if (data?.users) {
+          users = data.users;
         }
+        
+        console.log('👥 Processed users:', users.length, users);
         setUsers(users);
       } else {
-        console.error('Failed to fetch users:', response.statusText);
+        console.error('Failed to fetch users:', response.status, response.statusText);
         setUsers([]);
       }
     } catch (error) {
@@ -106,12 +125,13 @@ export default function UserManagement() {
     try {
       const response = await fetch('/api/admin/users/stats', {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Stats API response:', data);
+        
         // Handle both direct stats format and wrapped format
         let statsData = data;
         if (data?.success && data?.data) {
@@ -126,7 +146,7 @@ export default function UserManagement() {
           setStats(null);
         }
       } else {
-        console.error('Failed to fetch stats:', response.statusText);
+        console.error('Failed to fetch stats:', response.status, response.statusText);
         setStats(null);
       }
     } catch (error) {
