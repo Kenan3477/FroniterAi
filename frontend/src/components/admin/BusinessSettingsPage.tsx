@@ -182,9 +182,17 @@ const BusinessSettingsPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+      
       const [orgsResponse, statsResponse] = await Promise.all([
-        fetch('/api/admin/business-settings/organizations').catch(() => ({ json: () => ({ data: [] }) })),
-        fetch('/api/admin/business-settings/stats').catch(() => ({ json: () => ({}) }))
+        fetch('/api/admin/business-settings/organizations', { headers }).catch(() => ({ json: () => ({ data: [] }) })),
+        fetch('/api/admin/business-settings/stats', { headers }).catch(() => ({ json: () => ({}) }))
       ]);
 
       const orgsData = await orgsResponse.json();
@@ -221,9 +229,16 @@ const BusinessSettingsPage: React.FC = () => {
 
   const fetchOrganizationDetails = async (organizationId: string) => {
     try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+      
       const [settingsResponse, profilesResponse] = await Promise.all([
-        fetch(`/api/admin/business-settings/organizations/${organizationId}/settings`),
-        fetch(`/api/admin/business-settings/organizations/${organizationId}/profiles`)
+        fetch(`/api/admin/business-settings/organizations/${organizationId}/settings`, { headers }),
+        fetch(`/api/admin/business-settings/organizations/${organizationId}/profiles`, { headers })
       ]);
 
       const settingsData = await settingsResponse.json();
@@ -251,10 +266,18 @@ const BusinessSettingsPage: React.FC = () => {
 
       console.log('🏢 Creating organization:', organizationForm);
 
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
       const response = await fetch('/api/admin/business-settings/organizations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(organizationForm),
       });
@@ -294,10 +317,18 @@ const BusinessSettingsPage: React.FC = () => {
     if (!selectedOrganization) return;
 
     try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
       const response = await fetch('/api/admin/business-settings/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...settingForm,
@@ -324,10 +355,18 @@ const BusinessSettingsPage: React.FC = () => {
     if (!selectedOrganization) return;
 
     try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
       const response = await fetch('/api/admin/business-settings/profiles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...profileForm,
