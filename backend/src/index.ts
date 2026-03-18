@@ -10,6 +10,7 @@ import { Server } from 'socket.io';
 // Railway deployment refresh - fixing 404 Application not found
 // Updated: 2026-03-18 08:39 - Force deploy with permission fixes
 // Deploy real transcript routes - March 11, 2026
+// FORCE DEPLOY v1.0.5: Schema migration fix for organizationId fields - 2026-03-18 09:15
 
 import config from './config';
 import { connectDatabase } from './database';
