@@ -97,16 +97,20 @@ export default function UserManagement() {
         const data = await response.json();
         console.log('👥 Users API response:', data);
         
-        // Handle the backend format: { success: true, data: { users: [...] } }
+        // The backend returns users directly as an array, not wrapped in success/data
         let users = [];
         if (Array.isArray(data)) {
           users = data;
-        } else if (data?.data?.users) {
-          users = data.data.users;
+        } else if (data?.success && data?.data) {
+          // Handle wrapped format if it exists
+          users = Array.isArray(data.data) ? data.data : [];
         } else if (data?.data) {
           users = Array.isArray(data.data) ? data.data : [];
         } else if (data?.users) {
           users = data.users;
+        } else {
+          console.warn('Unexpected response format:', data);
+          users = [];
         }
         
         console.log('👥 Processed users:', users.length, users);
