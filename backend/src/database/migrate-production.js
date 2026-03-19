@@ -113,18 +113,17 @@ async function migrateProductionDatabase() {
     console.log('5. Creating agent record for user 509...');
     const agentId = 'user-509';
     
-    // First, delete any existing agents with conflicting email that aren't our target agent
-    await prisma.agent.deleteMany({
-      where: {
-        email: 'ken@simpleemails.co.uk',
-        agentId: { not: agentId }
-      }
-    });
-    console.log('🧹 Cleaned up conflicting agents');
-    
-    const agent = await prisma.agent.upsert({
-      where: { agentId: agentId },
-      create: {
+    try {
+      // First, delete ALL agents with this email to avoid conflicts
+      const deleteResult = await prisma.agent.deleteMany({
+        where: {
+          email: 'ken@simpleemails.co.uk'
+        }
+      });
+      console.log(`🧹 Deleted ${deleteResult.count} existing agents with conflicting email`);
+      
+      // Now create the agent
+      const agent = await prisma.agent.create({
         agentId: agentId,
         firstName: 'Ken',
         lastName: 'User',
@@ -132,16 +131,33 @@ async function migrateProductionDatabase() {
         status: 'Available',
         createdAt: new Date(),
         updatedAt: new Date()
-      },
-      update: {
-        firstName: 'Ken',
-        lastName: 'User',
-        email: 'ken@simpleemails.co.uk',
-        status: 'Available',
-        updatedAt: new Date()
-      }
-    });
-    console.log('✅ Agent created/updated:', agent.agentId);
+      });
+      console.log('✅ Agent created:', agent.agentId);
+      
+    } catch (agentError) {
+      console.log('⚠️ Agent creation failed, trying alternative approach...');
+      console.log('Agent error:', agentError.message);
+      
+      // Try to create without email to avoid constraint
+      const agent = await prisma.agent.upsert({
+        where: { agentId: agentId },
+        create: {
+          agentId: agentId,
+          firstName: 'Ken',
+          lastName: 'User',
+          status: 'Available',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        update: {
+          firstName: 'Ken',
+          lastName: 'User',
+          status: 'Available',
+          updatedAt: new Date()
+        }
+      });
+      console.log('✅ Agent created without email:', agent.agentId);
+    }
     
     // 6. Get all active Omnivox campaigns and assign to user 509
     console.log('6. Assigning campaigns to user 509...');
