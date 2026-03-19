@@ -129,25 +129,43 @@ async function migrateProductionDatabase() {
     const agentId = 'user-509';
     console.log('⚠️ Agent creation skipped - will use existing agent data');
     
-    // 6. Get all active Omnivox campaigns and assign to user 509
-    console.log('6. Assigning campaigns to user 509...');
-    const campaigns = await prisma.campaign.findMany({
-      where: {
-        organizationId: userOrgId,
-        status: 'ACTIVE'
-      }
-    });
+    // 6. Get all active Omnivox campaigns and assign to user 509 IF agent exists
+    console.log('6. Assigning campaigns to user 509 (if agent exists)...');
     
-    // Clear existing assignments
-    await prisma.agentCampaignAssignment.deleteMany({
+    // Check if the agent exists
+    const agentExists = await prisma.agent.findUnique({
       where: { agentId: agentId }
     });
     
-    // Create new assignments
-    for (const campaign of campaigns) {
-      await prisma.agentCampaignAssignment.create({
-        data: {
-          agentId: agentId,
+    if (agentExists) {
+      const campaigns = await prisma.campaign.findMany({
+        where: {
+          organizationId: userOrgId,
+          isActive: true
+        }
+      });
+      
+      // Clear existing assignments
+      await prisma.agentCampaignAssignment.deleteMany({
+        where: { agentId: agentId }
+      });
+      
+      // Create new assignments
+      for (const campaign of campaigns) {
+        await prisma.agentCampaignAssignment.create({
+          data: {
+            agentId: agentId,
+            campaignId: campaign.campaignId,
+            assignedAt: new Date()
+          }
+        });
+      }
+      
+      console.log(`✅ Assigned ${campaigns.length} campaigns to user 509`);
+    } else {
+      console.log('⚠️ Agent user-509 does not exist, skipping campaign assignments');
+      var campaigns = [];
+    }
           campaignId: campaign.campaignId,
           assignedAt: new Date()
         }
@@ -158,6 +176,15 @@ async function migrateProductionDatabase() {
     
     // 7. Create assignments for other existing agents
     console.log('7. Creating assignments for existing agents...');
+    
+    // Get campaigns for assignment
+    const allCampaigns = await prisma.campaign.findMany({
+      where: {
+        organizationId: userOrgId,
+        isActive: true
+      }
+    });
+    
     const existingAgents = await prisma.agent.findMany({
       where: {
         agentId: { not: agentId },
@@ -172,7 +199,7 @@ async function migrateProductionDatabase() {
       });
       
       // Create new assignments
-      for (const campaign of campaigns) {
+      for (const campaign of allCampaigns) {
         await prisma.agentCampaignAssignment.create({
           data: {
             agentId: existingAgent.agentId,
@@ -190,20 +217,23 @@ async function migrateProductionDatabase() {
     console.log(`✅ Organization: ${org.name}`);
     console.log(`✅ User 509: ${user509.email} (${user509.role})`);
     console.log(`✅ Agent: ${agentId} (skipped creation)`);
-    console.log(`✅ Campaigns: ${campaigns.length} assigned`);
+    console.log(`✅ Campaigns: ${allCampaigns ? allCampaigns.length : 0} total campaigns`);
     console.log(`✅ Total agents: ${existingAgents.length}`);
+    console.log(`✅ Users moved to Omnivox: ${allUsersUpdate.count}`);
     console.log('🔍 DAC campaign should now be visible in admin interface');
     console.log('📞 Agent assignment errors should be resolved');
     console.log('⚡ Quick Actions should load properly');
-    console.log('🚀🚀🚀 MIGRATION COMPLETE - RESTART FRONTEND TO SEE CHANGES 🚀🚀🚀');
+    console.log('� ALL USERS should now be visible in User Management');
+    console.log('�🚀🚀🚀 MIGRATION COMPLETE - RESTART FRONTEND TO SEE CHANGES 🚀🚀🚀');
     
     return {
       success: true,
       organization: org,
       user: user509,
       agent: { agentId: agentId, status: 'skipped' },
-      campaigns: campaigns.length,
-      totalAgents: existingAgents.length
+      campaigns: allCampaigns ? allCampaigns.length : 0,
+      totalAgents: existingAgents.length,
+      usersMoved: allUsersUpdate.count
     };
     
   } catch (error) {
