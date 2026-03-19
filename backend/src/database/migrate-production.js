@@ -8,7 +8,11 @@ async function migrateProductionDatabase() {
   const prisma = new PrismaClient();
   
   try {
-    console.log('🚀 Starting Railway production database migration...');
+    console.log('🚀🚀🚀 STARTING RAILWAY PRODUCTION DATABASE MIGRATION 🚀🚀🚀');
+    console.log('🔗 Database URL exists:', !!process.env.DATABASE_URL);
+    console.log('🌍 Environment:', process.env.NODE_ENV);
+    console.log('🚂 Railway Environment:', process.env.RAILWAY_ENVIRONMENT);
+    console.log('📅 Migration timestamp:', new Date().toISOString());
     
     const userOrgId = 'd14a3292-0d73-4461-9f6d-ffe6a7364a5e';
     
@@ -186,12 +190,16 @@ async function migrateProductionDatabase() {
     console.log(`✅ Updated ${existingAgents.length} existing agents`);
     
     // 8. Summary
-    console.log('\n🎉 Railway production migration completed!');
+    console.log('\n🎉🎉🎉 RAILWAY PRODUCTION MIGRATION COMPLETED SUCCESSFULLY! 🎉🎉🎉');
     console.log(`✅ Organization: ${org.name}`);
     console.log(`✅ User 509: ${user509.email} (${user509.role})`);
     console.log(`✅ Agent: ${agent.agentId}`);
     console.log(`✅ Campaigns: ${campaigns.length} assigned`);
     console.log(`✅ Total agents: ${existingAgents.length + 1}`);
+    console.log('🔍 DAC campaign should now be visible in admin interface');
+    console.log('📞 Agent assignment errors should be resolved');
+    console.log('⚡ Quick Actions should load properly');
+    console.log('🚀🚀🚀 MIGRATION COMPLETE - RESTART FRONTEND TO SEE CHANGES 🚀🚀🚀');
     
     return {
       success: true,
