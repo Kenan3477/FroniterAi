@@ -38,4 +38,35 @@ router.post('/migrate-storage-types', requireRole('ADMIN'), async (req, res) => 
   }
 });
 
+// AI Analytics Migration endpoint
+router.post('/ai-analytics', async (req, res) => {
+  try {
+    console.log('🚀 Starting AI Analytics schema migration...');
+    
+    // Import the migration function
+    const { migrateAIAnalytics } = require('../database/migrate-ai-analytics');
+    
+    // Run the migration
+    const result = await migrateAIAnalytics();
+    
+    console.log('✅ AI Analytics migration completed successfully');
+    
+    res.json({
+      success: true,
+      message: 'AI Analytics schema migration completed successfully',
+      details: result
+    });
+    
+  } catch (error) {
+    console.error('❌ AI Analytics migration failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'AI Analytics migration failed',
+      message: errorMessage
+    });
+  }
+});
+
 export default router;
