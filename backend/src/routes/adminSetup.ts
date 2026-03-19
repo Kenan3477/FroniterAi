@@ -388,4 +388,22 @@ router.get('/fix-database', async (req: Request, res: Response) => {
   }
 });
 
+// SIMPLE TEST ENDPOINT: Check if endpoint routing works
+router.get('/test', async (req: Request, res: Response) => {
+  try {
+    console.log('🧪 Test endpoint called');
+    res.json({ 
+      success: true, 
+      message: 'Endpoint is working',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('❌ Error in test endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 export default router;
