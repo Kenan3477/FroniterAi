@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useNavigationTracking } from '@/hooks/useNavigationTracking';
 import { MainLayout } from '@/components/layout';
 import { RoleGuard } from '@/components/security/RoleGuard';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdaptiveQuickActions from '@/components/admin/AdaptiveQuickActions';
 import DataManagementContent from '@/components/admin/DataManagementContent';
 import UserManagement from '@/components/admin/UserManagement';
 import ApiManagement from '@/components/admin/ApiManagement';
@@ -36,6 +38,9 @@ export default function AdminPage() {
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const router = useRouter();
+
+  // Track admin navigation patterns for adaptive quick actions
+  useNavigationTracking();
 
   useEffect(() => {
     // Check user role on client side for better UX
@@ -569,6 +574,21 @@ export default function AdminPage() {
             ) : selectedSection === 'Admin' ? (
               <div className="p-6">
                 <div className="max-w-4xl mx-auto space-y-8">
+                  {/* Adaptive Quick Actions */}
+                  <AdaptiveQuickActions 
+                    onNavigate={(href) => {
+                      // Parse the href to determine the section
+                      const urlParams = new URLSearchParams(href.split('?')[1] || '');
+                      const section = urlParams.get('section');
+                      if (section) {
+                        setSelectedSection(section);
+                      } else {
+                        // Navigate to external pages
+                        window.location.href = href;
+                      }
+                    }}
+                  />
+                  
                   <SystemOverview />
                 </div>
               </div>
