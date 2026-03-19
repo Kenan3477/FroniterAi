@@ -124,18 +124,20 @@ async function migrateProductionDatabase() {
     }
     console.log(`✅ Updated ${existingCampaigns.length} existing campaigns`);
     
-    // 5. SKIP agent creation for now due to constraint issues
-    console.log('5. Skipping agent creation due to email constraints...');
+    // 5-7. SKIP agent creation and assignments for now - just focus on users
+    console.log('5. Skipping all agent operations - focusing on user organization fix...');
     const agentId = 'user-509';
-    console.log('⚠️ Agent creation skipped - will use existing agent data');
-    
-    // 6. Get all active Omnivox campaigns and assign to user 509 IF agent exists
+    const allCampaigns = [];
+    const existingAgents = [];
+    console.log('⚠️ Agent operations skipped - will manually handle later');
+    /*
     console.log('6. Assigning campaigns to user 509 (if agent exists)...');
     
     // Check if the agent exists
     const agentExists = await prisma.agent.findUnique({
       where: { agentId: agentId }
     });
+    */
     
     if (agentExists) {
       const campaigns = await prisma.campaign.findMany({

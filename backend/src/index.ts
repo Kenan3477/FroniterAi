@@ -107,6 +107,7 @@ import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call
 import workingTranscriptRoutes from './routes/workingTranscriptRoutes'; // WORKING: No-auth transcript routes
 // import transcriptManagementRoutes from './routes/transcriptManagement'; // NEW: Transcription system management API
 import liveAnalysisRoutes from './routes/liveAnalysisRoutes'; // NEW: Intelligent live call analysis system
+import advancedReportsRoutes from './routes/advancedReports'; // NEW: Enterprise-grade AI dialler reporting with predictive analytics
 
 // import { initializeTranscriptionSystem } from './scripts/initializeTranscription';
 
@@ -290,6 +291,7 @@ class App {
     // Phase 3: Advanced AI Dialler Features - NEW
     this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
     this.app.use('/api/live-analysis', liveAnalysisRoutes); // NEW: Intelligent live call analysis system
+    this.app.use('/api/advanced-reports', advancedReportsRoutes); // NEW: Enterprise-grade AI dialler reporting with predictive analytics
     // this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition - TEMPORARILY DISABLED
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES

@@ -326,6 +326,10 @@ model CallRecord {
   // New transcription relations
   transcripts           CallTranscript[]
   transcriptionJobs     TranscriptionJob[]
+  
+  // Advanced AI Analytics Relations
+  callDisposition       CallDisposition?
+  conversationAnalysis  ConversationAnalysis?
 
   @@map("call_records")
 }
@@ -615,6 +619,11 @@ model Organization {
   auditLogs              AuditLog[]               @relation("OrganizationAuditLogs")
   userActivityLogs       UserActivityLog[]        @relation("OrganizationActivityLogs")
   suspiciousAlerts       SuspiciousActivityAlert[] @relation("OrganizationSuspiciousAlerts")
+  
+  // Advanced AI Dialler Analytics Relations
+  diallerMetrics         DiallerMetrics[]
+  campaignAnalytics      CampaignAnalytics[]
+  complianceEvents       ComplianceEvent[]
 
   @@map("organizations")
 }
@@ -1849,4 +1858,164 @@ model TranscriptionAudit {
   @@index([action])
   @@index([createdAt])
   @@map("transcription_audit")
+}
+
+// ==========================================
+// ADVANCED AI DIALLER ANALYTICS MODELS
+// ==========================================
+
+// Advanced call disposition tracking with AI analysis
+model CallDisposition {
+  id                String           @id @default(cuid())
+  callId           String           @unique
+  disposition      DispositionType
+  subDisposition   String?
+  sentimentScore   Float?           // -1 to 1 scale
+  confidence       Float?           // 0 to 1 confidence
+  aiAnalysis       Json?            // AI-generated insights
+  complianceFlags  Json?            // Regulatory violations
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  call             CallRecord       @relation(fields: [callId], references: [id], onDelete: Cascade)
+  
+  @@index([disposition])
+  @@index([sentimentScore])
+  @@index([createdAt])
+  @@map("call_dispositions")
+}
+
+enum DispositionType {
+  ANSWERED_HUMAN
+  ANSWERED_MACHINE
+  BUSY
+  NO_ANSWER
+  DISCONNECTED_NUMBER
+  CALLBACK_SCHEDULED
+  DO_NOT_CALL
+  SALE_COMPLETED
+  APPOINTMENT_SET
+  FOLLOW_UP_REQUIRED
+  INTERESTED_NOT_READY
+  NOT_INTERESTED
+  WRONG_PERSON
+  LANGUAGE_BARRIER
+}
+
+// Predictive dialling metrics for real-time optimization
+model DiallerMetrics {
+  id                    String   @id @default(cuid())
+  timestamp             DateTime @default(now())
+  campaignId           String?
+  agentId              String?
+  organizationId       String
+  pacingRatio          Float    // Calls per agent
+  abandonedCallRate    Float    // Must be <3% for compliance
+  agentUtilization     Float    // % of time agents are on calls
+  averageSpeedAnswer   Int      // Seconds
+  contactRate          Float    // % of calls that connect
+  rightPartyRate       Float    // % of connected calls to correct person
+  
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([timestamp])
+  @@index([campaignId])
+  @@index([agentId])
+  @@index([organizationId])
+  @@map("dialler_metrics")
+}
+
+// Conversation intelligence and AI analysis
+model ConversationAnalysis {
+  id                   String      @id @default(cuid())
+  callId              String      @unique
+  transcript          String?
+  talkTime            Int         // Seconds agent spoke
+  listenTime          Int         // Seconds agent listened
+  interruptionCount   Int         // How many times agent interrupted
+  speechPace          SpeechPace
+  keywordMatches      Json        // Detected keywords and frequency
+  objectionHandling   Json        // Objections raised and responses
+  nextBestAction      String?     // AI recommendation
+  callSummary         String?     // AI-generated summary
+  actionItems         Json?       // AI-extracted action items
+  leadScore           Float?      // 0-100 lead quality score
+  conversionProb      Float?      // 0-1 probability of conversion
+  createdAt           DateTime    @default(now())
+  
+  call                CallRecord  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  
+  @@index([leadScore])
+  @@index([conversionProb])
+  @@index([createdAt])
+  @@map("conversation_analysis")
+}
+
+enum SpeechPace {
+  TOO_FAST
+  OPTIMAL
+  TOO_SLOW
+}
+
+// Campaign optimization and AI predictions
+model CampaignAnalytics {
+  id                    String   @id @default(cuid())
+  campaignId           String
+  organizationId       String
+  date                 DateTime
+  diallingVelocity     Int      // Calls per hour
+  contactRate          Float    // % of attempts that connect
+  listPenetration      Float    // % of list attempted
+  timeToComplete       Int?     // Projected hours to complete
+  recommendedTiming    Json?    // AI-suggested optimal call times
+  listPriority         Json?    // AI-suggested list prioritization
+  predictedROI         Float?   // AI-predicted campaign ROI
+  
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([campaignId, date])
+  @@index([organizationId])
+  @@index([date])
+  @@map("campaign_analytics")
+}
+
+// Compliance tracking and regulatory monitoring
+model ComplianceEvent {
+  id              String                @id @default(cuid())
+  callId         String?
+  agentId        String?
+  organizationId String
+  eventType      ComplianceEventType
+  severity       Severity
+  description    String
+  autoDetected   Boolean               @default(true)
+  resolved       Boolean               @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime              @default(now())
+  
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([eventType])
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
+  @@map("compliance_events")
+}
+
+enum ComplianceEventType {
+  TCPA_VIOLATION
+  CALL_TIME_VIOLATION
+  DNC_VIOLATION
+  CONSENT_MISSING
+  RECORDING_FAILURE
+  EXCESSIVE_ABANDON_RATE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
