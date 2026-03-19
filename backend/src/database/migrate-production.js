@@ -36,6 +36,21 @@ async function migrateProductionDatabase() {
     });
     console.log('✅ Organization:', org.name);
     
+    // 1.5. Move ALL users to Omnivox organization
+    console.log('1.5. Moving all users to Omnivox organization...');
+    const allUsersUpdate = await prisma.user.updateMany({
+      where: {
+        OR: [
+          { organizationId: null },
+          { organizationId: { not: userOrgId } }
+        ]
+      },
+      data: {
+        organizationId: userOrgId
+      }
+    });
+    console.log(`✅ Moved ${allUsersUpdate.count} users to Omnivox organization`);
+    
     // 2. Find existing user 509 (ken) or create if not exists
     console.log('2. Checking/creating user 509...');
     const user509 = await prisma.user.upsert({
