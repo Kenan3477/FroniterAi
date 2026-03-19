@@ -89,7 +89,10 @@ export class AdaptiveQuickActionsService {
         AND "organizationId" = ${organizationId}
         AND "timestamp" >= ${timeFilter}
         AND "activityType" IN ('page_view', 'tab_switch')
-        AND "pagePath" LIKE '/admin%'
+        AND ("pagePath" LIKE '/admin%' 
+             OR "pagePath" LIKE '/work%'
+             OR "pagePath" LIKE '/call-recordings%'
+             OR "pagePath" LIKE '/reports%')
       GROUP BY "pagePath"
       HAVING COUNT(*) >= 2
       ORDER BY visits DESC, "avgTimeOnPage" DESC
@@ -226,12 +229,20 @@ export class AdaptiveQuickActionsService {
       '/admin?section=API': 'API',
       '/call-recordings': 'Call Recordings',
       '/work': 'Work Dashboard',
+      '/work?tab=my-interaction': 'Work - My Interaction',
+      '/work?tab=my-interactions': 'Work - My Interaction',
+      '/work?section=My%20Interaction': 'Work - My Interaction',
       '/reports': 'Reports & Analytics'
     };
 
     // Check for work sub-tabs
-    if (pagePath.includes('/work?tab=my-interaction')) {
+    if (pagePath.includes('/work?tab=my-interaction') || pagePath.includes('/work?tab=my-interactions') || pagePath.includes('My%20Interaction')) {
       return 'Work - My Interaction';
+    }
+
+    // Check for call recordings  
+    if (pagePath.includes('/call-recordings') || pagePath.includes('recordings')) {
+      return 'Call Recordings';
     }
 
     // Find best match or return cleaned path

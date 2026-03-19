@@ -67,7 +67,7 @@ import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
 import advancedAuditRoutes from './routes/advancedAudit'; // Advanced user activity audit system with AI-powered suspicious behavior detection
-import adaptiveQuickActionsRoutes from './routes/adaptiveQuickActions'; // NEW: Adaptive quick actions based on user behavior patterns
+import adaptiveQuickActionsRoutes from './routes/adaptiveQuickActions'; // NEW: Advanced adaptive quick actions with AI-powered workflow intelligence
 // import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails - TEMPORARILY DISABLED
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 import updateOrgAdminRoutes from './routes/updateOrgAdmin'; // Temporary route to fix existing org admin names
@@ -245,7 +245,7 @@ class App {
     this.app.use('/api/admin/dnc', dncRoutes); // DNC (Do Not Call) management system
     this.app.use('/api/admin', auditLogRoutes); // Audit logs and user session tracking for login/logout reports
     this.app.use('/api/admin/advanced-audit', advancedAuditRoutes); // Advanced user activity audit system with AI-powered suspicious behavior detection
-    this.app.use('/api/admin/quick-actions', adaptiveQuickActionsRoutes); // NEW: Adaptive quick actions based on user behavior patterns
+    this.app.use('/api/admin/quick-actions', adaptiveQuickActionsRoutes); // NEW: Advanced adaptive quick actions with AI-powered workflow intelligence
     this.app.use('/api/admin/system', systemOverviewRoutes); // Admin system overview - re-enabled
     // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
     // this.app.use('/api/contacts', contactRoutes); // DISABLED - schema conflicts

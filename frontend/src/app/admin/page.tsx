@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNavigationTracking } from '@/hooks/useNavigationTracking';
+import { useMobileDetection } from '@/hooks/useMobileDetection';
 import { MainLayout } from '@/components/layout';
 import { RoleGuard } from '@/components/security/RoleGuard';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdaptiveQuickActions from '@/components/admin/AdaptiveQuickActions';
+import EnhancedAdaptiveQuickActions from '@/components/admin/EnhancedAdaptiveQuickActions';
 import DataManagementContent from '@/components/admin/DataManagementContent';
 import UserManagement from '@/components/admin/UserManagement';
 import ApiManagement from '@/components/admin/ApiManagement';
@@ -41,6 +43,9 @@ export default function AdminPage() {
 
   // Track admin navigation patterns for adaptive quick actions
   useNavigationTracking();
+  
+  // Detect mobile device for optimized UI
+  const { isMobile, isTablet, deviceType } = useMobileDetection();
 
   useEffect(() => {
     // Check user role on client side for better UX
@@ -574,20 +579,33 @@ export default function AdminPage() {
             ) : selectedSection === 'Admin' ? (
               <div className="p-6">
                 <div className="max-w-4xl mx-auto space-y-8">
-                  {/* Adaptive Quick Actions */}
-                  <AdaptiveQuickActions 
-                    onNavigate={(href) => {
-                      // Parse the href to determine the section
-                      const urlParams = new URLSearchParams(href.split('?')[1] || '');
-                      const section = urlParams.get('section');
-                      if (section) {
-                        setSelectedSection(section);
-                      } else {
-                        // Navigate to external pages
-                        window.location.href = href;
-                      }
-                    }}
-                  />
+                  {/* Enhanced AI-Powered Quick Actions */}
+                  {isMobile ? (
+                    <EnhancedAdaptiveQuickActions 
+                      mobileMode={true}
+                      onNavigate={(href) => {
+                        const urlParams = new URLSearchParams(href.split('?')[1] || '');
+                        const section = urlParams.get('section');
+                        if (section) {
+                          setSelectedSection(section);
+                        } else {
+                          window.location.href = href;
+                        }
+                      }}
+                    />
+                  ) : (
+                    <EnhancedAdaptiveQuickActions 
+                      onNavigate={(href) => {
+                        const urlParams = new URLSearchParams(href.split('?')[1] || '');
+                        const section = urlParams.get('section');
+                        if (section) {
+                          setSelectedSection(section);
+                        } else {
+                          window.location.href = href;
+                        }
+                      }}
+                    />
+                  )}
                   
                   <SystemOverview />
                 </div>
