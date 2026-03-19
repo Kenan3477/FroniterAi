@@ -347,17 +347,17 @@ class App {
       await connectDatabase();
       console.log('✅ Database connected');
 
-      // Run production database migration (Railway deployment)
-      if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-        console.log('🚀 Running production database migration...');
-        try {
-          await migrateProductionDatabase();
-          console.log('✅ Production migration completed');
-        } catch (migrationError) {
-          console.error('❌ Production migration failed:', migrationError);
-          // Continue startup even if migration fails
-        }
-      }
+      // Run production database migration (Railway deployment) - TEMPORARILY DISABLED
+      // if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+      //   console.log('🚀 Running production database migration...');
+      //   try {
+      //     await migrateProductionDatabase();
+      //     console.log('✅ Production migration completed');
+      //   } catch (migrationError) {
+      //     console.error('❌ Production migration failed:', migrationError);
+      //     // Continue startup even if migration fails
+      //   }
+      // }
 
       // Connect to Redis
       await connectRedis();
