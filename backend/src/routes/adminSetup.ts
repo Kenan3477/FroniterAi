@@ -364,26 +364,56 @@ router.post('/fix-call-records-public', async (req: Request, res: Response) => {
   }
 });
 
-// TEMPORARY ENDPOINT: Fix Railway production database
-router.get('/fix-database', async (req: Request, res: Response) => {
+// SIMPLE USER ORGANIZATION FIX - Direct SQL approach  
+router.get('/fix-user-orgs', async (req: Request, res: Response) => {
   try {
-    console.log('🔧 Running manual Railway database fix...');
+    console.log('� Moving all users to Omnivox organization...');
     
-    const { migrateProductionDatabase } = require('../database/migrate-production-simple');
-    const result = await migrateProductionDatabase();
+    const omnivoxOrgId = 'd14a3292-0d73-4461-9f6d-ffe6a7364a5e';
     
-    console.log('✅ Railway database fix completed');
+    // Update all users to be in Omnivox organization
+    const result = await prisma.user.updateMany({
+      where: {
+        organizationId: { not: omnivoxOrgId }
+      },
+      data: {
+        organizationId: omnivoxOrgId
+      }
+    });
+    
+    // Get current user count
+    const totalUsers = await prisma.user.count();
+    const omnivoxUsers = await prisma.user.count({
+      where: { organizationId: omnivoxOrgId }
+    });
+    
+    // List all users for verification
+    const allUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true
+      }
+    });
+    
+    console.log('✅ User organization fix completed');
     res.json({ 
       success: true, 
-      message: 'Railway database fix completed successfully',
-      result 
+      message: `Successfully moved ${result.count} users to Omnivox organization`,
+      data: {
+        usersMoved: result.count,
+        totalUsers: totalUsers,
+        omnivoxUsers: omnivoxUsers,
+        userList: allUsers
+      }
     });
   } catch (error: any) {
-    console.error('❌ Error fixing Railway database:', error);
+    console.error('❌ Error fixing user organizations:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message,
-      message: 'Failed to fix Railway database'
+      error: error.message 
     });
   }
 });
