@@ -82,36 +82,13 @@ async function migrateProductionDatabase() {
       console.log(`  - ID: ${user.id}, Email: ${user.email}, Name: ${user.name}, Role: ${user.role}, OrgID: ${user.organizationId}, Active: ${user.isActive}`);
     });
     
-    // 6. Ensure DAC campaign exists
-    console.log('6. Creating/updating DAC campaign...');
-    const dacCampaign = await prisma.campaign.upsert({
-      where: { id: '550e8400-e29b-41d4-a716-446655440004' },
-      create: {
-        id: '550e8400-e29b-41d4-a716-446655440004',
-        campaignId: 'dac-campaign-production',
-        name: 'DAC',
-        description: 'Database Access Campaign for testing and demonstrations',
-        organizationId: userOrgId,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      update: {
-        campaignId: 'dac-campaign-production',
-        name: 'DAC',
-        description: 'Database Access Campaign for testing and demonstrations',
-        organizationId: userOrgId,
-        isActive: true,
-        updatedAt: new Date()
-      }
-    });
-    console.log('✅ DAC campaign created/updated:', dacCampaign.name);
-    
-    // 7. List all campaigns in Omnivox organization
+    // 6. Skip campaign creation for now - just focus on user organization fix
+    console.log('6. Skipping campaign creation - focusing on user organization...');
     const omnivoxCampaigns = await prisma.campaign.findMany({
       where: { organizationId: userOrgId },
       select: { id: true, name: true, isActive: true }
     });
+    console.log(`📋 Existing campaigns in Omnivox organization: ${omnivoxCampaigns.length}`);
     console.log(`📋 Campaigns in Omnivox organization: ${omnivoxCampaigns.length}`);
     omnivoxCampaigns.forEach(campaign => {
       console.log(`  - ${campaign.name} (Active: ${campaign.isActive})`);
