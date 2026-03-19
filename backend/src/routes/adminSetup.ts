@@ -406,4 +406,51 @@ router.get('/test', async (req: Request, res: Response) => {
   }
 });
 
+// DEBUG ENDPOINT: Check campaign state without auth
+router.get('/check-campaigns', async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 Checking current campaign state...');
+    
+    const omnivoxOrg = await prisma.organization.findFirst({
+      where: { name: 'Omnivox Organization' }
+    });
+    
+    const campaigns = await prisma.campaign.findMany({
+      where: { organizationId: 'd14a3292-0d73-4461-9f6d-ffe6a7364a5e' }
+    });
+    
+    const user509 = await prisma.user.findUnique({
+      where: { id: 509 }
+    });
+    
+    const agent = await prisma.agent.findUnique({
+      where: { id: 'user-509' }
+    });
+    
+    const assignments = await prisma.agentCampaignAssignment.findMany({
+      where: { agentId: 'user-509' },
+      include: { campaign: true }
+    });
+    
+    console.log('✅ Campaign check completed');
+    res.json({ 
+      success: true, 
+      message: 'Campaign state retrieved',
+      data: {
+        organization: omnivoxOrg,
+        user509: user509 ? { id: user509.id, email: user509.email, orgId: user509.organizationId } : null,
+        campaigns: campaigns.map(c => ({ id: c.id, name: c.name })),
+        agent: agent ? { id: agent.id, userId: agent.userId } : null,
+        assignments: assignments.map(a => ({ campaignId: a.campaignId, campaignName: a.campaign.name }))
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error checking campaigns:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 export default router;
