@@ -364,4 +364,28 @@ router.post('/fix-call-records-public', async (req: Request, res: Response) => {
   }
 });
 
+// TEMPORARY ENDPOINT: Fix Railway production database
+router.get('/fix-database', async (req: Request, res: Response) => {
+  try {
+    console.log('🔧 Running manual Railway database fix...');
+    
+    const { migrateProductionDatabase } = require('../database/migrate-production');
+    const result = await migrateProductionDatabase();
+    
+    console.log('✅ Railway database fix completed');
+    res.json({ 
+      success: true, 
+      message: 'Railway database fix completed successfully',
+      result 
+    });
+  } catch (error: any) {
+    console.error('❌ Error fixing Railway database:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Failed to fix Railway database'
+    });
+  }
+});
+
 export default router;
