@@ -112,6 +112,16 @@ async function migrateProductionDatabase() {
     // 5. Create agent record for user 509
     console.log('5. Creating agent record for user 509...');
     const agentId = 'user-509';
+    
+    // First, delete any existing agents with conflicting email that aren't our target agent
+    await prisma.agent.deleteMany({
+      where: {
+        email: 'ken@simpleemails.co.uk',
+        agentId: { not: agentId }
+      }
+    });
+    console.log('🧹 Cleaned up conflicting agents');
+    
     const agent = await prisma.agent.upsert({
       where: { agentId: agentId },
       create: {
@@ -131,7 +141,7 @@ async function migrateProductionDatabase() {
         updatedAt: new Date()
       }
     });
-    console.log('✅ Agent created:', agent.agentId);
+    console.log('✅ Agent created/updated:', agent.agentId);
     
     // 6. Get all active Omnivox campaigns and assign to user 509
     console.log('6. Assigning campaigns to user 509...');
