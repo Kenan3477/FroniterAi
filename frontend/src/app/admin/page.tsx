@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useNavigationTracking } from '@/hooks/useNavigationTracking';
+import { NavigationTrackingWrapper } from '@/components/admin/NavigationTrackingWrapper';
 import { useMobileDetection } from '@/hooks/useMobileDetection';
 import { MainLayout } from '@/components/layout';
 import { RoleGuard } from '@/components/security/RoleGuard';
@@ -41,9 +41,6 @@ export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const router = useRouter();
 
-  // Track admin navigation patterns for adaptive quick actions
-  useNavigationTracking();
-  
   // Detect mobile device for optimized UI
   const { isMobile, isTablet, deviceType } = useMobileDetection();
 
@@ -137,6 +134,7 @@ export default function AdminPage() {
         </MainLayout>
       }
     >
+      <NavigationTrackingWrapper />
       <MainLayout>
       <div className="flex h-full">
         {/* Admin Sidebar */}
