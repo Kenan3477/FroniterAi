@@ -406,46 +406,103 @@ router.get('/test', async (req: Request, res: Response) => {
   }
 });
 
-// DEBUG ENDPOINT: Check campaign state without auth
-router.get('/check-campaigns', async (req: Request, res: Response) => {
+// DEBUG ENDPOINT: Check all users and their organizations
+router.get('/check-all-users', async (req: Request, res: Response) => {
   try {
-    console.log('🔍 Checking current campaign state...');
+    console.log('� Checking all users in the system...');
+    
+    const allUsers = await prisma.user.findMany({
+      include: { organization: true }
+    });
     
     const omnivoxOrg = await prisma.organization.findFirst({
       where: { name: 'Omnivox Organization' }
     });
     
-    const campaigns = await prisma.campaign.findMany({
-      where: { organizationId: 'd14a3292-0d73-4461-9f6d-ffe6a7364a5e' }
-    });
-    
-    const user509 = await prisma.user.findUnique({
-      where: { id: 509 }
-    });
-    
-    const agent = await prisma.agent.findUnique({
-      where: { id: 'user-509' }
-    });
-    
-    const assignments = await prisma.agentCampaignAssignment.findMany({
-      where: { agentId: 'user-509' },
-      include: { campaign: true }
-    });
-    
-    console.log('✅ Campaign check completed');
+    console.log('✅ User check completed');
     res.json({ 
       success: true, 
-      message: 'Campaign state retrieved',
+      message: 'All users retrieved',
       data: {
-        organization: omnivoxOrg,
-        user509: user509 ? { id: user509.id, email: user509.email, orgId: user509.organizationId } : null,
-        campaigns: campaigns.map(c => ({ id: c.id, name: c.name })),
-        agent: agent ? { id: agent.id, userId: agent.userId } : null,
-        assignments: assignments.map(a => ({ campaignId: a.campaignId, campaignName: a.campaign.name }))
+        totalUsers: allUsers.length,
+        omnivoxOrgId: omnivoxOrg?.id,
+        users: allUsers.map(u => ({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          organizationId: u.organizationId,
+          organizationName: u.organization?.name || 'No Organization',
+          isActive: u.isActive
+        }))
       }
     });
   } catch (error: any) {
-    console.error('❌ Error checking campaigns:', error);
+    console.error('❌ Error checking users:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// FIX ENDPOINT: Move all users to Omnivox organization
+router.get('/fix-user-organizations', async (req: Request, res: Response) => {
+  try {
+    console.log('🔧 Moving all users to Omnivox organization...');
+    
+    const omnivoxOrgId = 'd14a3292-0d73-4461-9f6d-ffe6a7364a5e';
+    
+    // Get all users not in Omnivox organization
+    const usersToMove = await prisma.user.findMany({
+      where: {
+        OR: [
+          { organizationId: null },
+          { organizationId: { not: omnivoxOrgId } }
+        ]
+      }
+    });
+    
+    console.log(`Found ${usersToMove.length} users to move to Omnivox organization`);
+    
+    // Move all users to Omnivox organization
+    const updateResult = await prisma.user.updateMany({
+      where: {
+        OR: [
+          { organizationId: null },
+          { organizationId: { not: omnivoxOrgId } }
+        ]
+      },
+      data: {
+        organizationId: omnivoxOrgId
+      }
+    });
+    
+    console.log(`✅ Moved ${updateResult.count} users to Omnivox organization`);
+    
+    // Verify the results
+    const allUsers = await prisma.user.findMany({
+      include: { organization: true }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Successfully moved ${updateResult.count} users to Omnivox organization`,
+      data: {
+        movedUsers: updateResult.count,
+        totalUsers: allUsers.length,
+        omnivoxUsers: allUsers.filter(u => u.organizationId === omnivoxOrgId).length,
+        users: allUsers.map(u => ({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          organizationName: u.organization?.name || 'No Organization'
+        }))
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error moving users:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
