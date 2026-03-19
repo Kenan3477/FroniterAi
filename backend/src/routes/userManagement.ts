@@ -16,7 +16,7 @@ router.use(authenticate);
  * GET /api/users
  * Search and list users (Admin/Supervisor only)
  */
-router.get('/', requireRole('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.get('/', requireRole('ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'), async (req, res) => {
   try {
     const { role, isActive, search, lastLoginAfter, lastLoginBefore } = req.query;
     
@@ -47,9 +47,9 @@ router.get('/', requireRole('ADMIN', 'SUPERVISOR'), async (req, res) => {
 
 /**
  * POST /api/users
- * Create new user (Admin only)
+ * Create new user (Admin and Super Admin only)
  */
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { firstName, lastName, email, role, password, sendWelcomeEmail, tempPassword } = req.body;
 
@@ -203,7 +203,7 @@ router.get('/stats', requireRole('ADMIN', 'SUPERVISOR'), async (req, res) => {
  * POST /api/users/:id/reset-password
  * Reset user password (Admin only)
  */
-router.post('/:id/reset-password', requireRole('ADMIN'), async (req, res) => {
+router.post('/:id/reset-password', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     const { tempPassword = true } = req.body;
@@ -266,7 +266,7 @@ router.get('/:userId/campaigns', requireRole('ADMIN'), async (req, res) => {
  * POST /api/users/:userId/campaigns
  * Assign a campaign to a user (Admin only)
  */
-router.post('/:userId/campaigns', requireRole('ADMIN'), async (req, res) => {
+router.post('/:userId/campaigns', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { userId } = req.params;
     const { campaignId } = req.body;

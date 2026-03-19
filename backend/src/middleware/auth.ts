@@ -12,6 +12,24 @@ const prisma = new PrismaClient();
 
 // Role-based permissions
 export const ROLE_PERMISSIONS = {
+  SUPER_ADMIN: [
+    'user.create',
+    'user.read',
+    'user.update', 
+    'user.delete',
+    'campaign.create',
+    'campaign.read',
+    'campaign.update',
+    'campaign.delete',
+    'system.admin',
+    'reports.admin',
+    'settings.admin',
+    'predictive.admin',
+    'performance.admin',
+    'organization.admin',
+    'security.admin',
+    'audit.admin'
+  ],
   ADMIN: [
     'user.create',
     'user.read',

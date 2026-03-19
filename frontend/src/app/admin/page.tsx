@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
+import { RoleGuard } from '@/components/security/RoleGuard';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import DataManagementContent from '@/components/admin/DataManagementContent';
 import UserManagement from '@/components/admin/UserManagement';
@@ -46,7 +47,7 @@ export default function AdminPage() {
         
         if (response.ok) {
           const data = await response.json();
-          if (data.user && data.user.role === 'ADMIN') {
+          if (data.user && (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN')) {
             setIsAuthorized(true);
           } else {
             console.log('🚫 Non-admin user trying to access admin panel, redirecting...');
@@ -102,7 +103,31 @@ export default function AdminPage() {
   }
 
   return (
-    <MainLayout>
+    <RoleGuard 
+      allowedRoles={['ADMIN', 'SUPER_ADMIN']}
+      redirectTo="/dashboard"
+      fallback={
+        <MainLayout>
+          <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="max-w-md mx-auto text-center">
+              <div className="text-red-600 text-8xl mb-6">🚫</div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
+              <p className="text-gray-600 mb-6">
+                The Admin panel is only accessible to Administrators and Super Administrators.
+                Contact your system administrator if you need access to administrative functions.
+              </p>
+              <button
+                onClick={() => window.history.back()}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                ← Go Back
+              </button>
+            </div>
+          </div>
+        </MainLayout>
+      }
+    >
+      <MainLayout>
       <div className="flex h-full">
         {/* Admin Sidebar */}
         <AdminSidebar
@@ -655,5 +680,6 @@ export default function AdminPage() {
         </div>
       </div>
     </MainLayout>
+    </RoleGuard>
   );
 }

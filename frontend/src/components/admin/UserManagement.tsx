@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminOnly } from '@/components/security/RoleGuard';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
   UsersIcon,
   PlusIcon,
@@ -510,13 +512,22 @@ export default function UserManagement() {
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        <AdminOnly
+          fallback={
+            <div className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed">
+              <UserPlusIcon className="-ml-1 mr-2 h-5 w-5" />
+              Add User (Admin Only)
+            </div>
+          }
         >
-          <UserPlusIcon className="-ml-1 mr-2 h-5 w-5" />
-          Add User
-        </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <UserPlusIcon className="-ml-1 mr-2 h-5 w-5" />
+            Add User
+          </button>
+        </AdminOnly>
       </div>
 
       {/* Stats Cards */}
