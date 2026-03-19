@@ -204,6 +204,11 @@ const OverviewDashboard: React.FC = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<string>('all');
   const [campaigns, setCampaigns] = useState<Array<{id: string; name: string}>>([]);
   const [dateRange, setDateRange] = useState<string>('last_7d');
+  
+  // Data List filtering state
+  const [selectedDataList, setSelectedDataList] = useState<string>('all');
+  const [dataLists, setDataLists] = useState<Array<{id: string; name: string; listId: string}>>([]);
+  const [loadingDataLists, setLoadingDataLists] = useState(false);
 
   // Fetch available campaigns for filtering
   const fetchCampaigns = async () => {
@@ -230,7 +235,47 @@ const OverviewDashboard: React.FC = () => {
     }
   };
 
-  const fetchDashboardData = async (campaignFilter = selectedCampaign, dateFilter = dateRange, isInitialLoad = false) => {
+  // Fetch data lists for selected campaign
+  const fetchDataLists = async (campaignId: string) => {
+    if (campaignId === 'all') {
+      setDataLists([]);
+      setSelectedDataList('all');
+      return;
+    }
+
+    setLoadingDataLists(true);
+    try {
+      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+      const response = await fetch(`/api/admin/campaign-management/campaigns/${campaignId}/data-lists`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const dataListsData = await response.json();
+        const activeLists = (dataListsData.data || [])
+          .filter((list: any) => list.active)
+          .map((list: any) => ({
+            id: list.id,
+            listId: list.listId,
+            name: list.name
+          }));
+        setDataLists(activeLists);
+        setSelectedDataList('all'); // Reset to all data lists when campaign changes
+      } else {
+        console.warn('Failed to fetch data lists for campaign:', campaignId);
+        setDataLists([]);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch data lists:', error);
+      setDataLists([]);
+    } finally {
+      setLoadingDataLists(false);
+    }
+  };
+
+  const fetchDashboardData = async (campaignFilter = selectedCampaign, dateFilter = dateRange, dataListFilter = selectedDataList, isInitialLoad = false) => {
     try {
       // Get authentication token
       const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
@@ -239,6 +284,9 @@ const OverviewDashboard: React.FC = () => {
       const queryParams = new URLSearchParams();
       if (campaignFilter && campaignFilter !== 'all') {
         queryParams.append('campaignId', campaignFilter);
+      }
+      if (dataListFilter && dataListFilter !== 'all') {
+        queryParams.append('dataListId', dataListFilter);
       }
       queryParams.append('filter', dateFilter);
       
@@ -261,6 +309,9 @@ const OverviewDashboard: React.FC = () => {
       const yesterdayParams = new URLSearchParams();
       if (campaignFilter && campaignFilter !== 'all') {
         yesterdayParams.append('campaignId', campaignFilter);
+      }
+      if (dataListFilter && dataListFilter !== 'all') {
+        yesterdayParams.append('dataListId', dataListFilter);
       }
       yesterdayParams.append('filter', 'yesterday');
       
@@ -323,6 +374,9 @@ const OverviewDashboard: React.FC = () => {
       agentActivityParams.append('filter', 'today');
       if (campaignFilter && campaignFilter !== 'all') {
         agentActivityParams.append('campaignId', campaignFilter);
+      }
+      if (dataListFilter && dataListFilter !== 'all') {
+        agentActivityParams.append('dataListId', dataListFilter);
       }
       
       const agentActivityResponse = await fetch(`/api/reports/overview/agent-call-activity?${agentActivityParams.toString()}`, {
@@ -415,7 +469,7 @@ const OverviewDashboard: React.FC = () => {
     setLoading(true); // Only set loading for initial load
     
     fetchCampaigns();
-    fetchDashboardData('all', 'today', true).finally(() => {
+    fetchDashboardData('all', 'today', 'all', true).finally(() => {
       setLoading(false); // Clear loading only after initial load
     });
 
@@ -617,8 +671,11 @@ const OverviewDashboard: React.FC = () => {
                   id="campaign-select"
                   value={selectedCampaign}
                   onChange={(e) => {
-                    setSelectedCampaign(e.target.value);
-                    fetchDashboardData(e.target.value, dateRange);
+                    const newCampaign = e.target.value;
+                    setSelectedCampaign(newCampaign);
+                    setSelectedDataList('all'); // Reset data list when campaign changes
+                    fetchDataLists(newCampaign);
+                    fetchDashboardData(newCampaign, dateRange, 'all');
                   }}
                   className="input-field w-full px-3 py-2 rounded-md"
                 >
@@ -626,6 +683,32 @@ const OverviewDashboard: React.FC = () => {
                   {campaigns.map((campaign) => (
                     <option key={campaign.id} value={campaign.id}>
                       {campaign.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Data List Filter */}
+              <div className="min-w-[200px]">
+                <label htmlFor="data-list-select" className="block text-sm font-medium theme-text-primary mb-2">
+                  Data List
+                </label>
+                <select
+                  id="data-list-select"
+                  value={selectedDataList}
+                  onChange={(e) => {
+                    setSelectedDataList(e.target.value);
+                    fetchDashboardData(selectedCampaign, dateRange, e.target.value);
+                  }}
+                  disabled={loadingDataLists || selectedCampaign === 'all'}
+                  className="input-field w-full px-3 py-2 rounded-md disabled:opacity-50"
+                >
+                  <option value="all">
+                    {loadingDataLists ? 'Loading...' : selectedCampaign === 'all' ? 'Select Campaign First' : 'All Data Lists'}
+                  </option>
+                  {dataLists.map((dataList) => (
+                    <option key={dataList.id} value={dataList.id}>
+                      {dataList.name}
                     </option>
                   ))}
                 </select>
