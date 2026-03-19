@@ -111,6 +111,10 @@ import advancedReportsRoutes from './routes/advancedReports'; // NEW: Enterprise
 
 // import { initializeTranscriptionSystem } from './scripts/initializeTranscription';
 
+// Import AI System Management
+import createAIRoutes from './routes/aiRoutes'; // NEW: AI System Integration API
+import AISystemManager from './ai/AISystemManager'; // NEW: AI System Manager
+
 // Import socket handlers
 import { initializeSocket } from './socket';
 
@@ -118,6 +122,7 @@ class App {
   public app: express.Application;
   public server: any;
   public io: Server;
+  public aiManager: AISystemManager; // NEW: AI System Manager
 
   constructor() {
     this.app = express();
@@ -134,7 +139,6 @@ class App {
     });
 
     this.initializeMiddlewares();
-    this.initializeRoutes();
     this.initializeErrorHandling();
     this.initializeSocket();
   }
@@ -174,7 +178,7 @@ class App {
     this.app.use(rateLimiter);
   }
 
-  private initializeRoutes(): void {
+  private async initializeRoutes(): Promise<void> {
     // Root endpoint for Railway health check
     this.app.get('/', (req, res) => {
       res.json({
@@ -292,6 +296,12 @@ class App {
     this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
     this.app.use('/api/live-analysis', liveAnalysisRoutes); // NEW: Intelligent live call analysis system
     this.app.use('/api/advanced-reports', advancedReportsRoutes); // NEW: Enterprise-grade AI dialler reporting with predictive analytics
+    
+    // AI System Integration Routes - NEW: Phase 2 Real-time AI Features
+    if (this.aiManager) {
+      const { prisma } = await import('./database');
+      this.app.use('/api/ai', createAIRoutes(prisma, this.aiManager)); // AI system management and integration
+    }
     // this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition - TEMPORARILY DISABLED
 
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES
@@ -348,6 +358,14 @@ class App {
       // Connect to database
       await connectDatabase();
       console.log('✅ Database connected');
+
+      // Initialize AI System Manager
+      const { prisma } = await import('./database');
+      this.aiManager = new AISystemManager(prisma, this.io);
+      console.log('🤖 AI System Manager initialized');
+
+      // Initialize routes after AI manager is ready
+      await this.initializeRoutes();
 
       // Run production database migration (Railway deployment) - TEMPORARILY DISABLED
       // if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
