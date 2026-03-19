@@ -16,7 +16,7 @@ import config from './config';
 import { connectDatabase } from './database';
 import { connectRedis } from './config/redis';
 import { errorHandler, notFound } from './middleware/errorHandler';
-import { migrateProductionDatabase } from './database/migrate-production';
+import { migrateProductionDatabase } from './database/migrate-production-simple';
 import { rateLimiter } from './middleware/rateLimiter';
 import { securityMonitor } from './middleware/security'; // SECURITY: Enhanced security monitoring
 import { ensureBasicAgents } from './utils/ensureBasicAgents';

@@ -369,7 +369,7 @@ router.get('/fix-database', async (req: Request, res: Response) => {
   try {
     console.log('🔧 Running manual Railway database fix...');
     
-    const { migrateProductionDatabase } = require('../database/migrate-production');
+    const { migrateProductionDatabase } = require('../database/migrate-production-simple');
     const result = await migrateProductionDatabase();
     
     console.log('✅ Railway database fix completed');
