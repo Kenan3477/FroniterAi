@@ -453,4 +453,51 @@ router.get('/check-campaigns', async (req: Request, res: Response) => {
   }
 });
 
+// DEBUG ENDPOINT: Check all users in the system
+router.get('/check-users', async (req: Request, res: Response) => {
+  try {
+    console.log('👥 Checking all users in system...');
+    
+    const allUsers = await prisma.user.findMany({
+      include: {
+        organization: true
+      },
+      orderBy: { id: 'asc' }
+    });
+    
+    const allOrganizations = await prisma.organization.findMany();
+    
+    console.log('✅ User check completed');
+    res.json({ 
+      success: true, 
+      message: 'All users retrieved',
+      data: {
+        totalUsers: allUsers.length,
+        users: allUsers.map(u => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          role: u.role,
+          isActive: u.isActive,
+          organizationId: u.organizationId,
+          organizationName: u.organization?.name || 'No Organization',
+          createdAt: u.createdAt,
+          lastLogin: u.lastLogin
+        })),
+        organizations: allOrganizations.map(o => ({
+          id: o.id,
+          name: o.name,
+          displayName: o.displayName
+        }))
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error checking users:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 export default router;
