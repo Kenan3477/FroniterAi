@@ -88,6 +88,7 @@ async function migrateProductionDatabase() {
       where: { id: '550e8400-e29b-41d4-a716-446655440004' },
       create: {
         id: '550e8400-e29b-41d4-a716-446655440004',
+        campaignId: 'dac-campaign-production',
         name: 'DAC',
         description: 'Database Access Campaign for testing and demonstrations',
         organizationId: userOrgId,
@@ -96,6 +97,7 @@ async function migrateProductionDatabase() {
         updatedAt: new Date()
       },
       update: {
+        campaignId: 'dac-campaign-production',
         name: 'DAC',
         description: 'Database Access Campaign for testing and demonstrations',
         organizationId: userOrgId,
