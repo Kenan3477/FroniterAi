@@ -8,7 +8,9 @@ import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
 import LiveCallsModule from '@/components/dashboard/LiveCallsModule';
-import { kpiApi } from '@/services/kpiApi';
+import AdaptiveDashboardQuickActions from '@/components/dashboard/AdaptiveDashboardQuickActions';
+import { UniversalNavigationTrackingWrapper } from '@/components/dashboard/UniversalNavigationTrackingWrapper';
+import { kpiApi, DashboardStats } from '@/services/kpiApi';
 import { demoDataService, DemoStats } from '@/services/demoDataService';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
@@ -509,46 +511,8 @@ function DashboardContent() {
             </div>
           )}
 
-          <div className="theme-card shadow-sm rounded-lg">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold theme-text-primary mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
-                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
-                    showPreviewBanner 
-                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
-                      : 'btn-primary'
-                  }`}
-                  disabled={showPreviewBanner}
-                >
-                  {showPreviewBanner ? '🔒 Start New Campaign (Sign In Required)' : 'Start New Campaign'}
-                </button>
-                <button 
-                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
-                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
-                    showPreviewBanner 
-                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
-                      : 'btn-secondary'
-                  }`}
-                  disabled={showPreviewBanner}
-                >
-                  {showPreviewBanner ? '🔒 Import Contacts (Sign In Required)' : 'Import Contacts'}
-                </button>
-                <button 
-                  onClick={() => showPreviewBanner ? window.location.href = '/login' : null}
-                  className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
-                    showPreviewBanner 
-                      ? 'theme-bg-secondary theme-text-secondary cursor-not-allowed theme-border border' 
-                      : 'btn-ghost'
-                  }`}
-                  disabled={showPreviewBanner}
-                >
-                  {showPreviewBanner ? '🔒 View Reports (Sign In Required)' : 'View Reports'}
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* Adaptive Quick Actions - Personalized based on user navigation patterns */}
+          <AdaptiveDashboardQuickActions />
         </div>
 
         {/* Performance Chart Section */}
@@ -593,6 +557,7 @@ export default function Dashboard() {
         </div>
       </MainLayout>
     }>
+      <UniversalNavigationTrackingWrapper />
       <DashboardContent />
     </Suspense>
   );
