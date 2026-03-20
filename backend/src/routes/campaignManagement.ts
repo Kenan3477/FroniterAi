@@ -35,6 +35,14 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
     const user = (req as any).user;
     const organizationFilter = getOrganizationFilter(user);
     
+    console.log('🔍 Campaign fetch debug:', {
+      username: user.username,
+      role: user.role,
+      organizationId: user.organizationId,
+      organizationFilter,
+      isSystemAdmin: user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+    });
+    
     // For ADMIN and SUPER_ADMIN users, allow access without organization requirement
     const isSystemAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
     if (!organizationFilter.organizationId && !isSystemAdmin) {
@@ -50,6 +58,8 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
     if (organizationFilter.organizationId && !isSystemAdmin) {
       where.organizationId = organizationFilter.organizationId;
     }
+    
+    console.log('🔍 Database query where clause:', where);
     
     if (status) {
       where.status = status;
@@ -74,6 +84,11 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
       orderBy: {
         updatedAt: 'desc'
       }
+    });
+
+    console.log('🔍 Raw campaigns from database:', campaigns.length);
+    campaigns.forEach((campaign, idx) => {
+      console.log(`  ${idx + 1}. ${campaign.name} (Status: ${campaign.status}, Org: ${campaign.organizationId})`);
     });
 
     // Transform to match frontend interface and filter out deleted campaigns
@@ -149,6 +164,11 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
     const limitNumber = parseInt(limit as string) || 20;
     const offset = (pageNumber - 1) * limitNumber;
     const paginatedCampaigns = transformedCampaigns.slice(offset, offset + limitNumber);
+
+    console.log('🔍 Final campaign results:', transformedCampaigns.length, 'campaigns');
+    transformedCampaigns.forEach((campaign, idx) => {
+      console.log(`  ${idx + 1}. ${campaign.name} (Status: ${campaign.status})`);
+    });
 
     // Support both response formats for backward compatibility
     if (page || limit) {
