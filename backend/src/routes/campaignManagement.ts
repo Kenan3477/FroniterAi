@@ -13,16 +13,22 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
   try {
     const user = (req as any).user;
     const organizationFilter = getOrganizationFilter(user);
-    if (!organizationFilter.organizationId) {
+    
+    // For ADMIN and SUPER_ADMIN users, allow access without organization requirement
+    const isSystemAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    if (!organizationFilter.organizationId && !isSystemAdmin) {
       return res.status(403).json({ error: 'Organization access required' });
     }
 
     const { status, category, type, search, page, limit } = req.query;
 
     // Build where clause for filtering
-    const where: any = {
-      ...organizationFilter  // Apply organization filter
-    };
+    const where: any = {};
+    
+    // Only apply organization filter if user has an organization AND is not a system admin
+    if (organizationFilter.organizationId && !isSystemAdmin) {
+      where.organizationId = organizationFilter.organizationId;
+    }
     
     if (status) {
       where.status = status;
@@ -49,8 +55,10 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
       }
     });
 
-    // Transform to match frontend interface
-    let transformedCampaigns = campaigns.map(campaign => ({
+    // Transform to match frontend interface and filter out deleted campaigns
+    let transformedCampaigns = campaigns
+      .filter(campaign => !campaign.name?.startsWith('[DELETED]'))
+      .map(campaign => ({
       id: campaign.id,
       campaignId: campaign.campaignId,
       name: campaign.name,
