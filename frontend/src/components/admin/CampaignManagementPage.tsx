@@ -178,6 +178,19 @@ const CampaignManagementPage: React.FC = () => {
 
   // Real-time event system integration
   const { connectionStatus, connect } = useEventSystem();
+
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
+    return fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers
+      }
+    });
+  };
   const campaignEvents = useCampaignEvents();
   const systemNotifications = useSystemNotifications();
   
@@ -633,20 +646,17 @@ const CampaignManagementPage: React.FC = () => {
       console.log('🔍 CampaignManagementPage - Starting fetchData...');
       
       const [campaignsResponse, templatesResponse, statsResponse, inboundNumbersResponse, dataListsResponse] = await Promise.all([
-        fetch('/api/admin/campaign-management/campaigns'),
-        fetch('/api/admin/campaign-management/templates'),
-        fetch('/api/admin/campaign-management/stats'),
-        fetch('/api/voice/inbound-numbers'),
-        fetch('/api/admin/campaign-management/data-lists')
+        authenticatedFetch('/api/admin/campaign-management/campaigns'),
+        authenticatedFetch('/api/admin/campaign-management/templates'),
+        authenticatedFetch('/api/admin/campaign-management/stats'),
+        authenticatedFetch('/api/voice/inbound-numbers'),
+        authenticatedFetch('/api/admin/campaign-management/data-lists')
       ]);
 
       // Debug: Compare with UserManagement call
       console.log('🔍 CampaignManagementPage - Making comparison call like UserManagement...');
-      const comparisonResponse = await fetch('/api/admin/campaign-management/campaigns', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const comparisonResponse = await authenticatedFetch('/api/admin/campaign-management/campaigns', {
+        credentials: 'include'
       });
       
       const comparisonData = await comparisonResponse.json();
@@ -721,11 +731,8 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleCreateTemplate = async () => {
     try {
-      const response = await fetch('/api/admin/campaign-management/templates', {
+      const response = await authenticatedFetch('/api/admin/campaign-management/templates', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(templateForm),
       });
 
@@ -750,11 +757,8 @@ const CampaignManagementPage: React.FC = () => {
 
   const handleCreateCampaign = async () => {
     try {
-      const response = await fetch('/api/admin/campaign-management/campaigns', {
+      const response = await authenticatedFetch('/api/admin/campaign-management/campaigns', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(campaignForm),
       });
 
