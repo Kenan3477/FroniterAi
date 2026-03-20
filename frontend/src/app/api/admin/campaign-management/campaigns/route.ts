@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Forward authentication headers from the client request
+    const authHeader = request.headers.get('Authorization');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+    
     // Check if we're in local development mode - if backend fails, return mock data
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         signal: AbortSignal.timeout(3000) // 3 second timeout
       });
       
@@ -76,11 +86,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    // Forward authentication headers from the client request
+    const authHeader = request.headers.get('Authorization');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+    
     const response = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
