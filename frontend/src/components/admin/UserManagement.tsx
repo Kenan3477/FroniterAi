@@ -278,7 +278,12 @@ export default function UserManagement() {
       if (userCampaignsRes.ok) {
         const userCampaignsData = await userCampaignsRes.json();
         console.log('🔍 UserManagement - User campaigns from API:', userCampaignsData);
-        setUserCampaigns(userCampaignsData.data || []);
+        // Backend returns { success: true, data: { assignments } }
+        const campaigns = userCampaignsData.data?.assignments || userCampaignsData.data || [];
+        console.log('🔍 UserManagement - Extracted user campaigns:', campaigns);
+        setUserCampaigns(campaigns);
+      } else {
+        console.error('❌ Failed to fetch user campaigns:', userCampaignsRes.status);
       }
 
       if (availableCampaignsRes.ok) {
@@ -972,7 +977,7 @@ export default function UserManagement() {
                             key={campaign.id}
                             className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded"
                           >
-                            <span className="text-sm text-gray-900">{campaign.name}</span>
+                            <span className="text-sm text-green-800 font-medium">{campaign.name}</span>
                             <button
                               onClick={() => unassignCampaign(campaign.campaignId)}
                               className="text-red-600 hover:text-red-800 text-xs"
@@ -1019,10 +1024,20 @@ export default function UserManagement() {
                         (campaign) => {
                           // Handle both campaignId and id fields for flexibility
                           const campaignIdentifier = campaign.campaignId || campaign.id;
-                          const isAssigned = userCampaigns.some(
-                            (assignment) => assignment.campaignId === campaignIdentifier
-                          );
+                          
+                          // Check if user is assigned to this campaign using multiple possible fields
+                          const isAssigned = userCampaigns.some((assignment) => {
+                            const assignmentId = assignment.campaignId || assignment.id;
+                            const match = assignmentId === campaignIdentifier;
+                            if (match) {
+                              console.log(`🎯 Found match: ${campaignIdentifier} is already assigned`);
+                            }
+                            return match;
+                          });
+                          
                           console.log(`Campaign ${campaignIdentifier} (${campaign.name}): assigned=${isAssigned}`);
+                          console.log(`  - Available campaign ID: ${campaignIdentifier}`);
+                          console.log(`  - User assignments: ${userCampaigns.map(a => a.campaignId || a.id).join(', ')}`);
                           return !isAssigned;
                         }
                       );
