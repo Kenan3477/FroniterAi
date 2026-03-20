@@ -9,7 +9,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/admin/campaign-management/campaigns
-router.get('/campaigns', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
+router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const organizationFilter = getOrganizationFilter(user);
@@ -171,7 +171,7 @@ router.get('/templates', async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/campaign-management/stats
-router.get('/stats', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
+router.get('/stats', authenticateToken, requirePermission('campaign.read'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const organizationFilter = getOrganizationFilter(user);
@@ -226,7 +226,7 @@ router.get('/stats', authenticateToken, requirePermission('campaigns.read'), asy
 });
 
 // GET /api/admin/campaign-management/data-lists - Get all available data lists
-router.get('/data-lists', authenticateToken, requirePermission('campaigns.read'), async (req: Request, res: Response) => {
+router.get('/data-lists', authenticateToken, requirePermission('campaign.read'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     
