@@ -12,7 +12,7 @@ import EnhancedAdaptiveQuickActions from '@/components/admin/EnhancedAdaptiveQui
 import DataManagementContent from '@/components/admin/DataManagementContent';
 import UserManagement from '@/components/admin/UserManagement';
 import ApiManagement from '@/components/admin/ApiManagement';
-import AppsIntegrations from '@/components/admin/AppsIntegrations';
+import AppsIntegrationsPageNew from '@/components/admin/AppsIntegrationsPageNew';
 import MultiTenantBusinessSettings from '@/components/admin/MultiTenantBusinessSettings';
 import CampaignManagementPage from '@/components/admin/CampaignManagementPage';
 import DoNotCallPage from '@/components/admin/DoNotCallPage';
@@ -615,7 +615,7 @@ export default function AdminPage() {
             ) : selectedSection === 'API' ? (
               <ApiManagement />
             ) : selectedSection === 'Apps and Integrations' ? (
-              <AppsIntegrations />
+              <AppsIntegrationsPageNew />
             ) : selectedSection === 'Business Settings' ? (
               <MultiTenantBusinessSettings />
             ) : selectedSection === 'Campaigns' ? (

@@ -73,6 +73,7 @@ model Contact {
   lockedAt          DateTime?
   lastAttempt       DateTime?
   nextAttempt       DateTime?
+  stripeCustomerId  String?              // Stripe customer reference
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   callKPIs          CallKPI[]
@@ -86,6 +87,7 @@ model Contact {
   sales             Sale[]
   tasks             Task[]
   workItems         WorkItem[]
+  paymentInteractions PaymentInteraction[]
 
   @@map("contacts")
 }
@@ -344,6 +346,7 @@ model CallRecord {
   // Advanced AI Analytics Relations
   callDisposition       CallDisposition?
   conversationAnalysis  ConversationAnalysis?
+  paymentInteractions   PaymentInteraction[]
 
   @@map("call_records")
 }
@@ -454,6 +457,7 @@ model User {
   // Enhanced audit relationships
   userActivityLogs                                         UserActivityLog[]        @relation("UserActivityLogs")
   suspiciousAlerts                                         SuspiciousActivityAlert[] @relation("UserSuspiciousAlerts")
+  paymentInteractions                                      PaymentInteraction[]     @relation("AgentPaymentInteractions")
 
   @@map("users")
 }
@@ -638,6 +642,10 @@ model Organization {
   diallerMetrics         DiallerMetrics[]
   campaignAnalytics      CampaignAnalytics[]
   complianceEvents       ComplianceEvent[]
+  
+  // Stripe Integration
+  stripeConfiguration    StripeConfiguration?
+  integrations           Integration[]
 
   @@map("organizations")
 }
@@ -955,24 +963,32 @@ model ChannelActivity {
 }
 
 model Integration {
-  id            String           @id @default(cuid())
-  name          String
-  type          String
-  description   String?
-  provider      String
-  isActive      Boolean          @default(true)
-  configuration String
-  credentials   String?
-  lastSync      DateTime?
-  syncStatus    String           @default("inactive")
-  errorMessage  String?
-  createdBy     Int
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  syncLogs      IntegrationLog[]
-  creator       User             @relation("UserIntegrations", fields: [createdBy], references: [id])
-  webhooks      Webhook[]
+  id              String           @id @default(cuid())
+  name            String           // e.g., 'stripe', 'twilio', etc.
+  displayName     String           // e.g., 'Stripe Payments'
+  description     String?
+  type            String
+  provider        String
+  isActive        Boolean          @default(true)
+  isEnabled       Boolean          @default(false)
+  organizationId  String?          // Organization-specific integration
+  configuration   String?          // JSON configuration
+  credentials     String?          // Encrypted credentials
+  lastSync        DateTime?
+  syncStatus      String           @default("inactive")
+  errorMessage    String?
+  enabledBy       String?          // User ID who enabled it
+  enabledAt       DateTime?
+  createdBy       Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  syncLogs        IntegrationLog[]
+  creator         User             @relation("UserIntegrations", fields: [createdBy], references: [id])
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  webhooks        Webhook[]
 
+  @@unique([name, organizationId])
+  @@index([organizationId])
   @@map("integrations")
 }
 
@@ -2032,4 +2048,64 @@ enum Severity {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+// Apps & Integrations Management
+model StripeConfiguration {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  publishableKey        String?      // Encrypted
+  secretKey             String?      // Encrypted
+  webhookSecret         String?      // Encrypted
+  isTestMode            Boolean      @default(true)
+  enabledFeatures       String?      // JSON array: ['payments', 'subscriptions', 'refunds']
+  complianceSettings    String?      // JSON: PCI/regulatory settings
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@map("stripe_configurations")
+}
+
+// Enhanced Contact model for Stripe integration
+model PaymentInteraction {
+  id              String        @id @default(cuid())
+  callId          String?       // Optional - may be outside call context
+  agentId         Int           // Changed to Int to match User.id type
+  customerId      String
+  stripeSessionId String?
+  stripeCustomerId String?
+  action          PaymentAction
+  amount          Float?        // For completed payments (in cents)
+  currency        String?       // Payment currency
+  status          String?       // Payment status
+  metadata        String?       // JSON: Additional payment context
+  ipAddress       String?       // For compliance tracking
+  userAgent       String?       // Browser/device info
+  timestamp       DateTime      @default(now())
+  
+  call            CallRecord?   @relation(fields: [callId], references: [id])
+  customer        Contact       @relation(fields: [customerId], references: [contactId])
+  agent           User          @relation("AgentPaymentInteractions", fields: [agentId], references: [id])
+  
+  @@index([callId])
+  @@index([customerId])
+  @@index([agentId])
+  @@index([timestamp])
+  @@map("payment_interactions")
+}
+
+enum PaymentAction {
+  PORTAL_OPENED
+  PAYMENT_COMPLETED
+  PAYMENT_FAILED
+  PAYMENT_CANCELLED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_UPDATED
+  SUBSCRIPTION_CANCELLED
+  REFUND_PROCESSED
+  REFUND_FAILED
+  CUSTOMER_CREATED
+  CUSTOMER_UPDATED
 }

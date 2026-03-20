@@ -32,7 +32,6 @@ interface SidebarProps {
 const allNavigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
   { name: 'Work', href: '/work', icon: BriefcaseIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
-  { name: 'AI Features', href: '/ai-dashboard', icon: CpuChipIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
   { name: 'Contacts', href: '/contacts', icon: UsersIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
   { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN'] },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN'] },
