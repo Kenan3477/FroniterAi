@@ -20,13 +20,15 @@ async function debugCampaigns() {
         id: true,
         campaignId: true,
         name: true,
-        status: true
+        status: true,
+        dialMethod: true,
+        speed: true
       }
     });
     
     console.log(`📊 Found ${campaigns.length} campaigns:`);
     campaigns.forEach(campaign => {
-      console.log(`  - ID: ${campaign.id} | campaignId: "${campaign.campaignId}" | name: "${campaign.name}" | status: ${campaign.status}`);
+      console.log(`  - ID: ${campaign.id} | campaignId: "${campaign.campaignId}" | name: "${campaign.name}" | status: ${campaign.status} | dialMethod: "${campaign.dialMethod}" | speed: ${campaign.speed}`);
     });
     
     // Check if specific campaignId "2" exists

@@ -8,6 +8,27 @@ import { authenticateToken, requirePermission, organizationAwareAuth, getOrganiz
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Helper function to map database dial method values to frontend expected values
+function mapDialMethod(dbDialMethod: string): 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP' {
+  switch (dbDialMethod?.toUpperCase()) {
+    case 'PROGRESSIVE':
+    case 'PREDICTIVE':
+    case 'AUTODIAL':
+      return 'AUTODIAL';
+    case 'MANUAL_PREVIEW':
+    case 'PREVIEW':
+      return 'MANUAL_PREVIEW';
+    case 'MANUAL':
+    case 'MANUAL_DIAL':
+      return 'MANUAL_DIAL';
+    case 'SKIP':
+      return 'SKIP';
+    default:
+      // Default to MANUAL_DIAL for unknown values
+      return 'MANUAL_DIAL';
+  }
+}
+
 // GET /api/admin/campaign-management/campaigns
 router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), async (req: Request, res: Response) => {
   try {
@@ -68,7 +89,7 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
       category: 'SALES' as const, // Default category
       type: 'OUTBOUND' as const, // Default type
       dialingMode: 'PROGRESSIVE' as const, // Map from dialMethod
-      dialMethod: campaign.dialMethod as 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP',
+      dialMethod: mapDialMethod(campaign.dialMethod),
       dialSpeed: campaign.speed,
       maxCallsPerAgent: campaign.maxCallsPerAgent || 1,
       maxAttemptsPerRecord: 3, // Default value

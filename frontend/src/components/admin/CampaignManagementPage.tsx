@@ -1758,24 +1758,20 @@ const CampaignManagementPage: React.FC = () => {
                             </Select>
                           </div>
 
-                          {/* Dial Speed - 2 cols (only for AUTODIAL) */}
+                          {/* Dial Speed - 2 cols (show for all dial methods) */}
                           <div className="col-span-2">
-                            {campaign.dialMethod === 'AUTODIAL' ? (
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 theme-text-secondary" />
-                                <Slider
-                                  value={[Math.max(1, Math.min(4, campaign.dialSpeed || 2))]}
-                                  onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
-                                  min={1}
-                                  max={4}
-                                  step={1}
-                                  className="flex-1 h-4"
-                                />
-                                <span className="text-xs w-8">{Math.max(1, Math.min(4, campaign.dialSpeed || 2))}</span>
-                              </div>
-                            ) : (
-                              <div className="text-xs theme-text-secondary">-</div>
-                            )}
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 theme-text-secondary" />
+                              <Slider
+                                value={[Math.max(1, Math.min(4, campaign.dialSpeed || 2))]}
+                                onValueChange={(values) => handleDialSpeedChange(campaign.id, values[0])}
+                                min={1}
+                                max={4}
+                                step={0.1}
+                                className="flex-1 h-4"
+                              />
+                              <span className="text-xs w-8">{(Math.max(1, Math.min(4, campaign.dialSpeed || 2))).toFixed(1)}</span>
+                            </div>
                           </div>
 
                           {/* Agents - 1 col */}
