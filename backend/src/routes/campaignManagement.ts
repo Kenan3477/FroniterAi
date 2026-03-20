@@ -77,6 +77,14 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
             agent: true
           }
         },
+        userAssignments: {
+          where: {
+            isActive: true  // Only include active user assignments
+          },
+          include: {
+            user: true
+          }
+        },
         _count: {
           select: {
             interactions: true,
@@ -128,16 +136,25 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
       priority: 1,
       approvalStatus: 'NOT_REQUIRED' as const,
       isActive: campaign.status === 'Active',
-      agentCount: campaign.agentAssignments.length,
+      agentCount: campaign.agentAssignments.length + campaign.userAssignments.length,
       predictiveDialingEnabled: false,
       maxConcurrentCalls: campaign.maxCallsPerAgent || 1,
       createdAt: campaign.createdAt.toISOString(),
       updatedAt: campaign.updatedAt.toISOString(),
-      assignedAgents: campaign.agentAssignments.map(assignment => ({
-        id: assignment.agent.agentId,
-        name: `${assignment.agent.firstName} ${assignment.agent.lastName}`,
-        email: assignment.agent.email
-      })),
+      assignedAgents: [
+        // Include agent assignments
+        ...campaign.agentAssignments.map(assignment => ({
+          id: assignment.agent.agentId,
+          name: `${assignment.agent.firstName} ${assignment.agent.lastName}`,
+          email: assignment.agent.email
+        })),
+        // Include user assignments
+        ...campaign.userAssignments.map(assignment => ({
+          id: assignment.user.id.toString(), // Convert to string to match frontend expectation
+          name: `${assignment.user.firstName} ${assignment.user.lastName}`,
+          email: assignment.user.email
+        }))
+      ],
       dataLists: [], // Will be populated when data list integration is implemented
       _count: {
         interactions: campaign._count.interactions,

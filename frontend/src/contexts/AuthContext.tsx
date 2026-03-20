@@ -40,6 +40,7 @@ interface AuthContextType {
   updateAgentStatus: (status: string) => Promise<{ success: boolean; message?: string; }>;
   checkAuth: () => Promise<void>;
   refreshCampaigns: () => Promise<void>;
+  getAuthHeaders: () => Record<string, string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -683,6 +684,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('omnivox_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -701,7 +715,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateAgentStatus,
       checkAuth,
       loading, 
-      isAuthenticated 
+      isAuthenticated,
+      getAuthHeaders
     }}>
       {children}
     </AuthContext.Provider>
