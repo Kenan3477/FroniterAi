@@ -10,54 +10,30 @@ async function debugCampaigns() {
   });
 
   try {
-    console.log('🔍 Checking what campaigns exist in the database...');
+    console.log('🔍 Checking data lists in the database...');
     
-    const campaigns = await prisma.campaign.findMany({
-      where: {
-        status: { in: ['Active', 'ACTIVE'] }
-      },
+    const dataLists = await prisma.dataList.findMany({
       select: {
         id: true,
-        campaignId: true,
+        listId: true,
         name: true,
-        status: true,
-        dialMethod: true,
-        speed: true
+        active: true,
+        totalContacts: true,
+        createdAt: true
       }
     });
     
-    console.log(`📊 Found ${campaigns.length} campaigns:`);
-    campaigns.forEach(campaign => {
-      console.log(`  - ID: ${campaign.id} | campaignId: "${campaign.campaignId}" | name: "${campaign.name}" | status: ${campaign.status} | dialMethod: "${campaign.dialMethod}" | speed: ${campaign.speed}`);
+    console.log(`📊 Found ${dataLists.length} data lists:`);
+    dataLists.forEach(list => {
+      console.log(`  - ID: ${list.id} | listId: "${list.listId}" | name: "${list.name}" | active: ${list.active} | contacts: ${list.totalContacts}`);
     });
     
-    // Check if specific campaignId "2" exists
-    const campaign2 = await prisma.campaign.findUnique({
-      where: { campaignId: "2" }
-    });
-    
-    console.log(`\n🔍 Looking for campaignId "2":`, campaign2 ? 'FOUND' : 'NOT FOUND');
-    
-    if (campaign2) {
-      console.log('Campaign "2" details:', campaign2);
+    if (dataLists.length === 0) {
+      console.log('\n❌ No data lists found in database');
     }
 
-    // Check what UserCampaignAssignments exist
-    const assignments = await prisma.userCampaignAssignment.findMany({
-      include: {
-        user: {
-          select: { id: true, email: true }
-        }
-      }
-    });
-    
-    console.log(`\n📋 Found ${assignments.length} user campaign assignments:`);
-    assignments.forEach(assignment => {
-      console.log(`  - User ${assignment.userId} (${assignment.user.email}) assigned to campaign "${assignment.campaignId}" | active: ${assignment.isActive}`);
-    });
-
   } catch (error) {
-    console.error('❌ Database query failed:', error);
+    console.error('❌ Query failed:', error.message);
   } finally {
     await prisma.$disconnect();
   }

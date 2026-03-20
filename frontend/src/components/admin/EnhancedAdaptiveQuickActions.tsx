@@ -226,6 +226,53 @@ export default function EnhancedAdaptiveQuickActions({
 
     } catch (error) {
       console.error('Error loading enhanced quick actions:', error);
+      // Fallback to default actions if API calls fail
+      setQuickActions([
+        {
+          id: 'campaigns',
+          title: 'Campaigns',
+          description: 'Manage your campaigns',
+          icon: 'MegaphoneIcon',
+          href: '/admin#campaigns',
+          section: 'admin',
+          frequency: 0,
+          category: 'navigation' as const,
+          color: 'blue'
+        },
+        {
+          id: 'users',
+          title: 'User Management',
+          description: 'Manage users and permissions',
+          icon: 'UsersIcon',
+          href: '/admin#users',
+          section: 'admin',
+          frequency: 0,
+          category: 'navigation' as const,
+          color: 'green'
+        },
+        {
+          id: 'data-management',
+          title: 'Data Management',
+          description: 'Manage contact lists and data',
+          icon: 'CircleStackIcon',
+          href: '/admin#data-management',
+          section: 'admin',
+          frequency: 0,
+          category: 'navigation' as const,
+          color: 'purple'
+        },
+        {
+          id: 'reports',
+          title: 'Reports',
+          description: 'View analytics and reports',
+          icon: 'ChartBarIcon',
+          href: '/admin#reports',
+          section: 'admin',
+          frequency: 0,
+          category: 'navigation' as const,
+          color: 'orange'
+        }
+      ]);
     } finally {
       setLoading(false);
     }

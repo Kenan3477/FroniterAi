@@ -259,12 +259,15 @@ router.get('/data-lists', authenticateToken, requirePermission('campaign.read'),
   try {
     const user = (req as any).user;
     
-    // For development/testing - if no organizationId, get all data lists
+    // For ADMIN and SUPER_ADMIN users, allow access without organization requirement
+    const isSystemAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    
+    // Build where clause - only apply organization filter if user has organization AND is not system admin
     let whereClause = {};
-    if (user.organizationId) {
+    if (user.organizationId && !isSystemAdmin) {
       whereClause = { organizationId: user.organizationId };
     } else {
-      console.warn('⚠️ User has no organizationId, returning all data lists for development');
+      console.log('🔓 Admin user accessing all data lists');
     }
 
     const dataLists = await prisma.dataList.findMany({
@@ -278,6 +281,8 @@ router.get('/data-lists', authenticateToken, requirePermission('campaign.read'),
       },
       orderBy: {
         name: 'asc'
+      }
+    });
       }
     });
 
