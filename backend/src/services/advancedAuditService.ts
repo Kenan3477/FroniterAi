@@ -72,7 +72,7 @@ export class AdvancedAuditService {
       // Store activity log
       await prisma.userActivityLog.create({
         data: {
-          userId: data.userId,
+          userId: parseInt(data.userId), // Convert string to int
           organizationId: data.organizationId,
           sessionId: data.sessionId,
           activityType: data.activityType,
@@ -95,7 +95,7 @@ export class AdvancedAuditService {
 
       // Emit real-time update for organization admins
       if (this.wsService) {
-        this.wsService.emitToOrganization(data.organizationId, 'user-activity-tracked', {
+        this.wsService.sendToOrganization(data.organizationId, 'user-activity-tracked', {
           userId: data.userId,
           activityType: data.activityType,
           pagePath: data.pagePath,
@@ -259,7 +259,7 @@ export class AdvancedAuditService {
           detectionLogic: async (activities) => {
             const recentClicks = await prisma.userActivityLog.count({
               where: {
-                userId: data.userId,
+                userId: parseInt(data.userId), // Convert string to int
                 activityType: 'click',
                 timestamp: {
                   gte: new Date(Date.now() - 30000) // Last 30 seconds
@@ -278,7 +278,7 @@ export class AdvancedAuditService {
             if (data.activityType === 'data_export') {
               const recentExports = await prisma.userActivityLog.count({
                 where: {
-                  userId: data.userId,
+                  userId: parseInt(data.userId), // Convert string to int
                   organizationId: data.organizationId,
                   activityType: 'data_export',
                   timestamp: {
@@ -299,7 +299,7 @@ export class AdvancedAuditService {
           detectionLogic: async (activities) => {
             if (data.pagePath.includes('/admin') || data.pagePath.includes('/settings')) {
               const user = await prisma.user.findUnique({
-                where: { id: data.userId },
+                where: { id: parseInt(data.userId) }, // Convert string to int
                 select: { role: true }
               });
               return user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN';
@@ -354,7 +354,7 @@ export class AdvancedAuditService {
       // Check if similar alert exists in the last hour
       const existingAlert = await prisma.suspiciousActivityAlert.findFirst({
         where: {
-          userId: alertData.userId,
+          userId: parseInt(alertData.userId), // Convert string to int
           organizationId: alertData.organizationId,
           alertType: alertData.alertType,
           triggeredAt: {
@@ -372,7 +372,7 @@ export class AdvancedAuditService {
       // Create new alert
       const alert = await prisma.suspiciousActivityAlert.create({
         data: {
-          userId: alertData.userId,
+          userId: parseInt(alertData.userId), // Convert string to int
           organizationId: alertData.organizationId,
           alertType: alertData.alertType,
           severity: alertData.severity,
@@ -386,7 +386,7 @@ export class AdvancedAuditService {
 
       // Emit real-time alert to organization admins
       if (this.wsService) {
-        this.wsService.emitToOrganization(alertData.organizationId, 'suspicious-activity-alert', {
+        this.wsService.sendToOrganization(alertData.organizationId, 'suspicious-activity-alert', {
           alertId: alert.id,
           userId: alertData.userId,
           alertType: alertData.alertType,

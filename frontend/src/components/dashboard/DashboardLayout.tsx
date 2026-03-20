@@ -18,6 +18,7 @@ import {
   UserGroupIcon,
   CogIcon,
   QuestionMarkCircleIcon,
+  CpuChipIcon,
 } from '@heroicons/react/24/outline';
 
 // Create a query client
@@ -45,6 +46,13 @@ const DashboardLayout = () => {
           <nav className="flex flex-col space-y-4">
             <button className="p-3 rounded-lg bg-slate-600 text-white">
               <HomeIcon className="w-5 h-5" />
+            </button>
+            <button 
+              className="p-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700"
+              onClick={() => window.location.href = '/ai-dashboard'}
+              title="AI Features"
+            >
+              <CpuChipIcon className="w-5 h-5" />
             </button>
             <button className="p-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700">
               <PhoneIcon className="w-5 h-5" />

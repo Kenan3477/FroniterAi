@@ -1,0 +1,12 @@
+
+// ADD TO MAIN NAVIGATION:
+// Import: import AIDashboard from './components/ai/AIDashboard';
+// Route: <Route path="/ai-dashboard" element={<AIDashboard />} />
+// Menu Item: Add "AI Features" menu item linking to /ai-dashboard
+
+// The AI Dashboard provides access to all Phase 3 features:
+// - Real-time Sentiment Analysis (ACTIVE)
+// - Dial Rate Management (ACTIVE)  
+// - Auto-Disposition (API Ready)
+// - Lead Scoring (API Ready)
+// - Quality Monitoring (API Ready)

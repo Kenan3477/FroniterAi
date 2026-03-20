@@ -492,11 +492,7 @@ router.post('/listen-live', requireRole('ADMIN', 'SUPER_ADMIN'), async (req: Req
     // Generate Twilio access token for live monitoring
     const twilioService = await import('../services/twilioService');
     const accessToken = await twilioService.generateAccessToken(
-      `monitor_${user.userId}_${Date.now()}`, // identity
-      { 
-        allowOutgoing: false, // Monitor only, no outgoing calls
-        allowIncoming: false  // Monitor only, no incoming calls
-      }
+      `monitor_${user.userId}_${Date.now()}` // identity for monitoring access
     );
 
     // Log monitoring action for audit trail

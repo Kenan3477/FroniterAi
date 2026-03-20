@@ -185,7 +185,20 @@ export const recordCallKPI = async (req: Request, res: Response) => {
 
     console.log(`📝 Recording KPI for call ${kpiData.callId}`);
 
-    await realKPIService.recordCallKPI(kpiData);
+    // Ensure all required fields are present for the service
+    const completeKpiData = {
+      campaignId: kpiData.campaignId,
+      agentId: kpiData.agentId,
+      contactId: kpiData.contactId,
+      callId: kpiData.callId,
+      disposition: kpiData.disposition,
+      dispositionCategory: kpiData.dispositionCategory,
+      callDuration: kpiData.callDuration,
+      outcome: kpiData.outcome,
+      notes: kpiData.notes || ''
+    };
+
+    await realKPIService.recordCallKPI(completeKpiData);
 
     res.json({
       success: true,

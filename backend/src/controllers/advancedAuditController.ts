@@ -68,10 +68,24 @@ export const trackUserActivity = [
       const activityData: ActivityTrackingData = {
         userId: user.id,
         organizationId,
-        sessionId: req.sessionID || req.headers['x-session-id'] as string || 'unknown',
+        sessionId: (req as any).sessionID || req.headers['x-session-id'] as string || 'unknown',
         ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.headers['user-agent'],
-        ...validatedData
+        userAgent: req.headers['user-agent'] || 'unknown',
+        activityType: validatedData.activityType || 'page_view',
+        pagePath: validatedData.pagePath || req.path,
+        ...(validatedData.pageTitle && { pageTitle: validatedData.pageTitle }),
+        ...(validatedData.timeOnPage && { timeOnPage: validatedData.timeOnPage }),
+        ...(validatedData.elementType && { elementType: validatedData.elementType }),
+        ...(validatedData.elementId && { elementId: validatedData.elementId }),
+        ...(validatedData.clickData?.x !== undefined && validatedData.clickData?.y !== undefined && {
+          clickData: {
+            x: validatedData.clickData.x,
+            y: validatedData.clickData.y,
+            ...(validatedData.clickData.elementText && { elementText: validatedData.clickData.elementText }),
+            ...(validatedData.clickData.elementClass && { elementClass: validatedData.clickData.elementClass })
+          }
+        }),
+        ...(validatedData.metadata && { metadata: validatedData.metadata })
       };
 
       await advancedAuditService.trackUserActivity(activityData);
@@ -108,7 +122,7 @@ export const trackUserActivity = [
 export const getOrganizationActivityLogs = [
   authenticateToken,
   requirePermission('audit.read'),
-  requireOrganizationAccess('read'),
+  requireOrganizationAccess(false),
   auditOrganizationAction('audit.activity_logs.view'),
   async (req: Request, res: Response) => {
     try {
@@ -162,7 +176,7 @@ export const getOrganizationActivityLogs = [
 export const getSuspiciousActivityAlerts = [
   authenticateToken,
   requirePermission('audit.read'),
-  requireOrganizationAccess('read'),
+  requireOrganizationAccess(false),
   auditOrganizationAction('audit.suspicious_alerts.view'),
   async (req: Request, res: Response) => {
     try {
@@ -216,7 +230,7 @@ export const getSuspiciousActivityAlerts = [
 export const updateAlertReviewStatus = [
   authenticateToken,
   requirePermission('audit.admin'),
-  requireOrganizationAccess('admin'),
+  requireOrganizationAccess(true),
   auditOrganizationAction('audit.alert.review'),
   async (req: Request, res: Response) => {
     try {
@@ -263,7 +277,7 @@ export const updateAlertReviewStatus = [
 export const getUserBehaviorAnalytics = [
   authenticateToken,
   requirePermission('analytics.read'),
-  requireOrganizationAccess('read'),
+  requireOrganizationAccess(false),
   auditOrganizationAction('audit.analytics.user_behavior.view'),
   async (req: Request, res: Response) => {
     try {
@@ -308,7 +322,7 @@ export const getUserBehaviorAnalytics = [
 export const exportAuditLogs = [
   authenticateToken,
   requirePermission('audit.export'),
-  requireOrganizationAccess('read'),
+  requireOrganizationAccess(false),
   auditOrganizationAction('audit.export'),
   async (req: Request, res: Response) => {
     try {

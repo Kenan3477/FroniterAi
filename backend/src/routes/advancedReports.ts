@@ -11,7 +11,7 @@ import {
   getAdvancedAgentMetrics,
   getLeadScoringAnalytics
 } from '../controllers/advancedReportsController';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ const router = express.Router();
 // AUTHENTICATION MIDDLEWARE
 // ==========================================
 // All advanced reports require authentication
-router.use(authenticateToken);
+router.use(authenticate);
 
 // ==========================================
 // PREDICTIVE DIALLER ANALYTICS

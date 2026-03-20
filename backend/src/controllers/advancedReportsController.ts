@@ -4,6 +4,27 @@
  */
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import {
+  calculateAgentMetrics,
+  generateCoachingInsights,
+  assessBurnoutRisk,
+  calculateTeamComparison,
+  identifyTrainingNeeds,
+  calculatePerformanceTrends,
+  identifyTopPerformers,
+  analyzeScoreDistribution,
+  analyzeConversionCorrelation,
+  prioritizeLeads,
+  calculateModelPerformance,
+  analyzeIndustryPerformance,
+  recommendScoringAdjustments,
+  extractCommonObjections,
+  identifySuccessPatterns,
+  identifyImprovementAreas,
+  type CallRecord,
+  type AgentMetrics,
+  type LeadAnalysis
+} from '../utils/reportingHelpers';
 
 const prisma = new PrismaClient();
 
@@ -488,7 +509,7 @@ export const getAdvancedAgentMetrics = async (req: Request, res: Response) => {
 
     // Calculate performance metrics for each agent
     const agentMetrics = await Promise.all(
-      Object.entries(agentPerformance).map(async ([agentId, calls]) => {
+      Object.entries(agentPerformance).map(async ([agentId, calls]: [string, CallRecord[]]) => {
         const metrics = calculateAgentMetrics(calls);
         const coachingInsights = generateCoachingInsights(calls);
         const burnoutRisk = assessBurnoutRisk(calls);
@@ -725,11 +746,4 @@ function extractTopRecommendations(analyses: any[]) {
 // Additional helper functions would continue here...
 // [Due to length constraints, I'm showing the pattern]
 
-export {
-  getDiallerMetrics,
-  getConversationIntelligence,
-  getCampaignOptimization,
-  getComplianceReport,
-  getAdvancedAgentMetrics,
-  getLeadScoringAnalytics
-};
+// Export all functions - removing duplicate export block

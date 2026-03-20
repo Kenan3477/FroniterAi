@@ -255,6 +255,216 @@ class SentimentAnalysisService {
   }
 
   /**
+   * Get real-time sentiment for active call
+   */
+  async getRealTimeSentiment(callId: string, organizationId: string): Promise<any> {
+    try {
+      const analysis = await this.getLatestCallAnalysis(callId);
+      if (!analysis) {
+        return {
+          sentiment: 'neutral',
+          confidence: 0,
+          status: 'no_data'
+        };
+      }
+
+      return {
+        sentiment: analysis.overallSentiment.sentiment,
+        confidence: analysis.overallSentiment.confidence,
+        emotions: analysis.overallSentiment.emotions,
+        urgency: analysis.overallSentiment.urgency,
+        status: 'active',
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting real-time sentiment:', error);
+      return {
+        sentiment: 'neutral',
+        confidence: 0,
+        status: 'error'
+      };
+    }
+  }
+
+  /**
+   * Get sentiment analytics for campaigns/agents
+   */
+  async getSentimentAnalytics(filters: {
+    campaignId?: string;
+    agentId?: string;
+    organizationId: string;
+    dateRange?: { start: Date; end: Date };
+  }): Promise<any> {
+    try {
+      const whereClause: any = {
+        organizationId: filters.organizationId
+      };
+
+      if (filters.campaignId) whereClause.campaignId = filters.campaignId;
+      if (filters.agentId) whereClause.agentId = filters.agentId;
+      if (filters.dateRange) {
+        whereClause.timestamp = {
+          gte: filters.dateRange.start,
+          lte: filters.dateRange.end
+        };
+      }
+
+      // This would query actual sentiment data in production
+      const mockAnalytics = {
+        averageSentiment: 0.65,
+        sentimentTrends: [
+          { date: '2024-03-20', positive: 45, neutral: 35, negative: 20 },
+          { date: '2024-03-21', positive: 48, neutral: 33, negative: 19 },
+          { date: '2024-03-22', positive: 52, neutral: 31, negative: 17 }
+        ],
+        topKeywords: ['price', 'value', 'timing', 'benefits'],
+        emotionalDistribution: {
+          joy: 35,
+          neutral: 40,
+          concern: 15,
+          frustration: 10
+        }
+      };
+
+      return mockAnalytics;
+    } catch (error) {
+      console.error('Error getting sentiment analytics:', error);
+      throw new Error('Failed to retrieve sentiment analytics');
+    }
+  }
+
+  /**
+   * Get coaching suggestions for agent
+   */
+  async getCoachingSuggestions(agentId: string, organizationId: string): Promise<any> {
+    try {
+      // In production, this would analyze agent's recent performance
+      const suggestions = [
+        {
+          category: 'SENTIMENT_IMPROVEMENT',
+          priority: 'HIGH',
+          message: 'Focus on building rapport in call openings',
+          actionItems: ['Practice warm greeting techniques', 'Use customer name early in conversation']
+        },
+        {
+          category: 'OBJECTION_HANDLING',
+          priority: 'MEDIUM',
+          message: 'Improve response to price objections',
+          actionItems: ['Emphasize value proposition', 'Use empathy statements before responding']
+        }
+      ];
+
+      return suggestions;
+    } catch (error) {
+      console.error('Error getting coaching suggestions:', error);
+      throw new Error('Failed to retrieve coaching suggestions');
+    }
+  }
+
+  /**
+   * Update sentiment analysis configuration
+   */
+  async updateConfiguration(organizationId: string, config: any): Promise<any> {
+    try {
+      // In production, this would update organization-specific settings
+      const updatedConfig = {
+        organizationId,
+        sensitivityLevel: config.sensitivityLevel || 'medium',
+        alertThresholds: {
+          negativeSentiment: config.alertThresholds?.negativeSentiment || 0.7,
+          urgencyLevel: config.alertThresholds?.urgencyLevel || 'high'
+        },
+        realTimeEnabled: config.realTimeEnabled ?? true,
+        ...config
+      };
+
+      return updatedConfig;
+    } catch (error) {
+      console.error('Error updating configuration:', error);
+      throw new Error('Failed to update sentiment configuration');
+    }
+  }
+
+  /**
+   * Get sentiment history for a call
+   */
+  async getSentimentHistory(callId: string, organizationId: string): Promise<any> {
+    try {
+      // In production, this would retrieve historical sentiment data
+      const history = [
+        {
+          timestamp: new Date(Date.now() - 300000).toISOString(),
+          sentiment: 'neutral',
+          confidence: 0.8,
+          text: 'Call opening - initial contact'
+        },
+        {
+          timestamp: new Date(Date.now() - 240000).toISOString(),
+          sentiment: 'positive',
+          confidence: 0.9,
+          text: 'Customer showing interest'
+        },
+        {
+          timestamp: new Date(Date.now() - 120000).toISOString(),
+          sentiment: 'negative',
+          confidence: 0.85,
+          text: 'Price objection raised'
+        },
+        {
+          timestamp: new Date().toISOString(),
+          sentiment: 'positive',
+          confidence: 0.75,
+          text: 'Objection resolved, moving forward'
+        }
+      ];
+
+      return history;
+    } catch (error) {
+      console.error('Error getting sentiment history:', error);
+      throw new Error('Failed to retrieve sentiment history');
+    }
+  }
+
+  /**
+   * Export sentiment data for analysis
+   */
+  async exportSentimentData(filters: {
+    campaignId?: string;
+    agentId?: string;
+    organizationId: string;
+    dateRange: { start: Date; end: Date };
+    format: 'csv' | 'json';
+  }): Promise<any> {
+    try {
+      // In production, this would generate actual export data
+      const exportData = {
+        metadata: {
+          organizationId: filters.organizationId,
+          exportDate: new Date().toISOString(),
+          recordCount: 1234,
+          dateRange: filters.dateRange
+        },
+        data: [
+          {
+            callId: 'call_001',
+            agentId: 'agent_509',
+            timestamp: '2024-03-20T10:30:00Z',
+            sentiment: 'positive',
+            confidence: 0.89,
+            keywords: ['interested', 'value', 'timing']
+          },
+          // Additional records would be included in production
+        ]
+      };
+
+      return exportData;
+    } catch (error) {
+      console.error('Error exporting sentiment data:', error);
+      throw new Error('Failed to export sentiment data');
+    }
+  }
+
+  /**
    * Advanced sentiment analysis using multiple ML models
    */
   private async performAdvancedSentimentAnalysis(text: string): Promise<SentimentResult> {

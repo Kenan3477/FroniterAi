@@ -102,6 +102,8 @@ import multiTenantFlowRoutes from './routes/multiTenantFlow'; // NEW: Multi-tena
 
 // Phase 3: Advanced AI Dialler Features - NEW
 import sentimentAnalysisRoutes from './routes/sentimentAnalysis'; // NEW: Real-time sentiment analysis and coaching
+import autoDispositionRoutes from './routes/autoDispositionRoutes'; // NEW: AI-powered auto-disposition
+import leadScoringRoutes from './routes/leadScoringRoutes'; // NEW: AI-driven lead scoring
 // import autoDispositionRoutes from './routes/autoDisposition'; // NEW: AI-powered auto-disposition - TEMPORARILY DISABLED
 import interactionHistoryRoutes from './routes/interactionHistory'; // NEW: Call history for manual and auto-dial
 import workingTranscriptRoutes from './routes/workingTranscriptRoutes'; // WORKING: No-auth transcript routes
@@ -114,6 +116,10 @@ import advancedReportsRoutes from './routes/advancedReports'; // NEW: Enterprise
 // Import AI System Management
 import createAIRoutes from './routes/aiRoutes'; // NEW: AI System Integration API
 import AISystemManager from './ai/AISystemManager'; // NEW: AI System Manager
+
+// Import Dial Rate Management
+import createDialRateRoutes from './controllers/dialRateController'; // NEW: Real-time dial rate and routing control
+import createEnhancedDiallerRoutes from './routes/enhancedDiallerRoutes'; // NEW: Enhanced auto-dialler with rate control
 
 // Import socket handlers
 import { initializeSocket } from './socket';
@@ -294,6 +300,8 @@ class App {
 
     // Phase 3: Advanced AI Dialler Features - NEW
     this.app.use('/api/sentiment', sentimentAnalysisRoutes); // Real-time sentiment analysis and coaching
+    this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition
+    this.app.use('/api/lead-scoring', leadScoringRoutes); // AI-driven lead scoring
     this.app.use('/api/live-analysis', liveAnalysisRoutes); // NEW: Intelligent live call analysis system
     this.app.use('/api/advanced-reports', advancedReportsRoutes); // NEW: Enterprise-grade AI dialler reporting with predictive analytics
     
@@ -301,9 +309,12 @@ class App {
     if (this.aiManager) {
       const { prisma } = await import('./database');
       this.app.use('/api/ai', createAIRoutes(prisma, this.aiManager)); // AI system management and integration
+      
+      // Real-time dial rate and routing control
+      this.app.use('/api/campaigns', createDialRateRoutes(prisma, this.io)); // Campaign dial rate management
+      this.app.use('/api/campaigns', createEnhancedDiallerRoutes(prisma, this.io)); // Enhanced auto-dialler with rate control
     }
-    // this.app.use('/api/auto-disposition', autoDispositionRoutes); // AI-powered auto-disposition - TEMPORARILY DISABLED
-
+    
     // Dialler System API routes - STILL DISABLED DUE TO MISSING SERVICES
     // this.app.use('/api/dialler/agents', diallerAgentRoutes); // Disabled - missing services
     // this.app.use('/api/dialler/campaigns', diallerCampaignRoutes); // Disabled - schema issues

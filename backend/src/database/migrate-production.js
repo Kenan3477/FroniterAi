@@ -166,15 +166,7 @@ async function migrateProductionDatabase() {
       console.log(`✅ Assigned ${campaigns.length} campaigns to user 509`);
     } else {
       console.log('⚠️ Agent user-509 does not exist, skipping campaign assignments');
-      var campaigns = [];
     }
-          campaignId: campaign.campaignId,
-          assignedAt: new Date()
-        }
-      });
-    }
-    
-    console.log(`✅ Assigned ${campaigns.length} campaigns to user 509`);
     
     // 7. Create assignments for other existing agents
     console.log('7. Creating assignments for existing agents...');

@@ -131,6 +131,20 @@ model Campaign {
   abandonRateThreshold Float?                    @default(0.05)
   pacingMultiplier     Float?                    @default(1.0)
   maxCallsPerAgent     Int?                      @default(1)
+  
+  // Real-time dial rate and routing configuration
+  dialRate             Float?                    @default(1.0)      // Calls per second per agent
+  predictiveRatio      Float?                    @default(1.2)      // Predictive dialing ratio
+  minWaitTime          Int?                      @default(500)      // Minimum wait between calls (ms)
+  maxWaitTime          Int?                      @default(5000)     // Maximum wait between calls (ms)
+  answerRateTarget     Float?                    @default(0.8)      // Target answer rate (0-1)
+  dropRateLimit        Float?                    @default(0.03)     // Maximum acceptable drop rate
+  routingStrategy      String?                   @default("ROUND_ROBIN") // ROUND_ROBIN, SKILL_BASED, LEAST_BUSY
+  priorityRouting      Boolean                   @default(false)    // Enable priority-based routing
+  agentIdleTimeout     Int?                      @default(30000)    // Agent idle timeout (ms)
+  callbackDelay        Int?                      @default(300000)   // Delay for callback attempts (ms)
+  retryStrategy        String?                   @default("LINEAR") // LINEAR, EXPONENTIAL, FIBONACCI
+  
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   createdById          Int?
