@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import {
   getIntegrations,
   toggleIntegration,
@@ -9,12 +9,12 @@ import {
 const router = express.Router();
 
 // Get all integrations for organization
-router.get('/', authenticateToken, getIntegrations);
+router.get('/', authenticate, getIntegrations);
 
 // Toggle integration enabled status
-router.post('/:integrationName/toggle', authenticateToken, toggleIntegration);
+router.post('/:integrationName/toggle', authenticate, toggleIntegration);
 
 // Configure specific integrations
-router.post('/stripe/configure', authenticateToken, configureStripe);
+router.post('/stripe/configure', authenticate, configureStripe);
 
 export default router;
