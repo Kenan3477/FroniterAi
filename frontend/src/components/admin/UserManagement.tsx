@@ -395,8 +395,21 @@ export default function UserManagement() {
       );
 
       if (response.ok) {
-        // Refresh user campaigns
-        await openCampaignManagement(managingCampaignsUser);
+        console.log('✅ Campaign unassigned successfully, refreshing data...');
+        
+        // Immediately update local state to remove the assignment
+        const updatedUserCampaigns = userCampaigns.filter(assignment => {
+          const assignmentId = assignment.campaignId || assignment.id;
+          return assignmentId !== campaignId;
+        });
+        setUserCampaigns(updatedUserCampaigns);
+        console.log('🔄 Updated user campaigns state immediately:', updatedUserCampaigns);
+        
+        // Add a small delay to ensure database has updated, then refresh from server
+        setTimeout(async () => {
+          await openCampaignManagement(managingCampaignsUser);
+          console.log('🔄 Campaign data refreshed from server after unassignment');
+        }, 500);
       } else {
         const error = await response.json();
         alert(error.message || 'Failed to remove campaign');
@@ -1037,12 +1050,16 @@ export default function UserManagement() {
                           
                           console.log(`Campaign ${campaignIdentifier} (${campaign.name}): assigned=${isAssigned}`);
                           console.log(`  - Available campaign ID: ${campaignIdentifier}`);
-                          console.log(`  - User assignments: ${userCampaigns.map(a => a.campaignId || a.id).join(', ')}`);
+                          console.log(`  - User assignments: [${userCampaigns.map(a => `${a.campaignId || a.id}(${a.name || 'unnamed'})`).join(', ')}]`);
+                          console.log(`  - Will show in dropdown: ${!isAssigned}`);
                           return !isAssigned;
                         }
                       );
                       
-                      console.log('Unassigned campaigns count:', unassignedCampaigns.length);
+                      console.log('📊 Available campaigns total:', availableCampaigns.length);
+                      console.log('📊 User campaign assignments:', userCampaigns.length);
+                      console.log('📊 Unassigned campaigns count:', unassignedCampaigns.length);
+                      console.log('📊 Unassigned campaign names:', unassignedCampaigns.map(c => c.name));
                       
                       return unassignedCampaigns.length > 0 ? (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
