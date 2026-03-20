@@ -405,10 +405,23 @@ export default function UserManagement() {
         setUserCampaigns(updatedUserCampaigns);
         console.log('🔄 Updated user campaigns state immediately:', updatedUserCampaigns);
         
-        // Add a small delay to ensure database has updated, then refresh from server
+        // Add a small delay to ensure database has updated, then refresh user campaigns only
         setTimeout(async () => {
-          await openCampaignManagement(managingCampaignsUser);
-          console.log('🔄 Campaign data refreshed from server after unassignment');
+          try {
+            const userCampaignsRes = await fetch(`/api/admin/users/${managingCampaignsUser.id}/campaigns`, {
+              credentials: 'include',
+              headers: getAuthHeaders()
+            });
+            
+            if (userCampaignsRes.ok) {
+              const userCampaignsData = await userCampaignsRes.json();
+              const campaigns = userCampaignsData.data?.assignments || userCampaignsData.data || [];
+              setUserCampaigns(campaigns);
+              console.log('🔄 User campaigns refreshed from server after unassignment:', campaigns);
+            }
+          } catch (error) {
+            console.error('Failed to refresh user campaigns:', error);
+          }
         }, 500);
       } else {
         const error = await response.json();
