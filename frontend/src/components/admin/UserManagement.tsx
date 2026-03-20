@@ -75,7 +75,7 @@ export default function UserManagement() {
 
   // Helper function for authenticated requests
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('omnivox_token');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
@@ -238,9 +238,7 @@ export default function UserManagement() {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
       
       if (response.ok) {
@@ -269,15 +267,11 @@ export default function UserManagement() {
       const [userCampaignsRes, availableCampaignsRes] = await Promise.all([
         fetch(`/api/admin/users/${user.id}/campaigns`, {
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         }),
         fetch('/api/admin/campaign-management/campaigns', {
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         })
       ]);
 
@@ -353,9 +347,7 @@ export default function UserManagement() {
       const response = await fetch(`/api/admin/users/${managingCampaignsUser.id}/campaigns`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
@@ -393,9 +385,7 @@ export default function UserManagement() {
         { 
           method: 'DELETE',
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         }
       );
 
@@ -450,9 +440,7 @@ export default function UserManagement() {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(formData),
       });
 
