@@ -283,8 +283,6 @@ router.get('/data-lists', authenticateToken, requirePermission('campaign.read'),
         name: 'asc'
       }
     });
-      }
-    });
 
     const transformedLists = dataLists.map(list => ({
       id: list.id,
