@@ -145,7 +145,7 @@ class App {
     });
 
     this.initializeMiddlewares();
-    this.initializeErrorHandling();
+    // Note: Error handling moved to after routes are initialized
     this.initializeSocket();
   }
 
@@ -377,6 +377,10 @@ class App {
 
       // Initialize routes after AI manager is ready
       await this.initializeRoutes();
+      
+      // Initialize error handling AFTER routes are registered
+      this.initializeErrorHandling();
+      console.log('✅ Error handling initialized after routes');
 
       // Run production database migration (Railway deployment) - TEMPORARILY DISABLED
       // if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
