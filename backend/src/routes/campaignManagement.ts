@@ -70,6 +70,9 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
       where,
       include: {
         agentAssignments: {
+          where: {
+            isActive: true  // Only include active assignments
+          },
           include: {
             agent: true
           }
