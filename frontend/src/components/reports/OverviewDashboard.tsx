@@ -223,7 +223,7 @@ const OverviewDashboard: React.FC = () => {
       if (response.ok) {
         const campaignsData = await response.json();
         const activeCampaigns = (campaignsData.data || campaignsData || [])
-          .filter((campaign: any) => !campaign.isDeleted && campaign.status === 'Active')
+          .filter((campaign: any) => !campaign.isDeleted && (campaign.status === 'Active' || campaign.status === 'ACTIVE'))
           .map((campaign: any) => ({
             id: campaign.id || campaign.campaignId,
             name: campaign.name || campaign.campaignName || 'Unnamed Campaign'

@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else if (user.role === 'ADMIN' && data.data?.assignments) {
             // Handle admin endpoint response format (user assignments)
             activeCampaigns = data.data.assignments
-              .filter((assignment: any) => assignment.campaignStatus === 'Active')
+              .filter((assignment: any) => assignment.campaignStatus === 'Active' || assignment.campaignStatus === 'ACTIVE')
               .map((assignment: any) => ({
                 campaignId: assignment.campaignId,
                 name: assignment.campaignName,
@@ -218,12 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log(`  - isActive: ${campaign.isActive} (type: ${typeof campaign.isActive})`);
                 console.log(`  - name: "${campaign.name}"`);
                 console.log(`  - status === 'Active': ${campaign.status === 'Active'}`);
+                console.log(`  - status === 'ACTIVE': ${campaign.status === 'ACTIVE'}`);
                 console.log(`  - isActive === true: ${campaign.isActive === true}`);
                 console.log(`  - name starts with [DELETED]: ${campaign.name?.startsWith('[DELETED]')}`);
                 
                 // Filter out deleted campaigns and require either Active status OR isActive
                 const isDeleted = campaign.name?.startsWith('[DELETED]');
-                const isActive = campaign.status === 'Active' || campaign.isActive === true;
+                const isActive = campaign.status === 'Active' || campaign.status === 'ACTIVE' || campaign.isActive === true;
                 
                 // Filter out organizational/internal campaigns
                 const campaignId = campaign.campaignId || '';

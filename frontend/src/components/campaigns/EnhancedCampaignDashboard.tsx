@@ -408,7 +408,7 @@ export const EnhancedCampaignDashboard: React.FC<EnhancedCampaignDashboardProps>
           <CampaignDialRateTab
             campaignId={campaignId}
             campaignName={campaign.name}
-            isActive={campaign.status === 'Active'}
+            isActive={campaign.status === 'Active' || campaign.status === 'ACTIVE'}
           />
         )}
 

@@ -238,7 +238,7 @@ export default function OutboundQueue({ campaign, onBack }: OutboundQueueProps) 
           </div>
           <div className="flex items-center space-x-4">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              campaign.status === 'Active' 
+              (campaign.status === 'Active' || campaign.status === 'ACTIVE') 
                 ? 'bg-green-100 text-slate-800' 
                 : 'bg-red-100 text-red-800'
             }`}>

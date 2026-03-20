@@ -272,7 +272,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
     }
 
     try {
-      const activeCampaign = assignedCampaigns.find(c => c.status === 'Active');
+      const activeCampaign = assignedCampaigns.find(c => c.status === 'Active' || c.status === 'ACTIVE');
       if (!activeCampaign) {
         console.log('No active campaign found');
         return;
@@ -618,7 +618,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
                     <div className="text-sm font-medium text-gray-900">{campaign.name}</div>
                     <div className="text-xs text-gray-500">{campaign.dialMethod}</div>
                     <div className={`text-xs inline-block px-2 py-1 rounded-full mt-1 ${
-                      campaign.status === 'Active' 
+                      (campaign.status === 'Active' || campaign.status === 'ACTIVE') 
                         ? 'bg-green-100 text-slate-800' 
                         : 'bg-gray-100 text-gray-600'
                     }`}>
