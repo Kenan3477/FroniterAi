@@ -4,28 +4,23 @@
  */
 
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Box,
-  Tabs,
-  Tab,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Chip,
-  Alert
-} from '@mui/material';
-import {
-  Psychology as AIIcon,
-  Sentiment as SentimentIcon,
-  AutoFixHigh as AutoDispIcon,
+  Brain as AIIcon,
+  Heart as SentimentIcon,
+  Zap as AutoDispIcon,
   TrendingUp as LeadScoreIcon,
-  VerifiedUser as QualityIcon,
-  Speed as DialRateIcon
-} from '@mui/icons-material';
+  Shield as QualityIcon,
+  Gauge as DialRateIcon,
+  AlertTriangle
+} from 'lucide-react';
 
-import SentimentDashboard from '../sentiment/SentimentDashboard';
-import RealTimeDialRateManager from '../campaigns/RealTimeDialRateManager';
+import { SentimentDashboard } from '../sentiment/SentimentDashboard';
+import { RealTimeDialRateManager } from '../campaigns/RealTimeDialRateManager';
 
 interface AIDashboardProps {
   organizationId?: string;
@@ -81,89 +76,92 @@ export const AIDashboard: React.FC<AIDashboardProps> = ({
     }
   ];
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'success';
-      case 'PREVIEW': return 'warning'; 
-      case 'COMING_SOON': return 'default';
-      default: return 'default';
+      case 'ACTIVE': return 'default';
+      case 'PREVIEW': return 'secondary'; 
+      case 'COMING_SOON': return 'outline';
+      default: return 'outline';
     }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          <AIIcon sx={{ mr: 2, fontSize: 40, color: 'primary.main' }} />
-          AI-Powered Dialler Features
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Advanced AI capabilities for superior call center performance
-        </Typography>
-      </Box>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center space-x-3">
+        <AIIcon className="h-8 w-8 text-primary" />
+        <div>
+          <h1 className="text-3xl font-bold">AI-Powered Dialler Features</h1>
+          <p className="text-muted-foreground">Advanced AI capabilities for superior call center performance</p>
+        </div>
+      </div>
 
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {/* AI Features Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {aiFeatures.map((feature, index) => (
-          <Grid item xs={12} md={6} lg={4} key={feature.id}>
-            <Card 
-              sx={{ 
-                cursor: 'pointer',
-                '&:hover': { elevation: 4 },
-                border: currentTab === index ? 2 : 0,
-                borderColor: 'primary.main'
-              }}
-              onClick={() => setCurrentTab(index)}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Card 
+            key={feature.id}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              currentTab === index ? 'ring-2 ring-primary' : ''
+            }`}
+            onClick={() => setCurrentTab(index)}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
                   {feature.icon}
-                  <Typography variant="h6" sx={{ ml: 1, flexGrow: 1 }}>
-                    {feature.name}
-                  </Typography>
-                  <Chip 
-                    label={feature.status} 
-                    color={getStatusColor(feature.status)}
-                    size="small"
-                  />
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+                  <CardTitle className="text-lg">{feature.name}</CardTitle>
+                </div>
+                <Badge variant={getStatusVariant(feature.status)}>
+                  {feature.status}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{feature.description}</p>
+            </CardContent>
+          </Card>
         ))}
-      </Grid>
+      </div>
 
       {/* AI Feature Content */}
       <Card>
-        <CardContent>
+        <CardContent className="p-6">
           {aiFeatures[currentTab]?.component}
         </CardContent>
       </Card>
-    </Box>
+    </div>
   );
 };
 
 // Placeholder components for features in development
 const AutoDispositionPlaceholder = () => (
-  <Alert severity="info">
-    Auto-Disposition interface is being finalized. Backend AI engine is fully operational.
-    Contact support for access to disposition recommendation APIs.
+  <Alert>
+    <AlertTriangle className="h-4 w-4" />
+    <AlertDescription>
+      Auto-Disposition interface is being finalized. Backend AI engine is fully operational.
+      Contact support for access to disposition recommendation APIs.
+    </AlertDescription>
   </Alert>
 );
 
 const LeadScoringPlaceholder = () => (
-  <Alert severity="info">
-    Lead Scoring dashboard is in development. AI scoring algorithms are operational.
-    Lead scores are being calculated and available via API endpoints.
+  <Alert>
+    <AlertTriangle className="h-4 w-4" />
+    <AlertDescription>
+      Lead Scoring dashboard is in development. AI scoring algorithms are operational.
+      Lead scores are being calculated and available via API endpoints.
+    </AlertDescription>
   </Alert>
 );
 
 const QualityMonitoringPlaceholder = () => (
-  <Alert severity="info">
-    Quality Monitoring interface is being completed. Quality assessment engine is running.
-    Quality scores and compliance monitoring are active in the background.
+  <Alert>
+    <AlertTriangle className="h-4 w-4" />
+    <AlertDescription>
+      Quality Monitoring interface is being completed. Quality assessment engine is running.
+      Quality scores and compliance monitoring are active in the background.
+    </AlertDescription>
   </Alert>
 );
 
