@@ -338,7 +338,7 @@ export default function UserManagement() {
 
     try {
       const requestBody = {
-        campaignId,
+        campaignId: String(campaignId), // Ensure campaignId is always a string
         assignedBy: 1 // TODO: Get current admin user ID
       };
       
