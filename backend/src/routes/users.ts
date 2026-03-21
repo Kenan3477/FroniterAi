@@ -711,25 +711,9 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
 
     console.log(`📋 Fetching campaigns for user ID: ${userId}`);
 
-    // First, find if there's an agent record for this user
-    let agent = await prisma.agent.findFirst({
-      where: { agentId: userId } // Our system uses userId as agentId
-    });
-
-    console.log(`🔍 Agent lookup result for user ${userId}:`, agent ? `Found agent: ${agent.agentId}` : 'No agent found');
-
-    if (!agent) {
-      console.log(`📋 No agent record found for user ${userId}, returning empty campaigns`);
-      // Return empty campaigns if no agent record exists
-      res.json({
-        success: true,
-        data: []
-      });
-      return;
-    }
-
-    console.log(`📋 Found agent record for user ${userId}: agentId=${agent.agentId}`);
-
+    // Check both agent assignments and user assignments
+    console.log(`🔍 Looking for agent assignments for user ${userId}...`);
+    
     // Get agent campaign assignments
     const agentWithCampaigns = await prisma.agent.findUnique({
       where: { agentId: userId },
@@ -754,35 +738,69 @@ router.get('/my-campaigns', authenticate, async (req: Request, res: Response) =>
       }
     });
 
-    console.log(`🔍 Agent campaign assignments query result:`, {
-      found: !!agentWithCampaigns,
-      assignmentCount: agentWithCampaigns?.campaignAssignments?.length || 0
+    console.log(`� Agent lookup result for user ${userId}:`, agentWithCampaigns ? `Found agent with ${agentWithCampaigns.campaignAssignments.length} assignments` : 'No agent found');
+
+    // Also check user campaign assignments
+    console.log(`🔍 Looking for user assignments for user ${userId}...`);
+    const userWithCampaigns = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      include: {
+        campaignAssignments: {
+          where: {
+            isActive: true
+          },
+          include: {
+            campaign: {
+              select: {
+                campaignId: true,
+                name: true,
+                description: true,
+                status: true,
+                isActive: true,
+                createdAt: true
+              }
+            }
+          }
+        }
+      }
     });
 
-    if (!agentWithCampaigns) {
-      console.log(`📋 No agent found in campaign assignments query for user ${userId}`);
-      res.json({
-        success: true,
-        data: []
-      });
-      return;
-    }
+    console.log(`🔍 User lookup result for user ${userId}:`, userWithCampaigns ? `Found user with ${userWithCampaigns.campaignAssignments.length} assignments` : 'No user found');
 
-    // Extract campaigns from the assignments
-    const campaigns = agentWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+    // Combine campaigns from both agent and user assignments
+    const allCampaigns: any[] = [];
     
-    console.log(`🔍 Campaign details for user ${userId}:`, campaigns.map(c => ({
+    // Add campaigns from agent assignments
+    if (agentWithCampaigns?.campaignAssignments) {
+      const agentCampaigns = agentWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+      allCampaigns.push(...agentCampaigns);
+      console.log(`📋 Found ${agentCampaigns.length} campaigns from agent assignments`);
+    }
+    
+    // Add campaigns from user assignments
+    if (userWithCampaigns?.campaignAssignments) {
+      const userCampaigns = userWithCampaigns.campaignAssignments.map(assignment => assignment.campaign);
+      allCampaigns.push(...userCampaigns);
+      console.log(`📋 Found ${userCampaigns.length} campaigns from user assignments`);
+    }
+    
+    // Remove duplicates (in case user has both agent and user assignments for same campaign)
+    const uniqueCampaigns = allCampaigns.filter((campaign, index, array) => 
+      array.findIndex(c => c.campaignId === campaign.campaignId) === index
+    );
+    
+    console.log(`🔍 Campaign details for user ${userId}:`, uniqueCampaigns.map(c => ({
       campaignId: c.campaignId,
       name: c.name,
       status: c.status,
       isActive: c.isActive
     })));
 
-    console.log(`✅ Found ${campaigns.length} campaigns for user ${userId}`);
+    console.log(`✅ Found ${uniqueCampaigns.length} total unique campaigns for user ${userId}`);
 
     res.json({
       success: true,
-      data: campaigns
+      data: uniqueCampaigns
     });
 
   } catch (error) {
