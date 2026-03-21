@@ -121,8 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use different endpoints based on user role
       let apiUrl: string;
       if (user.role === 'ADMIN') {
-        // Admin users should see all active campaigns, not just assigned ones
-        apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/admin/campaign-management/campaigns`;
+        // Admin users should only see campaigns they're assigned to, not all campaigns
+        apiUrl = '/api/campaigns/my-campaigns';
       } else {
         // Regular users use the Next.js proxy to backend endpoint
         apiUrl = '/api/campaigns/my-campaigns';
@@ -143,60 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.success) {
           let activeCampaigns: any[] = [];
 
-          if (user.role === 'ADMIN' && data.data && Array.isArray(data.data) && !data.data.assignments) {
-            // Handle admin campaign management API response format (all campaigns)
-            console.log('🔍 Processing all campaigns for admin:', data.data.length, 'total campaigns');
-            
-            activeCampaigns = data.data
-              .filter((campaign: any) => {
-                // Filter out deleted campaigns using the same logic as DataManagementContent
-                const name = campaign.displayName || campaign.name || '';
-                const campaignId = campaign.campaignId || '';
-                
-                const isDeleted = name.toLowerCase().includes('[deleted]') || 
-                                name.toLowerCase().includes('deleted') ||
-                                campaign.status === 'ARCHIVED' ||
-                                campaign.status === 'DELETED';
-                
-                // Filter out organizational/internal campaigns (case-insensitive)
-                const nameLower = name.toLowerCase();
-                const campaignIdLower = campaignId.toLowerCase();
-                
-                const isOrganizationalCampaign = 
-                  // Exact campaign ID matches
-                  campaignIdLower === 'historical-calls' ||
-                  campaignIdLower === 'live-calls' ||
-                  campaignIdLower === 'imported-twilio' ||
-                  // Name-based filtering (case-insensitive)
-                  nameLower.includes('historical calls') ||
-                  nameLower.includes('historic calls') ||
-                  nameLower.includes('live calls') ||
-                  nameLower.includes('imported twilio') ||
-                  nameLower.includes('system') ||
-                  nameLower.includes('internal') ||
-                  // Additional organizational patterns
-                  nameLower.startsWith('__') ||
-                  nameLower.startsWith('sys_') ||
-                  nameLower.startsWith('org_') ||
-                  // Filter campaigns that are clearly organizational
-                  campaignIdLower.includes('system') ||
-                  campaignIdLower.includes('internal') ||
-                  campaignIdLower.includes('default') ||
-                  campaignIdLower.includes('template');
-                
-                console.log(`🔍 Campaign ${campaign.campaignId}: name="${name}", status="${campaign.status}", isDeleted=${isDeleted}, isOrganizational=${isOrganizationalCampaign}`);
-                return !isDeleted && !isOrganizationalCampaign;
-              })
-              .map((campaign: any) => ({
-                campaignId: campaign.campaignId,
-                name: campaign.name,
-                displayName: campaign.displayName || campaign.name,
-                type: 'OUTBOUND',
-                dialMethod: campaign.dialMethod || 'MANUAL_DIAL',
-                status: campaign.status
-              }));
-          } else if (user.role === 'ADMIN' && data.data?.assignments) {
-            // Handle admin endpoint response format (user assignments)
+          if (data.data?.assignments) {
+            // Handle endpoint response format with user assignments
+            console.log('🔍 Processing user campaign assignments:', data.data.assignments.length, 'total assignments');
             activeCampaigns = data.data.assignments
               .filter((assignment: any) => assignment.campaignStatus === 'Active' || assignment.campaignStatus === 'ACTIVE')
               .map((assignment: any) => ({
