@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AdminOnly } from '@/components/security/RoleGuard';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   UsersIcon,
   PlusIcon,
@@ -48,6 +49,8 @@ interface UserStats {
 }
 
 export default function UserManagement() {
+  const { refreshCampaigns } = useAuth();
+  
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -362,6 +365,9 @@ export default function UserManagement() {
         console.log('✅ Campaign assignment successful');
         // Refresh user campaigns
         await openCampaignManagement(managingCampaignsUser);
+        // Update global campaign state in AuthContext
+        refreshCampaigns();
+        console.log('🔄 AuthContext campaigns refreshed after assignment');
       } else {
         const error = await response.json();
         console.error('❌ Campaign assignment failed:', error);
@@ -405,6 +411,10 @@ export default function UserManagement() {
         setUserCampaigns(updatedUserCampaigns);
         console.log('🔄 Updated user campaigns state immediately:', updatedUserCampaigns);
         
+        // Refresh AuthContext immediately
+        refreshCampaigns();
+        console.log('🔄 AuthContext campaigns refreshed immediately after unassignment');
+        
         // Add a small delay to ensure database has updated, then refresh user campaigns only
         setTimeout(async () => {
           try {
@@ -418,6 +428,9 @@ export default function UserManagement() {
               const campaigns = userCampaignsData.data?.assignments || userCampaignsData.data || [];
               setUserCampaigns(campaigns);
               console.log('🔄 User campaigns refreshed from server after unassignment:', campaigns);
+              // Update global campaign state in AuthContext
+              refreshCampaigns();
+              console.log('🔄 AuthContext campaigns refreshed after unassignment');
             }
           } catch (error) {
             console.error('Failed to refresh user campaigns:', error);
