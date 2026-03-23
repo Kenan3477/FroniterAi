@@ -206,5 +206,5 @@ export const DELETE = requireAuth(async (request, user) => {
   }
 });
 
-// Export the whitelist for use by middleware
-export { ipWhitelist, getClientIP, updateIPActivity, isKenTheCreator };
+// Export utility functions for use by middleware
+export { getClientIP, isKenTheCreator };
