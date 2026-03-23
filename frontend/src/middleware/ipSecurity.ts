@@ -58,89 +58,330 @@ function createAccessDeniedResponse(ipAddress: string, reason: string): NextResp
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Access Denied - Omnivox AI</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
       <style>
         * {
           margin: 0;
           padding: 0;
           box-sizing: border-box;
         }
+        
+        :root {
+          --omnivox-primary: #0066ff;
+          --omnivox-secondary: #1a1d29;
+          --omnivox-accent: #ff4757;
+          --omnivox-success: #2ed573;
+          --omnivox-warning: #ffa502;
+          --omnivox-dark: #0f1419;
+          --omnivox-darker: #0a0e13;
+          --omnivox-light: #ffffff;
+          --omnivox-gray-100: #f8fafc;
+          --omnivox-gray-200: #e2e8f0;
+          --omnivox-gray-300: #cbd5e0;
+          --omnivox-gray-400: #a0aec0;
+          --omnivox-gray-500: #718096;
+          --omnivox-gray-600: #4a5568;
+          --omnivox-gray-700: #2d3748;
+          --omnivox-gray-800: #1a202c;
+          --omnivox-gray-900: #171923;
+        }
+        
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+          background: linear-gradient(135deg, var(--omnivox-darker) 0%, var(--omnivox-dark) 50%, var(--omnivox-secondary) 100%);
           min-height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
+          color: var(--omnivox-light);
+          position: relative;
+          overflow: hidden;
         }
+        
+        body::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: 
+            radial-gradient(circle at 20% 80%, rgba(0, 102, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 71, 87, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(46, 213, 115, 0.05) 0%, transparent 50%);
+          pointer-events: none;
+        }
+        
         .container {
+          position: relative;
+          z-index: 1;
           text-align: center;
-          max-width: 600px;
-          padding: 40px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          max-width: 520px;
+          padding: 48px 40px;
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 24px;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 
+            0 32px 64px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(255, 255, 255, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
+        
+        .logo-section {
+          margin-bottom: 32px;
+        }
+        
         .logo {
-          font-size: 3rem;
-          font-weight: 700;
-          margin-bottom: 20px;
-          background: linear-gradient(45deg, #fff, #f0f0f0);
+          font-size: 2rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 8px;
+          background: linear-gradient(135deg, var(--omnivox-primary) 0%, #00a8ff 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          text-transform: uppercase;
         }
+        
+        .tagline {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--omnivox-gray-400);
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+        
+        .shield-container {
+          margin: 32px 0;
+          position: relative;
+        }
+        
         .shield {
-          font-size: 4rem;
-          margin-bottom: 20px;
+          width: 80px;
+          height: 80px;
+          margin: 0 auto;
+          background: linear-gradient(135deg, var(--omnivox-accent) 0%, #ff6b7a 100%);
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 2.5rem;
+          box-shadow: 
+            0 20px 40px rgba(255, 71, 87, 0.3),
+            0 0 0 1px rgba(255, 255, 255, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          position: relative;
         }
-        h1 {
-          font-size: 2rem;
-          margin-bottom: 20px;
-          color: #fff;
+        
+        .shield::before {
+          content: '';
+          position: absolute;
+          inset: 2px;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+          border-radius: 18px;
+          pointer-events: none;
         }
-        p {
-          font-size: 1.1rem;
+        
+        .shield::after {
+          content: '🛡️';
+          position: relative;
+          z-index: 1;
+        }
+        
+        .title {
+          font-size: 2.25rem;
+          font-weight: 700;
+          margin-bottom: 16px;
+          color: var(--omnivox-light);
+          letter-spacing: -0.025em;
+        }
+        
+        .description {
+          font-size: 1.125rem;
+          line-height: 1.7;
+          color: var(--omnivox-gray-300);
+          margin-bottom: 24px;
+          font-weight: 400;
+        }
+        
+        .security-notice {
+          font-size: 1rem;
           line-height: 1.6;
-          margin-bottom: 15px;
-          color: rgba(255, 255, 255, 0.9);
+          color: var(--omnivox-gray-400);
+          margin-bottom: 32px;
+          font-weight: 400;
         }
+        
         .ip-info {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 15px;
-          border-radius: 10px;
-          margin: 20px 0;
-          font-family: 'Monaco', 'Menlo', monospace;
-          font-size: 0.9rem;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 24px;
+          border-radius: 16px;
+          margin: 32px 0;
+          font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+          font-size: 0.875rem;
+          text-align: left;
+          backdrop-filter: blur(10px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
         }
-        .contact {
-          margin-top: 30px;
-          font-size: 0.9rem;
-          color: rgba(255, 255, 255, 0.8);
+        
+        .ip-info .info-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .ip-info .info-row:last-child {
+          margin-bottom: 0;
+          border-bottom: none;
+        }
+        
+        .ip-info .label {
+          color: var(--omnivox-gray-400);
+          font-weight: 500;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .ip-info .value {
+          color: var(--omnivox-light);
+          font-weight: 600;
+          font-family: inherit;
+        }
+        
+        .ip-info .value.ip {
+          color: var(--omnivox-primary);
+        }
+        
+        .ip-info .value.reason {
+          color: var(--omnivox-accent);
+        }
+        
+        .contact-section {
+          margin-top: 40px;
+          padding-top: 24px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .contact-title {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--omnivox-gray-300);
+          margin-bottom: 8px;
+          letter-spacing: 0.025em;
+        }
+        
+        .contact-info {
+          font-size: 0.8rem;
+          color: var(--omnivox-gray-500);
+          line-height: 1.5;
+        }
+        
+        .footer {
+          margin-top: 32px;
+          padding-top: 24px;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          font-size: 0.75rem;
+          color: var(--omnivox-gray-600);
+          font-weight: 500;
+          letter-spacing: 0.5px;
+        }
+        
+        @media (max-width: 768px) {
+          .container {
+            margin: 20px;
+            padding: 32px 24px;
+            max-width: none;
+          }
+          
+          .title {
+            font-size: 1.875rem;
+          }
+          
+          .description {
+            font-size: 1rem;
+          }
+          
+          .shield {
+            width: 64px;
+            height: 64px;
+            font-size: 2rem;
+          }
+        }
+        
+        /* Subtle animation */
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        .shield {
+          animation: float 6s ease-in-out infinite;
+        }
+        
+        /* Glowing effect */
+        .container {
+          animation: glow 4s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+          from {
+            box-shadow: 
+              0 32px 64px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(255, 255, 255, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          }
+          to {
+            box-shadow: 
+              0 32px 64px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(0, 102, 255, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          }
         }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="logo">OMNIVOX AI</div>
-        <div class="shield">🛡️</div>
-        <h1>Access Denied</h1>
-        <p>Your IP address is not authorized to access this system.</p>
-        <p>Omnivox AI employs advanced security measures to protect sensitive data and prevent unauthorized access.</p>
-        
-        <div class="ip-info">
-          <strong>Your IP:</strong> ${ipAddress}<br>
-          <strong>Reason:</strong> ${reason}<br>
-          <strong>Timestamp:</strong> ${new Date().toISOString()}
+        <div class="logo-section">
+          <div class="logo">Omnivox AI</div>
+          <div class="tagline">Professional AI-Powered Dialler Platform</div>
         </div>
         
-        <p>If you believe this is an error, please contact the system administrator.</p>
+        <div class="shield-container">
+          <div class="shield"></div>
+        </div>
         
-        <div class="contact">
-          <strong>Omnivox AI</strong><br>
-          Professional AI-Powered Dialler Platform<br>
-          © 2026 All rights reserved
+        <h1 class="title">Access Denied</h1>
+        <p class="description">Your IP address is not authorized to access this system.</p>
+        <p class="security-notice">Omnivox AI employs enterprise-grade security measures to protect sensitive data and prevent unauthorized access.</p>
+        
+        <div class="ip-info">
+          <div class="info-row">
+            <span class="label">Your IP</span>
+            <span class="value ip">${ipAddress}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Reason</span>
+            <span class="value reason">${reason}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Timestamp</span>
+            <span class="value">${new Date().toISOString()}</span>
+          </div>
+        </div>
+        
+        <div class="contact-section">
+          <div class="contact-title">Need Access?</div>
+          <div class="contact-info">If you believe this is an error, please contact the system administrator.</div>
+        </div>
+        
+        <div class="footer">
+          <strong>OMNIVOX AI</strong> © 2026 All rights reserved
         </div>
       </div>
     </body>
