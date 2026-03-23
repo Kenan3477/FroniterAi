@@ -872,33 +872,25 @@ const CampaignManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Campaign Management</h1>
-          <p className="text-muted-foreground">
-            Create, manage, and analyze marketing and sales campaigns
-          </p>
-          {/* Real-time Event Status */}
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
-              {connectionStatus === 'authenticated' ? '🟢 Live Events' : '🔴 Events Offline'}
-            </Badge>
-            {campaignEvents.length > 0 && (
-              <Badge variant="outline">
-                {campaignEvents.length} recent events
-              </Badge>
-            )}
-            {systemNotifications.length > 0 && (
-              <Badge variant="destructive">
-                {systemNotifications.filter(n => 
-                  'level' in n && (n.level === 'error' || n.level === 'critical')
-                ).length} alerts
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
+      {/* Real-time Event Status */}
+      <div className="flex items-center gap-2">
+        <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
+          {connectionStatus === 'authenticated' ? '🟢 Live Events' : '🔴 Events Offline'}
+        </Badge>
+        {campaignEvents.length > 0 && (
+          <Badge variant="outline">
+            {campaignEvents.length} recent events
+          </Badge>
+        )}
+        {systemNotifications.length > 0 && (
+          <Badge variant="destructive">
+            {systemNotifications.filter(n => 
+              'level' in n && (n.level === 'error' || n.level === 'critical')
+            ).length} alerts
+          </Badge>
+        )}
+      </div>
+      <div className="flex gap-2">
           <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">

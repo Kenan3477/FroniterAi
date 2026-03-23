@@ -402,12 +402,8 @@ export default function MultiTenantBusinessSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Business Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage organizations, users, and permissions across your platform</p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <Button onClick={() => setIsNewOrgDialogOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" />
           New Organization

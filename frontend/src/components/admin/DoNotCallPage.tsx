@@ -159,11 +159,7 @@ const DoNotCallPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Do Not Call (DNC) Registry</h1>
-          <p className="text-muted-foreground">Manage numbers that should not be contacted</p>
-        </div>
+      <div className="flex justify-end items-center">
         <div className="flex gap-2">
           <Button 
             onClick={() => setIsAddDialogOpen(true)}

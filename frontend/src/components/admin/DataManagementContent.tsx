@@ -1911,11 +1911,6 @@ export default function DataManagementContent({ searchTerm }: DataManagementCont
   return (
     <div className="h-full theme-bg flex flex-col">
       <div className="theme-card border-b px-6 py-4">
-        <h1 className="text-2xl font-semibold theme-text-primary">Data Management</h1>
-        <p className="text-sm theme-text-secondary mt-1">Manage your contact data and upload new data lists</p>
-      </div>
-      
-      <div className="theme-card border-b px-6">
         <nav className="flex space-x-8">
           {['Manage Data Lists', 'Create Data Lists', 'Data Analytics'].map((tab) => (
             <button
