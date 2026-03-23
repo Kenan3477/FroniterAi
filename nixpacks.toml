@@ -1,4 +1,14 @@
-# Railway Configuration - Node.js 20.x workspace with Prisma fix
+# Railway Backend Configuration - Node.js 20.x with proper dependency handling
+
+[phases.setup]
+cmds = ['echo "Installing workspace dependencies..."']
+
+[phases.install] 
+cmds = [
+  'npm ci',
+  'cd frontend && npm ci',
+  'cd backend && npm ci'
+]
 
 [phases.build]
 cmds = [
