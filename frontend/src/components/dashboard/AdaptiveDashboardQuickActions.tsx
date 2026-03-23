@@ -51,7 +51,9 @@ export default function AdaptiveDashboardQuickActions() {
     
     if (user) {
       console.log('🚀 User exists, loading adaptive quick actions...');
-      loadAdaptiveQuickActions();
+      // Temporarily force fallback for debugging
+      forceUseFallback();
+      // loadAdaptiveQuickActions();
     } else {
       console.log('❌ No user found, skipping quick actions load');
     }
@@ -110,9 +112,17 @@ export default function AdaptiveDashboardQuickActions() {
       
       // Fallback to static actions
       setQuickActions(getStaticFallbackActions());
+      console.log('🔄 Using fallback actions due to API error');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Temporary force fallback for debugging
+  const forceUseFallback = () => {
+    console.log('🔧 Force using fallback actions for debugging');
+    setQuickActions(getStaticFallbackActions());
+    setLoading(false);
   };
 
   const getStaticFallbackActions = (): DashboardQuickAction[] => {

@@ -454,26 +454,6 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
       {/* Right Section */}
       <div className="flex items-center space-x-4">
-        {/* Agent Status Display - Dialing controlled by status */}
-        <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2">
-          <PhoneIcon className="h-5 w-5 text-gray-600" />
-          <div className="text-sm">
-            <span className="text-gray-600">Queue Status:</span>
-            <span className={`ml-1 font-medium ${
-              agentStatus === 'Available' ? 'text-slate-600' : 'text-gray-500'
-            }`}>
-              {isUpdatingStatus ? 'Updating...' : (agentStatus === 'Available' ? 'Active' : 'Inactive')}
-            </span>
-          </div>
-          <div className="text-xs text-gray-500">
-            {isUpdatingStatus ? '• Connecting...' : 
-             agentStatus === 'Available' ? 
-               (currentCampaign ? `• ${getDialingModeText(currentCampaign)}` : '• Select campaign first') : 
-               '• Set status to Available to join queue'
-            }
-          </div>
-        </div>
-
         {/* Notifications */}
         <div className="relative">
           <button
