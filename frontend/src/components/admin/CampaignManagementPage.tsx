@@ -872,25 +872,26 @@ const CampaignManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Real-time Event Status */}
-      <div className="flex items-center gap-2">
-        <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
-          {connectionStatus === 'authenticated' ? '🟢 Live Events' : '🔴 Events Offline'}
-        </Badge>
-        {campaignEvents.length > 0 && (
-          <Badge variant="outline">
-            {campaignEvents.length} recent events
+      {/* Real-time Event Status and Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant={connectionStatus === 'authenticated' ? 'default' : 'secondary'}>
+            {connectionStatus === 'authenticated' ? '🟢 Live Events' : '🔴 Events Offline'}
           </Badge>
-        )}
-        {systemNotifications.length > 0 && (
-          <Badge variant="destructive">
-            {systemNotifications.filter(n => 
-              'level' in n && (n.level === 'error' || n.level === 'critical')
-            ).length} alerts
-          </Badge>
-        )}
-      </div>
-      <div className="flex gap-2">
+          {campaignEvents.length > 0 && (
+            <Badge variant="outline">
+              {campaignEvents.length} recent events
+            </Badge>
+          )}
+          {systemNotifications.length > 0 && (
+            <Badge variant="destructive">
+              {systemNotifications.filter(n => 
+                'level' in n && (n.level === 'error' || n.level === 'critical')
+              ).length} alerts
+            </Badge>
+          )}
+        </div>
+        <div className="flex gap-2">
           <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">

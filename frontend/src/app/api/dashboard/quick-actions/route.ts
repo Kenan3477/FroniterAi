@@ -174,7 +174,6 @@ export async function GET(request: NextRequest) {
             color: 'orange'
           }
         ],
-        ],
         metadata: {
           userId: 'unknown',
           userRole: 'USER',
