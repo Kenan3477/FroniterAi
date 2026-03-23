@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
               frequency: 0,
               lastUsed: new Date(),
               category: 'navigation',
-              color: 'green'
+              color: 'emerald'
             },
             {
               id: 'reports',
@@ -87,6 +87,18 @@ export async function GET(request: NextRequest) {
               lastUsed: new Date(),
               category: 'navigation',
               color: 'purple'
+            },
+            {
+              id: 'agent-coaching',
+              title: 'Agent Coaching',
+              description: 'Training and development',
+              icon: '🎯',
+              href: '/agent-coaching',
+              section: 'Coaching',
+              frequency: 0,
+              lastUsed: new Date(),
+              category: 'navigation',
+              color: 'orange'
             }
           ],
           metadata: {
@@ -135,8 +147,33 @@ export async function GET(request: NextRequest) {
             frequency: 0,
             lastUsed: new Date(),
             category: 'navigation',
-            color: 'green'
+            color: 'emerald'
+          },
+          {
+            id: 'reports',
+            title: 'View Reports',
+            description: 'Check performance metrics',
+            icon: '📊',
+            href: '/reports',
+            section: 'Reports',
+            frequency: 0,
+            lastUsed: new Date(),
+            category: 'navigation',
+            color: 'purple'
+          },
+          {
+            id: 'agent-coaching',
+            title: 'Agent Coaching',
+            description: 'Training and development',
+            icon: '🎯',
+            href: '/agent-coaching',
+            section: 'Coaching',
+            frequency: 0,
+            lastUsed: new Date(),
+            category: 'navigation',
+            color: 'orange'
           }
+        ],
         ],
         metadata: {
           userId: 'unknown',

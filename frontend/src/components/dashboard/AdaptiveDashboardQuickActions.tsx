@@ -139,7 +139,7 @@ export default function AdaptiveDashboardQuickActions() {
         frequency: 0,
         lastUsed: new Date(),
         category: 'navigation',
-        color: 'green'
+        color: 'emerald'
       },
       {
         id: 'reports',
@@ -152,26 +152,52 @@ export default function AdaptiveDashboardQuickActions() {
         lastUsed: new Date(),
         category: 'navigation',
         color: 'purple'
-      }
-    ];
-
-    // Add admin panel for admin users
-    if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
-      fallbackActions.push({
-        id: 'admin-panel',
-        title: 'Admin Panel',
-        description: 'System administration',
-        icon: '⚙️',
-        href: '/admin',
-        section: 'Admin',
+      },
+      {
+        id: 'agent-coaching',
+        title: 'Agent Coaching',
+        description: 'Training and development',
+        icon: '🎯',
+        href: '/agent-coaching',
+        section: 'Coaching',
         frequency: 0,
         lastUsed: new Date(),
         category: 'navigation',
-        color: 'red'
-      });
+        color: 'orange'
+      }
+    ];
+
+    // Add admin-specific actions for admin users
+    if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+      fallbackActions.push(
+        {
+          id: 'admin-panel',
+          title: 'Admin Panel',
+          description: 'System administration',
+          icon: '⚙️',
+          href: '/admin',
+          section: 'Admin',
+          frequency: 0,
+          lastUsed: new Date(),
+          category: 'navigation',
+          color: 'slate'
+        },
+        {
+          id: 'user-management',
+          title: 'Manage Users',
+          description: 'User accounts & permissions',
+          icon: '👤',
+          href: '/admin/user-management',
+          section: 'Admin',
+          frequency: 0,
+          lastUsed: new Date(),
+          category: 'navigation',
+          color: 'indigo'
+        }
+      );
     }
 
-    return fallbackActions.slice(0, 4);
+    return fallbackActions.slice(0, 6); // Show up to 6 actions
   };
 
   const handleActionClick = (action: DashboardQuickAction) => {
@@ -184,13 +210,16 @@ export default function AdaptiveDashboardQuickActions() {
 
   const getActionButtonStyle = (color: string) => {
     const colorMap: Record<string, string> = {
-      blue: 'bg-blue-600 hover:bg-blue-700 text-white',
-      green: 'bg-green-600 hover:bg-green-700 text-white',
-      purple: 'bg-purple-600 hover:bg-purple-700 text-white',
-      red: 'bg-red-600 hover:bg-red-700 text-white',
-      orange: 'bg-orange-600 hover:bg-orange-700 text-white'
+      blue: 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/25',
+      emerald: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25',
+      purple: 'bg-purple-500 hover:bg-purple-600 text-white shadow-lg shadow-purple-500/25',
+      orange: 'bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25',
+      slate: 'bg-slate-600 hover:bg-slate-700 text-white shadow-lg shadow-slate-600/25',
+      indigo: 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25',
+      red: 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25',
+      green: 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25'
     };
-    return colorMap[color] || 'btn-secondary';
+    return colorMap[color] || 'bg-gray-500 hover:bg-gray-600 text-white shadow-lg';
   };
 
   if (!user) {
