@@ -467,11 +467,15 @@ export default function ReportsPage() {
     }
   };
 
-  const renderReportGrid = (reports: any[], title: string) => (
+  const renderReportGrid = (reports: any[], title: string) => {
+    // Ensure reports is always an array
+    const safeReports = Array.isArray(reports) ? reports : [];
+    
+    return (
     <div>
       <h3 className="text-lg font-medium theme-text-primary mb-4">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {reports.map((report) => {
+        {safeReports.map((report) => {
           const IconComponent = report.icon;
           return (
             <div
@@ -507,7 +511,8 @@ export default function ReportsPage() {
         })}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <MainLayout>
