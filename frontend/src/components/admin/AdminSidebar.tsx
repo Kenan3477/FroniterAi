@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ChevronLeftIcon, 
   ChevronRightIcon,
@@ -32,87 +32,12 @@ interface AdminSidebarProps {
   onToggle: () => void;
 }
 
-const adminSections = [
-  { 
-    name: 'Admin', 
-    icon: CogIcon,
-    description: 'Main administration panel'
-  },
-  { 
-    name: 'API', 
-    icon: KeyIcon,
-    description: 'Configure API keys and endpoints'
-  },
-  { 
-    name: 'Apps and Integrations', 
-    icon: BoltIcon,
-    description: 'Manage third-party integrations and apps'
-  },
-  { 
-    name: 'Business Settings', 
-    icon: BuildingOfficeIcon,
-    description: 'Configure business and organization settings'
-  },
-  { 
-    name: 'Campaigns', 
-    icon: MegaphoneIcon,
-    description: 'Manage marketing and sales campaigns'
-  },
-  { 
-    name: 'Channels', 
-    icon: Squares2X2Icon,
-    description: 'Configure communication channels'
-  },
-  { 
-    name: 'Data Management', 
-    icon: CircleStackIcon,
-    description: 'Manage data sources and databases'
-  },
-  { 
-    name: 'Do Not Call (DNC)', 
-    icon: PhoneXMarkIcon,
-    description: 'Manage Do Not Call registry and compliance'
-  },
-  { 
-    name: 'Flows', 
-    icon: ArrowPathIcon,
-    description: 'Configure workflow automation and flows',
-    collapsible: true,
-    subSections: [
-      { name: 'Manage Flows', icon: ListBulletIcon, description: 'Create and manage automation flows' },
-      { name: 'Automation Flow Summaries', icon: ChartBarIcon, description: 'View flow analytics and summaries' }
-    ]
-  },
-  { 
-    name: 'Inbound Queues', 
-    icon: InboxStackIcon,
-    description: 'Manage inbound call and message queues'
-  },
-  { 
-    name: 'SLAs', 
-    icon: ClockIcon,
-    description: 'Configure service level agreements'
-  },
-  { 
-    name: 'Security', 
-    icon: ShieldCheckIcon,
-    description: 'Security settings and IP whitelist management',
-    collapsible: true,
-    subSections: [
-      { name: 'Whitelisted IPs', icon: ShieldCheckIcon, description: 'Manage IP whitelist and access control (Ken Only)' }
-    ]
-  },
-  { 
-    name: 'User Management', 
-    icon: UsersIcon,
-    description: 'Manage user accounts and permissions'
-  },
-  { 
-    name: 'Views', 
-    icon: EyeIcon,
-    description: 'Configure dashboard views and layouts'
-  },
-];
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
 
 export default function AdminSidebar({ 
   selectedSection, 
@@ -120,7 +45,39 @@ export default function AdminSidebar({
   collapsed,
   onToggle
 }: AdminSidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Flows', 'Security']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Flows']));
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isKen, setIsKen] = useState(false);
+
+  useEffect(() => {
+    // Fetch current user information to check if it's Ken
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/auth/profile', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user) {
+            setCurrentUser(data.user);
+            // Check if user is Ken (Creator of Omnivox)
+            const userIsKen = data.user.email === 'ken@simpleemails.co.uk';
+            setIsKen(userIsKen);
+            
+            // Only expand Security section if user is Ken
+            if (userIsKen) {
+              setExpandedSections(new Set(['Flows', 'Security']));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   const handleSectionClick = (sectionName: string) => {
     const section = adminSections.find(s => s.name === sectionName);
@@ -147,6 +104,103 @@ export default function AdminSidebar({
   const handleSubSectionClick = (parentSection: string, subSection: string) => {
     onSectionChange(`${parentSection} - ${subSection}`);
   };
+
+  // Filter admin sections based on user permissions
+  const getAdminSections = () => {
+    const baseSections = [
+      { 
+        name: 'Admin', 
+        icon: CogIcon,
+        description: 'Main administration panel'
+      },
+      { 
+        name: 'API', 
+        icon: KeyIcon,
+        description: 'Configure API keys and endpoints'
+      },
+      { 
+        name: 'Apps and Integrations', 
+        icon: BoltIcon,
+        description: 'Manage third-party integrations and apps'
+      },
+      { 
+        name: 'Business Settings', 
+        icon: BuildingOfficeIcon,
+        description: 'Configure business and organization settings'
+      },
+      { 
+        name: 'Campaigns', 
+        icon: MegaphoneIcon,
+        description: 'Manage marketing and sales campaigns'
+      },
+      { 
+        name: 'Channels', 
+        icon: Squares2X2Icon,
+        description: 'Configure communication channels'
+      },
+      { 
+        name: 'Data Management', 
+        icon: CircleStackIcon,
+        description: 'Manage data sources and databases'
+      },
+      { 
+        name: 'Do Not Call (DNC)', 
+        icon: PhoneXMarkIcon,
+        description: 'Manage Do Not Call registry and compliance'
+      },
+      { 
+        name: 'Flows', 
+        icon: ArrowPathIcon,
+        description: 'Configure workflow automation and flows',
+        collapsible: true,
+        subSections: [
+          { name: 'Manage Flows', icon: ListBulletIcon, description: 'Create and manage automation flows' },
+          { name: 'Automation Flow Summaries', icon: ChartBarIcon, description: 'View flow analytics and summaries' }
+        ]
+      },
+      { 
+        name: 'Inbound Queues', 
+        icon: InboxStackIcon,
+        description: 'Manage inbound call and message queues'
+      },
+      { 
+        name: 'SLAs', 
+        icon: ClockIcon,
+        description: 'Configure service level agreements'
+      },
+      { 
+        name: 'User Management', 
+        icon: UsersIcon,
+        description: 'Manage user accounts and permissions'
+      },
+      { 
+        name: 'Views', 
+        icon: EyeIcon,
+        description: 'Configure dashboard views and layouts'
+      },
+    ];
+
+    // Only add Security section for Ken (Creator of Omnivox)
+    if (isKen) {
+      const securitySection = { 
+        name: 'Security', 
+        icon: ShieldCheckIcon,
+        description: 'Security settings and IP whitelist management (Ken Only)',
+        collapsible: true,
+        subSections: [
+          { name: 'Whitelisted IPs', icon: ShieldCheckIcon, description: 'Manage IP whitelist and access control (Ken Only)' }
+        ]
+      };
+
+      // Insert Security section before User Management
+      const userManagementIndex = baseSections.findIndex(section => section.name === 'User Management');
+      baseSections.splice(userManagementIndex, 0, securitySection);
+    }
+
+    return baseSections;
+  };
+
+  const adminSections = getAdminSections();
 
   return (
     <div className={`${collapsed ? 'w-16' : 'w-72'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>

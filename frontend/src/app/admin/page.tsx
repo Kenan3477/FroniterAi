@@ -40,10 +40,20 @@ export default function AdminPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isKen, setIsKen] = useState(false);
   const router = useRouter();
 
   // Detect mobile device for optimized UI
   const { isMobile, isTablet, deviceType } = useMobileDetection();
+
+  useEffect(() => {
+    // Redirect non-Ken users away from Security sections
+    if (currentUser && !isKen && selectedSection.startsWith('Security')) {
+      console.log('🚫 Non-Ken user trying to access Security section, redirecting...');
+      setSelectedSection('Admin');
+    }
+  }, [currentUser, isKen, selectedSection]);
 
   useEffect(() => {
     // Check user role on client side for better UX
@@ -57,6 +67,8 @@ export default function AdminPage() {
           const data = await response.json();
           if (data.user && (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN')) {
             setIsAuthorized(true);
+            setCurrentUser(data.user);
+            setIsKen(data.user.email === 'ken@simpleemails.co.uk');
           } else {
             console.log('🚫 Non-admin user trying to access admin panel, redirecting...');
             router.push('/dashboard?error=access-denied');
@@ -638,7 +650,29 @@ export default function AdminPage() {
                 <ViewsManagement />
               </div>
             ) : selectedSection === 'Security - Whitelisted IPs' ? (
-              <IPWhitelistManager />
+              isKen ? (
+                <IPWhitelistManager />
+              ) : (
+                <div className="p-6">
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="text-6xl mb-4">🛡️</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
+                      <p className="text-gray-500 mb-4">
+                        This security section is only accessible to the system creator.
+                      </p>
+                      <div className="bg-red-50 rounded-lg p-4 text-left max-w-md mx-auto">
+                        <h4 className="font-medium text-red-900 mb-2">Security Notice:</h4>
+                        <ul className="text-sm text-red-700 space-y-1">
+                          <li>• IP whitelist management is restricted</li>
+                          <li>• Only Ken (ken@simpleemails.co.uk) has access</li>
+                          <li>• Contact system administrator for assistance</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : selectedSection === 'Network Settings' ? (
               <div className="p-6">
                 <NetworkSettingsManagement />
