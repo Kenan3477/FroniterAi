@@ -202,41 +202,48 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   };
 
   // Fetch user-assigned inbound queues from backend
-  useEffect(() => {
-    const fetchInboundQueues = async () => {
-      try {
-        setIsLoadingQueues(true);
-        const response = await fetch('/api/voice/my-inbound-queues', {
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            setInboundQueues(data.data);
-            // Auto-select first active queue if no queue is selected
-            if (!selectedQueue && data.data.length > 0) {
-              const activeQueue = data.data.find((q: any) => q.status === 'ACTIVE') || data.data[0];
-              setSelectedQueue(activeQueue.name);
-            }
-          } else {
-            // If no queues assigned, clear the queues array
-            setInboundQueues([]);
-            setSelectedQueue('');
+  const fetchInboundQueues = async () => {
+    try {
+      setIsLoadingQueues(true);
+      const response = await fetch('/api/voice/my-inbound-queues', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setInboundQueues(data.data);
+          console.log(`🎯 Header: Updated inbound queues - found ${data.data.length} assigned queues`);
+          // Auto-select first active queue if no queue is selected
+          if (!selectedQueue && data.data.length > 0) {
+            const activeQueue = data.data.find((q: any) => q.status === 'ACTIVE') || data.data[0];
+            setSelectedQueue(activeQueue.name);
           }
         } else {
-          console.error('Failed to fetch user assigned inbound queues');
+          // If no queues assigned, clear the queues array
           setInboundQueues([]);
+          setSelectedQueue('');
+          console.log('🎯 Header: No queues assigned to user, cleared queue selection');
         }
-      } catch (error) {
-        console.error('Error fetching user assigned inbound queues:', error);
+      } else {
+        console.error('Failed to fetch user assigned inbound queues');
         setInboundQueues([]);
-      } finally {
-        setIsLoadingQueues(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching user assigned inbound queues:', error);
+      setInboundQueues([]);
+    } finally {
+      setIsLoadingQueues(false);
+    }
+  };
 
+  useEffect(() => {
     fetchInboundQueues();
+    
+    // Set up periodic refresh every 30 seconds to catch assignment changes
+    const refreshInterval = setInterval(fetchInboundQueues, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   // Fetch notifications from backend
@@ -435,26 +442,8 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
             className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
             disabled={isLoadingQueues}
             onClick={() => {
-              // Refresh queues
-              setIsLoadingQueues(true);
-              const fetchQueues = async () => {
-                try {
-                  const response = await fetch('/api/voice/inbound-queues', {
-                    credentials: 'include',
-                  });
-                  if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.data) {
-                      setInboundQueues(data.data);
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error refreshing queues:', error);
-                } finally {
-                  setIsLoadingQueues(false);
-                }
-              };
-              fetchQueues();
+              console.log('🔄 Manual refresh of assigned queues triggered');
+              fetchInboundQueues();
             }}
           >
             <ArrowPathIcon className={`h-4 w-4 ${isLoadingQueues ? 'animate-spin' : ''}`} />

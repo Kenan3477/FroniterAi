@@ -53,12 +53,52 @@ export async function GET(request: NextRequest) {
     if (authToken.startsWith('temp_local_token_')) {
       console.log('✅ Using local bypass for user assigned queues');
       
-      // Return empty array for now - no queues assigned to temp users
-      return NextResponse.json({
-        success: true,
-        data: [],
-        message: 'No inbound queues assigned to this user'
-      });
+      // For temp users, get the user ID from the token
+      const userId = parseInt(authToken.replace('temp_local_token_', ''));
+      console.log('🔍 Looking for queues assigned to user ID:', userId);
+      
+      // Fetch all inbound queues and filter by assigned agents
+      try {
+        const queuesResponse = await fetch(`${request.url.split('/api')[0]}/api/voice/inbound-queues`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        });
+        
+        if (queuesResponse.ok) {
+          const queuesData = await queuesResponse.json();
+          if (queuesData.success && queuesData.data) {
+            // Filter queues where the user is assigned
+            const userQueues = queuesData.data.filter((queue: any) => 
+              queue.assignedAgents && queue.assignedAgents.includes(userId)
+            );
+            
+            console.log(`✅ Found ${userQueues.length} assigned queues for user ${userId}`);
+            return NextResponse.json({
+              success: true,
+              data: userQueues,
+              message: userQueues.length > 0 
+                ? `Found ${userQueues.length} assigned queue(s)` 
+                : 'No inbound queues assigned to this user'
+            });
+          }
+        }
+        
+        console.log('📋 No queues data available, returning empty array');
+        return NextResponse.json({
+          success: true,
+          data: [],
+          message: 'No inbound queues assigned to this user'
+        });
+      } catch (error) {
+        console.error('❌ Error fetching queues for assignment check:', error);
+        return NextResponse.json({
+          success: true,
+          data: [],
+          message: 'No inbound queues assigned to this user'
+        });
+      }
     }
 
     // Make request to backend to get current user's assigned queues
@@ -72,9 +112,59 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      // If the endpoint doesn't exist yet, return empty array
+      // If the endpoint doesn't exist yet, try to get user ID and check queue assignments
       if (response.status === 404) {
-        console.log('📋 Backend endpoint not implemented yet, returning empty queues');
+        console.log('📋 Backend endpoint not implemented, checking queue assignments locally');
+        
+        try {
+          // Get current user profile to extract user ID
+          const profileResponse = await fetch(`${request.url.split('/api')[0]}/api/auth/profile`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Cookie': request.headers.get('Cookie') || ''
+            }
+          });
+          
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            const userId = profileData.success ? profileData.user.id : profileData.id;
+            
+            if (userId) {
+              console.log('🔍 Looking for queues assigned to user ID:', userId);
+              
+              // Fetch all inbound queues and filter by assigned agents
+              const queuesResponse = await fetch(`${request.url.split('/api')[0]}/api/voice/inbound-queues`, {
+                headers: {
+                  'Authorization': `Bearer ${authToken}`,
+                  'Cookie': request.headers.get('Cookie') || ''
+                }
+              });
+              
+              if (queuesResponse.ok) {
+                const queuesData = await queuesResponse.json();
+                if (queuesData.success && queuesData.data) {
+                  // Filter queues where the user is assigned
+                  const userQueues = queuesData.data.filter((queue: any) => 
+                    queue.assignedAgents && queue.assignedAgents.includes(userId)
+                  );
+                  
+                  console.log(`✅ Found ${userQueues.length} assigned queues for user ${userId}`);
+                  return NextResponse.json({
+                    success: true,
+                    data: userQueues,
+                    message: userQueues.length > 0 
+                      ? `Found ${userQueues.length} assigned queue(s)` 
+                      : 'No inbound queues assigned to this user'
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error checking local queue assignments:', error);
+        }
+        
+        // Final fallback
         return NextResponse.json({
           success: true,
           data: [],
