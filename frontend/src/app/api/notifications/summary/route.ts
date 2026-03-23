@@ -118,7 +118,6 @@ export const GET = requireAuth(async (request, user) => {
       dueCallbacks = [];
       recentMissedCalls = [];
     }
-    ]);
 
     // Process and format notifications
     const allNotifications: NotificationItem[] = [];

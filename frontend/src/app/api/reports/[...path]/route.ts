@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from 'next-auth/react';
-import { getToken } from 'next-auth/jwt';
+import { authenticateToken } from '@/middleware/auth';
 
 export async function GET(
   request: NextRequest,
@@ -14,23 +13,22 @@ export async function GET(
   try {
     console.log('🔍 Reports proxy API called with path:', params.path);
     
-    // Get the auth token
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-
-    if (!token || !token.accessToken) {
-      console.log('❌ No valid token for reports proxy');
+    // Authenticate the request
+    const authResult = await authenticateToken(request);
+    if ('error' in authResult) {
       return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
+        { success: false, error: authResult.error },
+        { status: authResult.status }
       );
     }
 
     const path = params.path.join('/');
     const { searchParams } = new URL(request.url);
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    
+    // Get auth token from request
+    const authToken = request.cookies.get('auth-token')?.value || 
+                     request.headers.get('Authorization')?.replace('Bearer ', '');
     
     // Construct the backend URL
     const queryString = searchParams.toString();
@@ -42,7 +40,7 @@ export async function GET(
     const backendResponse = await fetch(fullBackendUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token.accessToken}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       }
@@ -94,7 +92,7 @@ export async function GET(
     console.error('❌ Reports proxy error:', error);
     
     // Return fallback data for specific endpoints
-    const path = params.path.join('/');
+    const path = params?.path?.join('/') || '';
     
     if (path.includes('overview/agent-call-activity')) {
       return NextResponse.json({

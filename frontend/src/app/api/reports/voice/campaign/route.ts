@@ -4,25 +4,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { requireAuth } from '@/middleware/auth';
 
-export async function GET(request: NextRequest) {
+export const GET = requireAuth(async (request, user) => {
   try {
-    console.log('🔍 Voice campaign reports API called');
-    
-    // Get the auth token
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-
-    if (!token) {
-      console.log('❌ No token provided for voice campaign reports');
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    console.log('🔍 Voice campaign reports API called for user:', user.userId);
 
     const { searchParams } = new URL(request.url);
     const campaignId = searchParams.get('campaignId');
@@ -99,4 +85,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

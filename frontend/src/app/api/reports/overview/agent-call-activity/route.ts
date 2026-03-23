@@ -4,26 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { requireAuth } from '@/middleware/auth';
 
-export async function GET(request: NextRequest) {
+export const GET = requireAuth(async (request, user) => {
   try {
-    console.log('🔍 Agent call activity API called');
+    console.log('🔍 Agent call activity API called for user:', user.userId);
     
-    // Get the auth token
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-
-    if (!token) {
-      console.log('❌ No token provided for agent call activity');
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter') || 'today';
 
@@ -74,4 +60,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
