@@ -43,22 +43,35 @@ export default function AdaptiveDashboardQuickActions() {
 
   // Load adaptive quick actions on component mount
   useEffect(() => {
-    if (user && user.organizationId) {
+    console.log('🔍 AdaptiveDashboardQuickActions: useEffect triggered');
+    console.log('🔍 User object:', user);
+    console.log('🔍 User organizationId:', user?.organizationId);
+    
+    if (user) {
+      console.log('🚀 User exists, loading adaptive quick actions...');
       loadAdaptiveQuickActions();
+    } else {
+      console.log('❌ No user found, skipping quick actions load');
     }
   }, [user]);
 
   const loadAdaptiveQuickActions = async () => {
     try {
+      console.log('🔍 Starting loadAdaptiveQuickActions...');
       setLoading(true);
       setError(null);
 
+      console.log('📡 Making request to /api/dashboard/quick-actions...');
       const response = await fetch('/api/dashboard/quick-actions?timeRange=30d', {
         method: 'GET',
         headers: getAuthHeaders()
       });
 
+      console.log('📡 Quick Actions response status:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Quick Actions request failed:', response.status, errorText);
         throw new Error(`Failed to load quick actions: ${response.statusText}`);
       }
 

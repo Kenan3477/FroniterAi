@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshCampaigns = useCallback(async () => {
+    console.log('🔄 refreshCampaigns CALLED! Starting campaign refresh...');
+    console.log('🔄 Current user for campaign refresh:', user?.id, user?.role);
     try {
       if (!user?.id) {
         console.log('❌ No user ID available for campaign fetch');

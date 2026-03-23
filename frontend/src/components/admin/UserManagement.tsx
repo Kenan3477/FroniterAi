@@ -368,6 +368,7 @@ export default function UserManagement() {
         // Update global campaign state in AuthContext
         refreshCampaigns();
         console.log('🔄 AuthContext campaigns refreshed after assignment');
+        console.log('🔄 Calling refreshCampaigns function:', typeof refreshCampaigns);
       } else {
         const error = await response.json();
         console.error('❌ Campaign assignment failed:', error);
@@ -414,6 +415,7 @@ export default function UserManagement() {
         // Refresh AuthContext immediately
         refreshCampaigns();
         console.log('🔄 AuthContext campaigns refreshed immediately after unassignment');
+        console.log('🔄 Calling refreshCampaigns function:', typeof refreshCampaigns);
         
         // Add a small delay to ensure database has updated, then refresh user campaigns only
         setTimeout(async () => {
