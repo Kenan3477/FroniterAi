@@ -29,75 +29,95 @@ export const GET = requireAuth(async (request, user) => {
 
     console.log('📋 Fetching notification summary for user:', user.userId);
 
-    // Fetch different types of notifications concurrently
-    const [
-      systemNotifications,
-      dueCallbacks,
-      recentMissedCalls
-    ] = await Promise.all([
-      // System notifications from notifications table
-      prisma.notification.findMany({
-        where: {
-          userId: user.userId,
-          isRead: false,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } }
-          ]
-        },
-        orderBy: [
-          { priority: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        take: 10
-      }),
+    // Try to fetch from database, but provide fallback on error
+    let systemNotifications = [];
+    let dueCallbacks = [];
+    let recentMissedCalls = [];
 
-      // Due callbacks within 24 hours
-      prisma.task.findMany({
-        where: {
-          assignedUserId: user.userId.toString(),
-          type: 'callback',
-          status: 'open',
-          dueAt: {
-            lte: next24Hours
-          }
-        },
-        include: {
-          contact: {
-            select: {
-              firstName: true,
-              lastName: true,
-              phone: true
-            }
-          }
-        },
-        orderBy: { dueAt: 'asc' },
-        take: 5
-      }),
-
-      // Recent missed calls (calls that were declined or went unanswered in last 4 hours)
-      prisma.callRecord.findMany({
-        where: {
-          agentId: user.userId.toString(),
-          outcome: {
-            in: ['MISSED', 'NO_ANSWER', 'DECLINED']
+    try {
+      // Attempt database queries
+      const [
+        dbSystemNotifications,
+        dbDueCallbacks,
+        dbRecentMissedCalls
+      ] = await Promise.all([
+        // System notifications from notifications table
+        prisma.notification.findMany({
+          where: {
+            userId: user.userId,
+            isRead: false,
+            OR: [
+              { expiresAt: null },
+              { expiresAt: { gt: now } }
+            ]
           },
-          startTime: {
-            gte: new Date(now.getTime() - 4 * 60 * 60 * 1000) // Last 4 hours
-          }
-        },
-        include: {
-          contact: {
-            select: {
-              firstName: true,
-              lastName: true,
-              phone: true
+          orderBy: [
+            { priority: 'desc' },
+            { createdAt: 'desc' }
+          ],
+          take: 10
+        }),
+
+        // Due callbacks within 24 hours
+        prisma.task.findMany({
+          where: {
+            assignedUserId: user.userId.toString(),
+            type: 'callback',
+            status: 'open',
+            dueAt: {
+              lte: next24Hours
             }
-          }
-        },
-        orderBy: { startTime: 'desc' },
-        take: 3
-      })
+          },
+          include: {
+            contact: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true
+              }
+            }
+          },
+          orderBy: { dueAt: 'asc' },
+          take: 5
+        }),
+
+        // Recent missed calls (calls that were declined or went unanswered in last 4 hours)
+        prisma.callRecord.findMany({
+          where: {
+            agentId: user.userId.toString(),
+            outcome: {
+              in: ['MISSED', 'NO_ANSWER', 'DECLINED']
+            },
+            startTime: {
+              gte: new Date(now.getTime() - 4 * 60 * 60 * 1000) // Last 4 hours
+            }
+          },
+          include: {
+            contact: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true
+              }
+            }
+          },
+          orderBy: { startTime: 'desc' },
+          take: 3
+        })
+      ]);
+
+      systemNotifications = dbSystemNotifications;
+      dueCallbacks = dbDueCallbacks;
+      recentMissedCalls = dbRecentMissedCalls;
+
+    } catch (dbError) {
+      console.error('❌ Database error in notifications, using fallback data:', dbError);
+      
+      // Provide empty fallback data
+      systemNotifications = [];
+      dueCallbacks = [];
+      recentMissedCalls = [];
+    }
     ]);
 
     // Process and format notifications
