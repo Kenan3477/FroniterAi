@@ -6,55 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logIPActivity } from '@/app/api/admin/ip-activity/route';
-
-interface IPWhitelistEntry {
-  id: string;
-  ipAddress: string;
-  name: string;
-  description?: string;
-  addedBy: string;
-  addedAt: Date;
-  lastActivity?: Date;
-  isActive: boolean;
-  activityCount: number;
-}
-
-// Default whitelist entries (in production, this should come from database)
-const defaultWhitelist: IPWhitelistEntry[] = [
-  {
-    id: 'default-localhost',
-    ipAddress: '127.0.0.1',
-    name: 'Localhost',
-    description: 'Local development access',
-    addedBy: 'ken@simpleemails.co.uk',
-    addedAt: new Date(),
-    lastActivity: new Date(),
-    isActive: true,
-    activityCount: 0
-  },
-  {
-    id: 'default-localhost-ipv6',
-    ipAddress: '::1',
-    name: 'Localhost IPv6',
-    description: 'Local development access (IPv6)',
-    addedBy: 'ken@simpleemails.co.uk',
-    addedAt: new Date(),
-    lastActivity: new Date(),
-    isActive: true,
-    activityCount: 0
-  },
-  {
-    id: 'ken-current-ip',
-    ipAddress: '176.35.52.123',
-    name: 'Ken Current IP',
-    description: 'Ken current IP address for system access',
-    addedBy: 'ken@simpleemails.co.uk',
-    addedAt: new Date(),
-    lastActivity: new Date(),
-    isActive: true,
-    activityCount: 0
-  }
-];
+import { isIPWhitelisted, updateIPActivity } from '@/lib/ipWhitelist';
 
 function getClientIP(request: NextRequest): string {
   // Check various headers for the real IP
@@ -77,19 +29,6 @@ function getClientIP(request: NextRequest): string {
   
   // Fallback to request IP (may be from load balancer)
   return request.ip || '127.0.0.1';
-}
-
-async function isIPWhitelisted(ipAddress: string): Promise<boolean> {
-  try {
-    // In production, this should query the database
-    // For now, we'll use the default whitelist
-    const whitelistedIPs = defaultWhitelist.filter(entry => entry.isActive);
-    return whitelistedIPs.some(entry => entry.ipAddress === ipAddress);
-  } catch (error) {
-    console.error('❌ Error checking IP whitelist:', error);
-    // Fail-safe: allow localhost IPs if there's an error
-    return ipAddress === '127.0.0.1' || ipAddress === '::1';
-  }
 }
 
 async function isKenBypassEnabled(request: NextRequest): Promise<boolean> {
@@ -244,8 +183,8 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
       return null; // Allow access
     }
 
-    // Check IP whitelist
-    const isWhitelisted = await isIPWhitelisted(clientIP);
+    // Check IP whitelist using shared function
+    const isWhitelisted = isIPWhitelisted(clientIP);
     
     if (!isWhitelisted) {
       console.log(`❌ IP ${clientIP} not whitelisted - blocking access to ${path}`);
@@ -254,6 +193,8 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
     }
 
     console.log(`✅ IP ${clientIP} whitelisted - allowing access to ${path}`);
+    // Update activity tracking
+    updateIPActivity(clientIP);
     logIPActivity(clientIP, method, path, userAgent, undefined, undefined, 200, Date.now() - startTime);
     return null; // Allow access
 
