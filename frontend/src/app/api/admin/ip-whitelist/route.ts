@@ -45,6 +45,17 @@ let ipWhitelist: IPWhitelistEntry[] = [
     lastActivity: new Date(),
     isActive: true,
     activityCount: 0
+  },
+  {
+    id: 'ken-current-ip',
+    ipAddress: '176.35.52.123',
+    name: 'Ken Current IP',
+    description: 'Ken current IP address for system access',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
   }
 ];
 
