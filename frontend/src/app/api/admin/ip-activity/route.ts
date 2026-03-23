@@ -173,4 +173,4 @@ function getActivityByHour(logs: IPActivity[]): { hour: number; count: number }[
   return result;
 }
 
-export { ipActivityLogs, logIPActivity };
+export { ipActivityLogs };
