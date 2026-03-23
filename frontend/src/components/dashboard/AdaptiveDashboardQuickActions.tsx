@@ -80,8 +80,26 @@ export default function AdaptiveDashboardQuickActions() {
       const result: { success: boolean; data: QuickActionsData } = await response.json();
 
       if (result.success) {
-        setQuickActions(result.data.quickActions);
+        // Filter out dashboard-related actions since user is already on dashboard
+        const filteredActions = result.data.quickActions.filter((action: DashboardQuickAction) => {
+          const isDashboardAction = 
+            action.href === '/dashboard' ||
+            action.href === '/' ||
+            action.title.toLowerCase().includes('dashboard') ||
+            action.section === 'Dashboard' ||
+            action.id === 'dashboard' ||
+            action.id === 'dashboard-overview';
+          
+          if (isDashboardAction) {
+            console.log(`🚫 Filtered out dashboard action: ${action.title} (${action.href})`);
+          }
+          
+          return !isDashboardAction;
+        });
+        
+        setQuickActions(filteredActions);
         setIsPersonalized(result.data.metadata.isPersonalized);
+        console.log(`✅ Loaded ${filteredActions.length} quick actions (filtered ${result.data.quickActions.length - filteredActions.length} dashboard actions)`);
       } else {
         throw new Error('Failed to load quick actions');
       }
