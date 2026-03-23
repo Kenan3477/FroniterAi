@@ -123,8 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use different endpoints based on user role
       let apiUrl: string;
       if (user.role === 'ADMIN') {
-        // Admin users should only see campaigns they're assigned to, not all campaigns
-        apiUrl = '/api/campaigns/my-campaigns';
+        // Admin users get their assigned campaigns from the user endpoint for consistency
+        apiUrl = `/api/admin/users/${user.id}/campaigns`;
       } else {
         // Regular users use the Next.js proxy to backend endpoint
         apiUrl = '/api/campaigns/my-campaigns';
@@ -141,11 +141,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         console.log('📋 User campaign response:', data);
+        console.log('📋 Raw data.data array length:', data.data?.length || 0);
+        console.log('📋 Raw data.data:', data.data);
         
         if (data.success) {
           let activeCampaigns: any[] = [];
 
-          if (data.data?.assignments) {
+          // Handle different API response formats
+          if (user.role === 'ADMIN' && data.data?.assignments) {
+            // Admin user endpoint format: { success: true, data: { assignments: [...] } }
+            console.log('🔍 Processing admin user campaign assignments:', data.data.assignments.length, 'total assignments');
+            activeCampaigns = data.data.assignments
+              .filter((assignment: any) => {
+                const campaignStatus = assignment.campaignStatus || assignment.status;
+                const campaignName = assignment.campaignName || assignment.name;
+                const isDeleted = campaignName?.startsWith('[DELETED]');
+                const isActive = campaignStatus === 'Active' || campaignStatus === 'ACTIVE';
+                console.log(`🔍 Assignment ${assignment.campaignId}: status=${campaignStatus}, deleted=${isDeleted}, active=${isActive}`);
+                return !isDeleted && isActive;
+              })
+              .map((assignment: any) => ({
+                campaignId: assignment.campaignId,
+                name: assignment.campaignName || assignment.name,
+                displayName: assignment.campaignName || assignment.name,
+                type: 'OUTBOUND',
+                dialMethod: assignment.dialMethod || 'MANUAL_DIAL',
+                status: assignment.campaignStatus || assignment.status
+              }));
+          } else if (data.data?.assignments) {
             // Handle endpoint response format with user assignments
             console.log('🔍 Processing user campaign assignments:', data.data.assignments.length, 'total assignments');
             activeCampaigns = data.data.assignments

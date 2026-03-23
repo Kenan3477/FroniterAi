@@ -365,10 +365,12 @@ export default function UserManagement() {
         console.log('✅ Campaign assignment successful');
         // Refresh user campaigns
         await openCampaignManagement(managingCampaignsUser);
-        // Update global campaign state in AuthContext
-        refreshCampaigns();
-        console.log('🔄 AuthContext campaigns refreshed after assignment');
-        console.log('🔄 Calling refreshCampaigns function:', typeof refreshCampaigns);
+        // Update global campaign state in AuthContext with small delay
+        setTimeout(() => {
+          refreshCampaigns();
+          console.log('🔄 AuthContext campaigns refreshed after assignment (delayed)');
+          console.log('🔄 Calling refreshCampaigns function:', typeof refreshCampaigns);
+        }, 1000);
       } else {
         const error = await response.json();
         console.error('❌ Campaign assignment failed:', error);

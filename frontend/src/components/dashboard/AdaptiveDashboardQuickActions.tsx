@@ -34,6 +34,8 @@ interface QuickActionsData {
 }
 
 export default function AdaptiveDashboardQuickActions() {
+  console.log('🚨 AdaptiveDashboardQuickActions component is loading...');
+  
   const [quickActions, setQuickActions] = useState<DashboardQuickAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
