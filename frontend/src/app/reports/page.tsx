@@ -633,19 +633,23 @@ export default function ReportsPage() {
                 {selectedCategory && !selectedSubcategory && (
                   // Subcategories
                   <div className="p-4 space-y-2">
-                    {reportCategories.find(cat => cat.id === selectedCategory)?.subcategories?.map((subcategory) => {
-                      const IconComponent = subcategory.icon;
-                      return (
-                        <div
-                          key={subcategory.id}
-                          className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleSubcategorySelect(subcategory.id, subcategory.name)}
-                        >
-                          <IconComponent className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm font-medium">{subcategory.name}</span>
-                        </div>
-                      );
-                    })}
+                    {(() => {
+                      const category = reportCategories.find(cat => cat.id === selectedCategory);
+                      const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
+                      return subcategories.map((subcategory) => {
+                        const IconComponent = subcategory.icon;
+                        return (
+                          <div
+                            key={subcategory.id}
+                            className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => handleSubcategorySelect(subcategory.id, subcategory.name)}
+                          >
+                            <IconComponent className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium">{subcategory.name}</span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </>
