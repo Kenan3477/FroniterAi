@@ -22,6 +22,7 @@ import {
   ChartBarIcon,
   PhoneIcon,
   PhoneXMarkIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 interface AdminSidebarProps {
@@ -93,6 +94,15 @@ const adminSections = [
     description: 'Configure service level agreements'
   },
   { 
+    name: 'Security', 
+    icon: ShieldCheckIcon,
+    description: 'Security settings and IP whitelist management',
+    collapsible: true,
+    subSections: [
+      { name: 'Whitelisted IPs', icon: ShieldCheckIcon, description: 'Manage IP whitelist and access control (Ken Only)' }
+    ]
+  },
+  { 
     name: 'User Management', 
     icon: UsersIcon,
     description: 'Manage user accounts and permissions'
@@ -110,7 +120,7 @@ export default function AdminSidebar({
   collapsed,
   onToggle
 }: AdminSidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Flows']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Flows', 'Security']));
 
   const handleSectionClick = (sectionName: string) => {
     const section = adminSections.find(s => s.name === sectionName);

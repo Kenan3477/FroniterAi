@@ -24,6 +24,7 @@ import SLAsManagement from '@/components/admin/SLAsManagement';
 import ViewsManagement from '@/components/admin/ViewsManagement';
 import NetworkSettingsManagement from '@/components/admin/NetworkSettingsManagement';
 import AuditLogsManagement from '@/components/admin/AuditLogsManagement';
+import IPWhitelistManager from '@/components/admin/IPWhitelistManager';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -636,6 +637,8 @@ export default function AdminPage() {
               <div className="p-6">
                 <ViewsManagement />
               </div>
+            ) : selectedSection === 'Security - Whitelisted IPs' ? (
+              <IPWhitelistManager />
             ) : selectedSection === 'Network Settings' ? (
               <div className="p-6">
                 <NetworkSettingsManagement />
@@ -669,6 +672,7 @@ export default function AdminPage() {
                       {selectedSection === 'Inbound Queues' && '📥'}
                       {selectedSection === 'SLAs' && '⏱️'}
                       {selectedSection === 'Views' && '👁️'}
+                      {selectedSection === 'Security' && '🛡️'}
                       {selectedSection === 'Dialer Configuration' && '📞'}
                       {selectedSection === 'Reports & Analytics' && '📊'}
                       {selectedSection === 'Templates & Scripts' && '📄'}
@@ -694,6 +698,7 @@ export default function AdminPage() {
                       {selectedSection === 'Inbound Queues' && 'Manage incoming message queues and routing'}
                       {selectedSection === 'SLAs' && 'Configure service level agreements and targets'}
                       {selectedSection === 'Views' && 'Customize dashboards and data views'}
+                      {selectedSection === 'Security' && 'Security settings and IP whitelist management'}
                     </p>
                     <div className="bg-gray-50 rounded-lg p-4 text-left max-w-md mx-auto">
                       <h4 className="font-medium text-gray-900 mb-2">Coming Soon:</h4>

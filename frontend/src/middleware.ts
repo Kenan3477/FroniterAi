@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { validateIPAccess } from './middleware/ipSecurity';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // SECURITY LAYER 1: IP Whitelist Validation
+  // This runs before any other authentication checks
+  const ipValidationResult = await validateIPAccess(request);
+  if (ipValidationResult) {
+    // IP is not whitelisted - return access denied response
+    return ipValidationResult;
+  }
+  
   const token = request.cookies.get('auth-token');
   const isLoginPage = request.nextUrl.pathname === '/login';
   const isLogoutPage = request.nextUrl.pathname === '/logout';
@@ -11,7 +20,7 @@ export function middleware(request: NextRequest) {
   const isReportsRoute = request.nextUrl.pathname.startsWith('/reports');
   const isDataManagementRoute = request.nextUrl.pathname.startsWith('/data-management');
   
-  // Allow API routes to handle their own auth
+  // Allow API routes to handle their own auth (after IP validation)
   if (isApiRoute) {
     return NextResponse.next();
   }
