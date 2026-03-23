@@ -821,8 +821,12 @@ const CLIManagement: React.FC = () => {
       
       if (campaignsRes.ok) {
         const campaignsData = await campaignsRes.json();
-        setCampaigns(campaignsData.campaigns || []);
-        console.log('✅ Loaded campaigns:', campaignsData.campaigns?.length || 0);
+        const campaignsArray = Array.isArray(campaignsData.campaigns) ? campaignsData.campaigns : [];
+        setCampaigns(campaignsArray);
+        console.log('✅ Loaded campaigns:', campaignsArray.length);
+      } else {
+        setCampaigns([]);
+        console.log('❌ Failed to load campaigns, setting empty array');
       }
 
       // Load flows
@@ -834,8 +838,12 @@ const CLIManagement: React.FC = () => {
       
       if (flowsRes.ok) {
         const flowsData = await flowsRes.json();
-        setFlows(Array.isArray(flowsData) ? flowsData : flowsData.data || []);
-        console.log('✅ Loaded flows:', flowsData?.length || flowsData.data?.length || 0);
+        const flowsArray = Array.isArray(flowsData) ? flowsData : Array.isArray(flowsData.data) ? flowsData.data : [];
+        setFlows(flowsArray);
+        console.log('✅ Loaded flows:', flowsArray.length);
+      } else {
+        setFlows([]);
+        console.log('❌ Failed to load flows, setting empty array');
       }
 
       // Load inbound queues
@@ -847,8 +855,12 @@ const CLIManagement: React.FC = () => {
       
       if (queuesRes.ok) {
         const queuesData = await queuesRes.json();
-        setQueues(queuesData.data || []);
-        console.log('✅ Loaded queues:', queuesData.data?.length || 0);
+        const queuesArray = Array.isArray(queuesData.data) ? queuesData.data : [];
+        setQueues(queuesArray);
+        console.log('✅ Loaded queues:', queuesArray.length);
+      } else {
+        setQueues([]);
+        console.log('❌ Failed to load queues, setting empty array');
       }
 
       // Set mock call groups for now (can be replaced with real API later)
@@ -860,6 +872,11 @@ const CLIManagement: React.FC = () => {
 
     } catch (err: any) {
       console.error('❌ Error loading backend data:', err);
+      // Ensure arrays are set even on error
+      setCampaigns([]);
+      setFlows([]);
+      setQueues([]);
+      setCallGroups([]);
     }
   };
 
@@ -903,6 +920,8 @@ const CLIManagement: React.FC = () => {
     } catch (err: any) {
       console.error('❌ CLI - Error fetching inbound numbers:', err);
       setError(err.message);
+      // Ensure inboundNumbers is always an array
+      setInboundNumbers([]);
     } finally {
       setLoading(false);
     }
@@ -914,11 +933,11 @@ const CLIManagement: React.FC = () => {
   }, []);
 
   // Filter numbers based on search term
-  const filteredNumbers = inboundNumbers.filter(number =>
+  const filteredNumbers = Array.isArray(inboundNumbers) ? inboundNumbers.filter(number =>
     number.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (number.displayName && number.displayName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (number.assignedFlow?.name && number.assignedFlow.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  ) : [];
 
   // Handle form submission for new number  
   const handleAddNumber = async (e: React.FormEvent) => {
@@ -1700,7 +1719,7 @@ const CLIManagement: React.FC = () => {
                               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                             >
                               <option value="">No Campaign</option>
-                              {campaigns.map((campaign) => (
+                              {Array.isArray(campaigns) && campaigns.map((campaign) => (
                                 <option key={campaign.id} value={campaign.id}>
                                   {campaign.name}
                                 </option>
@@ -1718,7 +1737,7 @@ const CLIManagement: React.FC = () => {
                               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                             >
                               <option value="">No Flow</option>
-                              {flows.map((flow) => (
+                              {Array.isArray(flows) && flows.map((flow) => (
                                 <option key={flow.id} value={flow.id}>
                                   {flow.name}
                                 </option>
@@ -1736,7 +1755,7 @@ const CLIManagement: React.FC = () => {
                               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                             >
                               <option value="">No Call Group</option>
-                              {callGroups.map((group) => (
+                              {Array.isArray(callGroups) && callGroups.map((group) => (
                                 <option key={group.id} value={group.id}>
                                   {group.name}
                                 </option>
@@ -1754,7 +1773,7 @@ const CLIManagement: React.FC = () => {
                               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                             >
                               <option value="">No Queue</option>
-                              {queues.map((queue) => (
+                              {Array.isArray(queues) && queues.map((queue) => (
                                 <option key={queue.id} value={queue.id}>
                                   {queue.displayName || queue.name}
                                 </option>
@@ -1842,7 +1861,7 @@ const CLIManagement: React.FC = () => {
                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-slate-500 focus:border-slate-500"
                               >
                                 <option value="">Select IVR Flow</option>
-                                {flows.map((flow) => (
+                                {Array.isArray(flows) && flows.map((flow) => (
                                   <option key={flow.id} value={flow.id}>
                                     {flow.name}
                                   </option>
