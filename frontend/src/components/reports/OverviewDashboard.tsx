@@ -483,17 +483,17 @@ const OverviewDashboard: React.FC = () => {
 
     // Listen for real-time call volume updates
     socket.on('dashboard.call_volume.updated', (volumeData: CallVolumeData[]) => {
-      setCallVolumeData(volumeData);
+      setCallVolumeData(Array.isArray(volumeData) ? volumeData : []);
     });
 
     // Listen for real-time agent call activity updates
     socket.on('dashboard.agent_call_activity.updated', (activityData: AgentCallActivity[]) => {
-      setAgentCallActivityData(activityData);
+      setAgentCallActivityData(Array.isArray(activityData) ? activityData : []);
     });
 
     // Listen for real-time agent leaderboard updates
     socket.on('dashboard.agents.updated', (agentData: TopAgentData[]) => {
-      setTopAgentsData(agentData);
+      setTopAgentsData(Array.isArray(agentData) ? agentData : []);
     });
 
     // Real-time data refresh every 5 seconds for seamless updates
@@ -520,9 +520,9 @@ const OverviewDashboard: React.FC = () => {
   // Chart configurations
   const agentCallActivityChartData = {
     labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`),
-    datasets: agentCallActivityData.map(agent => ({
+    datasets: (Array.isArray(agentCallActivityData) ? agentCallActivityData : []).map(agent => ({
       label: `${agent.agentName} (${agent.totalCallsToday} calls)`,
-      data: agent.hourlyData.map(hour => hour.callCount),
+      data: Array.isArray(agent.hourlyData) ? agent.hourlyData.map(hour => hour.callCount) : [],
       borderColor: agent.color,
       backgroundColor: agent.color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
       tension: 0.4,
@@ -537,13 +537,13 @@ const OverviewDashboard: React.FC = () => {
   };
 
   const callVolumeChartData = {
-    labels: callVolumeData.map(data => 
+    labels: (Array.isArray(callVolumeData) ? callVolumeData : []).map(data => 
       new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     ),
     datasets: [
       {
         label: 'Total Calls',
-        data: callVolumeData.map(data => data.totalCalls),
+        data: (Array.isArray(callVolumeData) ? callVolumeData : []).map(data => data.totalCalls),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.4,
@@ -551,7 +551,7 @@ const OverviewDashboard: React.FC = () => {
       },
       {
         label: 'Connected Calls',
-        data: callVolumeData.map(data => data.connectedCalls),
+        data: (Array.isArray(callVolumeData) ? callVolumeData : []).map(data => data.connectedCalls),
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         tension: 0.4,
@@ -561,13 +561,13 @@ const OverviewDashboard: React.FC = () => {
   };
 
   const revenueChartData = {
-    labels: revenueData.map(data => 
+    labels: (Array.isArray(revenueData) ? revenueData : []).map(data => 
       new Date(data.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })
     ),
     datasets: [
       {
         label: 'Revenue ($)',
-        data: revenueData.map(data => data.revenue),
+        data: (Array.isArray(revenueData) ? revenueData : []).map(data => data.revenue),
         backgroundColor: 'rgba(147, 51, 234, 0.8)',
         borderColor: 'rgb(147, 51, 234)',
         borderWidth: 2,
@@ -576,10 +576,10 @@ const OverviewDashboard: React.FC = () => {
   };
 
   const conversionChartData = {
-    labels: conversionData.map(data => data.outcome),
+    labels: (Array.isArray(conversionData) ? conversionData : []).map(data => data.outcome),
     datasets: [
       {
-        data: conversionData.map(data => data.count),
+        data: (Array.isArray(conversionData) ? conversionData : []).map(data => data.count),
         backgroundColor: [
           'rgba(16, 185, 129, 0.8)',
           'rgba(59, 130, 246, 0.8)',
@@ -680,7 +680,7 @@ const OverviewDashboard: React.FC = () => {
                   className="input-field w-full px-3 py-2 rounded-md"
                 >
                   <option value="all">All Campaigns</option>
-                  {campaigns.map((campaign) => (
+                  {(Array.isArray(campaigns) ? campaigns : []).map((campaign) => (
                     <option key={campaign.id} value={campaign.id}>
                       {campaign.name}
                     </option>
@@ -706,7 +706,7 @@ const OverviewDashboard: React.FC = () => {
                   <option value="all">
                     {loadingDataLists ? 'Loading...' : selectedCampaign === 'all' ? 'Select Campaign First' : 'All Data Lists'}
                   </option>
-                  {dataLists.map((dataList) => (
+                  {(Array.isArray(dataLists) ? dataLists : []).map((dataList) => (
                     <option key={dataList.id} value={dataList.id}>
                       {dataList.name}
                     </option>
@@ -868,7 +868,7 @@ const OverviewDashboard: React.FC = () => {
           {agentCallActivityData.length > 0 && (
             <div className="mt-4 pt-4 border-t theme-border">
               <div className="flex flex-wrap gap-2">
-                {agentCallActivityData.map(agent => (
+                {(Array.isArray(agentCallActivityData) ? agentCallActivityData : []).map(agent => (
                   <div key={agent.agentId} className="flex items-center space-x-1 text-xs">
                     <div 
                       className="h-3 w-3 rounded-full" 
@@ -922,7 +922,7 @@ const OverviewDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="theme-bg-primary divide-y theme-border">
-                {topAgentsData.map((agent, index) => (
+                {(Array.isArray(topAgentsData) ? topAgentsData : []).map((agent, index) => (
                   <tr key={agent.agentId} className="hover:theme-bg-secondary">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -984,7 +984,7 @@ const OverviewDashboard: React.FC = () => {
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
               {recentOutcomes.length > 0 ? (
-                recentOutcomes.map((call, index) => (
+                (Array.isArray(recentOutcomes) ? recentOutcomes : []).map((call, index) => (
                   <tr key={call.callId || index} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                       {new Date(call.timestamp).toLocaleString('en-US', {
