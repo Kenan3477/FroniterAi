@@ -25,6 +25,7 @@ import ViewsManagement from '@/components/admin/ViewsManagement';
 import NetworkSettingsManagement from '@/components/admin/NetworkSettingsManagement';
 import AuditLogsManagement from '@/components/admin/AuditLogsManagement';
 import IPWhitelistManager from '@/components/admin/IPWhitelistManager';
+import InboundQueuesManager from '@/components/admin/InboundQueuesManager';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -638,6 +639,10 @@ export default function AdminPage() {
             ) : selectedSection === 'Channels' ? (
               <div className="p-6">
                 <ChannelsManagement />
+              </div>
+            ) : selectedSection === 'Inbound Queues' ? (
+              <div className="p-6">
+                <InboundQueuesManager />
               </div>
             ) : selectedSection === 'Reports & Analytics' ? (
               <ReportsSystem />

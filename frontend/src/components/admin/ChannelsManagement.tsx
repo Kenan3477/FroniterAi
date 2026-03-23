@@ -596,13 +596,6 @@ const ChannelsManagement: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex items-center">
-          <div className="flex items-center space-x-2 text-sm text-gray-500 mb-2">
-            <span>Admin</span>
-            <span>/</span>
-            <span>Channels</span>
-          </div>
-        </div>
-        <div className="flex items-center">
           <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
             <PhoneIcon className="h-5 w-5 text-slate-600" />
           </div>

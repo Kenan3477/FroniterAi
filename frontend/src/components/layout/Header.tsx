@@ -201,12 +201,12 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
     }
   };
 
-  // Fetch inbound queues from backend
+  // Fetch user-assigned inbound queues from backend
   useEffect(() => {
     const fetchInboundQueues = async () => {
       try {
         setIsLoadingQueues(true);
-        const response = await fetch('/api/voice/inbound-queues', {
+        const response = await fetch('/api/voice/my-inbound-queues', {
           credentials: 'include',
         });
         
@@ -219,13 +219,17 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               const activeQueue = data.data.find((q: any) => q.status === 'ACTIVE') || data.data[0];
               setSelectedQueue(activeQueue.name);
             }
+          } else {
+            // If no queues assigned, clear the queues array
+            setInboundQueues([]);
+            setSelectedQueue('');
           }
         } else {
-          console.error('Failed to fetch inbound queues');
+          console.error('Failed to fetch user assigned inbound queues');
           setInboundQueues([]);
         }
       } catch (error) {
-        console.error('Error fetching inbound queues:', error);
+        console.error('Error fetching user assigned inbound queues:', error);
         setInboundQueues([]);
       } finally {
         setIsLoadingQueues(false);
