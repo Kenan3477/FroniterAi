@@ -36,9 +36,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setThemeState(savedTheme);
       applyTheme(savedTheme);
     } else {
-      // Default to dark theme for professional look
-      setThemeState('dark');
-      applyTheme('dark');
+      // Default to light theme for cleaner, user-friendly experience
+      setThemeState('light');
+      applyTheme('light');
     }
   }, []);
 
