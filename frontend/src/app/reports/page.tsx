@@ -419,10 +419,12 @@ export default function ReportsPage() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Verifying access permissions...</p>
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="text-center py-12">
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-lg bg-blue-50 text-blue-600">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-600"></div>
+              <span className="font-medium">Verifying access permissions...</span>
+            </div>
           </div>
         </div>
       </MainLayout>
@@ -432,13 +434,13 @@ export default function ReportsPage() {
   if (isAuthorized === false) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-              <XMarkIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="text-center py-12">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+              <XMarkIcon className="h-8 w-8 text-red-600" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
-            <p className="text-gray-600">You don't have permission to access the reports panel.</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
+            <p className="text-gray-600 max-w-md mx-auto">You don't have permission to access the reports panel. Please contact your administrator for access.</p>
           </div>
         </div>
       </MainLayout>

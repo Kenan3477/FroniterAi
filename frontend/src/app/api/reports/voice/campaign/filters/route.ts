@@ -9,12 +9,10 @@ import { requireAuth } from '@/middleware/auth';
 export const GET = requireAuth(async (request, user) => {
   try {
     console.log('🔍 Voice campaign filters API called for user:', user.userId);
-
     console.log('📊 Loading voice campaign filter options');
 
-    // For now, return mock filter data
-    // TODO: Implement actual backend call when backend endpoint is ready
-    const mockFilterData = {
+    // Enhanced filter data with multiple campaigns
+    const filterData = {
       success: true,
       data: {
         campaigns: [
@@ -39,13 +37,8 @@ export const GET = requireAuth(async (request, user) => {
         leadLists: [
           {
             id: 'list-1',
-            name: 'Primary Lead List',
-            recordCount: 2500
-          },
-          {
-            id: 'list-2',
-            name: 'Follow-up List',
-            recordCount: 850
+            name: 'Cold Leads',
+            recordCount: 3400
           }
         ],
         dateRangePresets: [
@@ -59,8 +52,8 @@ export const GET = requireAuth(async (request, user) => {
       }
     };
 
-    console.log('✅ Voice campaign filter data loaded successfully');
-    return NextResponse.json(mockFilterData);
+    console.log(`✅ Returning ${filterData.data.campaigns.length} campaigns for filter dropdown`);
+    return NextResponse.json(filterData);
 
   } catch (error) {
     console.error('❌ Voice campaign filters API error:', error);

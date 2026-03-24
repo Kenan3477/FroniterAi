@@ -173,7 +173,7 @@ export default function VoiceCampaignReports() {
         filters.leadListIds.forEach(id => queryParams.append('leadListIds', id));
       }
 
-      const url = `/api/reports/voice/campaign${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `/api/reports/voice/campaign-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await fetch(url);
       const result = await response.json();
       
@@ -303,21 +303,91 @@ export default function VoiceCampaignReports() {
     }
   };
 
-  if (loading && !kpis.totalCalls) {
+  if (loading && !kpis.totalCalls && !error) {
+    console.log('🔄 VoiceCampaignReports showing skeleton loading state');
     return (
-      <div className="theme-bg min-h-screen flex items-center justify-center">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Skeleton Filters */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+            <div className="h-6 w-16 bg-gray-300 rounded animate-pulse"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-20 bg-gray-300 rounded animate-pulse"></div>
+                <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Skeleton KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 w-16 bg-gray-300 rounded animate-pulse"></div>
+                  <div className="h-8 w-20 bg-gray-300 rounded animate-pulse"></div>
+                </div>
+                <div className="w-8 h-8 bg-gray-300 rounded animate-pulse"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Skeleton Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+                <div className="h-6 w-32 bg-gray-300 rounded animate-pulse"></div>
+              </div>
+              <div className="h-64 bg-gray-100 rounded animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Loading indicator */}
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-          <p className="mt-4 theme-text-secondary">Loading voice campaign analytics...</p>
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-blue-50 text-blue-600">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-200 border-t-blue-600"></div>
+            <span className="text-sm font-medium">Loading voice campaign analytics...</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="theme-bg min-h-screen">
+  if (error) {
+    console.log('❌ VoiceCampaignReports showing error state:', error);
+    return (
       <div className="max-w-7xl mx-auto p-6">
-        {/* Filters */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="text-red-600 text-lg font-medium mb-2">Error Loading Reports</div>
+          <div className="text-red-500 text-sm mb-4">{error}</div>
+          <button 
+            onClick={() => {
+              setError(null);
+              loadAnalytics();
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  console.log('✅ VoiceCampaignReports rendering main content with KPIs:', kpis);
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Filters */}
         <div className="theme-card rounded-lg p-6 mb-8">
           <h2 className="text-lg font-semibold theme-text-primary mb-4 flex items-center gap-2">
             <FunnelIcon className="w-5 h-5" />
@@ -597,6 +667,5 @@ export default function VoiceCampaignReports() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

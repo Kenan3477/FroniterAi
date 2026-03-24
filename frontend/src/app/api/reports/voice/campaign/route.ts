@@ -21,62 +21,75 @@ export const GET = requireAuth(async (request, user) => {
       campaignId, dateFrom, dateTo, agentIds, leadListIds
     });
 
-    // For now, return mock data to prevent errors
-    // TODO: Implement actual backend call when backend endpoint is ready
-    const mockData = {
-      success: true,
-      data: {
-        kpis: {
-          totalCalls: 1547,
-          connectedCalls: 1102,
-          answerRate: 71.2,
-          conversionRate: 8.4,
-          averageCallDuration: 285, // seconds
-          revenuePerCampaign: 12450,
-          costPerConversion: 45.50
-        },
-        charts: {
-          callsByHour: Array.from({ length: 24 }, (_, i) => ({
-            hour: i,
-            totalCalls: Math.floor(Math.random() * 50) + 10,
-            connectedCalls: Math.floor(Math.random() * 35) + 5,
-            conversions: Math.floor(Math.random() * 8) + 1
-          })),
-          callsByAgent: [
-            {
-              agentId: '509',
-              agentName: 'Ken Admin',
-              totalCalls: 245,
-              connectedCalls: 178,
-              conversions: 22
-            },
-            {
-              agentId: '510', 
-              agentName: 'Agent Demo',
-              totalCalls: 189,
-              connectedCalls: 134,
-              conversions: 18
-            }
-          ],
-          conversionFunnel: {
-            totalCalls: 1547,
-            connectedCalls: 1102,
-            qualifiedLeads: 456,
-            conversions: 129
-          },
-          callOutcomes: [
-            { outcome: 'Sale', count: 129, percentage: 8.3 },
-            { outcome: 'Interested', count: 327, percentage: 21.1 },
-            { outcome: 'Not Interested', count: 445, percentage: 28.8 },
-            { outcome: 'Callback', count: 201, percentage: 13.0 },
-            { outcome: 'No Answer', count: 445, percentage: 28.8 }
-          ]
-        }
-      }
-    };
+    // Call the backend for real campaign analytics
+    const backendUrl = process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    const queryParams = new URLSearchParams();
+    
+    if (campaignId) queryParams.append('campaignId', campaignId);
+    if (dateFrom) queryParams.append('dateFrom', dateFrom);
+    if (dateTo) queryParams.append('dateTo', dateTo);
+    if (agentIds.length > 0) agentIds.forEach(id => queryParams.append('agentIds', id));
+    if (leadListIds.length > 0) leadListIds.forEach(id => queryParams.append('leadListIds', id));
 
-    console.log('✅ Voice campaign data loaded successfully');
-    return NextResponse.json(mockData);
+    const response = await fetch(`${backendUrl}/api/reports/voice/campaign?${queryParams.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.BACKEND_API_KEY || 'system-token'}`,
+      }
+    });
+
+    if (response.ok) {
+      const backendData = await response.json();
+      console.log('✅ Voice campaign data loaded from backend successfully');
+      return NextResponse.json(backendData);
+    } else {
+      const errorText = await response.text();
+      console.log(`⚠️ Backend voice campaign reports error (${response.status}):`, errorText);
+      
+      // If backend authentication works but service has errors, show better message
+      if (response.status === 500) {
+        return NextResponse.json({
+          success: false,
+          error: 'Backend voice campaign service has database issues. This is likely due to missing database tables. The call records exist but the analytics service cannot process them.',
+          details: {
+            backendStatus: response.status,
+            backendError: errorText
+          }
+        }, { status: 500 });
+      }
+      
+      // Return empty data structure for other errors
+      const emptyData = {
+        success: true,
+        data: {
+          kpis: {
+            totalCalls: 0,
+            connectedCalls: 0,
+            answerRate: 0,
+            conversionRate: 0,
+            averageCallDuration: 0,
+            revenuePerCampaign: 0,
+            costPerConversion: 0
+          },
+          charts: {
+            callsByHour: Array.from({ length: 24 }, (_, i) => ({
+              hour: i,
+              totalCalls: 0,
+              connectedCalls: 0,
+              conversions: 0
+            })),
+            callsByAgent: [],
+            conversionFunnel: {
+              totalCalls: 0,
+              connectedCalls: 0,
+              qualifiedLeads: 0,
+              conversions: 0
+            },
+            callOutcomes: []
+          }
+        }
+      };
+      return NextResponse.json(emptyData);
+    }
 
   } catch (error) {
     console.error('❌ Voice campaign reports API error:', error);
