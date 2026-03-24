@@ -130,8 +130,20 @@ export default function VoiceCampaignReports() {
   const [filters, setFilters] = useState<VoiceCampaignFilters>({});
 
   useEffect(() => {
+    console.log('🚀 VoiceCampaignReports - Component mounted, loading data...');
     loadFilterData();
     loadAnalytics();
+    
+    // Fallback timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.log('⏰ VoiceCampaignReports - Loading timeout reached, forcing loading to false');
+      setLoading(false);
+      if (kpis.totalCalls === 0) {
+        setError('Loading timeout - please refresh the page');
+      }
+    }, 30000); // 30 second timeout
+    
+    return () => clearTimeout(loadingTimeout);
   }, []);
 
   useEffect(() => {
@@ -139,22 +151,36 @@ export default function VoiceCampaignReports() {
   }, [filters]);
 
   const loadFilterData = async () => {
+    console.log('🔄 VoiceCampaignReports - loadFilterData starting...');
     try {
       const response = await fetch('/api/reports/voice/campaign/filters');
+      console.log('📋 VoiceCampaignReports - Filter data response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Filter API call failed with status: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('✅ VoiceCampaignReports - Filter data received:', { 
+        success: result.success, 
+        campaignCount: result.data?.campaigns?.length,
+        agentCount: result.data?.agents?.length 
+      });
       
       if (result.success) {
         setFilterData(result.data);
       } else {
+        console.log('❌ VoiceCampaignReports - Filter API returned error:', result.error);
         setError('Failed to load filter data');
       }
     } catch (err) {
-      console.error('Error loading filter data:', err);
-      setError('Failed to load filter data');
+      console.error('❌ VoiceCampaignReports - Error loading filter data:', err);
+      setError('Failed to load filter data: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
   const loadAnalytics = async () => {
+    console.log('🔄 VoiceCampaignReports - loadAnalytics starting...');
     setLoading(true);
     setError(null);
     
@@ -174,19 +200,35 @@ export default function VoiceCampaignReports() {
       }
 
       const url = `/api/reports/voice/campaign-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('🌐 VoiceCampaignReports - Fetching analytics from:', url);
+      
       const response = await fetch(url);
+      console.log('📊 VoiceCampaignReports - Analytics response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`API call failed with status: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('✅ VoiceCampaignReports - Analytics data received:', { 
+        success: result.success, 
+        totalCalls: result.data?.kpis?.totalCalls,
+        hasChartData: !!result.data?.charts 
+      });
       
       if (result.success) {
         setKpis(result.data.kpis);
         setCharts(result.data.charts);
+        console.log('✅ VoiceCampaignReports - Data set successfully');
       } else {
+        console.log('❌ VoiceCampaignReports - API returned error:', result.error);
         setError(result.error || 'Failed to load analytics');
       }
     } catch (err) {
-      console.error('Error loading analytics:', err);
-      setError('Failed to load analytics');
+      console.error('❌ VoiceCampaignReports - Error loading analytics:', err);
+      setError('Failed to load analytics: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
+      console.log('🏁 VoiceCampaignReports - Loading complete, setting loading to false');
       setLoading(false);
     }
   };
