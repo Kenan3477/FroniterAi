@@ -407,6 +407,42 @@ export const getCallDetails = async (req: Request, res: Response) => {
 };
 
 /**
+ * GET /api/calls/:callSid/live-status
+ * Lightweight endpoint for frontend to poll real-time call status.
+ * Returns only the fields needed to update the UI without the full call object overhead.
+ */
+export const getLiveCallStatus = async (req: Request, res: Response) => {
+  try {
+    const { callSid } = req.params;
+    const client = require('twilio')(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+
+    const call = await client.calls(callSid).fetch();
+
+    res.json({
+      success: true,
+      callSid: call.sid,
+      status: call.status,          // queued | ringing | in-progress | completed | busy | no-answer | canceled | failed
+      duration: call.duration || 0,
+      direction: call.direction,
+      to: call.to,
+      from: call.from,
+      startTime: call.startTime,
+      endTime: call.endTime,
+    });
+  } catch (error: any) {
+    // Return a non-500 so the frontend doesn't treat it as a hard failure during polling
+    res.status(200).json({
+      success: false,
+      status: 'unknown',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * POST /api/calls/dtmf
  * Send DTMF tones during an active call
  */

@@ -59,6 +59,7 @@ router.get('/twiml-customer', dialerController.generateCustomerTwiML);
 router.post('/twiml-customer', dialerController.generateCustomerTwiML);
 
 // Get call details (with wildcard parameter - must come AFTER specific routes)
+router.get('/:callSid/live-status', authenticate, dialerController.getLiveCallStatus);
 router.get('/:callSid', authenticate, dialerController.getCallDetails);
 
 // Send DTMF tones

@@ -31,6 +31,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Real-time call status polled from Twilio via backend
+  const [callStatus, setCallStatus] = useState<'idle' | 'initiating' | 'queued' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'canceled' | 'failed'>('idle');
+  const callStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Get authenticated user for agent ID
   const { user } = useAuth();
@@ -270,6 +273,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               const startTime = activeRestApiCall?.startTime || new Date();
               const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
               
+              stopCallStatusPolling();
+              setCallStatus('completed');
+
               // End call via backend API if we have call info
               if (activeRestApiCall?.callSid) {
                 await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
@@ -360,10 +366,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // Cleanup active REST API calls on unmount
   useEffect(() => {
     return () => {
+      stopCallStatusPolling();
       if (activeRestApiCall) {
         console.log('🧹 Component unmounting, cleaning up active REST API call');
-        // Note: In a real app, you might want to end the call here
-        // For now, just log it as the call might continue on the backend
       }
     };
   }, [activeRestApiCall]);
@@ -435,6 +440,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const handleClear = () => {
     setPhoneNumber('');
     setLastCallResult(null);
+    setCallStatus('idle');
+    stopCallStatusPolling();
   };
 
   const handleBackspace = () => {
@@ -564,6 +571,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     }
 
     setIsLoading(true);
+    setCallStatus('initiating');
     setLastCallResult(null);
 
     try {
@@ -573,7 +581,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const normalisedNumber = normalisePhoneNumber(phoneNumber);
       console.log('📞 Normalised number:', { original: phoneNumber, normalised: normalisedNumber });
 
-      // Make REST API call through backend - CONFERENCE APPROACH
+      // Make REST API call through backend
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
         headers: { 
@@ -591,43 +599,88 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const result = await response.json();
       
       if (result.success) {
-        console.log('✅ Conference call initiated:', result);
+        console.log('✅ Call initiated:', result);
         
+        setCallStatus('queued');
         setLastCallResult({
           success: true,
           callSid: result.callSid,
           conferenceId: result.conferenceId,
           status: result.status,
-          method: 'Conference REST API',
           message: result.message
         });
         
-        // Track the active REST API call with conference info
         setActiveRestApiCall({
           callSid: result.callSid,
           conferenceId: result.conferenceId,
           startTime: new Date()
         });
-        
-        // Wait 2 seconds then auto-join the agent to the conference
-        console.log('⏳ Customer call initiated, joining agent to conference in 2 seconds...');
-        setTimeout(async () => {
-          await joinAgentToConference(result.conferenceId);
-        }, 2000);
+
+        // Start polling Twilio call status so the UI updates in real-time
+        // The Twilio Device incoming handler will handle the WebRTC audio automatically —
+        // NO separate joinAgentToConference call needed (that was causing double-connection).
+        startCallStatusPolling(result.callSid);
         
         onCallInitiated?.(result);
       } else {
+        setCallStatus('failed');
         throw new Error(result.error || 'Failed to make call');
       }
       
     } catch (error: any) {
       console.error('❌ Error making REST API call:', error);
+      setCallStatus('failed');
       setLastCallResult({ 
         success: false, 
         error: error.message || 'Failed to make call'
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Poll Twilio call status every 1.5 seconds so the UI reflects the real call state.
+   * Stops automatically when the call reaches a terminal state.
+   */
+  const startCallStatusPolling = (callSid: string) => {
+    // Clear any existing poll
+    if (callStatusIntervalRef.current) {
+      clearInterval(callStatusIntervalRef.current);
+    }
+
+    const TERMINAL_STATES = ['completed', 'busy', 'no-answer', 'canceled', 'failed'];
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/calls/${callSid}/live-status`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        const data = await res.json();
+
+        if (data.success && data.status) {
+          console.log(`📡 Call status: ${data.status}`);
+          setCallStatus(data.status as any);
+
+          if (TERMINAL_STATES.includes(data.status)) {
+            stopCallStatusPolling();
+          }
+        }
+      } catch (err) {
+        // Network blip — keep polling, don't kill the interval
+        console.warn('⚠️ Status poll failed (will retry):', err);
+      }
+    };
+
+    callStatusIntervalRef.current = setInterval(poll, 1500);
+    // Run once immediately so there's no 1.5s gap at the start
+    poll();
+  };
+
+  const stopCallStatusPolling = () => {
+    if (callStatusIntervalRef.current) {
+      clearInterval(callStatusIntervalRef.current);
+      callStatusIntervalRef.current = null;
     }
   };
 
@@ -701,6 +754,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   };
 
   const handleHangup = async () => {
+    stopCallStatusPolling();
+    setCallStatus('completed');
     if (activeRestApiCall) {
       try {
         setIsLoading(true);
@@ -881,26 +936,35 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           </button>
         </div>
 
-        {/* Call Result */}
-        {lastCallResult && (
-          <div className={`p-3 rounded-md text-sm ${
-            lastCallResult.success 
-              ? 'bg-green-50 border border-slate-200 text-slate-800' 
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}>
-            {lastCallResult.success ? (
-              <div>
-                <p className="font-medium">✅ Call initiated successfully!</p>
-                <p className="text-xs mt-1">Call SID: {lastCallResult.callSid}</p>
-                <p className="text-xs">Status: {lastCallResult.status}</p>
+        {/* Live Call Status Banner */}
+        {callStatus !== 'idle' && (
+          (() => {
+            const statusConfig: Record<string, { bg: string; border: string; text: string; icon: string; label: string }> = {
+              initiating:   { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-800',   icon: '⏳', label: 'Initiating call…' },
+              queued:       { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-800',   icon: '📡', label: 'Connecting to network…' },
+              ringing:      { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', icon: '🔔', label: 'Ringing…' },
+              'in-progress':{ bg: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-800',  icon: '🟢', label: 'Call connected' },
+              completed:    { bg: 'bg-gray-50',   border: 'border-gray-200',   text: 'text-gray-700',   icon: '✅', label: 'Call ended' },
+              busy:         { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', icon: '🔴', label: 'Line busy' },
+              'no-answer':  { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', icon: '📵', label: 'No answer' },
+              canceled:     { bg: 'bg-gray-50',   border: 'border-gray-200',   text: 'text-gray-700',   icon: '✕',  label: 'Call cancelled' },
+              failed:       { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-800',    icon: '❌', label: lastCallResult?.error || 'Call failed' },
+            };
+            const cfg = statusConfig[callStatus] ?? statusConfig['initiating'];
+            return (
+              <div className={`p-3 rounded-md text-sm border ${cfg.bg} ${cfg.border} ${cfg.text} flex items-center gap-2`}>
+                <span className="text-base">{cfg.icon}</span>
+                <span className="font-medium">{cfg.label}</span>
+                {['initiating', 'queued', 'ringing'].includes(callStatus) && (
+                  <span className="ml-auto inline-flex gap-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                )}
               </div>
-            ) : (
-              <div>
-                <p className="font-medium">❌ Call failed</p>
-                <p className="text-xs mt-1">{lastCallResult.error}</p>
-              </div>
-            )}
-          </div>
+            );
+          })()
         )}
 
         </div>
