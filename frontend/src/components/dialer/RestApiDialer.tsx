@@ -369,9 +369,42 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   }, [activeRestApiCall]);
 
   const handleNumberClick = (digit: string) => {
-    if (phoneNumber.length < 15) { // Reasonable limit for international numbers
+    if (phoneNumber.length < 16) { // +447714333569 = 13 chars, allow up to 16 for international
       setPhoneNumber(prev => prev + digit);
     }
+  };
+
+  // Normalise any phone number to E.164 format before sending to backend
+  const normalisePhoneNumber = (raw: string): string => {
+    const stripped = raw.replace(/\D/g, ''); // digits only
+    
+    // Already has country code: starts with 44 (UK) or 1 (US/CA)
+    if (raw.startsWith('+')) {
+      return raw; // already E.164 - pass through untouched
+    }
+    
+    // UK mobile/landline: 07xxx or 01xxx or 02xxx (11 digits, leading 0)
+    if (stripped.startsWith('0') && stripped.length === 11) {
+      return '+44' + stripped.substring(1); // +447714333569
+    }
+    
+    // UK number without leading 0 (10 digits starting with 7,1,2,3)
+    if (stripped.length === 10 && /^[712356789]/.test(stripped)) {
+      return '+44' + stripped; // +447714333569
+    }
+    
+    // US/Canada: 10 digits, no leading 0
+    if (stripped.length === 10 && !stripped.startsWith('0')) {
+      return '+1' + stripped;
+    }
+    
+    // US/Canada with country code: 11 digits starting with 1
+    if (stripped.startsWith('1') && stripped.length === 11) {
+      return '+' + stripped;
+    }
+    
+    // Fallback: just prepend + if not already there
+    return '+' + stripped;
   };
 
   const handleClear = () => {
@@ -511,6 +544,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     try {
       console.log('📞 Making REST API call to:', phoneNumber);
       
+      // Normalise number to E.164 before sending - handles UK 07xxx, US 10-digit, etc.
+      const normalisedNumber = normalisePhoneNumber(phoneNumber);
+      console.log('📞 Normalised number:', { original: phoneNumber, normalised: normalisedNumber });
+
       // Make REST API call through backend - CONFERENCE APPROACH
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
@@ -519,7 +556,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ 
-          to: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+          to: normalisedNumber,
           campaignId: campaignId,
           campaignName: campaignName,
           agentId: agentId

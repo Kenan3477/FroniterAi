@@ -50,26 +50,52 @@ async function getOrCreateAgentForUser(userId: string, userFirstName: string, us
   }
 }
 
-// Phone number formatting utility
+// Phone number formatting utility - safety net, frontend should already send E.164
 const formatPhoneNumber = (phoneNumber: string): string => {
-  // Remove all non-digit characters
-  let cleaned = phoneNumber.replace(/\D/g, '');
+  if (!phoneNumber) return '';
   
-  // Handle UK numbers
-  if (cleaned.startsWith('0') && cleaned.length === 11) {
-    // UK number starting with 0, convert to +44
-    cleaned = '44' + cleaned.substring(1);
-  } else if (cleaned.startsWith('44') && cleaned.length === 12) {
-    // Already in UK format without +
-    // Keep as is
-  } else if (cleaned.startsWith('1') && cleaned.length === 11) {
-    // US/Canada number, keep as is
-  } else if (cleaned.length === 10 && !cleaned.startsWith('0')) {
-    // Assume US number without country code
-    cleaned = '1' + cleaned;
+  const trimmed = phoneNumber.trim();
+  
+  // Already valid E.164 (starts with + followed by digits)
+  if (/^\+\d{7,15}$/.test(trimmed)) {
+    return trimmed;
   }
   
-  // Add + prefix if not present
+  // Remove all non-digit characters
+  let cleaned = trimmed.replace(/\D/g, '');
+  
+  // UK number: starts with 0 and 11 digits (07714333569)
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    return '+44' + cleaned.substring(1);
+  }
+  
+  // UK number: starts with 44 and 12 digits (447714333569)
+  if (cleaned.startsWith('44') && cleaned.length === 12) {
+    return '+' + cleaned;
+  }
+  
+  // UK number: 10 digits starting with 7 (mobile without leading 0)
+  if (cleaned.length === 10 && cleaned.startsWith('7')) {
+    return '+44' + cleaned;
+  }
+  
+  // US/Canada: 10 digits
+  if (cleaned.length === 10 && !cleaned.startsWith('0')) {
+    return '+1' + cleaned;
+  }
+  
+  // US/Canada: 11 digits starting with 1
+  if (cleaned.startsWith('1') && cleaned.length === 11) {
+    return '+' + cleaned;
+  }
+  
+  // International: has reasonable length, prepend +
+  if (cleaned.length >= 7 && cleaned.length <= 15) {
+    return '+' + cleaned;
+  }
+  
+  // Fallback - return as-is with + prefix
+  console.warn('⚠️ Could not confidently format number:', phoneNumber, '→ cleaned:', cleaned);
   return '+' + cleaned;
 };
 
@@ -838,6 +864,26 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
+    // Validate number via Twilio Lookup before attempting call
+    // This catches invalid numbers and geo-permission issues before wasting a call attempt
+    try {
+      console.log('🔍 Validating number via Twilio Lookup:', formattedTo);
+      const lookup = await twilioClient.lookups.v1.phoneNumbers(formattedTo).fetch();
+      console.log('✅ Number validated:', { 
+        nationalFormat: lookup.nationalFormat, 
+        countryCode: lookup.countryCode,
+        carrier: (lookup as any).carrier?.name || 'Unknown'
+      });
+    } catch (lookupError: any) {
+      console.error('❌ Twilio number lookup failed:', lookupError.message);
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_NUMBER',
+        message: `The number ${formattedTo} is not a valid or reachable phone number. Please check the number and try again.`,
+        twilioCode: lookupError.code
+      });
+    }
+
     // Generate unique conference name for this call
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('🎯 Creating conference call:', conferenceId);
@@ -1093,9 +1139,28 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('❌ Error making REST API call:', error);
+
+    // Provide specific actionable error messages for known Twilio errors
+    let userMessage = error.message || 'Failed to initiate call';
+    let errorCode = error.code;
+
+    if (error.code === 21216) {
+      userMessage = `Geographic permission denied for ${error.message?.match(/\+\d+/)?.[0] || 'this number'}. ` +
+        `Please enable Geographic Permissions in your Twilio Console: ` +
+        `Voice → Settings → Geo Permissions. ` +
+        `If already enabled, the destination number may be in a restricted range (premium rate, non-standard area code).`;
+    } else if (error.code === 21211) {
+      userMessage = 'Invalid phone number format. Please check the number and try again.';
+    } else if (error.code === 21214) {
+      userMessage = 'The destination number cannot receive calls. Please verify the number.';
+    } else if (error.code === 20003) {
+      userMessage = 'Twilio authentication failed. Please check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in environment variables.';
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to initiate call'
+      error: userMessage,
+      twilioCode: errorCode || null
     });
   }
 };
