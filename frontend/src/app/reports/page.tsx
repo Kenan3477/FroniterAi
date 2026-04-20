@@ -555,7 +555,7 @@ export default function ReportsPage() {
       {/* Tab Content */}
       {activeMainTab === 'overview' && (
         <div className="bg-gray-50 rounded-lg p-6">
-          <OverviewDashboard refreshInterval={30000} />
+          <OverviewDashboard />
         </div>
       )}
 

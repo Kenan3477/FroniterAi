@@ -13,6 +13,26 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 /**
+ * @route   GET /api/users/my-inbound-queues
+ * @desc    Get inbound call queues assigned to the current agent
+ * @access  Private
+ * NOTE: Inbound queue management is not yet fully implemented — returns empty array
+ */
+router.get('/my-inbound-queues', authenticate, async (req: Request, res: Response) => {
+  try {
+    // Inbound queue assignment is a future capability.
+    // Return an empty array so the frontend degrades gracefully.
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    console.error('❌ Error fetching inbound queues:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch inbound queues',
+    });
+  }
+});
+
+/**
  * @route   GET /api/admin/users
  * @desc    Get all users for admin dashboard (organization-scoped)
  * @access  Private (requires authentication)

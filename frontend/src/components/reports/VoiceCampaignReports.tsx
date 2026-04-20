@@ -16,7 +16,7 @@ import {
   FunnelIcon,
   ChartPieIcon
 } from '@heroicons/react/24/outline';
-import { Line, Bar, Doughnut, Funnel } from 'react-chartjs-2';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
