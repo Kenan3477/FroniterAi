@@ -73,14 +73,7 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), as
         lastLogin: true,
         createdAt: true,
         updatedAt: true,
-        organizationId: true,
-        organization: {
-          select: {
-            name: true,
-            displayName: true
-          }
-        }
-      },
+      } as any,
       orderBy: {
         createdAt: 'desc'
       }

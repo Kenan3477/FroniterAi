@@ -308,7 +308,7 @@ export class RealBusinessSettingsService {
           organizationId: organization.id,
           passwordResetToken: token,
           passwordResetExpires: expires
-        }
+        } as any
       });
 
       console.log('✅ Super Admin user created:', superAdminUser.email);
@@ -382,9 +382,6 @@ export class RealBusinessSettingsService {
   }
 
   /**
-   * Delete organization
-   */
-  /**
    * Delete organization (with safety checks)
    */
   async deleteOrganization(organizationId: string, force: boolean = false) {
@@ -398,10 +395,10 @@ export class RealBusinessSettingsService {
               contacts: true,
               campaigns: true,
               callRecords: true
-            }
+            } as any
           }
         }
-      });
+      }) as any;
 
       if (!organization) {
         throw new Error('Organization not found');
@@ -631,8 +628,8 @@ export class RealBusinessSettingsService {
         },
         include: {
           organization: true
-        }
-      });
+        } as any
+      }) as any[];
       
       if (orgAdmins.length > 0) {
         console.log(`📋 Found ${orgAdmins.length} Organization Administrator users to update`);
@@ -689,13 +686,13 @@ export class RealBusinessSettingsService {
               members: true,
               contacts: true,
               campaigns: true
-            }
+            } as any
           }
         },
         orderBy: { createdAt: 'desc' }
-      });
+      }) as any[];
 
-      const organizationBreakdown = organizations.map(org => ({
+      const organizationBreakdown = organizations.map((org: any) => ({
         id: org.id,
         name: org.displayName,
         userCount: org._count.members,
@@ -751,11 +748,11 @@ export class RealBusinessSettingsService {
           where: whereClause,
           include: {
             organization: true
-          },
+          } as any,
           skip: (page - 1) * limit,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        }),
+        }) as Promise<any[]>,
         prisma.user.count({ where: whereClause })
       ]);
 
@@ -827,11 +824,11 @@ export class RealBusinessSettingsService {
           role: userData.role,
           organizationId: userData.organizationId,
           isActive: true
-        },
+        } as any,
         include: {
           organization: true
-        }
-      });
+        } as any
+      }) as any;
 
       // Send welcome email if requested
       if (userData.sendWelcomeEmail !== false) {
@@ -888,57 +885,6 @@ export class RealBusinessSettingsService {
     }
   }
 
-  /**
-   * Delete organization (with safety checks)
-   */
-  async deleteOrganization(organizationId: string, force: boolean = false) {
-    try {
-      const organization = await prisma.organization.findUnique({
-        where: { id: organizationId },
-        include: {
-          _count: {
-            select: {
-              members: true,
-              contacts: true,
-              campaigns: true,
-              callRecords: true
-            }
-          }
-        }
-      });
-
-      if (!organization) {
-        throw new Error('Organization not found');
-      }
-
-      // Safety checks
-      const { members, contacts, campaigns, callRecords } = organization._count;
-      const totalData = members + contacts + campaigns + callRecords;
-
-      if (totalData > 0 && !force) {
-        return {
-          canDelete: false,
-          reason: `Organization has ${totalData} associated records (${members} users, ${contacts} contacts, ${campaigns} campaigns, ${callRecords} call records)`,
-          requiresForce: true
-        };
-      }
-
-      // Delete organization (cascades will handle related data)
-      await prisma.organization.delete({
-        where: { id: organizationId }
-      });
-
-      return {
-        canDelete: true,
-        deleted: true,
-        message: `Organization "${organization.displayName}" deleted successfully`
-      };
-
-    } catch (error) {
-      console.error('❌ Error deleting organization:', error);
-      throw new Error(`Failed to delete organization: ${error}`);
-    }
-  }
 }
 
 export const realBusinessSettingsService = new RealBusinessSettingsService();

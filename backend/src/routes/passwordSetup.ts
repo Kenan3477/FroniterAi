@@ -44,15 +44,8 @@ router.get('/validate-setup-token', async (req: Request, res: Response) => {
         passwordResetExpires: {
           gt: new Date() // Token not expired
         }
-      },
-      include: {
-        organization: {
-          select: {
-            displayName: true
-          }
-        }
       }
-    });
+    }) as any;
 
     if (!user) {
       return res.status(400).json({
@@ -105,16 +98,8 @@ router.post('/setup-password', async (req: Request, res: Response) => {
         passwordResetExpires: {
           gt: new Date() // Token not expired
         }
-      },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            displayName: true
-          }
-        }
       }
-    });
+    }) as any;
 
     if (!user) {
       return res.status(400).json({

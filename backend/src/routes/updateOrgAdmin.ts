@@ -30,8 +30,8 @@ router.post('/update-org-admin-name', authenticate, requireRole('ADMIN', 'SUPER_
       },
       include: {
         organization: true
-      }
-    });
+      } as any
+    }) as any;
     
     if (orgAdmin) {
       console.log('📋 Found user to update:', {

@@ -122,8 +122,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         role: true,
         isActive: true,  // Check the correct field for account activation
         organizationId: true  // Include organization membership
-      }
-    });
+      } as any
+    }) as any;
 
     console.log('🔐 Auth middleware - user lookup result:', user ? 'FOUND' : 'NOT_FOUND');
     
@@ -369,8 +369,8 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
             role: true,
             isActive: true,  // Check the correct field for account activation
             organizationId: true  // Include organization membership
-          }
-        });
+          } as any
+        }) as any;
 
         if (user && user.isActive) {
           const permissions = ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS] || [];

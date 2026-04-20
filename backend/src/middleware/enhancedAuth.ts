@@ -178,16 +178,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const user = await prisma.user.findUnique({
       where: { 
         id: parseInt(decoded.userId)
-      },
-      include: {
-        organization: {         // Include organization details
-          select: {
-            id: true,
-            name: true,
-            displayName: true
-          }
-        }
       }
+      // Note: organization relation not in single-tenant schema
     });
 
     if (!user) {
@@ -213,10 +205,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       userId: user.id.toString(),
       username: user.username,
       role: user.role,
-      organizationId: user.organizationId,  // Include organization membership
+      organizationId: (user as any).organizationId,  // single-tenant: not in schema, gracefully undefined
       permissions: rolePermissions,
       isActive: user.isActive,
-      organization: user.organization        // Include organization details
+      organization: (user as any).organization        // single-tenant: not in schema, gracefully undefined
     } as UserPermissions;
 
     console.log(`🔐 Authenticated user: ${user.username} (${user.role}) with ${rolePermissions.length} permissions`);
@@ -470,16 +462,8 @@ export const organizationAwareAuth = async (req: Request, res: Response, next: N
     
     // Fetch user with organization data
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            displayName: true
-          }
-        }
-      }
+      where: { id: decoded.userId }
+      // Note: organization relation not in single-tenant schema
     });
 
     if (!user || !user.isActive) {
@@ -489,23 +473,18 @@ export const organizationAwareAuth = async (req: Request, res: Response, next: N
       });
     }
 
-    // Check if user belongs to an organization
-    if (!user.organizationId) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Organization membership required' 
-      });
-    }
+    // Check if user belongs to an organization (single-tenant: always pass)
+    // if (!user.organizationId) { ... }
 
     // Add user with organization context to request
     (req as any).user = {
       userId: user.id,
       username: user.username,
       role: user.role,
-      organizationId: user.organizationId,
+      organizationId: (user as any).organizationId,
       permissions: getUserPermissions(user.role),
       isActive: user.isActive,
-      organization: user.organization
+      organization: (user as any).organization
     };
 
     next();

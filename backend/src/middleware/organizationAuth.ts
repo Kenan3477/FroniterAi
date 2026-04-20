@@ -35,16 +35,8 @@ export const authenticateWithOrganization = async (
 
     // Fetch user with organization details
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId || decoded.id },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            displayName: true
-          }
-        }
-      }
+      where: { id: decoded.userId || decoded.id }
+      // Note: organization relation not in single-tenant schema
     });
 
     if (!user || !user.isActive) {
@@ -61,8 +53,8 @@ export const authenticateWithOrganization = async (
       role: user.role,
       permissions: [], // Will be populated by role-based middleware if needed
       id: user.id,
-      organizationId: user.organizationId,
-      organization: user.organization,
+      organizationId: (user as any).organizationId,
+      organization: (user as any).organization,
       isActive: user.isActive
     };
 

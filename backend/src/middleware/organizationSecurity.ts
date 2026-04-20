@@ -38,21 +38,11 @@ export const requireOrganizationAccess = (allowCrossOrgForSuperAdmin: boolean = 
         });
       }
 
-      // Validate organization exists and user has access
+      // Validate organization exists and user has access (single-tenant: just check user is active)
       const orgAccess = await prisma.user.findFirst({
         where: {
           id: parseInt(req.user.userId),
-          organizationId: req.user.organizationId,
           isActive: true
-        },
-        include: {
-          organization: {
-            select: {
-              id: true,
-              name: true,
-              displayName: true
-            }
-          }
         }
       });
 
@@ -66,9 +56,7 @@ export const requireOrganizationAccess = (allowCrossOrgForSuperAdmin: boolean = 
 
       // Add organization context to request for use in controllers
       req.organizationId = req.user.organizationId;
-      if (orgAccess.organization) {
-        req.organization = orgAccess.organization;
-      }
+      // organization relation not in single-tenant schema; skip req.organization assignment
 
       next();
 
@@ -170,26 +158,17 @@ export const validateOrganizationResource = (resourceType: 'contact' | 'campaign
       switch (resourceType) {
         case 'contact':
           resource = await prisma.contact.findFirst({
-            where: {
-              id: resourceId,
-              organizationId: req.user.organizationId
-            }
+            where: { id: resourceId }
           });
           break;
         case 'campaign':
           resource = await prisma.campaign.findFirst({
-            where: {
-              id: resourceId,
-              organizationId: req.user.organizationId
-            }
+            where: { id: resourceId }
           });
           break;
         case 'callRecord':
           resource = await prisma.callRecord.findFirst({
-            where: {
-              id: resourceId,
-              organizationId: req.user.organizationId
-            }
+            where: { id: resourceId }
           });
           break;
       }

@@ -99,7 +99,7 @@ router.get('/campaigns', authenticateToken, requirePermission('campaign.read'), 
 
     console.log('🔍 Raw campaigns from database:', campaigns.length);
     campaigns.forEach((campaign, idx) => {
-      console.log(`  ${idx + 1}. ${campaign.name} (Status: ${campaign.status}, Org: ${campaign.organizationId})`);
+      console.log(`  ${idx + 1}. ${campaign.name} (Status: ${campaign.status}, Org: ${(campaign as any).organizationId})`);
     });
 
     // Transform to match frontend interface and filter out deleted campaigns
@@ -250,7 +250,7 @@ router.get('/stats', authenticateToken, requirePermission('campaign.read'), asyn
 
     // Fetch campaigns from database for stats calculation
     const campaigns = await prisma.campaign.findMany({
-      where: organizationFilter,
+      where: organizationFilter as any,
       include: {
         _count: {
           select: {
@@ -377,16 +377,8 @@ router.post('/data-lists', organizationAwareAuth, requirePermission('campaign.cr
         listId: `list_${Date.now()}`,
         name: name.trim(),
         campaignId: campaignId || null,
-        organizationId: organizationFilter.organizationId,
         blendWeight: Math.max(1, Math.min(100, blendWeight)),
         active: active
-      },
-      include: {
-        _count: {
-          select: {
-            contacts: true
-          }
-        }
       }
     });
 
@@ -396,7 +388,7 @@ router.post('/data-lists', organizationAwareAuth, requirePermission('campaign.cr
       name: newDataList.name,
       campaignId: newDataList.campaignId,
       active: newDataList.active,
-      totalContacts: newDataList._count.contacts,
+      totalContacts: newDataList.totalContacts,
       blendWeight: newDataList.blendWeight,
       createdAt: newDataList.createdAt,
       updatedAt: newDataList.updatedAt
