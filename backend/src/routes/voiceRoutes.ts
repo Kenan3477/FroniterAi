@@ -6,6 +6,47 @@ import { authenticate } from '../middleware/auth';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// ── Auto-seed known Twilio numbers on startup ──────────────────────────────
+const KNOWN_NUMBERS = [
+  {
+    phoneNumber: '+442046343130',
+    displayName: 'UK Local - London',
+    description: 'Primary outbound London CLI',
+    country: 'GB', region: 'London', numberType: 'LOCAL'
+  },
+  {
+    phoneNumber: '+441642053664',
+    displayName: 'UK Local - Teesside',
+    description: 'Teesside / Middlesbrough outbound CLI',
+    country: 'GB', region: 'Teesside', numberType: 'LOCAL'
+  }
+];
+
+(async () => {
+  try {
+    for (const num of KNOWN_NUMBERS) {
+      const existing = await prisma.inboundNumber.findFirst({ where: { phoneNumber: num.phoneNumber } });
+      if (!existing) {
+        await prisma.inboundNumber.create({
+          data: {
+            ...num,
+            provider: 'TWILIO',
+            capabilities: JSON.stringify(['VOICE']),
+            isActive: true
+          }
+        });
+        console.log(`📞 Seeded number: ${num.phoneNumber} (${num.displayName})`);
+      } else if (!existing.isActive) {
+        await prisma.inboundNumber.update({ where: { id: existing.id }, data: { isActive: true } });
+        console.log(`📞 Re-activated number: ${num.phoneNumber}`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('⚠️ Number seed failed (non-fatal):', err.message);
+  }
+})();
+// ──────────────────────────────────────────────────────────────────────────
+
 interface InboundNumber {
   id: string;
   phoneNumber: string;

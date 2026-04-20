@@ -375,6 +375,61 @@ router.get('/:contactId', authenticateToken, requirePermission('contacts.read'),
   }
 });
 
+// Update contact details (agent edits during/after call)
+// PATCH /api/contacts/:contactId
+router.patch('/:contactId', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { contactId } = req.params;
+    const {
+      firstName, lastName, email, phone, company,
+      address, city, state, zipCode, country,
+      notes, tags, custom1, custom2, custom3
+    } = req.body;
+
+    console.log(`✏️ Updating contact ${contactId}:`, req.body);
+
+    const contact = await prisma.contact.findFirst({
+      where: { contactId }
+    });
+
+    if (!contact) {
+      return res.status(404).json({ success: false, message: 'Contact not found' });
+    }
+
+    const updated = await prisma.contact.update({
+      where: { contactId },
+      data: {
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(company !== undefined && { company }),
+        ...(address !== undefined && { address }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
+        ...(zipCode !== undefined && { zipCode }),
+        ...(country !== undefined && { country }),
+        ...(notes !== undefined && { notes }),
+        ...(tags !== undefined && { tags: Array.isArray(tags) ? JSON.stringify(tags) : tags }),
+        ...(custom1 !== undefined && { custom1 }),
+        ...(custom2 !== undefined && { custom2 }),
+        ...(custom3 !== undefined && { custom3 }),
+        updatedAt: new Date()
+      }
+    });
+
+    console.log(`✅ Contact ${contactId} updated successfully`);
+    res.json({ success: true, message: 'Contact updated', data: updated });
+  } catch (error) {
+    console.error('❌ Error updating contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update contact',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Update contact status
 // PUT /api/contacts/:contactId/status
 router.put('/:contactId/status', authenticateToken, requirePermission('contacts.update'), async (req: Request, res: Response) => {

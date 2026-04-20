@@ -334,7 +334,37 @@ export const EnhancedCustomerInfoCard: React.FC<EnhancedCustomerInfoCardProps> =
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Persist the edited contact fields to the backend
+    const contactId = customerData.contactId || customerData.id;
+    if (contactId) {
+      try {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+        const response = await fetch(`${BACKEND_URL}/api/contacts/${contactId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('omnivox_token') || ''}`
+          },
+          body: JSON.stringify({
+            firstName: customerData.firstName,
+            lastName: customerData.lastName,
+            email: customerData.email,
+            phone: customerData.phoneNumber,
+            address: customerData.address,
+            notes: customerData.notes
+          })
+        });
+        if (response.ok) {
+          console.log('✅ Contact saved successfully');
+        } else {
+          const err = await response.json().catch(() => ({}));
+          console.error('❌ Failed to save contact:', err);
+        }
+      } catch (error) {
+        console.error('❌ Error saving contact:', error);
+      }
+    }
     setIsEditing(false);
     onSave?.();
   };

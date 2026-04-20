@@ -18,7 +18,7 @@ export async function GET(
     const { callSid } = params;
 
     const response = await fetch(
-      `${BACKEND_URL}/api/calls/${callSid}/live-status`,
+      `${BACKEND_URL}/api/dialer/${callSid}/live-status`,
       {
         method: 'GET',
         headers: {

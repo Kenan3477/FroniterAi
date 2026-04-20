@@ -100,24 +100,14 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), as
 
 /**
  * @route   POST /api/admin/users
- * @desc    Create a new user (within organization)
- * @access  Private (requires authentication)
+ * @desc    Create a new user
+ * @access  Private (requires authentication - ADMIN or MANAGER role)
  */
-router.post('/', organizationAwareAuth, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+router.post('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
-    const currentUser = (req as any).user;
-    const organizationFilter = getOrganizationFilter(currentUser);
-    
-    if (!organizationFilter.organizationId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Organization access required'
-      });
-    }
-
     const { name, email, password, role = 'AGENT', department, phoneNumber } = req.body;
     
-    console.log('👤 Creating new user in organization:', organizationFilter.organizationId, { name, email, role });
+    console.log('👤 Creating new user:', { name, email, role });
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -211,7 +201,6 @@ router.post('/', organizationAwareAuth, requireRole('ADMIN', 'MANAGER'), async (
         lastName,
         name,
         role: role.toUpperCase(),
-        organizationId: organizationFilter.organizationId, // Assign to same organization
         isActive: true,
         status: 'away'
       }
