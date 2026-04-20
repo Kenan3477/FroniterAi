@@ -622,10 +622,25 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         debugInfo.errors.push('Using outcome without DB disposition link');
       }
 
-      // Create or update call record with correct schema
-      // Use upsert to handle case where Twilio webhook already created the record
-      const finalCallId = callSid || uniqueCallId;
-      console.log('💾 Creating/updating call record with dispositionId:', validDispositionId);
+      // Create or update call record with correct schema.
+      //
+      // IMPORTANT: makeRestApiCall stores the call with callId = conf-xxx and saves the
+      // Twilio CA-SID in the `recording` column. When the frontend sends callSid=CA...,
+      // we MUST first find the existing conf-xxx record by matching recording=callSid,
+      // otherwise we create a duplicate orphan record with callId=CA... and the original
+      // conf-xxx record never gets its disposition or recording attached.
+      let existingRecordByTwilioSid = null;
+      if (callSid && callSid.startsWith('CA')) {
+        existingRecordByTwilioSid = await prisma.callRecord.findFirst({
+          where: { recording: callSid }
+        });
+        if (existingRecordByTwilioSid) {
+          console.log(`🔗 Found existing conf record ${existingRecordByTwilioSid.callId} via Twilio SID ${callSid}`);
+        }
+      }
+
+      const finalCallId = existingRecordByTwilioSid?.callId || callSid || uniqueCallId;
+      console.log('💾 Creating/updating call record with dispositionId:', validDispositionId, '| callId:', finalCallId);
       
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
@@ -762,15 +777,17 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
     console.log('🎯 Processing completed recording...');
 
     try {
-      // Find call record using the Twilio CallSid
-      console.log(`🔍 Searching for call record with callId containing: ${CallSid}`);
+      // Find call record using the Twilio CallSid.
+      // makeRestApiCall stores callId=conf-xxx and saves the Twilio SID in the `recording` column.
+      // So we must check BOTH callId and recording columns.
+      console.log(`🔍 Searching for call record with CallSid: ${CallSid}`);
       
-      // Search by callId (exact match or contained in callId)
       let callRecord = await prisma.callRecord.findFirst({
         where: {
           OR: [
             { callId: CallSid },
             { callId: { contains: CallSid } },
+            { recording: CallSid },              // FIXED: conf-xxx records store Twilio SID here
             { notes: { contains: CallSid } }
           ]
         },

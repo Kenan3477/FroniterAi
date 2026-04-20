@@ -661,10 +661,18 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
     if (CallStatus === 'completed') {
       console.log(`✅ Call completed: ${CallSid} - Duration: ${CallDuration}s`);
       
-      // Find call record by Twilio SID and update it
+      // Find call record.
+      // makeRestApiCall stores callId=conf-xxx and saves the Twilio SID in `recording`.
+      // Check both recording column AND callId column to handle both creation paths.
       try {
         const callRecord = await prisma.callRecord.findFirst({
-          where: { recording: CallSid }
+          where: {
+            OR: [
+              { recording: CallSid },
+              { callId: CallSid }
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
         });
 
         if (callRecord) {

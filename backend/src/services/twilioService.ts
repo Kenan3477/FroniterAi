@@ -252,20 +252,17 @@ export const generateCustomerToAgentTwiML = (): string => {
   
   // Connect customer directly to the WebRTC agent with proper audio configuration
   const dial = twiml.dial({
-    timeout: 60, // Increase timeout to 60 seconds for better connection reliability
-    record: 'record-from-answer', // Record only one side to prevent echo
-    recordingStatusCallback: `${process.env.BACKEND_URL}/api/dialer/webhook/recording-status`, // Auto-sync webhook for recordings
-    answerOnBridge: true, // CRITICAL: Only answer customer when agent picks up
-    ringTone: 'us', // Ring tone for AGENT to hear (not customer)
+    timeout: 60,
+    record: 'record-from-answer-dual-channel' as any, // Dual-channel recording; typed as any due to SDK enum limitation
+    recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback` as any, // FIXED: correct webhook path
+    recordingStatusCallbackMethod: 'POST' as any,
+    answerOnBridge: true as any, // Only answer customer when agent picks up
+    ringTone: 'gb' as any,       // UK ring tone
     callerId: process.env.TWILIO_PHONE_NUMBER
-  });
+  } as any);
   
-  // Use client dial to connect to the WebRTC agent
+  // Connect to the WebRTC agent browser client
   dial.client('agent-browser');
-  
-  // Silent ending - no messages for either party
-  // The dial will handle the connection, and when either party hangs up,
-  // the call ends silently without any additional audio
   
   return twiml.toString();
 };

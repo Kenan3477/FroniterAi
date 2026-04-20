@@ -221,10 +221,18 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
           name: true
         }
       },
+      disposition: {
+        select: {
+          id: true,
+          name: true,
+          category: true
+        }
+      },
       recordingFile: {
         select: {
           id: true,
           fileName: true,
+          filePath: true,  // FIXED: must be included for playback
           duration: true,
           uploadStatus: true,
           createdAt: true
