@@ -376,34 +376,59 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
   // Normalise any phone number to E.164 format before sending to backend
   const normalisePhoneNumber = (raw: string): string => {
-    const stripped = raw.replace(/\D/g, ''); // digits only
-    
-    // Already has country code: starts with 44 (UK) or 1 (US/CA)
-    if (raw.startsWith('+')) {
-      return raw; // already E.164 - pass through untouched
+    const trimmed = raw.trim();
+    const stripped = trimmed.replace(/\D/g, ''); // digits only
+
+    // Already E.164 — pass through untouched
+    if (trimmed.startsWith('+')) {
+      return trimmed;
     }
-    
-    // UK mobile/landline: 07xxx or 01xxx or 02xxx (11 digits, leading 0)
+
+    // ── UK DETECTION (leading 0 is the definitive UK indicator) ──────────────
+
+    // UK domestic format: 11 digits starting with 0
+    // Covers: 07xxx (mobile), 01xxx (landline), 02xxx (London/Cardiff/etc), 03xxx, 08xxx
     if (stripped.startsWith('0') && stripped.length === 11) {
-      return '+44' + stripped.substring(1); // +447714333569
+      return '+44' + stripped.substring(1); // 07714333569 → +447714333569
     }
-    
-    // UK number without leading 0 (10 digits starting with 7,1,2,3)
-    if (stripped.length === 10 && /^[712356789]/.test(stripped)) {
-      return '+44' + stripped; // +447714333569
+
+    // UK country code already present: 44 + 10 digits = 12 digits total
+    if (stripped.startsWith('44') && stripped.length === 12) {
+      return '+' + stripped; // 447714333569 → +447714333569
     }
-    
-    // US/Canada: 10 digits, no leading 0
-    if (stripped.length === 10 && !stripped.startsWith('0')) {
+
+    // UK mobile without leading 0: 10 digits starting with 7
+    if (stripped.length === 10 && stripped.startsWith('7')) {
+      return '+44' + stripped; // 7714333569 → +447714333569
+    }
+
+    // UK landline without leading 0: 10 digits starting with known UK area code prefixes
+    // UK area codes begin with 11–19 (01xxx), 20–29 (02xxx), 30–33 (03xxx)
+    if (stripped.length === 10) {
+      const twoDigit = parseInt(stripped.substring(0, 2), 10);
+      const isLikelyUK =
+        (twoDigit >= 11 && twoDigit <= 19) || // 01xxx area codes
+        (twoDigit >= 20 && twoDigit <= 29) || // 02xxx (London, Belfast, Cardiff, etc.)
+        twoDigit === 30 || twoDigit === 31 || twoDigit === 33; // 03xxx
+
+      if (isLikelyUK) {
+        console.log(`📞 Normalised ${stripped} as UK landline (prefix: ${twoDigit})`);
+        return '+44' + stripped; // 1234567890 → +441234567890
+      }
+
+      // Default 10-digit: US/Canada
       return '+1' + stripped;
     }
-    
-    // US/Canada with country code: 11 digits starting with 1
+
+    // ── US / CANADA ───────────────────────────────────────────────────────────
+
+    // 11 digits starting with 1 = US/Canada with country code
     if (stripped.startsWith('1') && stripped.length === 11) {
-      return '+' + stripped;
+      return '+' + stripped; // 17145551234 → +17145551234
     }
-    
-    // Fallback: just prepend + if not already there
+
+    // ── FALLBACK ─────────────────────────────────────────────────────────────
+
     return '+' + stripped;
   };
 

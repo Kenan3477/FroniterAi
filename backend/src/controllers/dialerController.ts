@@ -56,46 +56,67 @@ const formatPhoneNumber = (phoneNumber: string): string => {
   
   const trimmed = phoneNumber.trim();
   
-  // Already valid E.164 (starts with + followed by digits)
-  if (/^\+\d{7,15}$/.test(trimmed)) {
+  // Already valid E.164 (starts with + followed by 7-15 digits, no leading 0)
+  if (/^\+[1-9]\d{6,14}$/.test(trimmed)) {
     return trimmed;
   }
   
-  // Remove all non-digit characters
+  // Remove all non-digit characters for analysis
   let cleaned = trimmed.replace(/\D/g, '');
   
-  // UK number: starts with 0 and 11 digits (07714333569)
+  // ── UK NUMBER DETECTION (must come BEFORE US/generic rules) ──────────────
+  
+  // UK: 11 digits starting with 0 (all UK domestic formats: 01xxx, 02xxx, 03xxx, 07xxx, 08xxx)
   if (cleaned.startsWith('0') && cleaned.length === 11) {
-    return '+44' + cleaned.substring(1);
+    return '+44' + cleaned.substring(1); // 07714333569 → +447714333569
   }
   
-  // UK number: starts with 44 and 12 digits (447714333569)
+  // UK: already has 44 country code, 12 digits total (447714333569)
   if (cleaned.startsWith('44') && cleaned.length === 12) {
-    return '+' + cleaned;
+    return '+' + cleaned; // → +447714333569
   }
   
-  // UK number: 10 digits starting with 7 (mobile without leading 0)
+  // UK: 10 digits starting with 7 (mobile without leading 0, e.g. 7714333569)
   if (cleaned.length === 10 && cleaned.startsWith('7')) {
-    return '+44' + cleaned;
+    return '+44' + cleaned; // → +447714333569
   }
   
-  // US/Canada: 10 digits
-  if (cleaned.length === 10 && !cleaned.startsWith('0')) {
+  // UK: 10 digits starting with 1 or 2 — AMBIGUOUS with US but we are UK-first
+  // UK landlines: 1xxx xxxxxx (e.g. 1234567890 = 01234567890 without leading 0)
+  // Rule: if it LOOKS like a UK area code (starts with known UK prefixes), treat as UK
+  // UK area codes start: 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 28, 29, 30, 31, 33
+  if (cleaned.length === 10) {
+    const twoDigit = parseInt(cleaned.substring(0, 2), 10);
+    const isLikelyUK = (twoDigit >= 11 && twoDigit <= 19) || // 01xxx area codes
+                       (twoDigit >= 20 && twoDigit <= 29) || // 02xxx area codes (London etc)
+                       twoDigit === 30 || twoDigit === 31 || twoDigit === 33; // 03xxx
+    
+    if (isLikelyUK) {
+      console.log(`📞 10-digit number ${cleaned} detected as UK landline (prefix: ${twoDigit})`);
+      return '+44' + cleaned; // → +441234567890
+    }
+    
+    // Otherwise assume US/Canada
+    console.log(`📞 10-digit number ${cleaned} detected as US/Canada (prefix: ${twoDigit})`);
     return '+1' + cleaned;
   }
   
-  // US/Canada: 11 digits starting with 1
+  // ── US / CANADA ───────────────────────────────────────────────────────────
+  
+  // US/Canada with country code: 11 digits starting with 1
   if (cleaned.startsWith('1') && cleaned.length === 11) {
-    return '+' + cleaned;
+    return '+' + cleaned; // → +17145551234
   }
   
-  // International: has reasonable length, prepend +
+  // ── INTERNATIONAL FALLBACK ───────────────────────────────────────────────
+  
+  // Has reasonable length - prepend + and hope for the best
   if (cleaned.length >= 7 && cleaned.length <= 15) {
+    console.warn(`⚠️ Could not confidently identify country for number: ${phoneNumber} (cleaned: ${cleaned}) - prepending + as fallback`);
     return '+' + cleaned;
   }
   
-  // Fallback - return as-is with + prefix
-  console.warn('⚠️ Could not confidently format number:', phoneNumber, '→ cleaned:', cleaned);
+  console.error(`❌ Cannot format invalid phone number: ${phoneNumber}`);
   return '+' + cleaned;
 };
 
@@ -864,25 +885,10 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // Validate number via Twilio Lookup before attempting call
-    // This catches invalid numbers and geo-permission issues before wasting a call attempt
-    try {
-      console.log('🔍 Validating number via Twilio Lookup:', formattedTo);
-      const lookup = await twilioClient.lookups.v1.phoneNumbers(formattedTo).fetch();
-      console.log('✅ Number validated:', { 
-        nationalFormat: lookup.nationalFormat, 
-        countryCode: lookup.countryCode,
-        carrier: (lookup as any).carrier?.name || 'Unknown'
-      });
-    } catch (lookupError: any) {
-      console.error('❌ Twilio number lookup failed:', lookupError.message);
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_NUMBER',
-        message: `The number ${formattedTo} is not a valid or reachable phone number. Please check the number and try again.`,
-        twilioCode: lookupError.code
-      });
-    }
+    // NOTE: Twilio Lookup pre-validation was removed — it added ~500ms-1s latency per call.
+    // Invalid numbers / geo-permission errors are now caught in the Twilio call attempt below
+    // and surfaced back to the agent with clear error messages.
+    console.log(`📞 Initiating call to ${formattedTo} from ${fromNumber}`);
 
     // Generate unique conference name for this call
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
