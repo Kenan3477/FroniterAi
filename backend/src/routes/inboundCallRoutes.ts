@@ -81,6 +81,24 @@ router.post('/webhook/inbound-status', validateTwilioWebhook, async (req, res) =
         WHERE id = ${callId}
       `;
 
+      // Also update call_records if exists
+      if (['completed', 'busy', 'no-answer', 'failed', 'canceled'].includes(CallStatus.toLowerCase())) {
+        await prisma.callRecord.updateMany({
+          where: {
+            OR: [
+              { callId: CallSid },
+              { callId: callId }
+            ]
+          },
+          data: {
+            outcome: CallStatus.toLowerCase(),
+            endTime: new Date(),
+            duration: Duration ? parseInt(Duration) : null
+          }
+        });
+        console.log('✅ Call_records updated for ended inbound call');
+      }
+
       // Emit status update event using centralized helper
       const { callEvents } = require('../utils/eventHelpers');
       
@@ -99,6 +117,126 @@ router.post('/webhook/inbound-status', validateTwilioWebhook, async (req, res) =
     res.status(200).send('OK');
   } catch (error: any) {
     console.error('❌ Error processing inbound call status webhook:', error);
+    res.status(500).send('Error');
+  }
+});
+
+/**
+ * POST /api/calls/webhook/inbound-recording
+ * Webhook for inbound call recording status updates from Twilio
+ */
+router.post('/webhook/inbound-recording', validateTwilioWebhook, async (req, res) => {
+  try {
+    const { 
+      RecordingSid, 
+      CallSid, 
+      RecordingUrl, 
+      RecordingDuration, 
+      RecordingStatus,
+      RecordingChannels 
+    } = req.body;
+    const { callId } = req.query;
+    
+    console.log(`🎙️ Inbound recording webhook: ${RecordingStatus} for call ${CallSid}`, {
+      RecordingSid,
+      callId,
+      RecordingUrl,
+      RecordingDuration
+    });
+
+    if (RecordingStatus === 'completed') {
+      const { prisma } = require('../database');
+      const { onNewCallRecording } = require('../services/transcriptionWorker');
+      
+      // Find the call record by CallSid or callId
+      let callRecord = await prisma.callRecord.findFirst({
+        where: {
+          OR: [
+            { callId: CallSid },
+            { callId: callId }
+          ]
+        }
+      });
+
+      if (callRecord) {
+        console.log(`📝 Found call_records entry for inbound call: ${callRecord.id}`);
+        
+        // Create or update the recording record
+        await prisma.recording.upsert({
+          where: { callRecordId: callRecord.id },
+          update: {
+            fileName: `inbound_recording_${RecordingSid}.wav`,
+            filePath: RecordingUrl,
+            duration: parseInt(RecordingDuration) || 0,
+            format: 'wav',
+            uploadStatus: 'completed',
+            updatedAt: new Date()
+          },
+          create: {
+            callRecordId: callRecord.id,
+            fileName: `inbound_recording_${RecordingSid}.wav`,
+            filePath: RecordingUrl,
+            duration: parseInt(RecordingDuration) || 0,
+            format: 'wav',
+            quality: RecordingChannels === '2' ? 'stereo' : 'mono',
+            storageType: 'twilio',
+            uploadStatus: 'completed'
+          }
+        });
+
+        console.log(`✅ Inbound call recording saved: ${RecordingSid}`);
+
+        // Queue automatic transcription
+        if (RecordingUrl && callRecord.id) {
+          try {
+            console.log(`🤖 Queueing transcription for inbound call recording: ${callRecord.id}`);
+            await onNewCallRecording(callRecord.id, RecordingUrl);
+            console.log(`✅ Transcription queued for inbound call: ${callRecord.id}`);
+          } catch (transcriptionError) {
+            console.error(`❌ Failed to queue transcription:`, transcriptionError);
+          }
+        }
+      } else {
+        console.warn(`⚠️ Call record not found for inbound CallSid: ${CallSid}, callId: ${callId}`);
+        console.log(`📝 Creating fallback call_records entry for orphaned inbound recording...`);
+        
+        // Create a fallback call record so recording isn't lost
+        try {
+          const fallbackCallRecord = await prisma.callRecord.create({
+            data: {
+              callId: CallSid,
+              phoneNumber: 'Unknown Inbound',
+              callType: 'inbound',
+              startTime: new Date(),
+              outcome: 'completed',
+              campaignId: 'inbound-calls',
+              notes: `Inbound call recording recovered from webhook - ${RecordingSid}`
+            }
+          });
+
+          await prisma.recording.create({
+            data: {
+              callRecordId: fallbackCallRecord.id,
+              fileName: `inbound_recording_${RecordingSid}.wav`,
+              filePath: RecordingUrl,
+              duration: parseInt(RecordingDuration) || 0,
+              format: 'wav',
+              quality: RecordingChannels === '2' ? 'stereo' : 'mono',
+              storageType: 'twilio',
+              uploadStatus: 'completed'
+            }
+          });
+
+          console.log(`✅ Fallback call_records entry created for orphaned inbound recording`);
+        } catch (fallbackError) {
+          console.error(`❌ Failed to create fallback call_records entry:`, fallbackError);
+        }
+      }
+    }
+    
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('❌ Error processing inbound recording webhook:', error);
     res.status(500).send('Error');
   }
 });

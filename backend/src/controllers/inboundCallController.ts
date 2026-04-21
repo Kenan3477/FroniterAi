@@ -199,17 +199,21 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 function generateDirectAgentRingTwiML(availableAgents: any[], callId: string): string {
   console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
   
-  // Ring the browser-based agent directly
+  // Ring the browser-based agent directly with recording enabled
+  const backendUrl = process.env.BACKEND_URL || 'https://kennex-production.up.railway.app';
+  const recordingStatusCallback = `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`;
+  
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Please hold while we connect you to an available agent.</Say>
-  <Dial timeout="30" record="record-from-answer-dual">
+  <Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${recordingStatusCallback}" recordingStatusCallbackMethod="POST">
     <Client>agent-browser</Client>
   </Dial>
   <Say voice="alice">All agents are currently busy. Your call will be transferred to our queue.</Say>
   <Redirect>/api/calls/webhook/queue</Redirect>
 </Response>`;
 
+  console.log('✅ TwiML generated with recording enabled for inbound call');
   return twiml;
 }
 
@@ -241,24 +245,7 @@ export const answerInboundCall = async (req: Request, res: Response) => {
     
     console.log(`📞 Agent ${agentId} answering inbound call ${callId}`);
 
-    // Try to update call status in database with better error handling
-    try {
-      // Try using Prisma ORM first (more robust)
-      const updateResult = await prisma.inbound_calls.updateMany({
-        where: { callId: callId },
-        data: {
-          status: 'answered',
-          assignedAgentId: agentId,
-          answeredAt: new Date()
-        }
-      });
-      console.log('✅ Database update successful:', updateResult);
-    } catch (dbError: any) {
-      console.warn('⚠️ Database update failed, continuing anyway:', dbError.message);
-      // Don't fail the request for database issues
-    }
-
-    // Try to get call details with fallback
+    // Try to get call details first
     let callDetails = null;
     try {
       callDetails = await prisma.inbound_calls.findFirst({
@@ -267,15 +254,71 @@ export const answerInboundCall = async (req: Request, res: Response) => {
     } catch (lookupError: any) {
       console.warn('⚠️ Call lookup failed, using fallback:', lookupError.message);
     }
-    
+
     // Create a response even if call not found in database (for testing)
     if (!callDetails) {
       console.log('ℹ️ Call not found in database, creating mock response for testing');
       callDetails = {
         callId: callId,
+        callSid: callId,
+        callerNumber: 'Unknown',
         status: 'answered',
-        assignedAgentId: agentId
-      };
+        assignedAgentId: agentId,
+        contactId: null
+      } as any;
+    }
+
+    // Try to update inbound_calls status in database
+    try {
+      const updateResult = await prisma.inbound_calls.updateMany({
+        where: { callId: callId },
+        data: {
+          status: 'answered',
+          assignedAgentId: agentId,
+          answeredAt: new Date()
+        }
+      });
+      console.log('✅ Inbound_calls update successful:', updateResult);
+    } catch (dbError: any) {
+      console.warn('⚠️ Inbound_calls update failed, continuing anyway:', dbError.message);
+    }
+
+    // CRITICAL: Create call_records entry for proper recording tracking
+    try {
+      console.log('📝 Creating call_records entry for inbound call tracking...');
+      
+      // Check if call_records entry already exists
+      const existingCallRecord = await prisma.callRecord.findFirst({
+        where: {
+          OR: [
+            { callId: (callDetails as any).callSid },
+            { callId: callId }
+          ]
+        }
+      });
+
+      if (!existingCallRecord) {
+        // Create new call_records entry
+        const callRecord = await prisma.callRecord.create({
+          data: {
+            callId: (callDetails as any).callSid || callId, // Use Twilio CallSid for recording webhook matching
+            contactId: (callDetails as any).contactId || null,
+            campaignId: 'inbound-calls', // Special campaign ID for inbound
+            agentId: agentId,
+            phoneNumber: (callDetails as any).callerNumber || 'Unknown',
+            callType: 'inbound',
+            startTime: (callDetails as any).createdAt || new Date(),
+            outcome: 'in-progress',
+            notes: `Inbound call from ${(callDetails as any).callerNumber || 'Unknown'}${(callDetails as any).isCallback ? ' (CALLBACK)' : ''}`
+          }
+        });
+        console.log('✅ Call_records entry created for inbound call:', callRecord.id);
+      } else {
+        console.log('ℹ️ Call_records entry already exists:', existingCallRecord.id);
+      }
+    } catch (callRecordError: any) {
+      console.error('❌ Failed to create call_records entry:', callRecordError.message);
+      // Don't fail the request - recording will still work via CallSid lookup
     }
 
     // For direct calling, we don't need to generate TwiML here
