@@ -150,7 +150,15 @@ export function updateIPActivity(ipAddress: string): void {
 }
 
 export function isIPWhitelisted(ipAddress: string): boolean {
-  return ipWhitelist.some(entry => entry.isActive && entry.ipAddress === ipAddress);
+  console.log(`🔍 Checking IP whitelist for: ${ipAddress}`);
+  console.log(`📋 Total whitelist entries: ${ipWhitelist.length}`);
+  console.log(`📋 Active entries: ${ipWhitelist.filter(e => e.isActive).length}`);
+  console.log(`📋 All IPs in whitelist: ${ipWhitelist.map(e => e.ipAddress).join(', ')}`);
+  
+  const isWhitelisted = ipWhitelist.some(entry => entry.isActive && entry.ipAddress === ipAddress);
+  console.log(`✅ Is ${ipAddress} whitelisted? ${isWhitelisted}`);
+  
+  return isWhitelisted;
 }
 
 export function setIPWhitelist(newWhitelist: IPWhitelistEntry[]): void {

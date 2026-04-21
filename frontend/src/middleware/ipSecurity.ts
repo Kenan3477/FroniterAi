@@ -409,6 +409,7 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
     const method = request.method;
 
     console.log(`🔒 IP Security Check: ${clientIP} ${method} ${path}`);
+    console.log(`🔍 IP Whitelist version: 2026-04-21-18:22 (includes 86.160.65.85)`);
 
     // Skip IP validation for certain paths (like health checks)
     const skipPaths = ['/api/health', '/favicon.ico', '/_next/'];
