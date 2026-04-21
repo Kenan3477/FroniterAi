@@ -257,7 +257,18 @@ export const ipWhitelistManager = IPWhitelistManager.getInstance();
  */
 export const checkIPWhitelist = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // DEBUG: Log all IP-related headers
+    console.log('🔍 IP DETECTION DEBUG:', {
+      'CF-Connecting-IP': req.get('CF-Connecting-IP'),
+      'X-Forwarded-For': req.get('X-Forwarded-For'),
+      'X-Real-IP': req.get('X-Real-IP'),
+      'req.ip': req.ip,
+      'connection.remoteAddress': req.connection?.remoteAddress,
+      'socket.remoteAddress': req.socket?.remoteAddress
+    });
+    
     const clientIP = getClientIP(req);
+    console.log(`🎯 Detected client IP: ${clientIP}`);
     
     const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
     
@@ -267,7 +278,8 @@ export const checkIPWhitelist = async (req: Request, res: Response, next: NextFu
     if (isWhitelisted) {
       console.log(`✅ IP is whitelisted: ${clientIP}`);
     } else {
-      console.log(`ℹ️  IP not whitelisted: ${clientIP}`);
+      console.log(`❌ IP NOT WHITELISTED: ${clientIP}`);
+      console.log(`📋 Current whitelisted IPs:`, Array.from((ipWhitelistManager as any).cache.keys()));
     }
     
     next();

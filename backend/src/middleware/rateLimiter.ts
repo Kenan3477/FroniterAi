@@ -5,6 +5,14 @@ import { getClientIP } from '../utils/ipUtils';
 // Skip function for whitelisted IPs
 const skipWhitelistedIPs = async (req: any) => {
   const clientIP = getClientIP(req); // Use proper IP detection with proxy headers
+  
+  // DEBUG: Log IP detection for rate limiter
+  console.log('⚡ RATE LIMITER - IP Detection:', {
+    'Detected IP': clientIP,
+    'X-Forwarded-For': req.get('X-Forwarded-For'),
+    'req.ip': req.ip
+  });
+  
   const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
   
   if (isWhitelisted) {
