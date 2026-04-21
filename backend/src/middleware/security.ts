@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
+import { ipWhitelistManager } from './ipWhitelist';
 
 interface SecurityEvent {
   type: string;
@@ -27,7 +28,16 @@ class SecurityMonitor {
   }
 
   // Middleware to detect suspicious requests
-  detectSuspiciousActivity = (req: Request, res: Response, next: NextFunction) => {
+  detectSuspiciousActivity = async (req: Request, res: Response, next: NextFunction) => {
+    const ip = this.getClientIP(req);
+    
+    // Skip security checks for whitelisted IPs
+    const isWhitelisted = await ipWhitelistManager.isWhitelisted(ip);
+    if (isWhitelisted) {
+      console.log(`⚡ Security check bypassed for whitelisted IP: ${ip}`);
+      return next();
+    }
+    
     const suspiciousPatterns = [
       /\.\./,  // Directory traversal
       /(<|%3C)script/i,  // XSS attempts
@@ -39,7 +49,6 @@ class SecurityMonitor {
     
     const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
     const userAgent = req.get('User-Agent') || '';
-    const ip = this.getClientIP(req);
     
     // Check URL and body for suspicious patterns
     const requestData = fullUrl + JSON.stringify(req.body || {});

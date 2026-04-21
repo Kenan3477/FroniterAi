@@ -1,4 +1,18 @@
 import rateLimit from 'express-rate-limit';
+import { ipWhitelistManager } from './ipWhitelist';
+
+// Skip function for whitelisted IPs
+const skipWhitelistedIPs = async (req: any) => {
+  const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+  const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
+  
+  if (isWhitelisted) {
+    console.log(`⚡ Rate limit bypassed for whitelisted IP: ${clientIP}`);
+    return true;
+  }
+  
+  return false;
+};
 
 // General API rate limiter
 export const rateLimiter = rateLimit({
@@ -12,6 +26,7 @@ export const rateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipWhitelistedIPs
 });
 
 // Stricter rate limiter for authentication endpoints
@@ -27,6 +42,7 @@ export const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful requests
+  skip: skipWhitelistedIPs
 });
 
 // Rate limiter for data creation endpoints

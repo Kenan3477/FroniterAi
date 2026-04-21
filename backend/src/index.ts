@@ -19,6 +19,7 @@ import { errorHandler, notFound } from './middleware/errorHandler';
 import { migrateProductionDatabase } from './database/migrate-production-simple';
 import { rateLimiter } from './middleware/rateLimiter';
 import { securityMonitor } from './middleware/security'; // SECURITY: Enhanced security monitoring
+import { checkIPWhitelist } from './middleware/ipWhitelist'; // IP WHITELIST: Bypass rate limiting for trusted IPs
 import { ensureBasicAgents } from './utils/ensureBasicAgents';
 
 // Import routes
@@ -45,6 +46,7 @@ import recordingRoutes from './routes/recordingRoutes'; // Call recording downlo
 import recordingsRoutes from './routes/recordings'; // NEW: Twilio recording streaming service
 import { recordingFixRoutes } from './routes/recordingFix'; // ADMIN: Recording system fixes
 import { emergencyRoutes } from './routes/emergency'; // EMERGENCY: Account unlock and debugging
+import ipWhitelistRoutes from './routes/ipWhitelist'; // IP WHITELIST: Security IP whitelist management
 // import securityRoutes from './routes/security'; // SECURITY: Admin security monitoring dashboard - TEMPORARILY DISABLED
 import emergencyCleanupRoutes from './routes/emergencyCleanup'; // EMERGENCY: Call data cleanup when other routes fail
 // import apiManagementRoutes from './routes/apiManagement'; // Temporarily disabled - fixing schema issues
@@ -158,6 +160,9 @@ class App {
     // Security middleware - FIRST for maximum protection
     this.app.use(helmet());
     this.app.use(securityMonitor.detectSuspiciousActivity); // SECURITY: Monitor all requests
+    
+    // IP Whitelist - BEFORE rate limiting to set whitelist flag
+    this.app.use(checkIPWhitelist); // IP WHITELIST: Mark whitelisted IPs to bypass rate limiting
     
     // CORS - Allow all origins for development
     this.app.use(cors({
@@ -282,6 +287,7 @@ class App {
     this.app.use('/api/admin', migrationRoutes); // Database migration endpoints
     this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
     this.app.use('/api/emergency', emergencyRoutes); // EMERGENCY: Account unlock and debugging endpoints (no auth required)
+    this.app.use('/api/admin/ip-whitelist', ipWhitelistRoutes); // IP WHITELIST: Security IP whitelist management (SUPER_ADMIN only)
     // this.app.use('/api/security', securityRoutes); // SECURITY: Admin security monitoring dashboard (auth required) - TEMPORARILY DISABLED
     this.app.use('/api/test', testRoutes); // Testing and debugging endpoints
     this.app.use('/api/dispositions', dispositionsRoutes); // Disposition collection system
