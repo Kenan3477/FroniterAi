@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
+import { getClientIP } from '../utils/ipUtils';
 
 export interface WhitelistedIP {
   id: string;
@@ -256,7 +257,7 @@ export const ipWhitelistManager = IPWhitelistManager.getInstance();
  */
 export const checkIPWhitelist = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+    const clientIP = getClientIP(req);
     
     const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
     
@@ -265,6 +266,8 @@ export const checkIPWhitelist = async (req: Request, res: Response, next: NextFu
     
     if (isWhitelisted) {
       console.log(`✅ IP is whitelisted: ${clientIP}`);
+    } else {
+      console.log(`ℹ️  IP not whitelisted: ${clientIP}`);
     }
     
     next();

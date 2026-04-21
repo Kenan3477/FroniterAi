@@ -1,9 +1,10 @@
 import rateLimit from 'express-rate-limit';
 import { ipWhitelistManager } from './ipWhitelist';
+import { getClientIP } from '../utils/ipUtils';
 
 // Skip function for whitelisted IPs
 const skipWhitelistedIPs = async (req: any) => {
-  const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+  const clientIP = getClientIP(req); // Use proper IP detection with proxy headers
   const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
   
   if (isWhitelisted) {
