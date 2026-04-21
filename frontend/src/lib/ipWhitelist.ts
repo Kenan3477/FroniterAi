@@ -40,10 +40,21 @@ export let ipWhitelist: IPWhitelistEntry[] = [
     activityCount: 0
   },
   {
-    id: 'ken-current-ip',
-    ipAddress: '176.35.52.123',
-    name: 'Ken Current IP',
-    description: 'Ken current IP address for system access',
+    id: 'ken-office-ip',
+    ipAddress: '72.14.201.120',
+    name: 'Ken Office IP',
+    description: 'Ken office IP address - Real IP from Railway',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
+  },
+  {
+    id: 'ken-railway-proxy',
+    ipAddress: '209.198.129.239',
+    name: 'Railway Proxy IP',
+    description: 'Railway proxy/internal IP - keeping for compatibility',
     addedBy: 'ken@simpleemails.co.uk',
     addedAt: new Date(),
     lastActivity: new Date(),
@@ -52,9 +63,31 @@ export let ipWhitelist: IPWhitelistEntry[] = [
   },
   {
     id: 'ken-home-ip',
-    ipAddress: '86.160.65.15',
+    ipAddress: '90.204.67.241',
     name: 'Ken Home IP',
     description: 'Ken home IP address for system access',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
+  },
+  {
+    id: 'ken-old-current',
+    ipAddress: '176.35.52.123',
+    name: 'Ken Old Current IP',
+    description: 'Legacy IP - keeping for backward compatibility',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
+  },
+  {
+    id: 'ken-old-home',
+    ipAddress: '86.160.65.15',
+    name: 'Ken Old Home IP',
+    description: 'Legacy home IP - keeping for backward compatibility',
     addedBy: 'ken@simpleemails.co.uk',
     addedAt: new Date(),
     lastActivity: new Date(),
