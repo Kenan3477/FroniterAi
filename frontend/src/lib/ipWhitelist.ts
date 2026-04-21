@@ -73,6 +73,17 @@ export let ipWhitelist: IPWhitelistEntry[] = [
     activityCount: 0
   },
   {
+    id: 'ken-actual-current-location',
+    ipAddress: '86.160.65.85',
+    name: 'Ken Actual Current Location',
+    description: 'Ken ACTUAL current location IP (86.160.65.85) - Added April 21, 2026',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
+  },
+  {
     id: 'ken-current-location',
     ipAddress: '162.120.188.145',
     name: 'Ken Current Location IP',
