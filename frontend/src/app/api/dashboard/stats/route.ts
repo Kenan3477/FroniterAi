@@ -140,64 +140,59 @@ export const GET = requireAuth(async (request, user) => {
     console.log(`📅 Querying calls between ${todayTest.toISOString()} and ${tomorrowTest.toISOString()}`);
     
     // Get comprehensive counts for debugging
-    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount, todaysSuccessfulCalls, todaysSales, meaningfulInteractions;
+    let simpleCallCount, totalCallCount, contactCount, campaignCount, userCount, todaysSuccessfulCalls, todaysSales, meaningfulInteractions, answeredCalls;
     
     try {
+      // Total calls attempted today
       simpleCallCount = await prisma.callRecord.count({
         where: {
-          startTime: {
+          createdAt: {
             gte: todayTest,
             lt: tomorrowTest
           }
         }
       });
-      console.log(`🔢 Simple call count today: ${simpleCallCount}`);
+      console.log(`🔢 Total calls attempted today: ${simpleCallCount}`);
     } catch (error) {
       console.error('❌ Error counting today\'s calls:', error);
       simpleCallCount = 0;
     }
     
     try {
-      // INTELLIGENT CALL CLASSIFICATION SYSTEM
-      // Uses AI-powered analysis instead of rigid duration thresholds
-      todaysSuccessfulCalls = await prisma.callRecord.count({
+      // Answered calls (actually connected and ended)
+      answeredCalls = await prisma.callRecord.count({
         where: {
-          startTime: {
+          createdAt: {
             gte: todayTest,
             lt: tomorrowTest
           },
-          AND: [
-            // Positive outcomes (genuine engagement)
-            {
-              outcome: {
-                in: ['interested', 'sale', 'callback', 'contact made', 'appointment', 'SALE', 'INTERESTED', 'CALLBACK', 'CONTACT_MADE', 'APPOINTMENT']
-              }
-            },
-            // Exclude negative outcomes
-            {
-              outcome: {
-                notIn: ['no answer', 'no_answer', 'NO_ANSWER', 'answering machine', 'ANSWERING_MACHINE', 'voicemail', 'VOICEMAIL', 'busy', 'BUSY', 'failed', 'FAILED', 'cancelled', 'CANCELLED', 'disconnected', 'DISCONNECTED']
-              }
-            },
-            // INTELLIGENT FILTERS (no rigid duration threshold)
-            {
-              OR: [
-                // Long calls are likely successful (keep existing logic for safety)
-                { duration: { gte: 30 } },
-                // SHORT CALLS can be successful if they have positive indicators
-                {
-                  AND: [
-                    { duration: { gte: 10 } }, // Minimum 10 seconds for any real conversation
-                    // Trust disposition if agent explicitly marked as successful
-                    { outcome: { in: ['sale', 'interested', 'appointment', 'SALE', 'INTERESTED', 'APPOINTMENT'] } }
-                  ]
-                }
-              ]
-            }
-          ]
+          endTime: { not: null }, // Call was answered and ended
+          duration: { gt: 0 } // Had some duration
         }
       });
-      console.log(`🧠 Today's successful calls (intelligent AI-powered classification): ${todaysSuccessfulCalls}`);
+      console.log(`📞 Calls answered today: ${answeredCalls}`);
+    } catch (error) {
+      console.error('❌ Error counting answered calls:', error);
+      answeredCalls = 0;
+    }
+    
+    try {
+      // SIMPLIFIED SUCCESSFUL CALL CLASSIFICATION
+      // Matches the interaction history endpoint logic for consistency
+      todaysSuccessfulCalls = await prisma.callRecord.count({
+        where: {
+          createdAt: {
+            gte: todayTest,
+            lt: tomorrowTest
+          },
+          endTime: { not: null }, // ✅ Must be ended
+          outcome: {
+            in: ['sale', 'interested', 'callback', 'appointment', 'contact_made', 
+                 'SALE', 'INTERESTED', 'CALLBACK', 'APPOINTMENT', 'CONTACT_MADE']
+          }
+        }
+      });
+      console.log(`✅ Today's successful calls: ${todaysSuccessfulCalls}`);
     } catch (error) {
       console.error('❌ Error counting today\'s successful calls:', error);
       todaysSuccessfulCalls = 0;
@@ -209,10 +204,11 @@ export const GET = requireAuth(async (request, user) => {
       // Count actual sales today
       todaysSales = await prisma.callRecord.count({
         where: {
-          startTime: {
+          createdAt: {
             gte: todayTest,
             lt: tomorrowTest
           },
+          endTime: { not: null },
           outcome: {
             in: ['sale', 'SALE']
           }
@@ -228,7 +224,7 @@ export const GET = requireAuth(async (request, user) => {
       // Count meaningful interactions (calls over 15 seconds)
       meaningfulInteractions = await prisma.callRecord.count({
         where: {
-          startTime: {
+          createdAt: {
             gte: todayTest,
             lt: tomorrowTest
           },
@@ -315,20 +311,25 @@ export const GET = requireAuth(async (request, user) => {
     // Always use direct queries to avoid complex aggregation failures
     console.log('✅ Using direct Prisma queries for dashboard stats');
     
+    // Calculate accurate rates
+    const connectionRate = simpleCallCount > 0 ? Math.round((answeredCalls / simpleCallCount) * 100 * 100) / 100 : 0;
+    const answerRate = connectionRate; // Same as connection rate
+    const conversionRate = answeredCalls > 0 ? Math.round((todaysSuccessfulCalls / answeredCalls) * 100 * 100) / 100 : 0;
+    
     const directStats = {
       period,
       today: {
         todayCalls: simpleCallCount,
-        callsAttempted: simpleCallCount, // Use today's calls, not all time
-        callsConnected: simpleCallCount, // For now, assume all attempted calls connected
-        callsAnswered: simpleCallCount,
+        callsAttempted: simpleCallCount, // Total calls attempted today
+        callsConnected: answeredCalls, // ✅ FIXED: Actual answered calls, not assumed 100%
+        callsAnswered: answeredCalls, // ✅ FIXED: Actual answered calls
         successfulCalls: todaysSuccessfulCalls, // ✅ Use actual successful calls today
         totalTalkTime: 0,
         averageCallDuration: 0,
         activeContacts: contactCount,
-        conversionRate: meaningfulInteractions > 0 ? Math.round((todaysSales / meaningfulInteractions) * 100 * 100) / 100 : 0,
-        answeredCallRate: simpleCallCount > 0 ? 100 : 0,
-        connectionRate: simpleCallCount > 0 ? 100 : 0,
+        conversionRate: conversionRate, // ✅ FIXED: (successful / answered) * 100
+        answeredCallRate: answerRate, // ✅ FIXED: (answered / attempted) * 100
+        connectionRate: connectionRate, // ✅ FIXED: (answered / attempted) * 100
         activeCampaigns: campaignCount,
         activeAgents: userCount,
       },
@@ -353,11 +354,13 @@ export const GET = requireAuth(async (request, user) => {
           todaysSuccessfulCalls,
           todaysSales,
           meaningfulInteractions,
+          answeredCalls, // ✅ NEW: Show answered calls in debug
           contactCount,
           campaignCount,
           userCount,
           queryDate: todayTest.toISOString(),
-          conversionFormula: `${todaysSales} sales / ${meaningfulInteractions} meaningful interactions (>15s)`,
+          connectionRateFormula: `${answeredCalls} answered / ${simpleCallCount} attempted * 100 = ${connectionRate}%`,
+          conversionFormula: `${todaysSuccessfulCalls} successful / ${answeredCalls} answered * 100 = ${conversionRate}%`,
         },
       },
     };

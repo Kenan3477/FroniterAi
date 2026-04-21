@@ -453,6 +453,7 @@ router.get('/counts', async (req, res) => {
         where: {
           agentId: agentId,
           createdAt: { gte: today, lt: tomorrow },
+          endTime: { not: null }, // ✅ CRITICAL: Must be ended to have outcome
           AND: [
             { outcome: { not: null } },
             { outcome: { not: '' } },
@@ -464,6 +465,7 @@ router.get('/counts', async (req, res) => {
         where: {
           agentId: agentId,
           createdAt: { gte: today, lt: tomorrow },
+          endTime: null, // ✅ CRITICAL: Only count calls that haven't ended yet
           OR: [
             { outcome: null },
             { outcome: '' },
