@@ -15,7 +15,7 @@ const router = Router();
  */
 router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
-    const whitelist = ipWhitelistManager.getAll();
+    const whitelist = await ipWhitelistManager.getAll();
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
 
     res.json({
@@ -61,21 +61,17 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, 
     }
 
     const user = (req as any).user;
-    const newEntry = await ipWhitelistManager.addIP({
-      id: `ip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const newEntry = await ipWhitelistManager.addIP(
       ipAddress,
       name,
-      description: description || null,
-      addedBy: user.email || user.username,
-      addedAt: new Date(),
-      lastActivity: null,
-      isActive: true
-    });
+      user.email || user.username || 'admin',
+      description
+    );
 
     res.status(201).json({
       success: true,
       data: newEntry,
-      message: `IP ${ipAddress} (${name}) has been whitelisted`
+      message: `IP ${ipAddress} (${name}) has been whitelisted and saved to database`
     });
   } catch (error) {
     console.error('❌ Error adding IP to whitelist:', error);

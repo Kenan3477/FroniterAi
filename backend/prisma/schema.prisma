@@ -462,6 +462,22 @@ model User {
   @@map("users")
 }
 
+model IpWhitelist {
+  id            String    @id @default(cuid())
+  ipAddress     String    @unique
+  name          String
+  description   String?
+  addedBy       String    // User ID who added this IP
+  addedAt       DateTime  @default(now())
+  lastActivity  DateTime?
+  isActive      Boolean   @default(true)
+  activityCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("ip_whitelist")
+}
+
 model UserCampaignAssignment {
   id             String   @id @default(cuid())
   userId         Int

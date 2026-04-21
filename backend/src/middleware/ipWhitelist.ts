@@ -1,6 +1,7 @@
 /**
  * IP Whitelist Middleware
  * Bypasses rate limiting and security checks for whitelisted IPs
+ * NOW WITH DATABASE PERSISTENCE
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -20,9 +21,9 @@ export interface WhitelistedIP {
 
 class IPWhitelistManager {
   private static instance: IPWhitelistManager;
-  private whitelist: Map<string, WhitelistedIP> = new Map();
+  private cache: Map<string, WhitelistedIP> = new Map();
   private lastRefresh: number = 0;
-  private REFRESH_INTERVAL = 60 * 1000; // 1 minute
+  private REFRESH_INTERVAL = 30 * 1000; // 30 seconds
 
   static getInstance(): IPWhitelistManager {
     if (!IPWhitelistManager.instance) {
@@ -34,135 +35,241 @@ class IPWhitelistManager {
 
   private async initializeWhitelist() {
     try {
-      // Add default whitelisted IPs
-      const defaultIPs = [
-        {
-          id: 'default-localhost',
-          ipAddress: '127.0.0.1',
-          name: 'Localhost',
-          description: 'Local development',
-          addedBy: 'system',
-          addedAt: new Date(),
-          lastActivity: null,
-          isActive: true,
-          activityCount: 0
-        },
-        {
-          id: 'default-localhost-ipv6',
-          ipAddress: '::1',
-          name: 'Localhost IPv6',
-          description: 'Local development (IPv6)',
-          addedBy: 'system',
-          addedAt: new Date(),
-          lastActivity: null,
-          isActive: true,
-          activityCount: 0
-        },
-        {
-          id: 'ken-current-ip',
-          ipAddress: '209.198.129.239',
-          name: 'Ken Current IP',
-          description: 'Ken office IP address',
-          addedBy: 'system',
-          addedAt: new Date(),
-          lastActivity: null,
-          isActive: true,
-          activityCount: 0
-        },
-        {
-          id: 'ken-home-ip',
-          ipAddress: '90.204.67.241',
-          name: 'Ken Home IP',
-          description: 'Ken home IP address',
-          addedBy: 'system',
-          addedAt: new Date(),
-          lastActivity: null,
-          isActive: true,
-          activityCount: 0
-        }
-      ];
-
-      defaultIPs.forEach(ip => {
-        this.whitelist.set(ip.ipAddress, ip);
-      });
-
-      console.log('✅ IP Whitelist initialized with default IPs:', Array.from(this.whitelist.keys()));
+      console.log('🔄 Initializing IP whitelist from database...');
+      
+      // Ensure default IPs exist in database
+      await this.ensureDefaultIPs();
+      
+      // Load all from database
+      await this.loadFromDatabase();
+      
+      console.log(`✅ IP whitelist initialized with ${this.cache.size} entries`);
     } catch (error) {
-      console.error('❌ Error initializing IP whitelist:', error);
+      console.error('❌ Failed to initialize IP whitelist:', error);
     }
   }
 
-  private async refreshWhitelist() {
-    const now = Date.now();
-    if (now - this.lastRefresh < this.REFRESH_INTERVAL) {
-      return; // Don't refresh too frequently
-    }
+  private async ensureDefaultIPs() {
+    const defaultIPs = [
+      {
+        ipAddress: '127.0.0.1',
+        name: 'Localhost',
+        description: 'Local development',
+        addedBy: 'system'
+      },
+      {
+        ipAddress: '::1',
+        name: 'Localhost IPv6',
+        description: 'Local development (IPv6)',
+        addedBy: 'system'
+      },
+      {
+        ipAddress: '209.198.129.239',
+        name: 'Ken Current IP',
+        description: 'Office IP - Always whitelisted',
+        addedBy: 'system'
+      },
+      {
+        ipAddress: '90.204.67.241',
+        name: 'Ken Home IP',
+        description: 'Home IP - Always whitelisted',
+        addedBy: 'system'
+      }
+    ];
 
+    for (const ip of defaultIPs) {
+      try {
+        const existing = await prisma.ipWhitelist.findUnique({
+          where: { ipAddress: ip.ipAddress }
+        });
+
+        if (!existing) {
+          await prisma.ipWhitelist.create({
+            data: {
+              ipAddress: ip.ipAddress,
+              name: ip.name,
+              description: ip.description,
+              addedBy: ip.addedBy,
+              isActive: true,
+              activityCount: 0
+            }
+          });
+          console.log(`✅ Added default IP to database: ${ip.ipAddress} (${ip.name})`);
+        }
+      } catch (error) {
+        console.error(`⚠️  Failed to add default IP ${ip.ipAddress}:`, error);
+      }
+    }
+  }
+
+  private async loadFromDatabase() {
     try {
-      // In future, fetch from database
-      // For now, use in-memory whitelist
-      this.lastRefresh = now;
+      const dbIPs = await prisma.ipWhitelist.findMany({
+        where: { isActive: true }
+      });
+
+      this.cache.clear();
+      
+      for (const ip of dbIPs) {
+        this.cache.set(ip.ipAddress, {
+          id: ip.id,
+          ipAddress: ip.ipAddress,
+          name: ip.name,
+          description: ip.description,
+          addedBy: ip.addedBy,
+          addedAt: ip.addedAt,
+          lastActivity: ip.lastActivity,
+          isActive: ip.isActive,
+          activityCount: ip.activityCount
+        });
+      }
+
+      this.lastRefresh = Date.now();
+      console.log(`🔄 Loaded ${dbIPs.length} active IPs from database`);
     } catch (error) {
-      console.error('❌ Error refreshing whitelist:', error);
+      console.error('❌ Failed to load IPs from database:', error);
     }
   }
 
   async isWhitelisted(ipAddress: string): Promise<boolean> {
-    await this.refreshWhitelist();
-    return this.whitelist.has(ipAddress);
+    // Refresh cache if needed
+    if (Date.now() - this.lastRefresh > this.REFRESH_INTERVAL) {
+      await this.loadFromDatabase();
+    }
+
+    const whitelisted = this.cache.has(ipAddress);
+    
+    if (whitelisted) {
+      // Update activity in background (don't await)
+      this.updateActivity(ipAddress).catch(err => 
+        console.error(`Failed to update activity for ${ipAddress}:`, err)
+      );
+    }
+
+    return whitelisted;
   }
 
-  async addIP(entry: Omit<WhitelistedIP, 'activityCount'>): Promise<WhitelistedIP> {
-    const newEntry: WhitelistedIP = {
-      ...entry,
-      activityCount: 0
-    };
-    this.whitelist.set(entry.ipAddress, newEntry);
-    console.log(`✅ Added IP to whitelist: ${entry.ipAddress} (${entry.name})`);
-    return newEntry;
+  async addIP(ipAddress: string, name: string, addedBy: string, description?: string): Promise<WhitelistedIP> {
+    try {
+      // Add to database first
+      const dbIP = await prisma.ipWhitelist.create({
+        data: {
+          ipAddress,
+          name,
+          description: description || null,
+          addedBy,
+          isActive: true,
+          activityCount: 0
+        }
+      });
+
+      // Update cache
+      const newIP: WhitelistedIP = {
+        id: dbIP.id,
+        ipAddress: dbIP.ipAddress,
+        name: dbIP.name,
+        description: dbIP.description,
+        addedBy: dbIP.addedBy,
+        addedAt: dbIP.addedAt,
+        lastActivity: dbIP.lastActivity,
+        isActive: dbIP.isActive,
+        activityCount: dbIP.activityCount
+      };
+
+      this.cache.set(ipAddress, newIP);
+      
+      console.log(`✅ Added IP to whitelist (DB + cache): ${ipAddress} (${name})`);
+      
+      return newIP;
+    } catch (error) {
+      console.error(`❌ Failed to add IP ${ipAddress}:`, error);
+      throw error;
+    }
   }
 
   async removeIP(ipAddress: string): Promise<boolean> {
-    const deleted = this.whitelist.delete(ipAddress);
-    if (deleted) {
-      console.log(`🗑️ Removed IP from whitelist: ${ipAddress}`);
+    // Prevent removal of localhost
+    if (ipAddress === '127.0.0.1' || ipAddress === '::1') {
+      throw new Error('Cannot remove localhost from whitelist');
     }
-    return deleted;
+
+    try {
+      // Mark as inactive in database (soft delete)
+      await prisma.ipWhitelist.updateMany({
+        where: { ipAddress },
+        data: { isActive: false }
+      });
+
+      // Remove from cache
+      this.cache.delete(ipAddress);
+      
+      console.log(`✅ Removed IP from whitelist: ${ipAddress}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to remove IP ${ipAddress}:`, error);
+      throw error;
+    }
   }
 
   async updateActivity(ipAddress: string): Promise<void> {
-    const entry = this.whitelist.get(ipAddress);
-    if (entry) {
-      entry.activityCount++;
-      entry.lastActivity = new Date();
+    try {
+      await prisma.ipWhitelist.updateMany({
+        where: { ipAddress, isActive: true },
+        data: {
+          lastActivity: new Date(),
+          activityCount: { increment: 1 }
+        }
+      });
+
+      // Update cache
+      const cached = this.cache.get(ipAddress);
+      if (cached) {
+        cached.lastActivity = new Date();
+        cached.activityCount += 1;
+      }
+    } catch (error) {
+      console.error(`Failed to update activity for ${ipAddress}:`, error);
     }
   }
 
-  getAll(): WhitelistedIP[] {
-    return Array.from(this.whitelist.values());
+  async getAll(): Promise<WhitelistedIP[]> {
+    // Always load fresh from database
+    await this.loadFromDatabase();
+    return Array.from(this.cache.values());
   }
 
   getByIP(ipAddress: string): WhitelistedIP | undefined {
-    return this.whitelist.get(ipAddress);
+    return this.cache.get(ipAddress);
+  }
+
+  async forceRefresh(): Promise<void> {
+    await this.loadFromDatabase();
   }
 }
 
 export const ipWhitelistManager = IPWhitelistManager.getInstance();
 
 /**
- * Middleware to check if IP is whitelisted
- * Sets req.ipWhitelisted = true if IP is on whitelist
+ * Middleware to check if request IP is whitelisted
+ * Sets req.ipWhitelisted = true for whitelisted IPs
  */
 export const checkIPWhitelist = async (req: Request, res: Response, next: NextFunction) => {
-  const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
-  
-  const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
-  
-  if (isWhitelisted) {
-    (req as any).ipWhitelisted = true;
-    await ipWhitelistManager.updateActivity(clientIP);
-    console.log(`✅ Whitelisted IP detected: ${clientIP}`);
+  try {
+    const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+    
+    const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
+    
+    // Set flag on request object for other middleware to check
+    (req as any).ipWhitelisted = isWhitelisted;
+    
+    if (isWhitelisted) {
+      console.log(`✅ IP is whitelisted: ${clientIP}`);
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Error checking IP whitelist:', error);
+    next(); // Continue even if whitelist check fails
   }
-  
-  next();
 };
