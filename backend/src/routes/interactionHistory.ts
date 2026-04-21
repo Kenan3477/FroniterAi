@@ -420,6 +420,33 @@ router.get('/counts', async (req, res) => {
     console.log(`📊 Getting today's interaction counts for agent ${agentId}`);
     console.log(`📅 Date range: ${today.toISOString()} to ${tomorrow.toISOString()}`);
 
+    // ✅ CLEANUP: Auto-clean stuck calls (older than 2 hours with no endTime)
+    // This prevents the "37 active interactions" phantom bug
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    try {
+      const cleanupResult = await prisma.callRecord.updateMany({
+        where: {
+          agentId: agentId,
+          startTime: { not: null, lt: twoHoursAgo },
+          endTime: null
+        },
+        data: {
+          endTime: new Date(),
+          outcome: 'system-cleanup',
+          duration: 7200, // 2 hours
+          notes: 'Auto-cleaned stuck call (no activity for 2+ hours)'
+        }
+      });
+
+      if (cleanupResult.count > 0) {
+        console.log(`🧹 Auto-cleaned ${cleanupResult.count} stuck call(s) for agent ${agentId}`);
+      }
+    } catch (cleanupError) {
+      console.error('⚠️  Error cleaning stuck calls:', cleanupError);
+      // Continue with count query even if cleanup fails
+    }
+
     // Get counts directly from database for efficiency
     const [outcomedCount, pendingCount] = await Promise.all([
       prisma.callRecord.count({

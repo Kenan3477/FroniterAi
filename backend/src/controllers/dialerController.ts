@@ -13,6 +13,101 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 
 const prisma = new PrismaClient();
 
+/**
+ * CRITICAL: End any active calls for an agent before starting a new one
+ * This ensures only ONE call is active at a time, preventing call stacking
+ * and ensuring seamless call flow without latency or stuck states
+ */
+async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
+  try {
+    console.log(`🔍 Checking for active calls for agent ${agentId}...`);
+    
+    // Find all calls that appear to be active:
+    // - Have a startTime (call was initiated)
+    // - No endTime (call hasn't ended)
+    // - Created within last 2 hours (safety net for stuck calls)
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    const activeCalls = await prisma.callRecord.findMany({
+      where: {
+        agentId,
+        startTime: { not: null },
+        endTime: null,
+        createdAt: { gte: twoHoursAgo }
+      },
+      select: {
+        id: true,
+        callId: true,
+        phoneNumber: true,
+        startTime: true,
+        createdAt: true
+      }
+    });
+
+    if (activeCalls.length === 0) {
+      console.log(`✅ No active calls found for agent ${agentId}`);
+      return 0;
+    }
+
+    console.log(`⚠️  Found ${activeCalls.length} active call(s) for agent ${agentId}, ending them now...`);
+
+    let endedCount = 0;
+
+    for (const call of activeCalls) {
+      try {
+        const callAge = Math.floor((Date.now() - new Date(call.createdAt).getTime()) / 1000);
+        console.log(`📞 Ending active call ${call.callId} (to: ${call.phoneNumber}, age: ${callAge}s)`);
+
+        // 1. End the call in Twilio (if it exists)
+        if (call.callId) {
+          try {
+            await twilioClient.calls(call.callId).update({ 
+              status: 'completed' 
+            });
+            console.log(`✅ Ended call ${call.callId} in Twilio`);
+          } catch (twilioError: any) {
+            // Call might already be completed in Twilio, that's fine
+            if (twilioError.code === 20404) {
+              console.log(`ℹ️  Call ${call.callId} already ended in Twilio`);
+            } else {
+              console.error(`⚠️  Error ending call in Twilio: ${twilioError.message}`);
+            }
+          }
+        }
+
+        // 2. Update the database record
+        const duration = call.startTime 
+          ? Math.floor((Date.now() - new Date(call.startTime).getTime()) / 1000)
+          : 0;
+
+        await prisma.callRecord.update({
+          where: { id: call.id },
+          data: {
+            endTime: new Date(),
+            outcome: 'interrupted', // Special outcome for calls ended by system
+            duration: duration,
+            notes: `Call interrupted by new call initiation at ${new Date().toISOString()}`
+          }
+        });
+
+        console.log(`✅ Updated call record ${call.id} in database (duration: ${duration}s)`);
+        endedCount++;
+
+      } catch (callError) {
+        console.error(`❌ Error ending individual call ${call.callId}:`, callError);
+        // Continue with other calls even if one fails
+      }
+    }
+
+    console.log(`✅ Successfully ended ${endedCount} of ${activeCalls.length} active calls`);
+    return endedCount;
+
+  } catch (error) {
+    console.error(`❌ Error in endAnyActiveCallsForAgent:`, error);
+    return 0;
+  }
+}
+
 // Helper function to get or create agent record for user
 async function getOrCreateAgentForUser(userId: string, userFirstName: string, userLastName: string, userEmail: string): Promise<string | null> {
   try {
@@ -1079,6 +1174,19 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         });
         console.log('✅ Created new contact:', contact.contactId);
       }
+    }
+
+    // ✅ CRITICAL: End any active calls for this agent before starting new one
+    // This ensures seamless call flow with no call stacking or latency issues
+    console.log(`🔄 Checking and ending any active calls for agent ${agentId}...`);
+    const endedCallsCount = await endAnyActiveCallsForAgent(agentId);
+    
+    if (endedCallsCount > 0) {
+      console.log(`⚠️  Ended ${endedCallsCount} active call(s) for agent ${agentId}`);
+      // Small delay to ensure Twilio has processed the hangup
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } else {
+      console.log(`✅ No active calls found for agent ${agentId}, proceeding with new call`);
     }
 
     // Start call record in database
