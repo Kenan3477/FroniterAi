@@ -270,6 +270,12 @@ router.post('/inbound-numbers', authenticate, async (req: Request, res: Response
 router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    
+    console.log('🔧 === PUT /inbound-numbers/:id START ===');
+    console.log('🔧 Request ID:', id);
+    console.log('🔧 Request body keys:', Object.keys(req.body));
+    console.log('🔧 Full request body:', JSON.stringify(req.body, null, 2));
+    
     const {
       displayName,
       description,
@@ -308,6 +314,21 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
     console.log('🔧 PUT /inbound-numbers/:id - Received fields:', {
       id, displayName, outOfHoursAction, routeTo, voicemailAudioFile, businessHoursVoicemailFile
     });
+
+    // First, check if the inbound number exists
+    const existingNumber = await prisma.inboundNumber.findUnique({
+      where: { id }
+    });
+
+    if (!existingNumber) {
+      console.error('❌ Inbound number not found:', id);
+      return res.status(404).json({
+        success: false,
+        error: 'Inbound number not found'
+      });
+    }
+
+    console.log('✅ Found existing inbound number:', existingNumber.phoneNumber);
 
     // Validate flow exists if assignedFlowId is provided
     const finalFlowId = assignedFlowId || selectedFlowId;
@@ -409,10 +430,16 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
     });
 
   } catch (error) {
-    console.error('Error updating inbound number:', error);
+    console.error('❌ Error updating inbound number:', error);
+    console.error('❌ Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to update inbound number'
+      error: 'Failed to update inbound number',
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
