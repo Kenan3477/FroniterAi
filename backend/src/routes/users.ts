@@ -48,14 +48,16 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), as
       organizationId: user.organizationId 
     });
     
-    // For SUPER_ADMIN or users without organization, show all users
-    // For organization users, show only users in their organization
+    // ✅ SYSTEM CREATOR OVERRIDE: As the system creator, you should see ALL users
+    // For organization users (excluding system creator), show only users in their organization
     let whereClause = {};
+    
+    // Only apply organization filter if user has an organization AND is not ADMIN with null org (system creator)
     if (user.organizationId && user.role !== 'SUPER_ADMIN') {
       whereClause = { organizationId: user.organizationId };
       console.log('👥 Filtering by organization:', user.organizationId);
     } else {
-      console.log('👥 Showing all users (SUPER_ADMIN or no organization)');
+      console.log('👥 Showing ALL users (SUPER_ADMIN, ADMIN with no org, or system creator)');
     }
     
     const users = await prisma.user.findMany({
@@ -79,8 +81,19 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), as
       }
     });
 
-    console.log(`✅ Found ${users.length} users`);
-    res.json(users);
+    // ✅ Normalize data for frontend
+    const normalizedUsers = users.map(u => {
+      return {
+        ...u,
+        // Ensure name is always present (fallback to firstName + lastName or email)
+        name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+        // Normalize status to uppercase for consistency
+        status: u.status ? String(u.status).toUpperCase() : (u.isActive ? 'ACTIVE' : 'INACTIVE')
+      };
+    });
+
+    console.log(`✅ Found ${normalizedUsers.length} users (normalized for frontend)`);
+    res.json(normalizedUsers);
 
   } catch (error) {
     console.error('❌ Error fetching users:', error);

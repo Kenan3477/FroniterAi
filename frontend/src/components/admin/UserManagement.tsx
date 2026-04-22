@@ -748,11 +748,11 @@ export default function UserManagement() {
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                       <span className="text-sm font-medium text-gray-700">
-                        {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {(user.name || user.email || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().substring(0, 2)}
                       </span>
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{user.name || user.email}</div>
                       <div className="text-sm text-gray-500">{user.email}</div>
                       {user.phoneNumber && (
                         <div className="text-sm text-gray-500">{user.phoneNumber}</div>
