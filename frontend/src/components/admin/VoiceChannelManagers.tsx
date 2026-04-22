@@ -411,7 +411,9 @@ export const InboundNumbersManager: React.FC<{
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update inbound number: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.details || errorData.error || response.statusText;
+        throw new Error(`Failed to update inbound number: ${errorMessage}`);
       }
 
       const result = await response.json();
