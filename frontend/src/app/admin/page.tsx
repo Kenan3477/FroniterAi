@@ -60,27 +60,38 @@ export default function AdminPage() {
     // Check user role on client side for better UX
     const checkAdminAccess = async () => {
       try {
+        console.log('🔐 Checking admin access...');
         const response = await fetch('/api/auth/profile', {
           credentials: 'include'
         });
         
+        console.log('📡 Profile response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('📦 Profile data:', data);
+          
           if (data.user && (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN')) {
+            console.log('✅ User has admin access:', data.user);
             setIsAuthorized(true);
             setCurrentUser(data.user);
             setIsKen(data.user.email === 'ken@simpleemails.co.uk');
           } else {
+            console.log('🚫 User does not have admin role:', data.user?.role);
+            console.log('🚫 Full data:', data);
             console.log('🚫 Non-admin user trying to access admin panel, redirecting...');
             router.push('/dashboard?error=access-denied');
             return;
           }
         } else {
+          console.log('❌ Profile endpoint returned error:', response.status, response.statusText);
+          const errorText = await response.text();
+          console.log('❌ Error response:', errorText);
           router.push('/login');
           return;
         }
       } catch (error) {
-        console.error('Error checking admin access:', error);
+        console.error('❌ Error checking admin access:', error);
         router.push('/dashboard');
         return;
       }
