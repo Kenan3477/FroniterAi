@@ -15,8 +15,40 @@ import { demoDataService, DemoStats } from '@/services/demoDataService';
 import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
+// API Response interface matching the actual backend response
+interface DashboardApiResponse {
+  totalCallsToday: number;
+  connectedCallsToday: number;
+  totalRevenue: number;
+  conversionRate: number;
+  averageCallDuration: number;
+  agentsOnline: number;
+  activeAgents: number;
+  callsInProgress: number;
+  averageWaitTime: number;
+  recentActivities: Array<{
+    id: string;
+    type: 'call';
+    timestamp: string | Date;
+    description: string;
+    outcome: string;
+    duration: number;
+    agent?: string;
+    contact?: {
+      name: string;
+      phone: string;
+    };
+  }>;
+  performance: {
+    callVolume: number;
+    connectionRate: number;
+    avgDuration: number;
+    conversions: number;
+  };
+}
+
 function DashboardContent() {
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   const [isClient, setIsClient] = useState(false);
@@ -338,6 +370,19 @@ function DashboardContent() {
     return `${minutes}m`;
   };
 
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
+
   const formatTrend = (value: number | null) => {
     if (value === null) return undefined;
     return {
@@ -462,31 +507,27 @@ function DashboardContent() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-12">
           <DashboardCard
             title="Today's Calls"
-            value={loading ? "..." : (dashboardStats?.today?.todayCalls?.toString() || "0")}
+            value={loading ? "..." : (dashboardStats?.totalCallsToday?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">📞</span>}
             color="bg-gradient-to-br from-blue-500 to-blue-600"
-            trend={formatTrend(dashboardStats?.trends?.callsTrend || null)}
           />
           <DashboardCard
             title="Successful Calls"
-            value={loading ? "..." : (dashboardStats?.today?.successfulCalls?.toString() || "0")}
+            value={loading ? "..." : (dashboardStats?.connectedCallsToday?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">✓</span>}
             color="bg-gradient-to-br from-green-500 to-green-600"
-            trend={formatTrend(dashboardStats?.trends?.successTrend || null)}
           />
           <DashboardCard
-            title="Active Contacts"
-            value={loading ? "..." : (dashboardStats?.today?.activeContacts?.toString() || "0")}
+            title="Agents Online"
+            value={loading ? "..." : (dashboardStats?.agentsOnline?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">👤</span>}
             color="bg-gradient-to-br from-purple-500 to-purple-600"
-            trend={formatTrend(dashboardStats?.trends?.contactsTrend || null)}
           />
           <DashboardCard
             title="Conversion Rate"
-            value={loading ? "..." : `${dashboardStats?.today?.conversionRate?.toFixed(1) || "0"}%`}
+            value={loading ? "..." : `${dashboardStats?.conversionRate?.toFixed(1) || "0"}%`}
             icon={<span className="text-white font-bold text-lg">📊</span>}
             color="bg-gradient-to-br from-orange-500 to-orange-600"
-            trend={formatTrend(dashboardStats?.trends?.conversionTrend || null)}
           />
         </div>
 
@@ -505,7 +546,16 @@ function DashboardContent() {
                   {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
                 </h3>
                 <RecentActivity 
-                  activities={[]} // Real activity data would be loaded from API 
+                  activities={dashboardStats?.recentActivities?.map((activity: any) => ({
+                    id: activity.id,
+                    type: 'call' as const,
+                    contact: activity.contact?.name || activity.agent || 'Unknown',
+                    description: activity.outcome ? `${activity.outcome} - ${formatDuration(activity.duration || 0)}` : activity.description || 'Call',
+                    time: activity.timestamp ? formatTimeAgo(new Date(activity.timestamp)) : 'Unknown',
+                    status: (activity.outcome === 'CONNECTED' || activity.outcome === 'completed' || activity.outcome === 'answered') ? 'success' as const : 
+                            (activity.outcome === 'no-answer' || activity.outcome === 'NO_ANSWER') ? 'failed' as const : 
+                            'pending' as const
+                  })) || []} 
                 />
               </div>
             </div>

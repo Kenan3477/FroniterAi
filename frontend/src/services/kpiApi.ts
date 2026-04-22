@@ -89,6 +89,19 @@ export interface DashboardStats {
     date: Date;
     kpis: any;
   }>;
+  recentActivities?: Array<{
+    id: string;
+    type: 'call';
+    timestamp: Date | string;
+    description: string;
+    outcome: string;
+    duration: number;
+    agent?: string;
+    contact?: {
+      name: string;
+      phone: string;
+    };
+  }>;
 }
 
 class KpiApiService {
