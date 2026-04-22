@@ -11,6 +11,16 @@ const router = express.Router();
 
 console.log('📋 Disposition routes loaded - /configs endpoints are PUBLIC (no auth)');
 
+// Health check endpoint - NO AUTH
+router.get('/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Dispositions API is healthy',
+    timestamp: new Date().toISOString(),
+    configsPublic: true
+  });
+});
+
 // TEMPORARY: Create missing disposition types (NO AUTH REQUIRED) - MUST BE FIRST
 router.post('/create-types', async (req, res) => {
   try {
