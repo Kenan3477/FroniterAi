@@ -8,11 +8,16 @@ import { body, param, query } from 'express-validator';
 import { prisma } from '../database/index';
 
 const router = express.Router();
+const publicRouter = express.Router(); // PUBLIC ROUTES - NO AUTH
 
 console.log('📋 Disposition routes loaded - /configs endpoints are PUBLIC (no auth)');
 
+// ========================================
+// PUBLIC ROUTES - NO AUTHENTICATION
+// ========================================
+
 // Health check endpoint - NO AUTH
-router.get('/health', (req, res) => {
+publicRouter.get('/health', (req, res) => {
   res.json({ 
     success: true, 
     message: 'Dispositions API is healthy',
@@ -21,10 +26,79 @@ router.get('/health', (req, res) => {
   });
 });
 
-// TEMPORARY: Create missing disposition types (NO AUTH REQUIRED) - MUST BE FIRST
-router.post('/create-types', async (req, res) => {
+/**
+ * GET /api/dispositions/configs
+ * Get available disposition configurations
+ * PUBLIC ENDPOINT - No auth required for disposition configs
+ */
+publicRouter.get('/configs',
+  validateRequest([
+    query('campaignId').optional().isString(),
+  ]),
+  async (req, res) => {
+    try {
+      console.log('📋 PUBLIC: Fetching disposition configs (no auth required)');
+      const { campaignId } = req.query;
+      
+      const configs = dispositionService.getDispositionConfigs(campaignId as string);
+      console.log('✅ PUBLIC: Returning', configs.length, 'disposition configs');
+
+      res.json({
+        success: true,
+        data: configs,
+        message: 'Disposition configurations retrieved successfully'
+      });
+    } catch (error) {
+      console.error('Error getting disposition configs:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/dispositions/configs/:dispositionId
+ * Get specific disposition configuration
+ * PUBLIC ENDPOINT - No auth required for disposition configs
+ */
+publicRouter.get('/configs/:dispositionId',
+  validateRequest([
+    param('dispositionId').isString().notEmpty(),
+  ]),
+  async (req, res) => {
+    try {
+      console.log('📋 PUBLIC: Fetching disposition config for:', req.params.dispositionId);
+      const { dispositionId } = req.params;
+      
+      const config = dispositionService.getDispositionConfig(dispositionId);
+
+      if (!config) {
+        return res.status(404).json({
+          success: false,
+          error: 'Disposition configuration not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error('Error getting disposition config:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+);
+
+// TEMPORARY: Create missing disposition types (NO AUTH REQUIRED)
+publicRouter.post('/create-types', async (req, res) => {
   try {
-    console.log('🛠️ Creating missing disposition types...');
+    console.log('🛠️ PUBLIC: Creating missing disposition types...');
     
     const missingDispositions = [
       {
@@ -93,73 +167,11 @@ router.post('/create-types', async (req, res) => {
   }
 });
 
-/**
- * GET /api/dispositions/configs
- * Get available disposition configurations
- * PUBLIC ENDPOINT - No auth required for disposition configs
- */
-router.get('/configs',
-  validateRequest([
-    query('campaignId').optional().isString(),
-  ]),
-  async (req, res) => {
-    try {
-      const { campaignId } = req.query;
-      
-      const configs = dispositionService.getDispositionConfigs(campaignId as string);
+// ========================================
+// AUTHENTICATED ROUTES - REQUIRE AUTH
+// ========================================
 
-      res.json({
-        success: true,
-        data: configs,
-        message: 'Disposition configurations retrieved successfully'
-      });
-    } catch (error) {
-      console.error('Error getting disposition configs:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-);
-
-/**
- * GET /api/dispositions/configs/:dispositionId
- * Get specific disposition configuration
- * PUBLIC ENDPOINT - No auth required for disposition configs
- */
-router.get('/configs/:dispositionId',
-  validateRequest([
-    param('dispositionId').isString().notEmpty(),
-  ]),
-  async (req, res) => {
-    try {
-      const { dispositionId } = req.params;
-      
-      const config = dispositionService.getDispositionConfig(dispositionId);
-
-      if (!config) {
-        return res.status(404).json({
-          success: false,
-          error: 'Disposition configuration not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: config
-      });
-    } catch (error) {
-      console.error('Error getting disposition config:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-);
-
-// Apply authentication to all OTHER routes (after public config endpoints)
+// Apply authentication to ALL routes below this point
 router.use(authenticate);
 
 /**
@@ -672,4 +684,9 @@ router.get('/exports/csv',
   }
 );
 
-export default router;
+// Combine public and authenticated routers
+const combinedRouter = express.Router();
+combinedRouter.use(publicRouter); // Public routes first (no auth)
+combinedRouter.use(router); // Authenticated routes second (with auth)
+
+export default combinedRouter;

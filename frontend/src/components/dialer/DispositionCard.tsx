@@ -54,21 +54,15 @@ export const DispositionCard: React.FC<DispositionCardProps> = ({
   // Load dispositions from API when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Call backend directly with user's JWT token
-      const authToken = localStorage.getItem('authToken') || localStorage.getItem('omnivox_token');
+      // Call backend for PUBLIC disposition configs (NO AUTH REQUIRED)
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app';
       
-      console.log('🔑 DispositionCard: Fetching configs with auth token:', {
-        hasToken: !!authToken,
-        tokenLength: authToken?.length || 0,
-        tokenPreview: authToken?.substring(0, 20) + '...' || 'NO_TOKEN',
-        backendUrl
-      });
+      console.log('� DispositionCard: Fetching PUBLIC disposition configs from:', backendUrl);
       
       fetch(`${backendUrl}/api/dispositions/configs`, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
+          // NO Authorization header - this is a public endpoint
         },
       })
         .then(response => {
