@@ -69,6 +69,95 @@ export interface CallerLookupResponse {
  * POST /api/calls/webhook/inbound-call
  * Main webhook handler for incoming calls from Twilio
  */
+
+/**
+ * Check if current time is within business hours
+ */
+function checkBusinessHours(inboundNumber: any): boolean {
+  // If no business hours configured, assume always open
+  if (!inboundNumber.businessHours || !inboundNumber.businessHoursStart || !inboundNumber.businessHoursEnd) {
+    return true;
+  }
+
+  const now = new Date();
+  const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  
+  // Parse business hours JSON (format: { "monday": true, "tuesday": true, etc })
+  const businessHours = typeof inboundNumber.businessHours === 'string' 
+    ? JSON.parse(inboundNumber.businessHours)
+    : inboundNumber.businessHours;
+
+  // Check if current day is a business day
+  if (!businessHours[currentDay]) {
+    return false;
+  }
+
+  // Check if current time is within business hours
+  const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+  const startTime = inboundNumber.businessHoursStart;
+  const endTime = inboundNumber.businessHoursEnd;
+
+  return currentTime >= startTime && currentTime <= endTime;
+}
+
+/**
+ * Generate out-of-hours TwiML response
+ */
+function generateOutOfHoursTwiML(inboundNumber: any): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+
+  // CRITICAL: Check for configured audio file FIRST
+  if (inboundNumber.outOfHoursAudioUrl) {
+    console.log('🎵 Playing out-of-hours audio:', inboundNumber.outOfHoursAudioUrl);
+    twiml.play(inboundNumber.outOfHoursAudioUrl);
+  } else if (inboundNumber.outOfHoursAction === 'voicemail') {
+    // Voicemail option
+    twiml.say({ voice: 'alice' }, 'We are currently closed. Please leave a message after the beep.');
+    twiml.record({
+      action: '/api/calls/webhook/voicemail',
+      method: 'POST',
+      maxLength: 120,
+      finishOnKey: '#',
+      transcribe: true
+    });
+  } else {
+    // Default TTS fallback
+    twiml.say({ voice: 'alice' }, 'Thank you for calling. We are currently closed. Please call back during business hours.');
+  }
+
+  twiml.hangup();
+  return twiml.toString();
+}
+
+/**
+ * Generate queue TwiML response (when no agents available)
+ */
+function generateQueueTwiML(inboundNumber: any): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+
+  // Play greeting if available
+  if (inboundNumber.greetingAudioUrl) {
+    twiml.play(inboundNumber.greetingAudioUrl);
+  } else {
+    twiml.say({ voice: 'alice' }, 'Thank you for calling. All agents are currently busy.');
+  }
+
+  twiml.say({ voice: 'alice' }, 'Please hold while we connect you to the next available agent.');
+  
+  // Enqueue the call
+  twiml.enqueue({
+    waitUrl: '/api/calls/webhook/wait-music',
+    action: '/api/calls/webhook/queue-result',
+    method: 'POST'
+  }, 'general-queue');
+
+  return twiml.toString();
+}
+
+/**
+ * POST /api/calls/webhook/inbound-call
+ * Main webhook handler for incoming calls from Twilio
+ */
 export const handleInboundWebhook = async (req: Request, res: Response) => {
   try {
     const { CallSid, From, To, CallStatus } = req.body;
@@ -80,6 +169,43 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
       CallStatus,
       body: req.body
     });
+
+    // CRITICAL: Look up inbound number configuration first
+    const inboundNumber = await prisma.inboundNumber.findFirst({
+      where: { phoneNumber: To }
+    });
+
+    if (!inboundNumber) {
+      console.error(`❌ Inbound number ${To} not found in database!`);
+      // Send fallback TwiML
+      const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Sorry, an application error occurred. Please try again later.</Say>
+  <Hangup/>
+</Response>`;
+      res.type('text/xml');
+      return res.send(fallbackTwiML);
+    }
+
+    console.log('📋 Inbound number config:', {
+      displayName: inboundNumber.displayName,
+      businessHours: inboundNumber.businessHours,
+      outOfHoursAction: inboundNumber.outOfHoursAction,
+      hasOutOfHoursAudio: !!inboundNumber.outOfHoursAudioUrl,
+      hasGreetingAudio: !!inboundNumber.greetingAudioUrl
+    });
+
+    // Check business hours FIRST
+    const isBusinessHours = checkBusinessHours(inboundNumber);
+    console.log(`🕒 Business hours check: ${isBusinessHours ? 'OPEN' : 'CLOSED'}`);
+
+    // If outside business hours, handle accordingly
+    if (!isBusinessHours) {
+      console.log('🚫 Outside business hours - playing out-of-hours message');
+      const outOfHoursTwiML = generateOutOfHoursTwiML(inboundNumber);
+      res.type('text/xml');
+      return res.send(outOfHoursTwiML);
+    }
 
     // Create inbound call record
     const inboundCallId = uuidv4();
@@ -127,22 +253,16 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
       // Fallback to original agent/queue routing
       const availableAgents = callerInfo.routing.availableAgents;
       
-      // TEMPORARY: Always use direct agent ring for testing
-      // TODO: Remove this override after agent availability is working
-      console.log('🧪 TESTING MODE: Always routing to direct agent ring');
-      twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
-      console.log('✅ Inbound call routed to direct agent ring (testing mode)');
-      
-      // Original logic (temporarily disabled):
-      // if (availableAgents.length > 0) {
-      //   // Agents available - generate TwiML to ring them directly
-      //   twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId);
-      //   console.log('✅ Inbound call routed to available agents:', availableAgents.length);
-      // } else {
-      //   // No agents available - send to queue/flow
-      //   twiml = generateQueueTwiML();
-      //   console.log('✅ Inbound call sent to queue (no available agents)');
-      // }
+      // Route based on agent availability
+      if (availableAgents.length > 0) {
+        // Agents available - generate TwiML to ring them directly with greeting audio if available
+        twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId, inboundNumber);
+        console.log('✅ Inbound call routed to available agents:', availableAgents.length);
+      } else {
+        // No agents available - send to queue/flow
+        twiml = generateQueueTwiML(inboundNumber);
+        console.log('✅ Inbound call sent to queue (no available agents)');
+      }
     }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
@@ -196,43 +316,38 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 /**
  * Generate TwiML to ring agents directly for immediate pickup
  */
-function generateDirectAgentRingTwiML(availableAgents: any[], callId: string): string {
+function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, inboundNumber?: any): string {
   console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
   
+  const twiml = new twilio.twiml.VoiceResponse();
+
+  // Play greeting audio if available
+  if (inboundNumber?.greetingAudioUrl) {
+    console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
+    twiml.play(inboundNumber.greetingAudioUrl);
+  } else {
+    twiml.say({ voice: 'alice' }, 'Please hold while we connect you to an available agent.');
+  }
+
   // Ring the browser-based agent directly with recording enabled
   const backendUrl = process.env.BACKEND_URL || 'https://kennex-production.up.railway.app';
   const recordingStatusCallback = `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`;
   
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">Please hold while we connect you to an available agent.</Say>
-  <Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${recordingStatusCallback}" recordingStatusCallbackMethod="POST">
-    <Client>agent-browser</Client>
-  </Dial>
-  <Say voice="alice">All agents are currently busy. Your call will be transferred to our queue.</Say>
-  <Redirect>/api/calls/webhook/queue</Redirect>
-</Response>`;
+  const dial = twiml.dial({
+    timeout: 30,
+    record: 'record-from-answer-dual',
+    recordingStatusCallback,
+    recordingStatusCallbackMethod: 'POST'
+  });
+  
+  dial.client('agent-browser');
+
+  // Fallback if no agents answer
+  twiml.say({ voice: 'alice' }, 'All agents are currently busy. Your call will be transferred to our queue.');
+  twiml.redirect('/api/calls/webhook/queue');
 
   console.log('✅ TwiML generated with recording enabled for inbound call');
-  return twiml;
-}
-
-/**
- * Generate TwiML for queue/flow when no agents available
- */
-function generateQueueTwiML(): string {
-  console.log('📞 Generating queue TwiML - no agents available');
-  
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">Thank you for calling Omnivox. All our agents are currently busy.</Say>
-  <Say voice="alice">Please stay on the line and your call will be answered in the order it was received.</Say>
-  <Play loop="10">http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical</Play>
-  <Say voice="alice">We appreciate your patience. Please try again later.</Say>
-  <Hangup/>
-</Response>`;
-
-  return twiml;
+  return twiml.toString();
 }
 
 /**
