@@ -506,21 +506,19 @@ export const holdCall = async (req: Request, res: Response) => {
     // Use Twilio to modify the call with hold music or resume
     try {
       if (action === 'hold') {
-        // Put call on hold with hold music
+        // Put call on hold with hold music (no TTS)
         await twilioClient.calls(callId).update({
           twiml: `
             <Response>
-              <Say>Please hold while we transfer your call.</Say>
               <Play loop="0">http://com.twilio.music.ambient.mp3</Play>
             </Response>
           `
         });
       } else {
-        // Resume call by removing hold music
+        // Resume call by removing hold music (no TTS)
         await twilioClient.calls(callId).update({
           twiml: `
             <Response>
-              <Say>Thank you for holding. Connecting you now.</Say>
               <Dial>
                 <Conference>agent-customer-conference-${callId}</Conference>
               </Dial>
@@ -712,11 +710,11 @@ export const generateTwiML = async (req: Request, res: Response) => {
     }
 
     console.error('❌ Missing required parameters');
-    res.type('text/xml').send('<Response><Say>Missing parameters</Say></Response>');
+    res.type('text/xml').send('<Response><Hangup/></Response>');
   } catch (error) {
     console.error('❌ Error generating TwiML:', error);
     res.type('text/xml');
-    res.send('<Response><Say>An error occurred</Say></Response>');
+    res.send('<Response><Hangup/></Response>');
   }
 };
 
@@ -731,7 +729,7 @@ export const generateAgentDialTwiML = async (req: Request, res: Response) => {
     console.log('📞 Agent dial TwiML request for customer:', customer);
 
     if (!customer) {
-      return res.type('text/xml').send('<Response><Say>Customer number not specified</Say></Response>');
+      return res.type('text/xml').send('<Response><Hangup/></Response>');
     }
 
     const twiml = twilioService.generateAgentDialTwiML(customer as string);
@@ -742,7 +740,7 @@ export const generateAgentDialTwiML = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Error generating agent dial TwiML:', error);
     res.type('text/xml');
-    res.send('<Response><Say>Dial error</Say></Response>');
+    res.send('<Response><Hangup/></Response>');
   }
 };
 
@@ -765,7 +763,7 @@ export const generateCustomerToAgentTwiML = async (req: Request, res: Response) 
   } catch (error) {
     console.error('❌ Error generating customer-to-agent TwiML:', error);
     res.type('text/xml');
-    res.send('<Response><Say>Connection error</Say></Response>');
+    res.send('<Response><Hangup/></Response>');
   }
 };
 
@@ -780,7 +778,7 @@ export const generateAgentTwiML = async (req: Request, res: Response) => {
     console.log('👤 Agent TwiML request for conference:', conference);
 
     if (!conference) {
-      return res.type('text/xml').send('<Response><Say>Conference not specified</Say></Response>');
+      return res.type('text/xml').send('<Response><Hangup/></Response>');
     }
 
     const twiml = twilioService.generateAgentTwiML(conference as string);
@@ -791,7 +789,7 @@ export const generateAgentTwiML = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Error generating agent TwiML:', error);
     res.type('text/xml');
-    res.send('<Response><Say>Agent connection error</Say></Response>');
+    res.send('<Response><Hangup/></Response>');
   }
 };
 
@@ -806,7 +804,7 @@ export const generateCustomerTwiML = async (req: Request, res: Response) => {
     console.log('📞 Customer TwiML request for conference:', conference);
 
     if (!conference) {
-      return res.type('text/xml').send('<Response><Say>Conference not specified</Say></Response>');
+      return res.type('text/xml').send('<Response><Hangup/></Response>');
     }
 
     const twiml = twilioService.generateCustomerTwiML(conference as string);
@@ -817,7 +815,7 @@ export const generateCustomerTwiML = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Error generating customer TwiML:', error);
     res.type('text/xml');
-    res.send('<Response><Say>Customer connection error</Say></Response>');
+    res.send('<Response><Hangup/></Response>');
   }
 };
 

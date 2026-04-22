@@ -33,21 +33,10 @@ async function backfillRecordings() {
     console.log(`\n🎯 Sale Disposition: ${saleDisposition ? `"${saleDisposition.name}" (ID: ${saleDisposition.id})` : 'NOT FOUND'}`);
     
     // Get calls without recordings (prioritize Sale Made)
-    const callsNeedingRecordings = await prisma.callRecord.findMany({
+    const allCallsNeedingRecordings = await prisma.callRecord.findMany({
       where: {
-        AND: [
-          {
-            OR: [
-              { recording: null },
-              { AND: [
-                { recording: { not: null } },
-                { recording: { not: { contains: 'twilio.com' } } }
-              ]}
-            ]
-          },
-          { startTime: { not: null } },
-          { duration: { gt: 5 } } // Only calls longer than 5 seconds
-        ]
+        recording: null,
+        duration: { gt: 5 } // Only calls longer than 5 seconds
       },
       select: {
         id: true,
@@ -67,6 +56,9 @@ async function backfillRecordings() {
       ],
       take: 100
     });
+    
+    // Filter to only calls that actually started (have startTime)
+    const callsNeedingRecordings = allCallsNeedingRecordings.filter(c => c.startTime !== null);
     
     console.log(`\n📞 Found ${callsNeedingRecordings.length} calls without recording URLs`);
     

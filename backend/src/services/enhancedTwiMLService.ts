@@ -101,14 +101,9 @@ export class EnhancedTwiMLService {
       track: 'inbound_track' // Only need customer audio for AMD
     });
 
-    // Say something to prompt response (helps with AMD)
-    twiml.say({
-      voice: 'alice',
-      language: 'en-GB'
-    }, 'Hello, this is a call from your service provider. Please hold while I connect you.');
-
-    // Pause briefly for response analysis
-    twiml.pause({ length: 2 });
+    // Use Twilio's built-in AMD without TTS (saves costs)
+    // The pause allows AMD to detect human vs machine silently
+    twiml.pause({ length: 3 });
 
     // Based on live analysis, either connect to agent or hang up
     // This would be dynamically controlled by the live analyzer
@@ -119,14 +114,14 @@ export class EnhancedTwiMLService {
 
   /**
    * Generate TwiML for call outcome based on live analysis
+   * NO TTS - All interactions handled without speech synthesis
    */
   static generateOutcomeBasedTwiML(callId: string, outcome: 'human' | 'machine' | 'unknown'): string {
     const twiml = new twilio.twiml.VoiceResponse();
 
     switch (outcome) {
       case 'human':
-        // Connect to available agent
-        twiml.say('Please hold while I connect you to an agent.');
+        // Connect to available agent (no TTS greeting)
         twiml.dial({
           record: 'record-from-answer',
           timeout: 20
@@ -136,17 +131,12 @@ export class EnhancedTwiMLService {
         break;
 
       case 'machine':
-        // Leave voicemail or hang up
-        twiml.say({
-          voice: 'alice',
-          language: 'en-GB'
-        }, 'Thank you. We will call you back at a more convenient time.');
+        // Just hang up (no voicemail message)
         twiml.hangup();
         break;
 
       case 'unknown':
-        // Try one more time with different approach
-        twiml.say('Hello? Can you hear me?');
+        // Try one more time silently
         twiml.pause({ length: 3 });
         twiml.redirect(`${BACKEND_URL}/api/calls/${callId}/retry-analysis`);
         break;

@@ -111,12 +111,9 @@ router.get('/:callId/retry-analysis', async (req: Request, res: Response) => {
       return res.send(twiml);
     }
 
-    // Still uncertain, try one more interaction
+    // Still uncertain, try one more interaction (no TTS - silent analysis)
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say voice="alice" language="en-GB">
-          Hello, are you there? Please say something if you can hear me.
-        </Say>
         <Pause length="4" />
         <Redirect>${process.env.BACKEND_URL}/api/live-analysis/${callId}/final-decision</Redirect>
       </Response>`;

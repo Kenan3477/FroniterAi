@@ -228,12 +228,11 @@ class SIPCallControlService {
       callState.status = CallStatus.IN_PROGRESS;
       callState.updatedAt = new Date();
 
-      // If this is an inbound call, connect to agent
+      // If this is an inbound call, connect to agent (no TTS)
       if (callState.direction === CallDirection.INBOUND && callState.sipCallId) {
         await twilioClient.calls(callState.sipCallId).update({
           twiml: `
             <Response>
-              <Say>Connecting to agent</Say>
               <Dial>
                 <Client>${agentId}</Client>
               </Dial>
@@ -451,7 +450,6 @@ class SIPCallControlService {
         await twilioClient.calls(callState.sipCallId).update({
           twiml: `
             <Response>
-              <Say>Transferring call</Say>
               <Dial>
                 <Number>${targetNumber}</Number>
               </Dial>

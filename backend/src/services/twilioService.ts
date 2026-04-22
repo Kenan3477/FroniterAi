@@ -278,13 +278,9 @@ export const generateCustomerToAgentTwiML = (phoneNumber?: string): string => {
   const dial = twiml.dial(dialSettings);
   dial.client('agent-browser');
   
-  // Add landline-specific fallback handling
+  // Add landline-specific fallback handling (no TTS - just hangup)
   if (isLandline) {
-    // Add timeout handling for landlines
-    twiml.say({
-      voice: 'alice',
-      language: 'en-GB'
-    }, 'We apologize, but we were unable to connect your call. Please try again later.');
+    twiml.hangup();
   }
   
   return twiml.toString();
@@ -339,16 +335,12 @@ function detectLandlineNumber(phoneNumber?: string): boolean {
 
 /**
  * Generate TwiML for agent connection to conference
+ * NO TTS - Silent connection to reduce costs
  */
 export const generateAgentTwiML = (conference: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, 'Connecting you to the customer. Please wait.');
-  
-  // Connect agent to conference
+  // Connect agent to conference directly (no TTS greeting)
   const dial = twiml.dial({
     record: 'do-not-record' // Customer side already recording
   });
@@ -364,16 +356,12 @@ export const generateAgentTwiML = (conference: string): string => {
 
 /**
  * Generate TwiML for customer connection to conference
+ * Uses hold music instead of TTS to reduce costs
  */
 export const generateCustomerTwiML = (conference: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, 'Please hold while we connect you to an agent.');
-  
-  // Connect customer to conference with recording
+  // Connect customer to conference with recording (no TTS greeting)
   const dial = twiml.dial({
     timeout: 60,
     record: 'record-from-answer-dual' // Record both sides from when call is answered
@@ -382,15 +370,12 @@ export const generateCustomerTwiML = (conference: string): string => {
   dial.conference({
     startConferenceOnEnter: false, // Wait for agent
     endConferenceOnExit: true, // End conference when customer leaves
-    waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient',
+    waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient', // Music while waiting
     maxParticipants: 2
   }, conference);
 
-  // If conference fails, apologize
-  twiml.say({
-    voice: 'alice', 
-    language: 'en-GB'
-  }, 'Sorry, no agents are available. Please try again later.');
+  // If conference fails, just hangup (no TTS)
+  twiml.hangup();
 
   return twiml.toString();
 };
