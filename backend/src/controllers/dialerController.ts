@@ -1118,7 +1118,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
-    // Enhanced call parameters for landline compatibility
+    // Enhanced call parameters for landline compatibility AND RECORDING
     const callParams = {
       to: formattedTo,
       from: fromNumber,
@@ -1127,6 +1127,12 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'] as const,
       statusCallbackMethod: 'POST' as const,
+      // 🎙️ CRITICAL: ENABLE RECORDING AT CALL LEVEL (belt and suspenders approach)
+      record: 'record-from-answer-dual' as const, // Record both parties from answer
+      recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
+      recordingStatusCallbackMethod: 'POST' as const,
+      recordingChannels: 'dual' as const, // Dual channel for better quality
+      recordingStatusCallbackEvent: ['completed'] as const,
       // Landline-specific optimizations
       ...(isLandline && {
         timeout: 90, // Extended timeout for landlines (90s vs default 60s)
@@ -1139,6 +1145,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     if (isLandline) {
       console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
     }
+    
+    console.log('🎙️ Recording enabled: record-from-answer-dual with callback to /api/calls/recording-callback');
 
     const callResult = await twilioClient.calls.create(callParams);
 
