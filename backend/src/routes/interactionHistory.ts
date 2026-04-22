@@ -428,7 +428,7 @@ router.get('/counts', async (req, res) => {
       const cleanupResult = await prisma.callRecord.updateMany({
         where: {
           agentId: agentId,
-          startTime: { not: null, lt: twoHoursAgo },
+          startTime: { lt: twoHoursAgo },
           endTime: null
         },
         data: {
