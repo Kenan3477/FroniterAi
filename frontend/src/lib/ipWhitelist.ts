@@ -63,7 +63,7 @@ export let ipWhitelist: IPWhitelistEntry[] = [
   },
   {
     id: 'ken-home-ip',
-    ipAddress: '90.204.67.241',
+    ipAddress: '86.160.65.86',
     name: 'Ken Home IP',
     description: 'Ken home IP address for system access',
     addedBy: 'ken@simpleemails.co.uk',

@@ -71,7 +71,7 @@ class IPWhitelistManager {
         addedBy: 'system'
       },
       {
-        ipAddress: '90.204.67.241',
+        ipAddress: '86.160.65.86',
         name: 'Ken Home IP',
         description: 'Home IP - Always whitelisted',
         addedBy: 'system'
