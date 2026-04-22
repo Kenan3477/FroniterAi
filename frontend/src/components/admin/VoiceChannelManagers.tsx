@@ -46,16 +46,23 @@ export interface InboundNumber {
   lookupSearchFilter: string; // 'All Lists'
   assignedToDefaultList: boolean;
   
-  // New routing and audio configuration fields
-  voicemailAudioFile?: string; // Audio file for voicemail greeting
-  outOfHoursAudioFile?: string; // Audio file for out of hours announcement
+  // New routing and audio configuration fields (Legacy file references)
+  voicemailAudioFile?: string; // Audio file reference for voicemail greeting
+  outOfHoursAudioFile?: string; // Audio file reference for out of hours announcement
   outOfHoursTransferNumber?: string; // Phone number for out of hours transfer
-  businessHoursVoicemailFile?: string; // Audio file for business hours voicemail
-  businessHoursAudioFile?: string; // Audio file for business hours greeting
+  businessHoursVoicemailFile?: string; // Audio file reference for business hours voicemail
+  businessHoursAudioFile?: string; // Audio file reference for business hours greeting
   selectedFlowId?: string; // Selected flow ID for routing
   selectedQueueId?: string; // Selected queue ID for routing
   selectedRingGroupId?: string; // Selected ring group ID for routing
   selectedExtension?: string; // Selected extension for routing
+  
+  // Audio URLs (REQUIRED for Twilio playback)
+  greetingAudioUrl?: string; // URL to greeting audio file
+  outOfHoursAudioUrl?: string; // URL to out-of-hours audio file
+  voicemailAudioUrl?: string; // URL to voicemail greeting audio file
+  busyAudioUrl?: string; // URL to busy/queue audio file
+  noAnswerAudioUrl?: string; // URL to no-answer audio file
   
   // Flow Assignment Configuration
   assignedFlowId?: string | null; // ID of the assigned flow
@@ -272,10 +279,18 @@ export const InboundNumbersManager: React.FC<{
             recordCalls: num.recordCalls ?? true,
             lookupSearchFilter: num.lookupSearchFilter || 'All Lists',
             assignedToDefaultList: num.assignedToDefaultList ?? true,
-            // Audio file configurations from backend (using backend field names)
+            // Audio URLs from backend (what Twilio uses)
+            greetingAudioUrl: num.greetingAudioUrl,
+            outOfHoursAudioUrl: num.outOfHoursAudioUrl,
+            voicemailAudioUrl: num.voicemailAudioUrl,
+            busyAudioUrl: num.busyAudioUrl,
+            noAnswerAudioUrl: num.noAnswerAudioUrl,
+            // Legacy file reference fields (for backward compatibility)
             outOfHoursAudioFile: num.outOfHoursAudioUrl,
             businessHoursVoicemailFile: num.voicemailAudioUrl,
             voicemailAudioFile: num.voicemailAudioUrl,
+            businessHoursAudioFile: num.greetingAudioUrl,
+            // Routing configuration
             outOfHoursTransferNumber: num.outOfHoursTransferNumber,
             selectedFlowId: num.selectedFlowId,
             selectedQueueId: num.selectedQueueId,
@@ -344,19 +359,28 @@ export const InboundNumbersManager: React.FC<{
       console.log('🔧 Saving inbound number with ID:', number.id);
       console.log('🔧 Number details:', number);
 
+      // Use URL fields directly (user should paste real URLs)
+      // If URLs are not provided, configuration will still save but Twilio won't be able to play audio
       const updateData = {
         displayName: number.displayName,
         description: number.description,
         isActive: number.status,
         assignedFlowId: number.assignedFlowId || null,
-        // Add new routing and configuration fields
+        
+        // Routing configuration
         businessHours: number.businessHours,
         outOfHoursAction: number.outOfHoursAction,
         routeTo: number.routeTo,
-        voicemailAudioFile: number.voicemailAudioFile,
-        businessHoursVoicemailFile: number.businessHoursVoicemailFile,
-        outOfHoursAudioFile: number.outOfHoursAudioFile,
         outOfHoursTransferNumber: number.outOfHoursTransferNumber,
+        
+        // Audio URLs - these are what Twilio actually needs
+        greetingAudioUrl: number.greetingAudioUrl,
+        outOfHoursAudioUrl: number.outOfHoursAudioUrl,
+        voicemailAudioUrl: number.voicemailAudioUrl,
+        busyAudioUrl: number.busyAudioUrl,
+        noAnswerAudioUrl: number.noAnswerAudioUrl,
+        
+        // Flow/Queue/RingGroup selections
         selectedFlowId: number.selectedFlowId || '',
         selectedQueueId: number.selectedQueueId,
         selectedRingGroupId: number.selectedRingGroupId,
@@ -751,11 +775,19 @@ const ConnexInboundNumberForm: React.FC<{
     assignedToDefaultList: number?.assignedToDefaultList !== false,
     type: number?.type || 'both',
     status: number?.status !== false,
-    // New fields for enhanced routing
+    // Legacy file reference fields
     voicemailAudioFile: number?.voicemailAudioFile || '',
     outOfHoursAudioFile: number?.outOfHoursAudioFile || '',
     outOfHoursTransferNumber: number?.outOfHoursTransferNumber || '',
     businessHoursVoicemailFile: number?.businessHoursVoicemailFile || '',
+    businessHoursAudioFile: number?.businessHoursAudioFile || '',
+    // Audio URL fields (REQUIRED for Twilio)
+    greetingAudioUrl: number?.greetingAudioUrl || '',
+    outOfHoursAudioUrl: number?.outOfHoursAudioUrl || '',
+    voicemailAudioUrl: number?.voicemailAudioUrl || '',
+    busyAudioUrl: number?.busyAudioUrl || '',
+    noAnswerAudioUrl: number?.noAnswerAudioUrl || '',
+    // Routing fields
     selectedFlowId: number?.selectedFlowId || '',
     selectedQueueId: number?.selectedQueueId || '',
     selectedRingGroupId: number?.selectedRingGroupId || '',
@@ -1035,12 +1067,35 @@ const ConnexInboundNumberForm: React.FC<{
 
               {/* Show audio file selection when Play Audio File is selected */}
               {formData.outOfHoursAction === 'PlayAudio' && (
-                <div className="bg-green-50 p-4 rounded border border-green-200">
+                <div className="bg-green-50 p-4 rounded border border-green-200 space-y-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
-                    Select Audio File to Play
+                    Out of Hours Audio Configuration
                   </label>
-                  <div className="flex items-center space-x-2">
+                  
+                  {/* Audio URL Input - Primary Method */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Audio File URL (Required for Twilio)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://your-storage.com/out-of-hours.mp3"
+                      value={formData.outOfHoursAudioUrl || ''}
+                      onChange={(e) => setFormData({...formData, outOfHoursAudioUrl: e.target.value, outOfHoursAudioFile: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload your audio file to Twilio Assets, AWS S3, or your CDN, then paste the URL here
+                    </p>
+                  </div>
+
+                  {/* File Selection Dropdown - Reference Only */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Or Select from Uploaded Files (Reference)
+                    </label>
+                    <div className="flex items-center space-x-2">
                     <select
                       value={formData.outOfHoursAudioFile || ''}
                       onChange={(e) => setFormData({...formData, outOfHoursAudioFile: e.target.value})}
@@ -1091,11 +1146,34 @@ const ConnexInboundNumberForm: React.FC<{
 
               {/* Show voicemail audio file selection when Voicemail is selected */}
               {formData.outOfHoursAction === 'Voicemail' && (
-                <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <div className="bg-blue-50 p-4 rounded border border-blue-200 space-y-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <MicrophoneIcon className="h-4 w-4 inline mr-1" />
-                    Voicemail Greeting Audio File
+                    Voicemail Greeting Configuration
                   </label>
+                  
+                  {/* Audio URL Input - Primary Method */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Voicemail Audio File URL (Required for Twilio)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://your-storage.com/voicemail-greeting.mp3"
+                      value={formData.voicemailAudioUrl || ''}
+                      onChange={(e) => setFormData({...formData, voicemailAudioUrl: e.target.value, voicemailAudioFile: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload your voicemail greeting to Twilio Assets, AWS S3, or your CDN
+                    </p>
+                  </div>
+
+                  {/* File Selection Dropdown - Reference Only */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Or Select from Uploaded Files (Reference)
+                    </label>
                   <div className="flex items-center space-x-2">
                     <select
                       value={formData.voicemailAudioFile || ''}
@@ -1245,11 +1323,34 @@ const ConnexInboundNumberForm: React.FC<{
 
             {/* Show audio file selection when Play Audio File is selected */}
             {formData.routeTo === 'PlayAudio' && (
-              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+              <div className="bg-blue-50 p-4 rounded border border-blue-200 space-y-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <SpeakerWaveIcon className="h-4 w-4 inline mr-1" />
-                  Select Audio File to Play
+                  Greeting Audio Configuration
                 </label>
+                
+                {/* Audio URL Input - Primary Method */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Greeting Audio File URL (Required for Twilio)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://your-storage.com/greeting.mp3"
+                    value={formData.greetingAudioUrl || ''}
+                    onChange={(e) => setFormData({...formData, greetingAudioUrl: e.target.value, businessHoursAudioFile: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload your greeting audio to Twilio Assets, AWS S3, or your CDN
+                  </p>
+                </div>
+
+                {/* File Selection Dropdown - Reference Only */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Or Select from Uploaded Files (Reference)
+                  </label>
                 <div className="flex items-center space-x-2">
                   <select
                     value={formData.businessHoursAudioFile || ''}
