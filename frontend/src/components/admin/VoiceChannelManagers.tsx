@@ -1663,6 +1663,9 @@ export const AudioFilesManager: React.FC<{
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Store File objects for playback (mapped by audio file ID)
+  const [fileObjects, setFileObjects] = useState<Map<string, File>>(new Map());
+  
   // Recording-related state
   const [recording, setRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -1674,6 +1677,19 @@ export const AudioFilesManager: React.FC<{
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingFile, setEditingFile] = useState<AudioFile | null>(null);
   const [deletingFile, setDeletingFile] = useState<AudioFile | null>(null);
+
+  // Audio playback state
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+
+  // Cleanup audio element when component unmounts or playback stops
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+      }
+    };
+  }, [audioElement]);
 
   const fileTypes = [
     { id: 'all', label: 'All Files' },
@@ -1700,24 +1716,65 @@ export const AudioFilesManager: React.FC<{
     
     setUploading(true);
     try {
-      // TODO: Implement actual file upload to backend
-      console.log('Uploading files:', selectedFiles);
+      console.log('🎵 Uploading files:', selectedFiles);
       
-      // Simulate upload - replace with actual API call
-      const newFiles = selectedFiles.map(file => ({
-        id: `temp_${Date.now()}_${Math.random()}`,
-        name: file.name.replace(/\.[^/.]+$/, ''),
-        filename: file.name,
-        originalName: file.name,
-        duration: 0, // Will be calculated by backend
-        size: file.size,
-        format: file.name.split('.').pop() || 'unknown',
-        type: 'other' as const,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: 'Current User',
-        description: '',
-        tags: []
-      }));
+      // Process each file to extract duration
+      const newFilesPromises = selectedFiles.map(file => {
+        return new Promise<AudioFile>((resolve) => {
+          const fileUrl = URL.createObjectURL(file);
+          const audio = new Audio(fileUrl);
+          
+          audio.addEventListener('loadedmetadata', () => {
+            const duration = Math.round(audio.duration);
+            URL.revokeObjectURL(fileUrl); // Clean up the URL object
+            
+            resolve({
+              id: `temp_${Date.now()}_${Math.random()}`,
+              name: file.name.replace(/\.[^/.]+$/, ''),
+              filename: file.name,
+              originalName: file.name,
+              duration: isNaN(duration) || !isFinite(duration) ? 0 : duration,
+              size: file.size,
+              format: file.name.split('.').pop() || 'unknown',
+              type: 'other' as const,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: 'Current User',
+              description: '',
+              tags: []
+            });
+          });
+
+          audio.addEventListener('error', () => {
+            console.error('Failed to load audio metadata for:', file.name);
+            URL.revokeObjectURL(fileUrl);
+            
+            resolve({
+              id: `temp_${Date.now()}_${Math.random()}`,
+              name: file.name.replace(/\.[^/.]+$/, ''),
+              filename: file.name,
+              originalName: file.name,
+              duration: 0,
+              size: file.size,
+              format: file.name.split('.').pop() || 'unknown',
+              type: 'other' as const,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: 'Current User',
+              description: '',
+              tags: []
+            });
+          });
+        });
+      });
+
+      const newFiles = await Promise.all(newFilesPromises);
+      console.log('✅ Files processed with durations:', newFiles);
+
+      // Store File objects for playback
+      const newFileObjects = new Map(fileObjects);
+      selectedFiles.forEach((file, index) => {
+        newFileObjects.set(newFiles[index].id, file);
+      });
+      setFileObjects(newFileObjects);
 
       const updatedFiles = [...audioFiles, ...newFiles];
       setAudioFiles(updatedFiles);
@@ -1726,6 +1783,7 @@ export const AudioFilesManager: React.FC<{
       setSelectedFiles([]);
     } catch (error) {
       console.error('Upload failed:', error);
+      alert('Failed to upload files. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -1827,6 +1885,62 @@ export const AudioFilesManager: React.FC<{
   const handleDeleteClick = (file: AudioFile) => {
     setDeletingFile(file);
     setShowDeleteModal(true);
+  };
+
+  // Audio playback handler
+  const handlePlayPause = (file: AudioFile) => {
+    if (playingFile === file.id) {
+      // Stop playback
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+      }
+      setPlayingFile(null);
+      setAudioElement(null);
+    } else {
+      // Stop any currently playing audio
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+      }
+
+      // Get the File object from our map
+      const fileObj = fileObjects.get(file.id);
+      
+      if (fileObj) {
+        // Play from the File object
+        const fileUrl = URL.createObjectURL(fileObj);
+        const audio = new Audio(fileUrl);
+        
+        audio.addEventListener('ended', () => {
+          setPlayingFile(null);
+          setAudioElement(null);
+          URL.revokeObjectURL(fileUrl);
+        });
+
+        audio.addEventListener('error', (e) => {
+          console.error('Audio playback error:', e);
+          alert(`Failed to play audio: ${file.name}\n\nThe audio file may be corrupted or in an unsupported format.`);
+          setPlayingFile(null);
+          setAudioElement(null);
+          URL.revokeObjectURL(fileUrl);
+        });
+
+        audio.play().then(() => {
+          setPlayingFile(file.id);
+          setAudioElement(audio);
+          console.log('🎵 Playing audio:', file.name);
+        }).catch((error) => {
+          console.error('Failed to play audio:', error);
+          alert(`Failed to play audio: ${file.name}\n\nError: ${error.message}`);
+          URL.revokeObjectURL(fileUrl);
+        });
+      } else {
+        // File not in memory - these are default/pre-existing files
+        console.warn('⚠️ Cannot play pre-existing audio file:', file.filename);
+        alert(`Cannot play audio: ${file.name}\n\nThis is a pre-existing file. Only newly uploaded files can be played in the current session.\n\n💡 To play this file, you would need to:\n1. Download it from storage\n2. Or implement backend audio streaming`);
+      }
+    }
   };
 
   const handleEditSave = (updatedFile: AudioFile) => {
@@ -1953,8 +2067,9 @@ export const AudioFilesManager: React.FC<{
                 </div>
               </div>
               <button
-                onClick={() => setPlayingFile(playingFile === file.id ? null : file.id)}
-                className="p-2 text-gray-400 hover:text-slate-600"
+                onClick={() => handlePlayPause(file)}
+                className="p-2 text-gray-400 hover:text-slate-600 transition-colors"
+                title={playingFile === file.id ? 'Stop' : 'Play'}
               >
                 {playingFile === file.id ? (
                   <PauseIcon className="h-4 w-4" />
