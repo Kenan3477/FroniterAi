@@ -1,4 +1,5 @@
 // Disposition Collection API Routes
+// Updated: 2026-04-22 - Public configs endpoint (no auth)
 import express from 'express';
 import { dispositionService } from '../services/dispositionService';
 import { authenticate } from '../middleware/auth';
@@ -7,6 +8,8 @@ import { body, param, query } from 'express-validator';
 import { prisma } from '../database/index';
 
 const router = express.Router();
+
+console.log('📋 Disposition routes loaded - /configs endpoints are PUBLIC (no auth)');
 
 // TEMPORARY: Create missing disposition types (NO AUTH REQUIRED) - MUST BE FIRST
 router.post('/create-types', async (req, res) => {

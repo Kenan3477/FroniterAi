@@ -585,7 +585,13 @@ export class AutoDialEngine {
         asyncAmdStatusCallback: `${process.env.BACKEND_URL}/api/auto-dial/amd-webhook`,
         // Additional call parameters
         timeout: 30, // Ring timeout in seconds
-        record: false, // Recording will be handled by agent interface if needed
+        // 🎙️ MANDATORY: Call recording parameters (NEVER disable or remove these)
+        record: 'record-from-answer-dual',
+        recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
+        recordingStatusCallbackMethod: 'POST',
+        recordingChannels: 'dual',
+        recordingStatusCallbackEvent: ['completed'],
+        // Status callbacks
         statusCallback: `${process.env.BACKEND_URL}/api/auto-dial/call-status-webhook`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
       });

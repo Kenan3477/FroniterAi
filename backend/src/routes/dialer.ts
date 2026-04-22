@@ -68,8 +68,10 @@ router.post('/dtmf', authenticate, dialerController.sendDTMF);
 // Status callback endpoint (called by Twilio) - no auth needed for webhooks
 router.post('/status', dialerController.handleStatusCallback);
 
-// Recording callback endpoint (called by Twilio) - no auth needed for webhooks  
-router.post('/recording-status', dialerController.handleRecordingCallback);
+// Recording callback endpoint (called by Twilio) - no auth needed for webhooks
+// CRITICAL: Must match the URL in dialerController.ts recordingStatusCallback parameter
+router.post('/recording-callback', dialerController.handleRecordingCallback);
+router.post('/recording-status', dialerController.handleRecordingCallback); // Legacy alias for backward compatibility
 
 // Get call recordings
 router.get('/:callSid/recordings', authenticate, dialerController.getRecordings);
