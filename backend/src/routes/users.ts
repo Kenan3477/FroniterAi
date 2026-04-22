@@ -115,35 +115,11 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), a
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Generate username from email with uniqueness check
-    let username = email.split('@')[0];
-    let usernameAttempt = 1;
-    let finalUsername = username;
+    // ✅ FIX: Username is the full email address (not just prefix)
+    // This allows users to log in with their email from any whitelisted IP
+    const username = email.toLowerCase().trim();
     
-    // Check if username already exists and generate unique one if needed
-    while (true) {
-      const existingUsername = await prisma.user.findUnique({
-        where: { username: finalUsername }
-      });
-      
-      if (!existingUsername) {
-        break; // Username is unique, we can use it
-      }
-      
-      // Username exists, try with a number suffix
-      finalUsername = `${username}${usernameAttempt}`;
-      usernameAttempt++;
-      
-      // Prevent infinite loop - max 100 attempts
-      if (usernameAttempt > 100) {
-        return res.status(500).json({
-          success: false,
-          message: 'Unable to generate unique username'
-        });
-      }
-    }
-    
-    console.log(`📝 Generated unique username: ${finalUsername}`);
+    console.log(`📝 Using email as username: ${username}`);
 
     // Check for email uniqueness
     const existingEmail = await prisma.user.findUnique({
@@ -187,7 +163,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), a
     // Create user
     const user = await prisma.user.create({
       data: {
-        username: finalUsername,
+        username: username, // ✅ FIXED: Use full email as username
         email: email.toLowerCase(), // Ensure email is stored in lowercase
         password: hashedPassword,
         firstName,
@@ -554,11 +530,13 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
       });
     }
 
-    // Delete user with cascading deletes for related records
-    // Updated: Fixed field name from assignedById to assignedBy (Dec 29, 2025)
+    // ✅ ENHANCED: Comprehensive cascading delete with detailed logging
+    // Ensures all related records are properly cleaned up or unlinked
     await prisma.$transaction(async (prisma) => {
-      // Delete user campaign assignments first
-      await prisma.userCampaignAssignment.deleteMany({
+      console.log(`🗑️ Starting cascading delete for user ${userId} (${existingUser.name})...`);
+      
+      // 1. Delete user campaign assignments
+      const campaignAssignments = await prisma.userCampaignAssignment.deleteMany({
         where: { 
           OR: [
             { userId: userId },
@@ -566,31 +544,46 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
           ]
         }
       });
+      console.log(`  ✅ Deleted ${campaignAssignments.count} user campaign assignments`);
 
-      // Delete agent campaign assignments if user has agent record
-      await prisma.agentCampaignAssignment.deleteMany({
+      // 2. Delete agent campaign assignments if user has agent record
+      const agentCampaignAssignments = await prisma.agentCampaignAssignment.deleteMany({
         where: { agentId: userId.toString() }
       });
+      console.log(`  ✅ Deleted ${agentCampaignAssignments.count} agent campaign assignments`);
 
-      // Delete agent record if exists
-      await prisma.agent.deleteMany({
+      // 3. Delete agent record if exists
+      const agents = await prisma.agent.deleteMany({
         where: { agentId: userId.toString() }
       });
+      console.log(`  ✅ Deleted ${agents.count} agent records`);
 
-      // Delete refresh tokens
-      await prisma.refreshToken.deleteMany({
+      // 4. Unlink call records (set agentId to null instead of deleting calls)
+      // This preserves call history for reporting while removing user reference
+      const callRecords = await prisma.callRecord.updateMany({
+        where: { agentId: userId.toString() },
+        data: { agentId: null }
+      });
+      console.log(`  ✅ Unlinked ${callRecords.count} call records (preserved for history)`);
+
+      // 5. Delete refresh tokens
+      const refreshTokens = await prisma.refreshToken.deleteMany({
         where: { userId: userId }
       });
+      console.log(`  ✅ Deleted ${refreshTokens.count} refresh tokens`);
 
-      // Delete email verifications
-      await prisma.emailVerification.deleteMany({
+      // 6. Delete email verifications
+      const emailVerifications = await prisma.emailVerification.deleteMany({
         where: { userId: userId }
       });
+      console.log(`  ✅ Deleted ${emailVerifications.count} email verifications`);
 
-      // Finally delete the user
+      // 7. Finally delete the user
       await prisma.user.delete({
         where: { id: userId }
       });
+      console.log(`  ✅ Deleted user record for ${existingUser.name}`);
+      console.log(`🎉 Cascading delete completed successfully for user ${userId}`);
     });
 
     console.log(`✅ User deleted successfully: ${existingUser.name}`);
