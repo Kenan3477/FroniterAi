@@ -251,27 +251,22 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     const mappedOutcome = mapDispositionToOutcome(disposition);
     console.log('📊 Mapped disposition outcome:', mappedOutcome);
 
-    // REQUIRE RECORDING EVIDENCE - Only save calls that have actual recordings
-    if (!callSid && !recordingUrl) {
-      console.log('❌ Rejecting save-call-data: No recording evidence (callSid or recordingUrl)');
-      return res.status(400).json({
-        success: false,
-        error: 'Call data can only be saved for calls with recordings. Please provide callSid or recordingUrl.',
-        message: 'This endpoint only accepts real calls with recording evidence to prevent fake call entries.'
-      });
+    // RECORDING VALIDATION - Validate CallSid format if provided
+    if (callSid) {
+      if (!callSid.startsWith('CA') && !callSid.includes('conf-')) {
+        console.log('❌ Rejecting save-call-data: Invalid CallSid format:', callSid);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid CallSid format. Only real Twilio CallSids accepted.',
+          message: 'CallSid must start with "CA" (Twilio format) or contain "conf-" (conference call).'
+        });
+      }
+      console.log('✅ Valid Twilio CallSid detected:', callSid);
+    } else {
+      console.log('⚠️  No CallSid provided - call will be saved but may not have recording link initially');
     }
 
-    // Validate that CallSid looks like a real Twilio CallSid
-    if (callSid && !callSid.startsWith('CA') && !callSid.includes('conf-')) {
-      console.log('❌ Rejecting save-call-data: Invalid CallSid format:', callSid);
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid CallSid format. Only real Twilio CallSids accepted.',
-        message: 'CallSid must start with "CA" (Twilio format) or contain "conf-" (conference call).'
-      });
-    }
-
-    console.log('✅ Recording evidence validated - proceeding with call save');
+    console.log('✅ Proceeding with call save...');
 
     // Validate required fields with safe defaults  
     const safePhoneNumber = phoneNumber || 'Unknown';
