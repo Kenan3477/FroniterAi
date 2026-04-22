@@ -102,17 +102,19 @@ function checkBusinessHours(inboundNumber: any): boolean {
 
 /**
  * Generate out-of-hours TwiML response
+ * NO TTS ALLOWED - Audio files are REQUIRED
  */
 function generateOutOfHoursTwiML(inboundNumber: any): string {
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // CRITICAL: Check for configured audio file FIRST
+  // CRITICAL: Audio file is REQUIRED - no TTS fallback allowed
   if (inboundNumber.outOfHoursAudioUrl) {
     console.log('🎵 Playing out-of-hours audio:', inboundNumber.outOfHoursAudioUrl);
     twiml.play(inboundNumber.outOfHoursAudioUrl);
-  } else if (inboundNumber.outOfHoursAction === 'voicemail') {
-    // Voicemail option
-    twiml.say({ voice: 'alice' }, 'We are currently closed. Please leave a message after the beep.');
+  } else if (inboundNumber.outOfHoursAction === 'voicemail' && inboundNumber.voicemailAudioUrl) {
+    // Voicemail option - play voicemail prompt audio
+    console.log('🎵 Playing voicemail prompt audio:', inboundNumber.voicemailAudioUrl);
+    twiml.play(inboundNumber.voicemailAudioUrl);
     twiml.record({
       action: '/api/calls/webhook/voicemail',
       method: 'POST',
@@ -121,8 +123,9 @@ function generateOutOfHoursTwiML(inboundNumber: any): string {
       transcribe: true
     });
   } else {
-    // Default TTS fallback
-    twiml.say({ voice: 'alice' }, 'Thank you for calling. We are currently closed. Please call back during business hours.');
+    // ERROR: No audio file configured - log error and hang up silently
+    console.error('❌ CRITICAL: No outOfHoursAudioUrl configured for inbound number:', inboundNumber.phoneNumber);
+    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure outOfHoursAudioUrl in database.');
   }
 
   twiml.hangup();
@@ -131,18 +134,28 @@ function generateOutOfHoursTwiML(inboundNumber: any): string {
 
 /**
  * Generate queue TwiML response (when no agents available)
+ * NO TTS ALLOWED - Audio files are REQUIRED
  */
 function generateQueueTwiML(inboundNumber: any): string {
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // Play greeting if available
-  if (inboundNumber.greetingAudioUrl) {
-    twiml.play(inboundNumber.greetingAudioUrl);
-  } else {
-    twiml.say({ voice: 'alice' }, 'Thank you for calling. All agents are currently busy.');
+  // CRITICAL: Audio file is REQUIRED - no TTS allowed
+  if (!inboundNumber.greetingAudioUrl) {
+    console.error('❌ CRITICAL: No greetingAudioUrl configured for inbound number:', inboundNumber.phoneNumber);
+    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure greetingAudioUrl in database.');
+    twiml.hangup();
+    return twiml.toString();
   }
 
-  twiml.say({ voice: 'alice' }, 'Please hold while we connect you to the next available agent.');
+  // Play greeting audio
+  console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
+  twiml.play(inboundNumber.greetingAudioUrl);
+  
+  // If queue audio is configured, play it, otherwise use hold music
+  if (inboundNumber.queueAudioUrl) {
+    console.log('🎵 Playing queue audio:', inboundNumber.queueAudioUrl);
+    twiml.play(inboundNumber.queueAudioUrl);
+  }
   
   // Enqueue the call
   twiml.enqueue({
@@ -177,10 +190,11 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
 
     if (!inboundNumber) {
       console.error(`❌ Inbound number ${To} not found in database!`);
-      // Send fallback TwiML
+      console.error('❌ CRITICAL: Inbound number must be configured in database before receiving calls');
+      console.error('❌ TTS is disabled. Hanging up silently.');
+      // Send hangup TwiML (no TTS error message)
       const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Sorry, an application error occurred. Please try again later.</Say>
   <Hangup/>
 </Response>`;
       res.type('text/xml');
@@ -278,11 +292,11 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     
   } catch (error: any) {
     console.error('❌ Error handling inbound call webhook:', error);
+    console.error('❌ TTS is disabled. Hanging up silently on error.');
     
-    // Send fallback TwiML
+    // Send hangup TwiML (no TTS error message)
     const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Thank you for calling. All agents are currently busy. Please try again later.</Say>
   <Hangup/>
 </Response>`;
     
@@ -294,14 +308,14 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
 /**
  * Generate initial TwiML response for inbound calls
  * Puts customer in conference room to wait for agent
+ * NO TTS ALLOWED - Uses hold music instead
  */
 export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
   console.log('🎵 Generating conference TwiML for inbound call, conference:', conferenceRoom);
   
-  // Put customer in conference room with hold music
+  // Put customer in conference room with hold music (NO TTS)
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Welcome to Omnivox. Please hold while we connect you to an agent.</Say>
   <Dial>
     <Conference waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical" startConferenceOnEnter="false" endConferenceOnExit="true">
       ${conferenceRoom}
@@ -315,19 +329,24 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 
 /**
  * Generate TwiML to ring agents directly for immediate pickup
+ * NO TTS ALLOWED - Audio files are REQUIRED
  */
 function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, inboundNumber?: any): string {
   console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
   
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // Play greeting audio if available
-  if (inboundNumber?.greetingAudioUrl) {
-    console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
-    twiml.play(inboundNumber.greetingAudioUrl);
-  } else {
-    twiml.say({ voice: 'alice' }, 'Please hold while we connect you to an available agent.');
+  // CRITICAL: Audio file is REQUIRED - no TTS allowed
+  if (!inboundNumber?.greetingAudioUrl) {
+    console.error('❌ CRITICAL: No greetingAudioUrl configured for inbound number');
+    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure greetingAudioUrl in database.');
+    twiml.hangup();
+    return twiml.toString();
   }
+
+  // Play greeting audio
+  console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
+  twiml.play(inboundNumber.greetingAudioUrl);
 
   // Ring the browser-based agent directly with recording enabled
   const backendUrl = process.env.BACKEND_URL || 'https://kennex-production.up.railway.app';
@@ -342,8 +361,7 @@ function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, in
   
   dial.client('agent-browser');
 
-  // Fallback if no agents answer
-  twiml.say({ voice: 'alice' }, 'All agents are currently busy. Your call will be transferred to our queue.');
+  // Fallback if no agents answer - redirect to queue (which will play audio)
   twiml.redirect('/api/calls/webhook/queue');
 
   console.log('✅ TwiML generated with recording enabled for inbound call');
@@ -916,13 +934,12 @@ async function executeAssignedFlow(flowId: string, inboundCall: InboundCall, inb
 
 /**
  * Generate basic greeting TwiML as fallback
+ * NO TTS ALLOWED - Silently queue or hangup
  */
 function generateBasicGreetingTwiML(): string {
   const twiml = new twilio.twiml.VoiceResponse();
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, 'Thank you for calling. Please wait while we connect you to an available agent.');
+  console.warn('⚠️ generateBasicGreetingTwiML called - TTS is disabled. Queueing silently.');
+  // Queue without TTS greeting
   twiml.dial().queue('default');
   return twiml.toString();
 }
@@ -1026,13 +1043,12 @@ async function getFallbackTwiML(inboundCall: InboundCall, reason: string): Promi
 
 /**
  * Generate personalized greeting TwiML
+ * NO TTS ALLOWED - Silently queue
  */
 function generatePersonalizedGreetingTwiML(callerName: string): string {
   const twiml = new twilio.twiml.VoiceResponse();
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, `Hello ${callerName}. Thank you for calling. Please wait while we connect you to an available agent.`);
+  console.warn(`⚠️ generatePersonalizedGreetingTwiML called for ${callerName} - TTS is disabled. Queueing silently.`);
+  // Queue without TTS greeting (personalized greetings should use pre-recorded audio files)
   twiml.dial().queue('default');
   return twiml.toString();
 }
