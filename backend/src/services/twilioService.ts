@@ -246,26 +246,96 @@ export const generateAgentDialTwiML = (customerNumber: string): string => {
 
 /**
  * Generate TwiML for customer to connect directly to WebRTC agent
+ * Enhanced for landline compatibility
  */
-export const generateCustomerToAgentTwiML = (): string => {
+export const generateCustomerToAgentTwiML = (phoneNumber?: string): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
-  // Connect customer directly to the WebRTC agent with proper audio configuration
-  const dial = twiml.dial({
-    timeout: 60,
-    record: 'record-from-answer-dual-channel' as any, // Dual-channel recording; typed as any due to SDK enum limitation
-    recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback` as any, // FIXED: correct webhook path
+  // Detect if this is a landline call for optimized settings
+  const isLandline = detectLandlineNumber(phoneNumber);
+  
+  console.log(`🔍 TwiML Generation: ${phoneNumber} detected as ${isLandline ? 'LANDLINE' : 'MOBILE'}`);
+  
+  // Enhanced settings for landline compatibility
+  const dialSettings = {
+    timeout: isLandline ? 90 : 60, // Longer timeout for landlines (90s vs 60s)
+    record: 'record-from-answer-dual-channel' as any,
+    recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback` as any,
     recordingStatusCallbackMethod: 'POST' as any,
     answerOnBridge: true as any, // Only answer customer when agent picks up
-    ringTone: 'gb' as any,       // UK ring tone
+    ringTone: isLandline ? 'gb' : 'us' as any, // UK ring tone for landlines, US for mobiles
     callerId: process.env.TWILIO_PHONE_NUMBER
-  } as any);
+  } as any;
   
-  // Connect to the WebRTC agent browser client
+  // Add landline-specific optimizations
+  if (isLandline) {
+    console.log('🏠 Applying landline optimizations: extended timeout, UK ringtone, bridge timing');
+    // For landlines, add a brief pause before connection to allow carrier routing
+    twiml.pause({ length: 1 });
+  }
+  
+  // Connect customer directly to the WebRTC agent browser client
+  const dial = twiml.dial(dialSettings);
   dial.client('agent-browser');
+  
+  // Add landline-specific fallback handling
+  if (isLandline) {
+    // Add timeout handling for landlines
+    twiml.say({
+      voice: 'alice',
+      language: 'en-GB'
+    }, 'We apologize, but we were unable to connect your call. Please try again later.');
+  }
   
   return twiml.toString();
 };
+
+/**
+ * Detect if a phone number is likely a landline
+ * Returns true for landlines, false for mobiles
+ */
+function detectLandlineNumber(phoneNumber?: string): boolean {
+  if (!phoneNumber) return false;
+  
+  const cleanNumber = phoneNumber.replace(/\D/g, '');
+  
+  // UK number patterns
+  if (phoneNumber.startsWith('+44') || cleanNumber.startsWith('44')) {
+    // UK mobile numbers start with 07xxx
+    // UK landlines are typically 01xxx, 02xxx, 03xxx, 08xxx, 09xxx
+    const ukNumber = phoneNumber.replace('+44', '').replace(/\D/g, '');
+    
+    if (ukNumber.startsWith('7')) {
+      console.log(`📱 UK Mobile detected: ${phoneNumber}`);
+      return false; // Mobile
+    } else if (ukNumber.match(/^[123568]/)) {
+      console.log(`🏠 UK Landline detected: ${phoneNumber}`);
+      return true;  // Landline
+    }
+  }
+  
+  // US number patterns  
+  if (phoneNumber.startsWith('+1') || cleanNumber.startsWith('1')) {
+    // US numbers - harder to detect, but some area codes are primarily landline
+    const usAreaCode = cleanNumber.substring(1, 4);
+    const landlineAreaCodes = ['212', '213', '214', '215', '216', '217', '218', '301', '302', '303', '304', '305'];
+    
+    if (landlineAreaCodes.includes(usAreaCode)) {
+      console.log(`🏠 US Landline detected: ${phoneNumber} (area code ${usAreaCode})`);
+      return true;
+    }
+  }
+  
+  // European landline patterns
+  if (phoneNumber.match(/^\+(?:33|49|39|34)[1-9]/)) {
+    console.log(`🏠 European Landline detected: ${phoneNumber}`);
+    return true;
+  }
+  
+  // Default to mobile for better compatibility
+  console.log(`📱 Default to Mobile: ${phoneNumber}`);
+  return false;
+}
 
 /**
  * Generate TwiML for agent connection to conference

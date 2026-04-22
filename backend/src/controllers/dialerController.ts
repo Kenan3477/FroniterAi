@@ -215,6 +215,66 @@ const formatPhoneNumber = (phoneNumber: string): string => {
   return '+' + cleaned;
 };
 
+/**
+ * Enhanced landline detection function
+ * Returns true for landlines, false for mobiles
+ * Optimized for UK and common international patterns
+ */
+function detectLandlineNumber(phoneNumber: string): boolean {
+  if (!phoneNumber) return false;
+  
+  const cleanNumber = phoneNumber.replace(/\D/g, '');
+  
+  // UK number patterns (most common use case)
+  if (phoneNumber.startsWith('+44') || cleanNumber.startsWith('44')) {
+    const ukNumber = phoneNumber.replace('+44', '').replace(/\D/g, '');
+    
+    // UK mobile numbers: 07xxx
+    if (ukNumber.startsWith('7')) {
+      return false; // Mobile
+    }
+    
+    // UK landlines: 01xxx, 02xxx, 03xxx, 08xxx (excluding 070x which are mobiles)
+    if (ukNumber.match(/^[123568]/)) {
+      return true;  // Landline
+    }
+  }
+  
+  // US number patterns
+  if (phoneNumber.startsWith('+1') || (cleanNumber.startsWith('1') && cleanNumber.length === 11)) {
+    const usAreaCode = cleanNumber.substring(1, 4);
+    
+    // Common landline area codes (major metropolitan areas typically have more landlines)
+    const landlineAreaCodes = [
+      '212', '213', '214', '215', '216', '217', '218', '301', '302', '303', '304', '305',
+      '307', '308', '309', '310', '312', '313', '314', '315', '316', '317', '318', '319',
+      '401', '402', '403', '404', '405', '406', '407', '408', '409', '410', '412', '413',
+      '414', '415', '416', '417', '418', '419', '423', '424', '425', '430', '431', '432'
+    ];
+    
+    if (landlineAreaCodes.includes(usAreaCode)) {
+      return true; // Likely landline
+    }
+  }
+  
+  // European patterns - most European landlines start with non-mobile prefixes
+  const europeanLandlinePatterns = [
+    /^\+33[1-5]/, // France landlines (01-05)
+    /^\+49[2-9]/, // Germany landlines (02-09)
+    /^\+39[0][1-9]/, // Italy landlines (01-09)
+    /^\+34[8-9]/, // Spain landlines (8x, 9x)
+  ];
+  
+  for (const pattern of europeanLandlinePatterns) {
+    if (pattern.test(phoneNumber)) {
+      return true;
+    }
+  }
+  
+  // Default to mobile for better compatibility
+  return false;
+}
+
 // Validation schemas  
 const endCallSchema = z.object({
   callSid: z.string().min(1, 'Call SID required'),
@@ -659,14 +719,17 @@ export const generateAgentDialTwiML = async (req: Request, res: Response) => {
 /**
  * GET/POST /api/calls/twiml-customer-to-agent
  * Generate TwiML for customer to connect directly to WebRTC agent
+ * Enhanced with landline detection for optimized call handling
  */
 export const generateCustomerToAgentTwiML = async (req: Request, res: Response) => {
   try {
-    console.log('📞 Customer-to-Agent TwiML request - connecting customer directly to agent browser');
+    // Extract phone number from request for landline detection
+    const phoneNumber = req.query.To || req.body.To || req.query.to || req.body.to;
+    console.log('📞 Customer-to-Agent TwiML request - Phone:', phoneNumber);
 
-    const twiml = twilioService.generateCustomerToAgentTwiML();
+    const twiml = twilioService.generateCustomerToAgentTwiML(phoneNumber);
     
-    console.log('✅ Customer-to-Agent TwiML generated');
+    console.log('✅ Customer-to-Agent TwiML generated with landline optimization');
     res.type('text/xml');
     res.send(twiml);
   } catch (error) {
@@ -993,19 +1056,36 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
     console.log(`📞 FAST DIAL: Initiating call to ${formattedTo} from ${fromNumber} - bypassing DB setup for speed`);
 
+    // Detect if this is a landline for enhanced call parameters
+    const isLandline = detectLandlineNumber(formattedTo);
+    console.log(`🔍 Number type detection: ${formattedTo} is ${isLandline ? 'LANDLINE 🏠' : 'MOBILE 📱'}`);
+
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
-    const callResult = await twilioClient.calls.create({
+    // Enhanced call parameters for landline compatibility
+    const callParams = {
       to: formattedTo,
       from: fromNumber,
       url: twimlUrl,
-      method: 'POST',
+      method: 'POST' as const,
       statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-      statusCallbackMethod: 'POST'
-      // Recording is handled in TwiML
-    });
+      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'] as const,
+      statusCallbackMethod: 'POST' as const,
+      // Landline-specific optimizations
+      ...(isLandline && {
+        timeout: 90, // Extended timeout for landlines (90s vs default 60s)
+        machineDetection: 'Enable' as const, // Better answering machine detection for landlines
+        machineDetectionTimeout: 10, // Wait up to 10s to detect answering machines
+        asyncAmd: 'true' // Use asynchronous machine detection to avoid blocking
+      })
+    };
+
+    if (isLandline) {
+      console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
+    }
+
+    const callResult = await twilioClient.calls.create(callParams);
 
     console.log('⚡ FAST DIAL SUCCESS: Customer call initiated in', Date.now() - parseInt(conferenceId.split('-')[1]), 'ms');
     console.log('✅ Twilio Call SID:', callResult.sid);
