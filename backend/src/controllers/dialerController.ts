@@ -12,6 +12,38 @@ import twilio from 'twilio';
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 /**
+ * Check if agent has any active calls
+ * Returns the active call info if found, null otherwise
+ */
+async function checkForActiveCall(agentId: string): Promise<{ callId: string; phoneNumber: string; startTime: Date } | null> {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    const activeCall = await prisma.callRecord.findFirst({
+      where: {
+        agentId,
+        startTime: { not: null },
+        endTime: null,
+        createdAt: { gte: twoHoursAgo }
+      },
+      select: {
+        callId: true,
+        phoneNumber: true,
+        startTime: true
+      },
+      orderBy: {
+        startTime: 'desc'
+      }
+    });
+
+    return activeCall;
+  } catch (error) {
+    console.error('❌ Error checking for active calls:', error);
+    return null;
+  }
+}
+
+/**
  * CRITICAL: End any active calls for an agent before starting a new one
  * This ensures only ONE call is active at a time, preventing call stacking
  * and ensuring seamless call flow without latency or stuck states
@@ -1038,6 +1070,31 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // ⚡ OPTIMIZATION 1: Use cached or temporary agent ID to avoid DB lookup delay
     const tempAgentId = `agent-${authenticatedUser.userId}`;
     console.log('⚡ Using temporary agent ID for fast dial:', tempAgentId);
+
+    // 🚫 CRITICAL: Check if agent has an active call already
+    console.log('🔍 Checking for active calls before initiating new call...');
+    const activeCall = await checkForActiveCall(tempAgentId);
+    
+    if (activeCall) {
+      const callDuration = Math.floor((Date.now() - new Date(activeCall.startTime).getTime()) / 1000);
+      console.log(`🚫 BLOCKED: Agent ${tempAgentId} already has an active call`);
+      console.log(`   Active call to: ${activeCall.phoneNumber}`);
+      console.log(`   Call duration: ${callDuration}s`);
+      console.log(`   Call ID: ${activeCall.callId}`);
+      
+      return res.status(409).json({
+        success: false,
+        error: 'Agent already has an active call',
+        message: 'Please end your current call before starting a new one',
+        activeCall: {
+          phoneNumber: activeCall.phoneNumber,
+          callId: activeCall.callId,
+          duration: callDuration
+        }
+      });
+    }
+    
+    console.log('✅ No active calls found - proceeding with dial');
 
     // Format phone number immediately (no DB dependency)
     const formattedTo = formatPhoneNumber(to);

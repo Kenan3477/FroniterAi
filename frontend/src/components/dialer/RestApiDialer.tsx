@@ -606,6 +606,27 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       
       const result = await response.json();
       
+      // Check if agent already has an active call (409 Conflict)
+      if (response.status === 409) {
+        console.warn('⚠️ Agent already has an active call:', result);
+        setCallStatus('failed');
+        
+        const activeCallInfo = result.activeCall 
+          ? `\n\nActive call: ${result.activeCall.phoneNumber}\nDuration: ${Math.floor(result.activeCall.duration / 60)}m ${result.activeCall.duration % 60}s`
+          : '';
+        
+        alert(`❌ Cannot start new call\n\n${result.message || 'You already have an active call'}${activeCallInfo}\n\nPlease end your current call first.`);
+        
+        setLastCallResult({
+          success: false,
+          error: result.error || 'Active call in progress',
+          activeCall: result.activeCall
+        });
+        
+        setIsLoading(false);
+        return;
+      }
+      
       if (result.success) {
         console.log('✅ Call initiated:', result);
         
