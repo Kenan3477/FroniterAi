@@ -80,12 +80,10 @@ router.post('/create-types', async (req, res) => {
   }
 });
 
-// Apply authentication to all OTHER routes (after create-types)
-router.use(authenticate);
-
 /**
  * GET /api/dispositions/configs
  * Get available disposition configurations
+ * PUBLIC ENDPOINT - No auth required for disposition configs
  */
 router.get('/configs',
   validateRequest([
@@ -115,6 +113,7 @@ router.get('/configs',
 /**
  * GET /api/dispositions/configs/:dispositionId
  * Get specific disposition configuration
+ * PUBLIC ENDPOINT - No auth required for disposition configs
  */
 router.get('/configs/:dispositionId',
   validateRequest([
@@ -146,6 +145,9 @@ router.get('/configs/:dispositionId',
     }
   }
 );
+
+// Apply authentication to all OTHER routes (after public config endpoints)
+router.use(authenticate);
 
 /**
  * POST /api/dispositions
