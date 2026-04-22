@@ -843,7 +843,144 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
       Conference: ConferenceSid
     });
 
-    // Handle call completion
+    // 🚨 CRITICAL: Handle ALL terminal call states to prevent stuck calls
+    // Terminal states: completed, busy, failed, no-answer, canceled
+    const terminalStates = ['completed', 'busy', 'failed', 'no-answer', 'canceled'];
+    const isTerminalState = terminalStates.includes(CallStatus);
+
+    if (isTerminalState) {
+      console.log(`🔚 Terminal call state detected: ${CallSid} - ${CallStatus}`);
+      
+      // Find call record.
+      // makeRestApiCall stores callId=conf-xxx and saves the Twilio SID in `recording`.
+      // Check both recording column AND callId column to handle both creation paths.
+      try {
+        const callRecord = await prisma.callRecord.findFirst({
+          where: {
+            OR: [
+              { recording: CallSid },
+              { callId: CallSid }
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (callRecord) {
+          // Only update if not already ended (prevent double-updates)
+          if (!callRecord.endTime) {
+            await prisma.callRecord.update({
+              where: { id: callRecord.id },
+              data: {
+                endTime: new Date(),
+                duration: parseInt(CallDuration) || 0,
+                outcome: CallStatus // Use actual Twilio status: completed, busy, failed, no-answer, canceled
+              }
+            });
+
+            console.log(`✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s`);
+
+            // Process recordings ONLY for completed calls (successful connections)
+            if (CallStatus === 'completed' && CallSid) {
+              console.log(`📼 Triggering recording processing for completed call: ${CallSid}`);
+              // Import here to avoid circular dependency
+              const { processCallRecordings } = require('../services/recordingService');
+              processCallRecordings(CallSid, callRecord.id).catch((error: any) => {
+                console.error('❌ Error processing recordings:', error);
+              });
+            }
+          } else {
+            console.log(`ℹ️  Call ${callRecord.callId} already ended at ${callRecord.endTime}`);
+          }
+        } else {
+          console.warn(`⚠️  No call record found for Twilio SID: ${CallSid}`);
+          
+          // FAILSAFE: Create missing call record from webhook data (only for completed calls)
+          if (CallStatus === 'completed') {
+            try {
+              console.log(`🔧 Creating failsafe call record from webhook data...`);
+              
+              // Ensure required campaign exists
+              await prisma.campaign.upsert({
+                where: { campaignId: 'webhook-calls' },
+                update: {},
+                create: {
+                  campaignId: 'webhook-calls',
+                  name: 'Webhook Created Calls',
+                  dialMethod: 'Manual',
+                  status: 'Active',
+                  isActive: true,
+                  description: 'Call records created from Twilio webhooks',
+                  recordCalls: true
+                }
+              });
+
+              // Ensure required data list exists
+              await prisma.dataList.upsert({
+                where: { listId: 'webhook-contacts' },
+                update: {},
+                create: {
+                  listId: 'webhook-contacts',
+                  name: 'Webhook Contacts',
+                  campaignId: 'webhook-calls',
+                  active: true,
+                  totalContacts: 0
+                }
+              });
+
+              // Create contact for this call
+              const contactId = `webhook-${CallSid}`;
+              await prisma.contact.upsert({
+                where: { contactId },
+                update: {},
+                create: {
+                  contactId,
+                  listId: 'webhook-contacts',
+                  firstName: 'Webhook',
+                  lastName: 'Contact',
+                  phone: To || From || 'Unknown',
+                  status: 'contacted'
+                }
+              });
+
+              // Get a default agent (first available agent)
+              const defaultAgent = await prisma.agent.findFirst();
+
+              // Create the call record
+              const failsafeCallRecord = await prisma.callRecord.create({
+                data: {
+                  callId: CallSid,
+                  agentId: defaultAgent?.agentId || null,
+                  contactId: contactId,
+                  campaignId: 'webhook-calls',
+                  phoneNumber: To || From || 'Unknown',
+                  dialedNumber: To || 'Unknown',
+                  callType: Direction === 'inbound' ? 'inbound' : 'outbound',
+                  startTime: new Date(Date.now() - (parseInt(CallDuration) * 1000) || 0), // Estimate start time
+                  endTime: new Date(),
+                  duration: parseInt(CallDuration) || 0,
+                  outcome: CallStatus,
+                  recording: CallSid,
+                  notes: `Created from Twilio webhook failsafe - Status: ${CallStatus}`
+                }
+              });
+
+              console.log(`✅ Created failsafe call record: ${failsafeCallRecord.callId}`);
+              console.log(`📝 Phone: ${failsafeCallRecord.phoneNumber}, Agent: ${failsafeCallRecord.agentId}`);
+              
+            } catch (failsafeError) {
+              console.error('❌ Error creating failsafe call record:', failsafeError);
+            }
+          }
+        }
+      } catch (dbError) {
+        console.error('❌ Error updating call record:', dbError);
+      }
+    } else {
+      // Non-terminal state (queued, ringing, in-progress, etc.)
+      console.log(`⏳ Call ${CallSid} in progress state: ${CallStatus}`);
+    }
+
+    // Handle call completion - LEGACY CODE FOR BACKWARDS COMPATIBILITY
     if (CallStatus === 'completed') {
       console.log(`✅ Call completed: ${CallSid} - Duration: ${CallDuration}s`);
       

@@ -1747,6 +1747,7 @@ const ConnexInboundNumberForm: React.FC<{
         </form>
       </div>
     </div>
+  </div>
   );
 };
 

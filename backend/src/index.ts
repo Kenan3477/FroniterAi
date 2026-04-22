@@ -76,6 +76,7 @@ import adaptiveQuickActionsRoutes from './routes/adaptiveQuickActions'; // NEW: 
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 import updateOrgAdminRoutes from './routes/updateOrgAdmin'; // Temporary route to fix existing org admin names
 import migrationRoutes from './routes/migration'; // Database migration endpoints
+import stuckCallMonitoringRoutes from './routes/stuckCallMonitoring'; // 🚨 CRITICAL: Stuck call prevention and monitoring
 
 // NEW: Stripe Payment Integration Routes
 import integrationRoutes from './routes/integrations'; // Apps & Integrations management
@@ -290,6 +291,7 @@ class App {
     this.app.use('/api/admin', updateOrgAdminRoutes); // TEMPORARY: Fix existing organization administrator names
     this.app.use('/api/admin', migrationRoutes); // Database migration endpoints
     this.app.use('/api/admin/recordings', recordingFixRoutes); // ADMIN: Recording system fixes and data creation
+    this.app.use('/api/stuck-calls', stuckCallMonitoringRoutes); // 🚨 CRITICAL: Stuck call prevention monitoring and manual cleanup
     this.app.use('/api/emergency', emergencyRoutes); // EMERGENCY: Account unlock and debugging endpoints (no auth required)
     this.app.use('/api/admin/ip-whitelist', ipWhitelistRoutes); // IP WHITELIST: Security IP whitelist management (SUPER_ADMIN only)
     // this.app.use('/api/security', securityRoutes); // SECURITY: Admin security monitoring dashboard (auth required) - TEMPORARILY DISABLED
@@ -424,6 +426,12 @@ class App {
         console.warn('⚠️ Transcription system initialization failed:', transcriptionError);
         console.log('📞 Server will start without transcription features');
       }
+
+      // 🚨 CRITICAL: Start stuck call monitoring to prevent customers being dropped
+      console.log('🔍 Initializing stuck call prevention system...');
+      const { startStuckCallMonitoring } = await import('./services/stuckCallPrevention');
+      startStuckCallMonitoring();
+      console.log('✅ Stuck call prevention system active - monitoring every 60s');
 
       // Start server
       const port = config.server.port;
