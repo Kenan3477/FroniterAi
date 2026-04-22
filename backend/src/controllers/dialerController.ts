@@ -950,7 +950,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
     const { to, contactId: existingContactId, contactName, existingContact, campaignId, campaignName, agentId: requestAgentId } = req.body;
     
-    console.log('📞 Making REST API call - original number:', { to, existingContactId, contactName, existingContact, campaignId, campaignName });
+    console.log('� FAST DIAL: Making REST API call - original number:', { to, existingContactId, contactName, existingContact, campaignId, campaignName });
 
     if (!to) {
       return res.status(400).json({
@@ -974,48 +974,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       role: authenticatedUser.role 
     });
 
-    // Get user details from database to create/find agent
-    console.log('🔍 Looking up user with ID:', authenticatedUser.userId);
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(authenticatedUser.userId) },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        username: true
-      }
-    });
-    
-    console.log('👤 User lookup result:', user ? `Found: ${user.firstName} ${user.lastName} (${user.username})` : 'NOT FOUND');
+    // ⚡ OPTIMIZATION 1: Use cached or temporary agent ID to avoid DB lookup delay
+    const tempAgentId = `agent-${authenticatedUser.userId}`;
+    console.log('⚡ Using temporary agent ID for fast dial:', tempAgentId);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    // Get or create agent record for this user
-    console.log('👤 Getting agent for user:', { id: user.id, name: `${user.firstName} ${user.lastName}`, email: user.email });
-    const agentId = await getOrCreateAgentForUser(
-      user.id.toString(), 
-      user.firstName, 
-      user.lastName, 
-      user.email
-    );
-
-    if (!agentId) {
-      console.error('❌ Failed to get/create agent for user:', user.id);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to get agent information'
-      });
-    }
-
-    console.log('✅ Using agent ID:', agentId);
-
-    // Format phone number to international format
+    // Format phone number immediately (no DB dependency)
     const formattedTo = formatPhoneNumber(to);
     console.log('📞 Formatted phone number:', { original: to, formatted: formattedTo });
 
@@ -1024,220 +987,13 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    // NOTE: Twilio Lookup pre-validation was removed — it added ~500ms-1s latency per call.
-    // Invalid numbers / geo-permission errors are now caught in the Twilio call attempt below
-    // and surfaced back to the agent with clear error messages.
-    console.log(`📞 Initiating call to ${formattedTo} from ${fromNumber}`);
-
-    // Generate unique conference name for this call
+    // ⚡ OPTIMIZATION 2: Generate conference ID and initiate call IMMEDIATELY
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🎯 Creating conference call:', conferenceId);
+    console.log('🚀 FAST DIAL: Creating conference call:', conferenceId);
 
-    // Ensure campaign exists - use provided campaignId or default to DAC
-    const finalCampaignId = campaignId || 'DAC';
-    const finalCampaignName = campaignName || 'Dial a Contact Campaign';
-    
-    let campaign = await prisma.campaign.findUnique({
-      where: { campaignId: finalCampaignId }
-    });
+    console.log(`📞 FAST DIAL: Initiating call to ${formattedTo} from ${fromNumber} - bypassing DB setup for speed`);
 
-    if (!campaign) {
-      console.log(`🔧 Creating campaign: ${finalCampaignId}...`);
-      campaign = await prisma.campaign.create({
-        data: {
-          campaignId: finalCampaignId,
-          name: finalCampaignName,
-          dialMethod: 'Manual',
-          status: 'Active',
-          isActive: true,
-          description: campaignId ? `Campaign for ${campaignName}` : 'Dial a Contact Campaign for individual calls',
-          recordCalls: true,
-          allowTransfers: false
-        }
-      });
-      console.log('✅ Created campaign:', campaign.campaignId);
-    }
-
-    // Ensure campaign list exists  
-    const listId = `${finalCampaignId}-list`;
-    let dataList = await prisma.dataList.findUnique({
-      where: { listId: listId }
-    });
-
-    if (!dataList) {
-      console.log(`🔧 Creating list for campaign: ${finalCampaignId}...`);
-      dataList = await prisma.dataList.create({
-        data: {
-          listId: listId,
-          name: `${finalCampaignName} List`,
-          campaignId: finalCampaignId,
-          active: true
-        }
-      });
-      console.log('✅ Created list:', dataList.listId);
-    }
-
-    // Handle contact creation/lookup
-    let contactId: string;
-    let contact: any;
-
-    if (existingContact && existingContactId) {
-      // Use existing contact from the database
-      console.log('🔍 Using existing contact:', existingContactId);
-      contact = await prisma.contact.findUnique({
-        where: { contactId: existingContactId }
-      });
-      
-      if (contact) {
-        contactId = contact.contactId;
-        console.log('✅ Found existing contact:', { contactId: contact.contactId, name: `${contact.firstName} ${contact.lastName}` });
-      } else {
-        // Fallback: create contact with provided information
-        console.log('⚠️ Contact not found in database, creating with provided info');
-        contactId = existingContactId;
-        const nameParts = contactName ? contactName.split(' ') : ['Manual', 'Dial'];
-        contact = await prisma.contact.create({
-          data: {
-            contactId: contactId,
-            listId: listId,
-            firstName: nameParts[0] || 'Manual',
-            lastName: nameParts.slice(1).join(' ') || 'Dial',
-            phone: formattedTo,
-            status: 'new'
-          }
-        });
-        console.log('✅ Created contact with provided info:', contact.contactId);
-      }
-    } else {
-      // FIXED: Search for existing contact by phone number before creating new one
-      console.log('🔍 Searching for existing contact by phone number:', formattedTo);
-      
-      // Try to find existing contact with this phone number
-      contact = await prisma.contact.findFirst({
-        where: {
-          OR: [
-            { phone: formattedTo },
-            { phone: to }, // Also check original format
-            { mobile: formattedTo },
-            { mobile: to },
-            { workPhone: formattedTo },
-            { workPhone: to },
-            { homePhone: formattedTo },
-            { homePhone: to }
-          ]
-        },
-        orderBy: {
-          updatedAt: 'desc' // Get most recently updated contact if multiple matches
-        }
-      });
-
-      if (contact) {
-        // Found existing contact - use it and increment attempt count
-        contactId = contact.contactId;
-        console.log('✅ Found existing contact by phone number:', { 
-          contactId: contact.contactId, 
-          name: `${contact.firstName} ${contact.lastName}`,
-          phone: contact.phone,
-          attemptCount: contact.attemptCount
-        });
-
-        // Update attempt count and last attempt timestamp
-        contact = await prisma.contact.update({
-          where: { contactId: contact.contactId },
-          data: {
-            attemptCount: contact.attemptCount + 1,
-            lastAttempt: new Date(),
-            lastAgentId: agentId, // FIXED: Use actual agent ID
-            updatedAt: new Date()
-          }
-        });
-      } else {
-        // No existing contact found - create new one
-        console.log('📝 No existing contact found, creating new manual dial contact');
-        contactId = `contact-${Date.now()}`;
-        
-        // Use "Unknown" as default contact name when no name provided
-        const nameParts = contactName ? contactName.split(' ') : ['Unknown', 'Contact'];
-        
-        contact = await prisma.contact.create({
-          data: {
-            contactId: contactId,
-            listId: listId, // Use created list ID
-            firstName: nameParts[0] || 'Unknown',
-            lastName: nameParts.slice(1).join(' ') || 'Contact',
-            phone: formattedTo,
-            status: 'new',
-            attemptCount: 1,
-            lastAttempt: new Date(),
-            lastAgentId: agentId
-          }
-        });
-        console.log('✅ Created new contact:', contact.contactId);
-      }
-    }
-
-    // ✅ CRITICAL: End any active calls for this agent before starting new one
-    // This ensures seamless call flow with no call stacking or latency issues
-    console.log(`🔄 Checking and ending any active calls for agent ${agentId}...`);
-    const endedCallsCount = await endAnyActiveCallsForAgent(agentId);
-    
-    if (endedCallsCount > 0) {
-      console.log(`⚠️  Ended ${endedCallsCount} active call(s) for agent ${agentId}`);
-      // Small delay to ensure Twilio has processed the hangup
-      await new Promise(resolve => setTimeout(resolve, 300));
-    } else {
-      console.log(`✅ No active calls found for agent ${agentId}, proceeding with new call`);
-    }
-
-    // Start call record in database
-    console.log('📊 Creating call record with data:', {
-      callId: conferenceId,
-      agentId: agentId,
-      contactId: contactId,
-      campaignId: campaignId,
-      phoneNumber: formattedTo,
-      dialedNumber: formattedTo,
-      callType: 'outbound'
-    });
-    
-    try {
-      const callRecord = await prisma.callRecord.create({
-        data: {
-          callId: conferenceId,
-          agentId: agentId, // FIXED: Use actual agent ID from authenticated user
-          contactId: contactId, // Use created contact ID
-          campaignId: finalCampaignId, // Use existing/created campaign ID
-          phoneNumber: formattedTo,
-          dialedNumber: formattedTo,
-          callType: 'outbound',
-          startTime: new Date()
-        }
-      });
-      
-      console.log('✅ Created call record:', callRecord.callId);
-      console.log('📝 Call record details:', {
-        id: callRecord.id,
-        callId: callRecord.callId,
-        phoneNumber: callRecord.phoneNumber,
-        agentId: callRecord.agentId,
-        contactId: callRecord.contactId,
-        campaignId: callRecord.campaignId
-      });
-    } catch (callRecordError) {
-      console.error('❌ Error creating call record:', callRecordError);
-      console.error('📝 Call record data that failed:', {
-        callId: conferenceId,
-        agentId: agentId,
-        contactId: contactId,
-        campaignId: finalCampaignId,
-        phoneNumber: formattedTo,
-        dialedNumber: formattedTo
-      });
-      // Continue with the call even if record creation fails
-      // We'll create the record later via webhook if needed
-    }
-
-    // Call the customer and connect them directly to the WebRTC agent
+    // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
     const callResult = await twilioClient.calls.create({
@@ -1251,48 +1007,243 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       // Recording is handled in TwiML
     });
 
-    console.log('✅ Customer call initiated - Direct agent connection');
+    console.log('⚡ FAST DIAL SUCCESS: Customer call initiated in', Date.now() - parseInt(conferenceId.split('-')[1]), 'ms');
     console.log('✅ Twilio Call SID:', callResult.sid);
 
-    // Update call record with Twilio call SID
-    try {
-      await prisma.callRecord.update({
-        where: { callId: conferenceId },
-        data: { 
-          recording: callResult.sid // Store Twilio SID for recording lookup
-        }
-      });
-      console.log('✅ Updated call record with Twilio SID:', callResult.sid);
-    } catch (updateError) {
-      console.error('❌ Error updating call record with Twilio SID:', updateError);
-      // If the original call record wasn't created, create it now
-      try {
-        console.log('🔄 Attempting to create call record with Twilio SID...');
-        await prisma.callRecord.create({
-          data: {
-            callId: conferenceId,
-            agentId: agentId,
-            contactId: contactId,
-            campaignId: campaignId,
-            phoneNumber: formattedTo,
-            dialedNumber: formattedTo,
-            callType: 'outbound',
-            startTime: new Date(),
-            recording: callResult.sid
-          }
-        });
-        console.log('✅ Created call record with Twilio SID on retry');
-      } catch (retryError) {
-        console.error('❌ Failed to create call record on retry:', retryError);
-      }
-    }
-
+    // ⚡ OPTIMIZATION 3: Return success immediately, handle DB operations asynchronously
     res.json({
       success: true,
       callSid: callResult.sid,
       conferenceId: conferenceId,
       status: callResult.status,
-      message: 'Direct agent call initiated - Customer will be connected to agent browser'
+      message: '⚡ Fast dial initiated - database operations running in background'
+    });
+
+    // 📊 BACKGROUND OPERATIONS: Handle all database setup asynchronously after call is started
+    setImmediate(async () => {
+      try {
+        console.log('� Background: Starting database operations for call', callResult.sid);
+        
+        // Get user details from database
+        const user = await prisma.user.findUnique({
+          where: { id: parseInt(authenticatedUser.userId) },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            username: true
+          }
+        });
+
+        if (!user) {
+          console.error('❌ Background: User not found for ID:', authenticatedUser.userId);
+          return;
+        }
+
+        // Get or create agent record
+        const agentId = await getOrCreateAgentForUser(
+          user.id.toString(), 
+          user.firstName, 
+          user.lastName, 
+          user.email
+        );
+
+        if (!agentId) {
+          console.error('❌ Background: Failed to get/create agent for user:', user.id);
+          return;
+        }
+
+        // Ensure campaign exists
+        const finalCampaignId = campaignId || 'DAC';
+        const finalCampaignName = campaignName || 'Dial a Contact Campaign';
+        
+        let campaign = await prisma.campaign.findUnique({
+          where: { campaignId: finalCampaignId }
+        });
+
+        if (!campaign) {
+          console.log(`🔧 Background: Creating campaign: ${finalCampaignId}...`);
+          campaign = await prisma.campaign.create({
+            data: {
+              campaignId: finalCampaignId,
+              name: finalCampaignName,
+              dialMethod: 'Manual',
+              status: 'Active',
+              isActive: true,
+              description: campaignId ? `Campaign for ${campaignName}` : 'Dial a Contact Campaign for individual calls',
+              recordCalls: true,
+              allowTransfers: false
+            }
+          });
+          console.log('✅ Background: Created campaign:', campaign.campaignId);
+        }
+
+        // Ensure campaign list exists  
+        const listId = `${finalCampaignId}-list`;
+        let dataList = await prisma.dataList.findUnique({
+          where: { listId: listId }
+        });
+
+        if (!dataList) {
+          console.log(`🔧 Background: Creating list for campaign: ${finalCampaignId}...`);
+          dataList = await prisma.dataList.create({
+            data: {
+              listId: listId,
+              name: `${finalCampaignName} List`,
+              campaignId: finalCampaignId,
+              active: true
+            }
+          });
+          console.log('✅ Background: Created list:', dataList.listId);
+        }
+
+        // Handle contact creation/lookup
+        let contactId: string;
+        let contact: any;
+
+        if (existingContact && existingContactId) {
+          console.log('🔍 Background: Using existing contact:', existingContactId);
+          contact = await prisma.contact.findUnique({
+            where: { contactId: existingContactId }
+          });
+          
+          if (contact) {
+            contactId = contact.contactId;
+            console.log('✅ Background: Found existing contact:', { contactId: contact.contactId, name: `${contact.firstName} ${contact.lastName}` });
+          } else {
+            console.log('⚠️ Background: Contact not found in database, creating with provided info');
+            contactId = existingContactId;
+            const nameParts = contactName ? contactName.split(' ') : ['Manual', 'Dial'];
+            contact = await prisma.contact.create({
+              data: {
+                contactId: contactId,
+                listId: listId,
+                firstName: nameParts[0] || 'Manual',
+                lastName: nameParts.slice(1).join(' ') || 'Dial',
+                phone: formattedTo,
+                status: 'new'
+              }
+            });
+            console.log('✅ Background: Created contact with provided info:', contact.contactId);
+          }
+        } else {
+          // Search for existing contact by phone number
+          console.log('🔍 Background: Searching for existing contact by phone number:', formattedTo);
+          
+          contact = await prisma.contact.findFirst({
+            where: {
+              OR: [
+                { phone: formattedTo },
+                { phone: to },
+                { mobile: formattedTo },
+                { mobile: to },
+                { workPhone: formattedTo },
+                { workPhone: to },
+                { homePhone: formattedTo },
+                { homePhone: to }
+              ]
+            },
+            orderBy: {
+              updatedAt: 'desc'
+            }
+          });
+
+          if (contact) {
+            contactId = contact.contactId;
+            console.log('✅ Background: Found existing contact by phone number:', { 
+              contactId: contact.contactId, 
+              name: `${contact.firstName} ${contact.lastName}`,
+              phone: contact.phone,
+              attemptCount: contact.attemptCount
+            });
+
+            // Update attempt count and last attempt timestamp
+            contact = await prisma.contact.update({
+              where: { contactId: contact.contactId },
+              data: {
+                attemptCount: contact.attemptCount + 1,
+                lastAttempt: new Date(),
+                lastAgentId: agentId,
+                updatedAt: new Date()
+              }
+            });
+          } else {
+            console.log('📝 Background: No existing contact found, creating new manual dial contact');
+            contactId = `contact-${Date.now()}`;
+            
+            const nameParts = contactName ? contactName.split(' ') : ['Unknown', 'Contact'];
+            
+            contact = await prisma.contact.create({
+              data: {
+                contactId: contactId,
+                listId: listId,
+                firstName: nameParts[0] || 'Unknown',
+                lastName: nameParts.slice(1).join(' ') || 'Contact',
+                phone: formattedTo,
+                status: 'new',
+                attemptCount: 1,
+                lastAttempt: new Date(),
+                lastAgentId: agentId
+              }
+            });
+            console.log('✅ Background: Created new contact:', contact.contactId);
+          }
+        }
+
+        // End any active calls for this agent (background cleanup)
+        console.log(`🔄 Background: Checking and ending any active calls for agent ${agentId}...`);
+        const endedCallsCount = await endAnyActiveCallsForAgent(agentId);
+        
+        if (endedCallsCount > 0) {
+          console.log(`⚠️ Background: Ended ${endedCallsCount} active call(s) for agent ${agentId}`);
+        }
+
+        // Create/update call record with proper data
+        console.log('📊 Background: Creating call record with proper data');
+        
+        try {
+          const callRecord = await prisma.callRecord.create({
+            data: {
+              callId: conferenceId,
+              agentId: agentId,
+              contactId: contactId,
+              campaignId: finalCampaignId,
+              phoneNumber: formattedTo,
+              dialedNumber: formattedTo,
+              callType: 'outbound',
+              startTime: new Date(),
+              recording: callResult.sid // Store Twilio SID for recording lookup
+            }
+          });
+          
+          console.log('✅ Background: Created call record:', callRecord.callId);
+        } catch (callRecordError) {
+          console.error('❌ Background: Error creating call record:', callRecordError);
+          
+          // Try to update existing record if it exists
+          try {
+            await prisma.callRecord.update({
+              where: { callId: conferenceId },
+              data: { 
+                agentId: agentId,
+                contactId: contactId,
+                campaignId: finalCampaignId,
+                recording: callResult.sid
+              }
+            });
+            console.log('✅ Background: Updated existing call record');
+          } catch (updateError) {
+            console.error('❌ Background: Could not create or update call record:', updateError);
+          }
+        }
+
+        console.log('✅ Background operations completed successfully for call', callResult.sid);
+        
+      } catch (backgroundError) {
+        console.error('❌ Background operations failed for call', callResult.sid, ':', backgroundError);
+        // Background failures don't affect the call itself
+      }
     });
 
   } catch (error: any) {
