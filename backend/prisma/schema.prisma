@@ -2125,3 +2125,25 @@ enum PaymentAction {
   CUSTOMER_CREATED
   CUSTOMER_UPDATED
 }
+
+// Audio File Storage for Omnivox
+model AudioFile {
+  id              String    @id @default(cuid())
+  filename        String    // Original filename
+  displayName     String    // User-friendly display name
+  mimeType        String    // audio/mpeg, audio/wav, etc.
+  size            Int       // File size in bytes
+  duration        Float?    // Duration in seconds
+  type            String    @default("other") // greeting, hold_music, announcement, ivr_prompt, voicemail, other
+  description     String?
+  tags            String?   // JSON array of tags
+  fileData        Bytes     // Actual audio file binary data
+  uploadedBy      String?   // User ID who uploaded
+  uploadedAt      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([type])
+  @@index([uploadedBy])
+  @@index([uploadedAt])
+  @@map("audio_files")
+}

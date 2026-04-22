@@ -81,6 +81,9 @@ import migrationRoutes from './routes/migration'; // Database migration endpoint
 import integrationRoutes from './routes/integrations'; // Apps & Integrations management
 import stripeRoutes from './routes/stripe'; // Stripe payment portal integration
 
+// NEW: Audio File Storage Routes
+import audioRoutes from './routes/audioRoutes'; // Audio file upload, storage, and streaming
+
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
 // import interactionRoutes from './routes/interactions';
@@ -263,6 +266,7 @@ class App {
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     this.app.use('/api/integrations', integrationRoutes); // NEW: Apps & Integrations management
     this.app.use('/api/stripe', stripeRoutes); // NEW: Stripe payment portal integration
+    this.app.use('/api/audio', audioRoutes); // NEW: Audio file storage and streaming
     // this.app.use('/api/admin/business-settings', businessSettingsRoutes); // DISABLED - schema conflicts
     // this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // DISABLED - schema conflicts
     this.app.use('/api/admin/campaign-management', campaignManagementRoutes); // RE-ENABLED - Fixed with proper Prisma integration

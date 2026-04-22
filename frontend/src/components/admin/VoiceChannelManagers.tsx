@@ -1782,6 +1782,47 @@ export const AudioFilesManager: React.FC<{
   // Audio playback state
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
+  // Load audio files from backend on mount
+  useEffect(() => {
+    loadAudioFilesFromBackend();
+  }, []);
+
+  const loadAudioFilesFromBackend = async () => {
+    try {
+      console.log('📥 Loading audio files from backend...');
+      const response = await fetch('/api/audio');
+      
+      if (!response.ok) {
+        console.error('Failed to load audio files:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('✅ Loaded audio files from backend:', data.audioFiles.length);
+
+      // Convert backend format to frontend AudioFile format
+      const backendFiles: AudioFile[] = data.audioFiles.map((file: any) => ({
+        id: file.id,
+        name: file.displayName,
+        filename: file.filename,
+        originalName: file.filename,
+        duration: file.duration || 0,
+        size: file.size,
+        format: file.filename.split('.').pop() || 'unknown',
+        type: file.type as any,
+        uploadedAt: file.uploadedAt,
+        uploadedBy: file.uploadedBy || 'System',
+        description: file.description || '',
+        tags: file.tags ? JSON.parse(file.tags) : []
+      }));
+
+      setAudioFiles(backendFiles);
+      onUpdate({ ...config, audioFiles: backendFiles });
+    } catch (error) {
+      console.error('Error loading audio files from backend:', error);
+    }
+  };
+
   // Cleanup audio element when component unmounts or playback stops
   useEffect(() => {
     return () => {
@@ -1817,60 +1858,76 @@ export const AudioFilesManager: React.FC<{
     
     setUploading(true);
     try {
-      console.log('🎵 Uploading files:', selectedFiles);
+      console.log('🎵 Uploading files to backend:', selectedFiles);
       
-      // Process each file to extract duration
-      const newFilesPromises = selectedFiles.map(file => {
-        return new Promise<AudioFile>((resolve) => {
+      // Upload each file to the backend
+      const uploadPromises = selectedFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append('audio', file);
+        formData.append('displayName', file.name.replace(/\.[^/.]+$/, ''));
+        formData.append('type', 'other');
+        formData.append('description', '');
+        formData.append('tags', JSON.stringify([]));
+
+        // Extract duration from audio file
+        return new Promise<AudioFile>((resolve, reject) => {
           const fileUrl = URL.createObjectURL(file);
           const audio = new Audio(fileUrl);
           
-          audio.addEventListener('loadedmetadata', () => {
+          audio.addEventListener('loadedmetadata', async () => {
             const duration = Math.round(audio.duration);
-            URL.revokeObjectURL(fileUrl); // Clean up the URL object
+            URL.revokeObjectURL(fileUrl);
             
-            resolve({
-              id: `temp_${Date.now()}_${Math.random()}`,
-              name: file.name.replace(/\.[^/.]+$/, ''),
-              filename: file.name,
-              originalName: file.name,
-              duration: isNaN(duration) || !isFinite(duration) ? 0 : duration,
-              size: file.size,
-              format: file.name.split('.').pop() || 'unknown',
-              type: 'other' as const,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: 'Current User',
-              description: '',
-              tags: []
-            });
+            formData.append('duration', duration.toString());
+
+            try {
+              // Upload to backend
+              const response = await fetch('/api/audio/upload', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Upload failed');
+              }
+
+              const data = await response.json();
+              console.log('✅ File uploaded successfully:', data.audioFile);
+
+              // Convert backend response to AudioFile format
+              resolve({
+                id: data.audioFile.id,
+                name: data.audioFile.displayName,
+                filename: data.audioFile.filename,
+                originalName: data.audioFile.filename,
+                duration: data.audioFile.duration || duration,
+                size: data.audioFile.size,
+                format: data.audioFile.filename.split('.').pop() || 'unknown',
+                type: data.audioFile.type as any,
+                uploadedAt: data.audioFile.uploadedAt,
+                uploadedBy: data.audioFile.uploadedBy || 'Current User',
+                description: data.audioFile.description || '',
+                tags: data.audioFile.tags ? JSON.parse(data.audioFile.tags) : []
+              });
+            } catch (uploadError: any) {
+              console.error('Upload error:', uploadError);
+              reject(uploadError);
+            }
           });
 
           audio.addEventListener('error', () => {
             console.error('Failed to load audio metadata for:', file.name);
             URL.revokeObjectURL(fileUrl);
-            
-            resolve({
-              id: `temp_${Date.now()}_${Math.random()}`,
-              name: file.name.replace(/\.[^/.]+$/, ''),
-              filename: file.name,
-              originalName: file.name,
-              duration: 0,
-              size: file.size,
-              format: file.name.split('.').pop() || 'unknown',
-              type: 'other' as const,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: 'Current User',
-              description: '',
-              tags: []
-            });
+            reject(new Error(`Failed to load audio file: ${file.name}`));
           });
         });
       });
 
-      const newFiles = await Promise.all(newFilesPromises);
-      console.log('✅ Files processed with durations:', newFiles);
+      const newFiles = await Promise.all(uploadPromises);
+      console.log('✅ All files uploaded with durations:', newFiles);
 
-      // Store File objects for playback
+      // Store File objects for playback (using backend URLs now)
       const newFileObjects = new Map(fileObjects);
       selectedFiles.forEach((file, index) => {
         newFileObjects.set(newFiles[index].id, file);
@@ -1882,9 +1939,11 @@ export const AudioFilesManager: React.FC<{
       onUpdate({ ...config, audioFiles: updatedFiles });
       setShowUploadModal(false);
       setSelectedFiles([]);
-    } catch (error) {
+      
+      alert(`✅ Successfully uploaded ${newFiles.length} file(s)!`);
+    } catch (error: any) {
       console.error('Upload failed:', error);
-      alert('Failed to upload files. Please try again.');
+      alert(`❌ Failed to upload files:\n\n${error.message}\n\nPlease try again.`);
     } finally {
       setUploading(false);
     }
@@ -2005,42 +2064,57 @@ export const AudioFilesManager: React.FC<{
         audioElement.src = '';
       }
 
-      // Get the File object from our map
-      const fileObj = fileObjects.get(file.id);
+      // Play audio from backend stream URL
+      const streamUrl = `/api/audio/stream/${file.id}`;
+      console.log('🎵 Playing audio from backend:', streamUrl);
       
-      if (fileObj) {
-        // Play from the File object
-        const fileUrl = URL.createObjectURL(fileObj);
-        const audio = new Audio(fileUrl);
+      const audio = new Audio(streamUrl);
+      
+      audio.addEventListener('canplay', () => {
+        console.log('🎵 Audio ready to play');
+      });
+      
+      audio.addEventListener('ended', () => {
+        console.log('🎵 Audio playback ended');
+        setPlayingFile(null);
+        setAudioElement(null);
+      });
+
+      audio.addEventListener('error', (e) => {
+        console.error('Audio playback error:', e);
+        const error = audio.error;
+        let errorMessage = 'Failed to play audio';
         
-        audio.addEventListener('ended', () => {
-          setPlayingFile(null);
-          setAudioElement(null);
-          URL.revokeObjectURL(fileUrl);
-        });
+        if (error) {
+          switch (error.code) {
+            case MediaError.MEDIA_ERR_ABORTED:
+              errorMessage = 'Audio playback was aborted';
+              break;
+            case MediaError.MEDIA_ERR_NETWORK:
+              errorMessage = 'Network error while loading audio';
+              break;
+            case MediaError.MEDIA_ERR_DECODE:
+              errorMessage = 'Audio file is corrupted or unsupported format';
+              break;
+            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+              errorMessage = 'Audio format not supported or file not found';
+              break;
+          }
+        }
+        
+        alert(`❌ ${errorMessage}\n\nFile: ${file.name}\n\nPlease check that the audio file was uploaded correctly.`);
+        setPlayingFile(null);
+        setAudioElement(null);
+      });
 
-        audio.addEventListener('error', (e) => {
-          console.error('Audio playback error:', e);
-          alert(`Failed to play audio: ${file.name}\n\nThe audio file may be corrupted or in an unsupported format.`);
-          setPlayingFile(null);
-          setAudioElement(null);
-          URL.revokeObjectURL(fileUrl);
-        });
-
-        audio.play().then(() => {
-          setPlayingFile(file.id);
-          setAudioElement(audio);
-          console.log('🎵 Playing audio:', file.name);
-        }).catch((error) => {
-          console.error('Failed to play audio:', error);
-          alert(`Failed to play audio: ${file.name}\n\nError: ${error.message}`);
-          URL.revokeObjectURL(fileUrl);
-        });
-      } else {
-        // File not in memory - these are default/pre-existing files
-        console.warn('⚠️ Cannot play pre-existing audio file:', file.filename);
-        alert(`Cannot play audio: ${file.name}\n\nThis is a pre-existing file. Only newly uploaded files can be played in the current session.\n\n💡 To play this file, you would need to:\n1. Download it from storage\n2. Or implement backend audio streaming`);
-      }
+      audio.play().then(() => {
+        setPlayingFile(file.id);
+        setAudioElement(audio);
+        console.log('✅ Audio playing from backend:', file.name);
+      }).catch((error) => {
+        console.error('Failed to play audio:', error);
+        alert(`❌ Failed to play audio: ${file.name}\n\nError: ${error.message}\n\nThe audio file may not be accessible.`);
+      });
     }
   };
 
