@@ -752,77 +752,7 @@ export const CallRecordsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Disposition Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex items-center space-x-2 mb-2">
-          <span className="text-sm font-medium text-gray-700">Quick Filters:</span>
-          <button
-            onClick={() => {
-              const saleDisposition = allDispositions.find(d => d.category === 'SALE' || d.name?.toLowerCase().includes('sale made'));
-              setFilters({ ...filters, dispositionId: saleDisposition?.id });
-            }}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              allDispositions.find(d => d.id === filters.dispositionId && (d.category === 'SALE' || d.name?.toLowerCase().includes('sale')))
-                ? 'bg-green-600 text-white'
-                : 'bg-green-100 text-green-700 hover:bg-green-200'
-            }`}
-          >
-            💰 Sales Made
-          </button>
-          <button
-            onClick={() => {
-              const callbackDisposition = allDispositions.find(d => d.category === 'CALLBACK' || d.name?.toLowerCase().includes('callback'));
-              setFilters({ ...filters, dispositionId: callbackDisposition?.id });
-            }}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              allDispositions.find(d => d.id === filters.dispositionId && (d.category === 'CALLBACK' || d.name?.toLowerCase().includes('callback')))
-                ? 'bg-blue-600 text-white'
-                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-            }`}
-          >
-            📅 Callbacks
-          </button>
-          <button
-            onClick={() => {
-              const noContactDisposition = allDispositions.find(d => d.category === 'NO_CONTACT' || d.name?.toLowerCase().includes('no answer'));
-              setFilters({ ...filters, dispositionId: noContactDisposition?.id });
-            }}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              allDispositions.find(d => d.id === filters.dispositionId && (d.category === 'NO_CONTACT' || d.name?.toLowerCase().includes('no answer')))
-                ? 'bg-yellow-600 text-white'
-                : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-            }`}
-          >
-            ⏸️ No Contact
-          </button>
-          <button
-            onClick={() => {
-              const notInterestedDisposition = allDispositions.find(d => d.category === 'NOT_INTERESTED' || d.name?.toLowerCase().includes('not interested'));
-              setFilters({ ...filters, dispositionId: notInterestedDisposition?.id });
-            }}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              allDispositions.find(d => d.id === filters.dispositionId && (d.category === 'NOT_INTERESTED' || d.name?.toLowerCase().includes('not interested')))
-                ? 'bg-red-600 text-white'
-                : 'bg-red-100 text-red-700 hover:bg-red-200'
-            }`}
-          >
-            ❌ Not Interested
-          </button>
-          <button
-            onClick={() => setFilters({ ...filters, dispositionId: undefined })}
-            className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-          >
-            Clear Filter
-          </button>
-        </div>
-        {filters.dispositionId && (
-          <div className="text-xs text-gray-500 mt-1">
-            Showing calls with disposition: <span className="font-medium text-gray-700">
-              {allDispositions.find(d => d.id === filters.dispositionId)?.name || 'Unknown'}
-            </span>
-          </div>
-        )}
-      </div>
+
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow">
@@ -945,59 +875,11 @@ export const CallRecordsView: React.FC = () => {
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Dispositions</option>
-              <optgroup label="Sales & Conversions">
-                {allDispositions
-                  .filter(d => d.category === 'SALE' || d.name?.toLowerCase().includes('sale'))
-                  .map((disposition) => (
-                    <option key={disposition.id} value={disposition.id}>
-                      {disposition.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Callbacks & Follow-ups">
-                {allDispositions
-                  .filter(d => d.category === 'CALLBACK' || d.name?.toLowerCase().includes('callback') || d.name?.toLowerCase().includes('follow'))
-                  .map((disposition) => (
-                    <option key={disposition.id} value={disposition.id}>
-                      {disposition.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="No Contact">
-                {allDispositions
-                  .filter(d => d.category === 'NO_CONTACT' || d.name?.toLowerCase().includes('no answer') || d.name?.toLowerCase().includes('voicemail') || d.name?.toLowerCase().includes('busy'))
-                  .map((disposition) => (
-                    <option key={disposition.id} value={disposition.id}>
-                      {disposition.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Not Interested">
-                {allDispositions
-                  .filter(d => d.category === 'NOT_INTERESTED' || d.name?.toLowerCase().includes('not interested') || d.name?.toLowerCase().includes('do not call'))
-                  .map((disposition) => (
-                    <option key={disposition.id} value={disposition.id}>
-                      {disposition.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Other">
-                {allDispositions
-                  .filter(d => !['SALE', 'CALLBACK', 'NO_CONTACT', 'NOT_INTERESTED'].includes(d.category || '') &&
-                              !d.name?.toLowerCase().includes('sale') &&
-                              !d.name?.toLowerCase().includes('callback') &&
-                              !d.name?.toLowerCase().includes('follow') &&
-                              !d.name?.toLowerCase().includes('no answer') &&
-                              !d.name?.toLowerCase().includes('voicemail') &&
-                              !d.name?.toLowerCase().includes('busy') &&
-                              !d.name?.toLowerCase().includes('not interested') &&
-                              !d.name?.toLowerCase().includes('do not call'))
-                  .map((disposition) => (
-                    <option key={disposition.id} value={disposition.id}>
-                      {disposition.name}
-                    </option>
-                  ))}
-              </optgroup>
+              {allDispositions.map((disposition) => (
+                <option key={disposition.id} value={disposition.id}>
+                  {disposition.name}
+                </option>
+              ))}
             </select>
           </div>
           </div>
