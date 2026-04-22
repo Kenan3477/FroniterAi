@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
 import { getNodeType, NodeCategory } from '../types/flowNodeTypes';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface FlowExecutionContext {
   callId: string;
   phoneNumber: string;

@@ -5,13 +5,11 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import twilioService from '../services/twilioService';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import twilio from 'twilio';
 
 // Initialize Twilio client
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-const prisma = new PrismaClient();
 
 /**
  * CRITICAL: End any active calls for an agent before starting a new one

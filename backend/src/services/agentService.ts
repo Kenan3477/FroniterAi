@@ -8,8 +8,7 @@ import { PrismaClient, Agent } from '@prisma/client';
 import { z } from 'zod';
 import { autoDialEngine } from './autoDialEngine';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Agent status type definition
 export type AgentStatus = 'OFFLINE' | 'AVAILABLE' | 'ON_CALL' | 'ACW' | 'AWAY' | 'BREAK';
 

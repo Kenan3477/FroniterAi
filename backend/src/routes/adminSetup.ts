@@ -3,12 +3,9 @@
  */
 import express from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const router = express.Router();
-const prisma = new PrismaClient();
-
 // POST /api/admin-setup/create-users - Create initial users
 router.post('/create-users', async (req: Request, res: Response) => {
   try {
@@ -209,6 +206,7 @@ router.get('/check-users', async (req: Request, res: Response) => {
 
 // POST /api/admin-setup/fix-call-records - Fix call records data issues
 import { fixCallRecordsData } from '../controllers/adminController';
+import { prisma } from '../lib/prisma';
 router.post('/fix-call-records', ...fixCallRecordsData);
 
 // POST /api/admin-setup/fix-call-records-public - Public version for emergency cleanup
@@ -218,9 +216,7 @@ router.post('/fix-call-records-public', async (req: Request, res: Response) => {
 
     // Include the same fix logic but without authentication requirement
     const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
-    // 1. Ensure all users have agent records
+        // 1. Ensure all users have agent records
     const allUsers = await prisma.user.findMany({
       select: {
         id: true,

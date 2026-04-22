@@ -4,14 +4,12 @@
  */
 
 import express, { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
 import { organizationAwareAuth, getOrganizationFilter } from '../middleware/enhancedAuth';
 import bcrypt from 'bcryptjs';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 /**
  * @route   GET /api/users/my-inbound-queues
  * @desc    Get inbound call queues assigned to the current agent

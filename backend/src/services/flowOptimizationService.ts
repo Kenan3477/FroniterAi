@@ -4,11 +4,9 @@
  * Machine learning-driven flow improvement and predictive analytics
  */
 
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const AnalyzeFlowSchema = z.object({
   flowId: z.string().min(1),

@@ -5,7 +5,6 @@
  * Enhanced with predictive dialing algorithms and real-time analytics
  */
 
-import { PrismaClient } from '@prisma/client';
 import * as twilioService from './twilioService';
 import { 
   predictiveDialingEngine, 
@@ -14,8 +13,7 @@ import {
 } from './predictiveDialingEngine';
 import { autoDialSentimentMonitor } from './autoDialSentimentMonitor';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Auto-dial state management with predictive enhancements
 const autoDialStates = new Map<string, AutoDialState>();
 

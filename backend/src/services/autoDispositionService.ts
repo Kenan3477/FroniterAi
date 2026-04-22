@@ -3,12 +3,10 @@
  * Phase 3: Advanced AI Dialler Implementation
  */
 
-import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import { sentimentAnalysisService } from '../services/sentimentAnalysisService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface DispositionRecommendation {
   disposition: string;
   confidence: number;

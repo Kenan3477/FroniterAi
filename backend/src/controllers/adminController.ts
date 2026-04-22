@@ -4,11 +4,9 @@
  */
 
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { requireRole } from '../middleware/auth';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export const fixCallRecordsData = [requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     console.log('🔧 Admin triggered call records data fix...');

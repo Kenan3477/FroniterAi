@@ -4,11 +4,9 @@
  * Enterprise-grade flow monitoring with failure detection and performance optimization
  */
 
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const GetFlowMetricsSchema = z.object({
   flowId: z.string().min(1),

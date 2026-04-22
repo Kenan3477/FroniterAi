@@ -1,11 +1,9 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { agentService, CreateAgentRequest } from '../services/agentService';
 
+import { prisma } from '../lib/prisma';
 const router = Router();
-const prisma = new PrismaClient();
-
 // POST /api/agents - Create or get agent record
 router.post('/', async (req: Request, res: Response) => {
   try {

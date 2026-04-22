@@ -5,10 +5,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import '../types/auth'; // Import unified auth types
-
-const prisma = new PrismaClient();
 
 // Role-based permissions
 export const ROLE_PERMISSIONS = {

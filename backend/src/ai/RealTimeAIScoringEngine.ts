@@ -3,11 +3,9 @@
  * Provides live conversation analysis and scoring during active calls
  */
 
-import { PrismaClient } from '@prisma/client';
 import { Server } from 'socket.io';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface CallAnalysisData {
   callId: string;
   agentId: string;

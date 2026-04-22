@@ -3,11 +3,10 @@
  */
 import express from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/calls/token - Generate Twilio access token for agent
 router.get('/token/:agentId', async (req: Request, res: Response) => {

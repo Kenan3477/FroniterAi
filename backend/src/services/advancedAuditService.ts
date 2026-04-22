@@ -7,8 +7,7 @@ import { PrismaClient, SuspiciousActivityType, AlertSeverity, SuspiciousAlertSta
 import { eventManager } from './eventManager';
 import { WebSocketService } from './websocketService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface ActivityTrackingData {
   userId: string;
   organizationId: string;

@@ -3,11 +3,9 @@
  * Analyzes admin user behavior patterns to provide personalized shortcuts
  */
 
-import { PrismaClient } from '@prisma/client';
 import { advancedAuditService } from './advancedAuditService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface QuickAction {
   id: string;
   title: string;

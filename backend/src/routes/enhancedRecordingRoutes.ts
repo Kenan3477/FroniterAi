@@ -4,12 +4,10 @@
 
 import express from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import fetch from 'node-fetch';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 /**
  * GET /api/recordings/:recordingId/stream
  * Stream a recording file (works with both Twilio URLs and local files)

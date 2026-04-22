@@ -7,8 +7,7 @@
 import { PrismaClient, DialQueueEntry } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const CreateQueueEntrySchema = z.object({
   campaignId: z.string().min(1),

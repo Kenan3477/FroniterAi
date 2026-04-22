@@ -4,11 +4,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import '../types/auth'; // Import unified auth types
 import { OrganizationUser } from '../types/auth'; // Import the type explicitly
-
-const prisma = new PrismaClient();
 
 /**
  * Middleware to enforce organization-level access control

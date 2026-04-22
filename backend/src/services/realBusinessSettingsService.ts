@@ -3,12 +3,10 @@
  * Replaces mock business settings with actual database operations
  */
 
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import emailService, { generatePasswordSetupToken } from './emailService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface BusinessSettingData {
   id?: string;
   organizationId?: string;

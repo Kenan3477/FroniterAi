@@ -1,11 +1,9 @@
 import express from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 interface InboundQueueData {
   name: string;
   displayName: string;

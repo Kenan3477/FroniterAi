@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 const crypto = require('crypto');
-
-const prisma = new PrismaClient();
 
 // Check if Stripe is enabled for organization
 export const checkStripeEnabled = async (req: Request, res: Response) => {

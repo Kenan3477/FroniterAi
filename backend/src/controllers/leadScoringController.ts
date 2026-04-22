@@ -5,9 +5,7 @@
 
 import { Request, Response } from 'express';
 import { LeadScoringService, LeadScore } from '../services/leadScoringService';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const leadScoringService = new LeadScoringService();
 
 export class LeadScoringController {

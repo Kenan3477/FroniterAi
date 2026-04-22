@@ -3,11 +3,8 @@
  */
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 // Simple organizations endpoint
 router.get('/organizations', async (req, res) => {
   try {

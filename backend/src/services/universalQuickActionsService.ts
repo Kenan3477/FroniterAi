@@ -2,10 +2,8 @@
  * Universal Navigation Tracking Service
  * Tracks navigation patterns for all authenticated users to enable adaptive quick actions
  */
+import { prisma } from '../lib/prisma';
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 // In-memory store for navigation data (fallback until database is ready)
 const navigationStore = new Map<string, NavigationPattern[]>();

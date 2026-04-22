@@ -1,11 +1,10 @@
 // Lead Lifecycle Management Service
 // Comprehensive lead progression tracking with analytics and stage optimization
 
-import { PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
 import { DispositionEvent } from '../types/events';
 
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const eventEmitter = new EventEmitter();
 
 // Lead Lifecycle Stages

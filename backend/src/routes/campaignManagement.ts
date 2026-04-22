@@ -1,13 +1,11 @@
 import express from 'express';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { campaignEvents, agentEvents } from '../utils/eventHelpers';
 import { createRestApiCall } from '../services/twilioService';
 import { authenticateToken, requirePermission, organizationAwareAuth, getOrganizationFilter } from '../middleware/enhancedAuth';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 // Helper function to map database dial method values to frontend expected values
 function mapDialMethod(dbDialMethod: string): 'AUTODIAL' | 'MANUAL_DIAL' | 'MANUAL_PREVIEW' | 'SKIP' {
   switch (dbDialMethod?.toUpperCase()) {

@@ -2,10 +2,8 @@
  * Real KPI Service - Database-driven metrics calculation
  * Replaces mock simpleKpiService with actual database queries
  */
+import { prisma } from '../lib/prisma';
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export interface CallKPIData {
   campaignId: string;

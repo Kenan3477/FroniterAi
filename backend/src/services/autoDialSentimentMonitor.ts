@@ -4,12 +4,10 @@
  * Provides real-time coaching alerts and quality monitoring
  */
 
-import { PrismaClient } from '@prisma/client';
 import { sentimentAnalysisService } from './sentimentAnalysisService';
 import { autoDialEngine } from './autoDialEngine';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Real-time sentiment monitoring for auto-dial calls
 interface SentimentAlert {
   callId: string;

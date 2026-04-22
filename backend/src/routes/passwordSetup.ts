@@ -6,12 +6,10 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 // Validation schemas
 const validateTokenSchema = z.object({
   token: z.string().min(1, 'Token is required'),

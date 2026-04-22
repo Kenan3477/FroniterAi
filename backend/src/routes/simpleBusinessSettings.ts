@@ -1,6 +1,7 @@
 // Simple test service to check if the issue is with the complex query
 import express from 'express';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
 
 // Simple test route that just returns static data
@@ -33,9 +34,7 @@ router.get('/organizations', async (req, res) => {
   try {
     // Use simple prisma query
     const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
-    const organizations = await prisma.organization.findMany({
+        const organizations = await prisma.organization.findMany({
       select: {
         id: true,
         name: true,

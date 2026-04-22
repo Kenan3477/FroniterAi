@@ -4,12 +4,10 @@
  */
 
 import express, { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
 
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 /**
  * @route   POST /api/admin/update-org-admin-name
  * @desc    Update existing Organization Administrator to use business name

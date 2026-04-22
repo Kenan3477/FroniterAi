@@ -4,11 +4,9 @@
  * Enterprise-grade AI analysis for supervisor coaching and quality monitoring
  */
 
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const AnalyzeTextSchema = z.object({
   text: z.string().min(1).max(5000),

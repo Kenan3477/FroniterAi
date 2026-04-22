@@ -1,11 +1,8 @@
 import express, { Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 /**
  * Dashboard Stats Endpoint
  * GET /api/dashboard/stats

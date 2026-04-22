@@ -1,10 +1,9 @@
 // Integration Data Consistency Service
 // Comprehensive data validation, monitoring, and healing across all system integrations
 
-import { PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
 
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const eventEmitter = new EventEmitter();
 
 // Data Consistency Levels

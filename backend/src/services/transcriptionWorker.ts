@@ -5,10 +5,8 @@
  * 
  * Using direct AI transcription through frontend API routes instead
  */
+import { prisma } from '../lib/prisma';
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export interface JobProgress {
   stage: string;

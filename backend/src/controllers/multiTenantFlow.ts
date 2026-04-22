@@ -5,11 +5,9 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { multiTenantFlowService } from '../services/multiTenantFlowService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const OrganizationParamsSchema = z.object({
   organizationId: z.string().min(1)

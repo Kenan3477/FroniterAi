@@ -3,12 +3,10 @@
  * Provides the 8 required KPI cards and chart data
  */
 
-import { PrismaClient } from '@prisma/client';
 import { realKPIService } from './realKpiService';
 import { eventManager } from './eventManager';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface TimeframeFilter {
   startDate: Date;
   endDate: Date;

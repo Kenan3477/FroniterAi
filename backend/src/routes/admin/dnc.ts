@@ -1,10 +1,8 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../../middleware/auth';
 
+import { prisma } from '../../lib/prisma';
 const router = express.Router();
-const prisma = new PrismaClient();
-
 // Utility function to normalize phone number
 function normalizePhoneNumber(phoneNumber: string): string {
   return phoneNumber.replace(/[^\d+]/g, '');

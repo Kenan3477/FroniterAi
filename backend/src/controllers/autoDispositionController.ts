@@ -5,10 +5,9 @@
 
 import { Request, Response } from 'express';
 import { AutoDispositionService, CallContext, DispositionRecommendation } from '../services/autoDispositionService';
-import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const autoDispositionService = new AutoDispositionService();
 
 export class AutoDispositionController {

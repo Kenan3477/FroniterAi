@@ -3,11 +3,9 @@
  * AI-powered workflow intelligence with predictive actions and team learning
  */
 
-import { PrismaClient } from '@prisma/client';
 import { advancedAuditService } from './advancedAuditService';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 export interface PredictiveAction {
   id: string;
   title: string;

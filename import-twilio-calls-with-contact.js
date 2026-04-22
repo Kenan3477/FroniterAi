@@ -133,17 +133,16 @@ async function main() {
         // Insert call record with UNKNOWN_CONTACT_ID
         const insertResult = await dbClient.query(
           `INSERT INTO call_records (
-            id, "callId", "campaignId", "contactId", "agentId", "phoneNumber", 
+            id, "callId", "campaignId", "contactId", "phoneNumber", 
             "dialedNumber", "callType", "startTime", "endTime", "duration", 
             "outcome", "createdAt"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
           RETURNING id`,
           [
             callRecordId, // ← Generated CUID
             twilioCall.sid, // Use Twilio CallSID as callId
             DEFAULT_CAMPAIGN_ID,
             UNKNOWN_CONTACT_ID, // ← Use placeholder contact
-            DEFAULT_AGENT_ID,
             twilioCall.to || '+1000000000',
             twilioCall.from || '+1000000000',
             'outbound',
@@ -163,13 +162,14 @@ async function main() {
           const recordingUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
           const streamingUrl = `/api/recordings/${newCallRecordId}/stream`;
           const recordingId = createId(); // ← Generate ID for recording
+          const fileName = `${recording.sid}.mp3`; // ← Use Twilio Recording SID
 
           // Insert into recordings table
           await dbClient.query(
             `INSERT INTO recordings (
-              id, "callRecordId", "filePath", "createdAt", "updatedAt"
-            ) VALUES ($1, $2, $3, NOW(), NOW())`,
-            [recordingId, newCallRecordId, recordingUrl]
+              id, "callRecordId", "fileName", "filePath", "createdAt", "updatedAt"
+            ) VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+            [recordingId, newCallRecordId, fileName, recordingUrl]
           );
 
           // Update call_records.recording with streaming URL

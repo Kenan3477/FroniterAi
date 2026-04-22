@@ -3,7 +3,7 @@
  * Professional enterprise-grade reporting with real-time analytics
  */
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import {
   calculateAgentMetrics,
   generateCoachingInsights,
@@ -25,8 +25,6 @@ import {
   type AgentMetrics,
   type LeadAnalysis
 } from '../utils/reportingHelpers';
-
-const prisma = new PrismaClient();
 
 // ==========================================
 // PREDICTIVE DIALLER ANALYTICS

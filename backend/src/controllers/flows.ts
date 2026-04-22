@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { flowExecutionEngine, FlowExecutionContext } from '../services/flowExecutionEngine';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Validation schemas
 const createFlowSchema = z.object({
   name: z.string().min(1, 'Name is required'),

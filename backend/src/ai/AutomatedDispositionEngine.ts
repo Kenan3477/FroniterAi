@@ -2,10 +2,8 @@
  * Automated Disposition Engine
  * AI-powered call outcome prediction and auto-disposition suggestions
  */
+import { prisma } from '../lib/prisma';
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export interface CallOutcomeData {
   callId: string;

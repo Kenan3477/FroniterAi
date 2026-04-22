@@ -4,11 +4,9 @@
  * Enterprise-grade flow versioning with approval workflows and audit trails
  */
 
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
-
+import { prisma } from '../lib/prisma';
 // Input validation schemas
 const CreateVersionSchema = z.object({
   flowId: z.string().min(1),
