@@ -1,8 +1,131 @@
 import express, { Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
+import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
+const prisma = new PrismaClient();
+
+/**
+ * Dashboard Stats Endpoint
+ * GET /api/dashboard/stats
+ * Returns comprehensive dashboard statistics
+ */
+router.get('/stats', authenticate, async (req: Request, res: Response) => {
+  try {
+    console.log('📊 Fetching dashboard stats for user:', req.user?.userId);
+    
+    // Get campaign filter if provided
+    const campaignId = req.query.campaignId as string | undefined;
+    
+    // Get overview KPIs
+    const metrics = await overviewDashboardService.getOverviewKPIs('today');
+    
+    // Get recent activities (calls, interactions)
+    const recentActivities = await prisma.callRecord.findMany({
+      where: campaignId ? { campaignId } : {},
+      take: 10,
+      orderBy: { startTime: 'desc' },
+      include: {
+        agent: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        contact: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true
+          }
+        },
+        disposition: {
+          select: {
+            name: true,
+            category: true
+          }
+        }
+      }
+    });
+
+    // Format recent activities
+    const formattedActivities = recentActivities.map(call => ({
+      id: call.id,
+      type: 'call' as const,
+      timestamp: call.startTime,
+      description: `${call.agent ? `${call.agent.firstName} ${call.agent.lastName}` : 'Unknown'} called ${call.contact ? `${call.contact.firstName} ${call.contact.lastName}` : call.phoneNumber}`,
+      outcome: call.disposition?.name || call.outcome || 'Unknown',
+      duration: call.duration || 0,
+      agent: call.agent ? `${call.agent.firstName} ${call.agent.lastName}` : undefined,
+      contact: call.contact ? {
+        name: `${call.contact.firstName} ${call.contact.lastName}`,
+        phone: call.contact.phone
+      } : undefined
+    }));
+
+    // Get performance overview
+    const callsToday = await prisma.callRecord.count({
+      where: {
+        ...(campaignId ? { campaignId } : {}),
+        startTime: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0))
+        }
+      }
+    });
+
+    const connectedCalls = await prisma.callRecord.count({
+      where: {
+        ...(campaignId ? { campaignId } : {}),
+        startTime: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0))
+        },
+        outcome: {
+          in: ['CONNECTED', 'completed', 'answered']
+        }
+      }
+    });
+
+    const activeAgents = await prisma.agent.count({
+      where: {
+        status: 'AVAILABLE'
+      }
+    });
+
+    // Calculate stats
+    const connectionRate = callsToday > 0 ? (connectedCalls / callsToday) * 100 : 0;
+
+    const dashboardStats = {
+      totalCallsToday: callsToday,
+      connectedCallsToday: connectedCalls,
+      totalRevenue: metrics.revenueConversions || 0,
+      conversionRate: connectionRate,
+      averageCallDuration: metrics.averageCallDuration || 0,
+      agentsOnline: activeAgents,
+      callsInProgress: 0, // TODO: Implement real-time call tracking
+      averageWaitTime: 0,
+      activeAgents: activeAgents,
+      recentActivities: formattedActivities,
+      performance: {
+        callVolume: callsToday,
+        connectionRate: Math.round(connectionRate),
+        avgDuration: metrics.averageCallDuration || 0,
+        conversions: connectedCalls
+      }
+    };
+
+    res.json({
+      success: true,
+      data: dashboardStats
+    });
+  } catch (error) {
+    console.error('❌ Dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard stats'
+    });
+  }
+});
 
 /**
  * Dashboard Metrics Endpoint
