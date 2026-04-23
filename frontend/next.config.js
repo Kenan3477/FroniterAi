@@ -12,6 +12,9 @@ const nextConfig = {
   },
   output: 'standalone',
   
+  // Environment variables are now set in Vercel dashboard (April 23, 2026)
+  // NEXT_PUBLIC_BACKEND_URL, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_WS_URL, BACKEND_API_KEY
+  
   // Security Headers
   async headers() {
     return [
