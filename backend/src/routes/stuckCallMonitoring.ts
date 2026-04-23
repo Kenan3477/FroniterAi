@@ -12,7 +12,7 @@ import {
   cleanAgentStuckCalls,
   getMonitoringStatus
 } from '../services/stuckCallPrevention';
-import { authenticate } from '../middleware/auth';
+import { authenticateToken } from '../middleware/enhancedAuth';
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ const router = express.Router();
  * GET /api/stuck-calls/status
  * Get stuck call monitoring status
  */
-router.get('/status', authenticate, async (req: any, res: any) => {
+router.get('/status', authenticateToken, async (req: any, res: any) => {
   try {
     const status = getMonitoringStatus();
     const stuckCalls = await findStuckCalls();
@@ -50,7 +50,7 @@ router.get('/status', authenticate, async (req: any, res: any) => {
  * POST /api/stuck-calls/cleanup
  * Manually trigger stuck call cleanup
  */
-router.post('/cleanup', authenticate, async (req: any, res: any) => {
+router.post('/cleanup', authenticateToken, async (req: any, res: any) => {
   try {
     const result = await cleanStuckCalls();
 
