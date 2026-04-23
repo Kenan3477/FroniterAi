@@ -12,7 +12,7 @@ import {
   cleanAgentStuckCalls,
   getMonitoringStatus
 } from '../services/stuckCallPrevention';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ const router = express.Router();
  * GET /api/stuck-calls/status
  * Get stuck call monitoring status
  */
-router.get('/status', authenticateToken, async (req: any, res: any) => {
+router.get('/status', authenticate, async (req: any, res: any) => {
   try {
     const status = getMonitoringStatus();
     const stuckCalls = await findStuckCalls();
@@ -50,7 +50,7 @@ router.get('/status', authenticateToken, async (req: any, res: any) => {
  * POST /api/stuck-calls/cleanup
  * Manually trigger stuck call cleanup
  */
-router.post('/cleanup', authenticateToken, async (req: any, res: any) => {
+router.post('/cleanup', authenticate, async (req: any, res: any) => {
   try {
     const result = await cleanStuckCalls();
 
@@ -73,7 +73,7 @@ router.post('/cleanup', authenticateToken, async (req: any, res: any) => {
  * POST /api/stuck-calls/sync-twilio
  * Manually trigger Twilio sync
  */
-router.post('/sync-twilio', authenticateToken, async (req: any, res: any) => {
+router.post('/sync-twilio', authenticate, async (req: any, res: any) => {
   try {
     const result = await syncWithTwilio();
 
@@ -96,7 +96,7 @@ router.post('/sync-twilio', authenticateToken, async (req: any, res: any) => {
  * POST /api/stuck-calls/clean-agent/:agentId
  * Clean stuck calls for specific agent
  */
-router.post('/clean-agent/:agentId', authenticateToken, async (req: any, res: any) => {
+router.post('/clean-agent/:agentId', authenticate, async (req: any, res: any) => {
   try {
     const { agentId } = req.params;
     const cleaned = await cleanAgentStuckCalls(agentId);
