@@ -767,98 +767,20 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
   flows = [], 
   audioFiles = [] 
 }) => {
-  const [formData, setFormData] = useState<Partial<InboundNumber>>({
-    number: number?.number || '',
-    carrierInboundNumber: number?.carrierInboundNumber || '',
-    displayName: number?.displayName || '',
-    description: number?.description || '',
-    autoRejectAnonymous: number?.autoRejectAnonymous !== false,
-    createContactOnAnonymous: number?.createContactOnAnonymous !== false,
-    integration: number?.integration || 'None',
-    countryCode: number?.countryCode || 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
-    businessHours: number?.businessHours || '24 Hours',
-    outOfHoursAction: number?.outOfHoursAction || 'Hangup',
-    dayClosedAction: number?.dayClosedAction || 'Hangup',
-    routeTo: number?.routeTo || '',
-    recordCalls: number?.recordCalls !== false,
-    lookupSearchFilter: number?.lookupSearchFilter || 'All Lists',
-    assignedToDefaultList: number?.assignedToDefaultList !== false,
-    type: number?.type || 'both',
-    status: number?.status !== false,
-    // Legacy file reference fields
-    voicemailAudioFile: number?.voicemailAudioFile || '',
-    outOfHoursAudioFile: number?.outOfHoursAudioFile || '',
-    outOfHoursTransferNumber: number?.outOfHoursTransferNumber || '',
-    businessHoursVoicemailFile: number?.businessHoursVoicemailFile || '',
-    businessHoursAudioFile: number?.businessHoursAudioFile || '',
-    // Audio URL fields (REQUIRED for Twilio)
-    greetingAudioUrl: number?.greetingAudioUrl || '',
-    outOfHoursAudioUrl: number?.outOfHoursAudioUrl || '',
-    voicemailAudioUrl: number?.voicemailAudioUrl || '',
-    busyAudioUrl: number?.busyAudioUrl || '',
-    noAnswerAudioUrl: number?.noAnswerAudioUrl || '',
-    // Routing fields
-    selectedFlowId: number?.selectedFlowId || '',
-    selectedQueueId: number?.selectedQueueId || '',
-    selectedRingGroupId: number?.selectedRingGroupId || '',
-    selectedExtension: number?.selectedExtension || ''
-  });
-
-  const [isDualtoneValid, setIsDualtoneValid] = useState(false);
-
-  // Audio file utility functions
-  const getAudioFilesByType = (type: string): AudioFile[] => {
-    if (type === 'all') return audioFiles;
-    return audioFiles.filter((file: AudioFile) => file.type === type);
-  };
-
-  // Simulate checking if the number is valid with Dualtone SIP provider
-  const validateWithDualtone = async (phoneNumber: string) => {
-    if (!phoneNumber || !phoneNumber.startsWith('+44')) {
-      setIsDualtoneValid(false);
-      return;
-    }
-    
-    // Simulate API call to check if number exists in Dualtone system
-    // In real implementation, this would call your backend to verify with Dualtone
-    const isValid = phoneNumber.match(/^\+44\d{10}$/); // Basic UK number validation
-    setIsDualtoneValid(!!isValid);
-  };
-
-  useEffect(() => {
-    if (formData.number) {
-      validateWithDualtone(formData.number);
-    }
-  }, [formData.number]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isDualtoneValid) {
-      alert('Invalid phone number. Number must be purchased from Dualtone and have SIP trunk configuration.');
-      return;
-    }
-
-    onSave({
-      id: number?.id || '',
-      name: formData.displayName || formData.number || '',
-      ...formData
-    } as InboundNumber);
-  };
-
+  
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            {number ? 'Edit Inbound Numbers' : 'Create Inbound Numbers'}
-          </h3>
-          <div className="flex space-x-2">
-            <button
-              type="submit"
-              form="inbound-number-form"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-slate-700 flex items-center"
-              disabled={!isDualtoneValid}
+        <div className="p-4">
+          <h3>Test Component</h3>
+          <button onClick={() => onCancel()}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Audio Files Manager
             >
               ✓ Save
             </button>

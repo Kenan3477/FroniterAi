@@ -32,14 +32,15 @@ export async function findStuckCalls(): Promise<any[]> {
     const stuckCalls = await prisma.callRecord.findMany({
       where: {
         startTime: { lt: thresholdTime },
-        endTime: null
+        endTime: { gt: new Date() }, // endTime is in the future (default expiration)
+        outcome: 'in-progress' // Only clean calls still marked as in-progress
       },
       orderBy: { startTime: 'asc' },
       take: 100 // Limit to prevent overwhelming the system
     });
 
     if (stuckCalls.length > 0) {
-      console.log(`⚠️  Found ${stuckCalls.length} stuck calls (older than ${STUCK_CALL_THRESHOLD_MINUTES} minutes)`);
+      console.log(`⚠️  Found ${stuckCalls.length} stuck calls (older than ${STUCK_CALL_THRESHOLD_MINUTES} minutes, still in-progress)`);
       
       // Log details of stuck calls
       for (const call of stuckCalls) {
@@ -68,7 +69,8 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
     const stuckCalls = await prisma.callRecord.findMany({
       where: {
         startTime: { lt: thresholdTime },
-        endTime: null
+        endTime: { gt: new Date() }, // endTime is in the future (default expiration)
+        outcome: 'in-progress' // Only clean calls still marked as in-progress
       },
       select: {
         id: true,
@@ -76,7 +78,8 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
         agentId: true,
         phoneNumber: true,
         startTime: true,
-        recording: true
+        recording: true,
+        notes: true // Include notes for appending
       }
     });
 
@@ -148,20 +151,22 @@ export async function syncWithTwilio(): Promise<{ synced: number; errors: number
   let errors = 0;
 
   try {
-    // Get all "active" calls (have startTime, no endTime, less than 24 hours old)
+    // Get all "active" calls (have startTime, endTime in future, less than 24 hours old)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     const activeCalls = await prisma.callRecord.findMany({
       where: {
         startTime: { gte: oneDayAgo },
-        endTime: null,
+        endTime: { gt: new Date() }, // endTime in future (still "active")
+        outcome: 'in-progress',
         recording: { not: null } // Must have Twilio SID to sync
       },
       select: {
         id: true,
         callId: true,
         recording: true,
-        startTime: true
+        startTime: true,
+        notes: true // Include notes for appending
       },
       take: 50 // Limit to prevent rate limiting
     });

@@ -14,6 +14,8 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 /**
  * Check if agent has any active calls
  * Returns the active call info if found, null otherwise
+ * 
+ * 🚨 UPDATED: Now checks outcome='in-progress' instead of endTime=null
  */
 async function checkForActiveCall(agentId: string): Promise<{ callId: string; phoneNumber: string; startTime: Date } | null> {
   try {
@@ -23,7 +25,7 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
       where: {
         agentId,
         startTime: { not: null },
-        endTime: null,
+        outcome: 'in-progress', // 🚨 NEW: Use status instead of endTime check
         createdAt: { gte: twoHoursAgo }
       },
       select: {
@@ -47,6 +49,8 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
  * CRITICAL: End any active calls for an agent before starting a new one
  * This ensures only ONE call is active at a time, preventing call stacking
  * and ensuring seamless call flow without latency or stuck states
+ * 
+ * 🚨 UPDATED: Now checks outcome='in-progress' instead of endTime=null
  */
 async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
   try {
@@ -54,7 +58,7 @@ async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
     
     // Find all calls that appear to be active:
     // - Have a startTime (call was initiated)
-    // - No endTime (call hasn't ended)
+    // - outcome is 'in-progress' (call hasn't ended)
     // - Created within last 2 hours (safety net for stuck calls)
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     
@@ -62,7 +66,7 @@ async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
       where: {
         agentId,
         startTime: { not: null },
-        endTime: null,
+        outcome: 'in-progress', // 🚨 NEW: Use status instead of endTime check
         createdAt: { gte: twoHoursAgo }
       },
       select: {
@@ -866,14 +870,17 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
         });
 
         if (callRecord) {
-          // Only update if not already ended (prevent double-updates)
-          if (!callRecord.endTime) {
+          // 🚨 UPDATED: Check if still in-progress (not already ended)
+          if (callRecord.outcome === 'in-progress') {
             await prisma.callRecord.update({
               where: { id: callRecord.id },
               data: {
-                endTime: new Date(),
+                endTime: new Date(), // 🚨 Override default with actual end time
                 duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus // Use actual Twilio status: completed, busy, failed, no-answer, canceled
+                outcome: CallStatus, // Update from 'in-progress' to actual status
+                notes: callRecord.notes 
+                  ? `${callRecord.notes}\n[SYSTEM] Call ended via Twilio webhook: ${CallStatus}`
+                  : `[SYSTEM] Call ended via Twilio webhook: ${CallStatus}`
               }
             });
 
@@ -889,7 +896,7 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
               });
             }
           } else {
-            console.log(`ℹ️  Call ${callRecord.callId} already ended at ${callRecord.endTime}`);
+            console.log(`ℹ️  Call ${callRecord.callId} already ended with outcome: ${callRecord.outcome}`);
           }
         } else {
           console.warn(`⚠️  No call record found for Twilio SID: ${CallSid}`);
@@ -1480,6 +1487,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         // Create/update call record with proper data
         console.log('📊 Background: Creating call record with proper data');
         
+        // 🚨 CRITICAL FIX: Set default endTime to prevent stuck calls
+        // If call doesn't end properly, cleanup will find it based on this timestamp
+        const now = new Date();
+        const defaultEndTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // 2 hours from now
+        
         try {
           const callRecord = await prisma.callRecord.create({
             data: {
@@ -1490,12 +1502,16 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
               phoneNumber: formattedTo,
               dialedNumber: formattedTo,
               callType: 'outbound',
-              startTime: new Date(),
-              recording: callResult.sid // Store Twilio SID for recording lookup
+              startTime: now,
+              endTime: defaultEndTime, // 🚨 DEFAULT: Will be overwritten when call actually ends
+              duration: 0, // Will be calculated when call ends
+              outcome: 'in-progress', // Status to indicate this is a default, not actual end
+              recording: callResult.sid, // Store Twilio SID for recording lookup
+              notes: `[AUTO] Default 2hr expiration set. Will be updated when call ends.`
             }
           });
           
-          console.log('✅ Background: Created call record:', callRecord.callId);
+          console.log('✅ Background: Created call record with default 2hr expiration:', callRecord.callId);
         } catch (callRecordError) {
           console.error('❌ Background: Error creating call record:', callRecordError);
           
