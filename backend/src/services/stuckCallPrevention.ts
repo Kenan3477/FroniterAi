@@ -24,6 +24,10 @@ let twilioSyncInterval: NodeJS.Timeout | null = null;
 
 /**
  * Find all stuck calls in database
+ * A call is "stuck" if:
+ * 1. It's been in-progress for more than STUCK_CALL_THRESHOLD_MINUTES
+ * 2. outcome = 'in-progress' (never ended by agent or customer)
+ * 3. startTime is old but endTime is still NULL
  */
 export async function findStuckCalls(): Promise<any[]> {
   const thresholdTime = new Date(Date.now() - STUCK_CALL_THRESHOLD_MINUTES * 60 * 1000);
@@ -31,21 +35,21 @@ export async function findStuckCalls(): Promise<any[]> {
   try {
     const stuckCalls = await prisma.callRecord.findMany({
       where: {
-        startTime: { lt: thresholdTime },
-        endTime: { gt: new Date() }, // endTime is in the future (default expiration)
-        outcome: 'in-progress' // Only clean calls still marked as in-progress
+        startTime: { lt: thresholdTime }, // Started more than threshold ago
+        endTime: null, // Never ended
+        outcome: 'in-progress' // Still marked as active
       },
       orderBy: { startTime: 'asc' },
       take: 100 // Limit to prevent overwhelming the system
     });
 
     if (stuckCalls.length > 0) {
-      console.log(`⚠️  Found ${stuckCalls.length} stuck calls (older than ${STUCK_CALL_THRESHOLD_MINUTES} minutes, still in-progress)`);
+      console.log(`⚠️  Found ${stuckCalls.length} stuck calls (older than ${STUCK_CALL_THRESHOLD_MINUTES} minutes, never ended by agent or customer)`);
       
       // Log details of stuck calls
       for (const call of stuckCalls) {
         const ageMinutes = Math.floor((Date.now() - new Date(call.startTime).getTime()) / 60000);
-        console.log(`   - Call ${call.callId} (Agent: ${call.agentId}, Customer: ${call.phoneNumber}) - ${ageMinutes} min old`);
+        console.log(`   - Call ${call.callId} (Agent: ${call.agentId}, Customer: ${call.phoneNumber}) - ${ageMinutes} min old - NEVER ENDED`);
       }
     }
 
@@ -58,6 +62,8 @@ export async function findStuckCalls(): Promise<any[]> {
 
 /**
  * Auto-clean stuck calls by setting endTime
+ * These are calls that were never properly ended by agent or customer
+ * Safety net to prevent indefinite blocking
  */
 export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: number }> {
   const thresholdTime = new Date(Date.now() - STUCK_CALL_THRESHOLD_MINUTES * 60 * 1000);
@@ -65,12 +71,12 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
   let errors = 0;
 
   try {
-    // Calculate duration from startTime to now
+    // Find calls that have been in-progress too long (never ended properly)
     const stuckCalls = await prisma.callRecord.findMany({
       where: {
-        startTime: { lt: thresholdTime },
-        endTime: { gt: new Date() }, // endTime is in the future (default expiration)
-        outcome: 'in-progress' // Only clean calls still marked as in-progress
+        startTime: { lt: thresholdTime }, // Started more than threshold ago
+        endTime: null, // Never ended
+        outcome: 'in-progress' // Still marked as active
       },
       select: {
         id: true,
@@ -79,7 +85,7 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
         phoneNumber: true,
         startTime: true,
         recording: true,
-        notes: true // Include notes for appending
+        notes: true
       }
     });
 
@@ -87,41 +93,53 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
       return { cleaned: 0, errors: 0 };
     }
 
-    console.log(`🧹 Auto-cleaning ${stuckCalls.length} stuck calls...`);
+    console.log(`🧹 Auto-cleaning ${stuckCalls.length} stuck calls (never ended by agent or customer)...`);
 
     // Process each call individually for better error handling
     for (const call of stuckCalls) {
       try {
         const duration = Math.floor((Date.now() - new Date(call.startTime).getTime()) / 1000);
         
-        // End the call in Twilio if possible (best effort)
+        // Check Twilio status first to determine who ended it
+        let twilioStatus = 'unknown';
+        let endedBy = 'cleanup-system';
+        
         if (call.recording) {
           try {
             const twilioCall = await twilioClient.calls(call.recording).fetch();
-            if (twilioCall.status === 'in-progress') {
+            twilioStatus = twilioCall.status;
+            
+            // Determine who ended the call based on Twilio data
+            if (twilioCall.status === 'completed') {
+              endedBy = 'customer'; // Most likely customer hung up
+            } else if (twilioCall.status === 'canceled') {
+              endedBy = 'agent'; // Agent canceled
+            } else if (twilioCall.status === 'in-progress') {
+              // Call still active in Twilio - forcefully end it
               await twilioClient.calls(call.recording).update({ status: 'completed' });
-              console.log(`   ✅ Ended Twilio call: ${call.recording}`);
+              endedBy = 'cleanup-forced';
+              console.log(`   ✅ Forcefully ended active Twilio call: ${call.recording}`);
             }
           } catch (twilioError) {
-            // Twilio call might not exist or already ended, that's fine
-            console.log(`   ℹ️  Could not end Twilio call ${call.recording} (may already be ended)`);
+            // Twilio call might not exist or already ended
+            console.log(`   ℹ️  Could not fetch Twilio call ${call.recording} (may already be ended)`);
           }
         }
 
-        // Update database record
+        // Update database record with actual end
         await prisma.callRecord.update({
           where: { id: call.id },
           data: {
-            endTime: new Date(),
+            endTime: new Date(), // ✅ Set actual end time NOW
             duration: duration,
-            outcome: 'system-cleanup-stuck',
+            outcome: twilioStatus === 'completed' ? 'completed' : 'system-cleanup', // Use Twilio status if available
             notes: call.notes 
-              ? `${call.notes}\n[SYSTEM] Auto-cleaned stuck call after ${Math.floor(duration / 60)} minutes`
-              : `[SYSTEM] Auto-cleaned stuck call after ${Math.floor(duration / 60)} minutes`
+              ? `${call.notes}\n[CLEANUP] Call never ended properly. Auto-cleaned after ${Math.floor(duration / 60)} min (ended by: ${endedBy}, Twilio status: ${twilioStatus})`
+              : `[CLEANUP] Call never ended properly. Auto-cleaned after ${Math.floor(duration / 60)} min (ended by: ${endedBy}, Twilio status: ${twilioStatus})`
           }
         });
 
-        console.log(`   ✅ Cleaned call ${call.callId} - Agent: ${call.agentId}, Duration: ${Math.floor(duration / 60)} min`);
+        console.log(`   ✅ Cleaned call ${call.callId} - Agent: ${call.agentId}, Duration: ${Math.floor(duration / 60)} min (ended by: ${endedBy})`);
         cleaned++;
 
       } catch (callError) {
@@ -145,20 +163,21 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
 /**
  * Sync call states with Twilio to catch orphaned calls
  * (DB shows active but Twilio shows completed)
+ * This catches cases where webhooks failed but Twilio has the truth
  */
 export async function syncWithTwilio(): Promise<{ synced: number; errors: number }> {
   let synced = 0;
   let errors = 0;
 
   try {
-    // Get all "active" calls (have startTime, endTime in future, less than 24 hours old)
+    // Get all "active" calls (no endTime, less than 24 hours old)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     const activeCalls = await prisma.callRecord.findMany({
       where: {
         startTime: { gte: oneDayAgo },
-        endTime: { gt: new Date() }, // endTime in future (still "active")
-        outcome: 'in-progress',
+        endTime: null, // Never ended
+        outcome: 'in-progress', // Still marked active
         recording: { not: null } // Must have Twilio SID to sync
       },
       select: {
@@ -166,7 +185,7 @@ export async function syncWithTwilio(): Promise<{ synced: number; errors: number
         callId: true,
         recording: true,
         startTime: true,
-        notes: true // Include notes for appending
+        notes: true
       },
       take: 50 // Limit to prevent rate limiting
     });
@@ -175,30 +194,40 @@ export async function syncWithTwilio(): Promise<{ synced: number; errors: number
       return { synced: 0, errors: 0 };
     }
 
-    console.log(`🔄 Syncing ${activeCalls.length} active calls with Twilio...`);
+    console.log(`🔄 Syncing ${activeCalls.length} active calls with Twilio (checking if they actually ended)...`);
 
     for (const call of activeCalls) {
       try {
         const twilioCall = await twilioClient.calls(call.recording!).fetch();
         
-        // If Twilio shows completed but DB shows active, update DB
+        // If Twilio shows call ended but DB shows still active, sync the truth
         if (['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(twilioCall.status)) {
           const duration = twilioCall.duration ? parseInt(twilioCall.duration) : 
                           Math.floor((Date.now() - new Date(call.startTime).getTime()) / 1000);
 
+          // Determine who ended it
+          let endedBy = 'unknown';
+          if (twilioCall.status === 'completed') {
+            endedBy = 'customer'; // Most completed calls are customer hangups
+          } else if (twilioCall.status === 'canceled') {
+            endedBy = 'agent';
+          } else {
+            endedBy = 'system'; // busy, failed, no-answer
+          }
+
           await prisma.callRecord.update({
             where: { id: call.id },
             data: {
-              endTime: new Date(twilioCall.endTime || Date.now()),
+              endTime: new Date(twilioCall.endTime || Date.now()), // ✅ Use Twilio's actual end time
               duration: duration,
               outcome: twilioCall.status,
               notes: call.notes 
-                ? `${call.notes}\n[SYSTEM] Synced from Twilio status: ${twilioCall.status}`
-                : `[SYSTEM] Synced from Twilio status: ${twilioCall.status}`
+                ? `${call.notes}\n[TWILIO-SYNC] Webhook missed. Synced from Twilio: ${twilioCall.status} (ended by: ${endedBy})`
+                : `[TWILIO-SYNC] Webhook missed. Synced from Twilio: ${twilioCall.status} (ended by: ${endedBy})`
             }
           });
 
-          console.log(`   ✅ Synced call ${call.callId} - Twilio status: ${twilioCall.status}`);
+          console.log(`   ✅ Synced call ${call.callId} - Twilio status: ${twilioCall.status} (ended by: ${endedBy})`);
           synced++;
         }
 

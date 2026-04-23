@@ -870,21 +870,33 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
         });
 
         if (callRecord) {
-          // 🚨 UPDATED: Check if still in-progress (not already ended)
+          // ✅ Check if still in-progress (not already ended)
           if (callRecord.outcome === 'in-progress') {
+            
+            // Determine who ended the call based on Twilio webhook data
+            let endedBy = 'unknown';
+            if (CallStatus === 'completed') {
+              // For completed calls, check the AnsweredBy field or other indicators
+              endedBy = 'customer'; // Default to customer hangup for completed calls
+            } else if (CallStatus === 'canceled') {
+              endedBy = 'agent'; // Agent canceled before customer answered
+            } else {
+              endedBy = 'system'; // busy, failed, no-answer are system outcomes
+            }
+            
             await prisma.callRecord.update({
               where: { id: callRecord.id },
               data: {
-                endTime: new Date(), // 🚨 Override default with actual end time
+                endTime: new Date(), // ✅ Set actual end time
                 duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus, // Update from 'in-progress' to actual status
+                outcome: CallStatus, // completed, busy, failed, no-answer, canceled
                 notes: callRecord.notes 
-                  ? `${callRecord.notes}\n[SYSTEM] Call ended via Twilio webhook: ${CallStatus}`
-                  : `[SYSTEM] Call ended via Twilio webhook: ${CallStatus}`
+                  ? `${callRecord.notes}\n[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
+                  : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
               }
             });
 
-            console.log(`✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s`);
+            console.log(`✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s (ended by: ${endedBy})`);
 
             // Process recordings ONLY for completed calls (successful connections)
             if (CallStatus === 'completed' && CallSid) {
@@ -1487,10 +1499,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         // Create/update call record with proper data
         console.log('📊 Background: Creating call record with proper data');
         
-        // 🚨 CRITICAL FIX: Set default endTime to prevent stuck calls
-        // If call doesn't end properly, cleanup will find it based on this timestamp
         const now = new Date();
-        const defaultEndTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // 2 hours from now
         
         try {
           const callRecord = await prisma.callRecord.create({
@@ -1503,11 +1512,11 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
               dialedNumber: formattedTo,
               callType: 'outbound',
               startTime: now,
-              endTime: defaultEndTime, // 🚨 DEFAULT: Will be overwritten when call actually ends
-              duration: 0, // Will be calculated when call ends
-              outcome: 'in-progress', // Status to indicate this is a default, not actual end
-              recording: callResult.sid, // Store Twilio SID for recording lookup
-              notes: `[AUTO] Default 2hr expiration set. Will be updated when call ends.`
+              endTime: null, // ✅ Will be set when call actually ends
+              duration: null, // ✅ Will be calculated when call ends
+              outcome: 'in-progress', // ✅ Status: in-progress until agent/customer ends call
+              recording: callResult.sid, // Store Twilio SID for webhook matching
+              notes: `[SYSTEM] Call initiated. Waiting for agent or customer to end call.`
             }
           });
           
