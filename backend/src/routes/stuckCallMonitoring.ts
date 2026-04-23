@@ -73,7 +73,7 @@ router.post('/cleanup', authenticateToken, async (req: any, res: any) => {
  * POST /api/stuck-calls/sync-twilio
  * Manually trigger Twilio sync
  */
-router.post('/sync-twilio', authenticate, async (req: any, res: any) => {
+router.post('/sync-twilio', authenticateToken, async (req: any, res: any) => {
   try {
     const result = await syncWithTwilio();
 
@@ -96,7 +96,7 @@ router.post('/sync-twilio', authenticate, async (req: any, res: any) => {
  * POST /api/stuck-calls/clean-agent/:agentId
  * Clean stuck calls for specific agent
  */
-router.post('/clean-agent/:agentId', authenticate, async (req: any, res: any) => {
+router.post('/clean-agent/:agentId', authenticateToken, async (req: any, res: any) => {
   try {
     const { agentId } = req.params;
     const cleaned = await cleanAgentStuckCalls(agentId);
