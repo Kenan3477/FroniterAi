@@ -752,13 +752,21 @@ export const InboundNumbersManager: React.FC<{
 };
 
 // Connex Inbound Number Form - Complete Form Matching Connex
-const ConnexInboundNumberForm: React.FC<{
+interface ConnexInboundNumberFormProps {
   number?: InboundNumber | null;
   onSave: (number: InboundNumber) => void;
   onCancel: () => void;
   flows?: any[];
   audioFiles?: AudioFile[];
-}> = ({ number, onSave, onCancel, flows = [], audioFiles = [] }) => {
+}
+
+const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({ 
+  number, 
+  onSave, 
+  onCancel, 
+  flows = [], 
+  audioFiles = [] 
+}) => {
   const [formData, setFormData] = useState<Partial<InboundNumber>>({
     number: number?.number || '',
     carrierInboundNumber: number?.carrierInboundNumber || '',
@@ -1144,6 +1152,7 @@ const ConnexInboundNumberForm: React.FC<{
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Audio file will play then call will end</p>
                 </div>
+              </div>
               )}
 
               {/* Show voicemail audio file selection when Voicemail is selected */}
