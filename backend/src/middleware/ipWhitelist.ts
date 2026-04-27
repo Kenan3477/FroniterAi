@@ -78,8 +78,14 @@ class IPWhitelistManager {
       },
       {
         ipAddress: '44.215.104.214',
-        name: 'Kenan Current IP',
-        description: 'Current working IP - Auto-whitelisted',
+        name: 'Kenan IP 1',
+        description: 'Kenan working IP - Auto-whitelisted',
+        addedBy: 'system'
+      },
+      {
+        ipAddress: '176.35.52.123',
+        name: 'Kenan IP 2',
+        description: 'Kenan working IP - Auto-whitelisted',
         addedBy: 'system'
       }
     ];
