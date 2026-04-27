@@ -623,18 +623,29 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       // we MUST first find the existing conf-xxx record by matching recording=callSid,
       // otherwise we create a duplicate orphan record with callId=CA... and the original
       // conf-xxx record never gets its disposition or recording attached.
+      console.log('🔍 SAVE-CALL-DATA: Searching for existing record...');
+      console.log('   callSid from frontend:', callSid);
+      console.log('   Is Twilio SID (CA...):', callSid?.startsWith('CA'));
+      
       let existingRecordByTwilioSid = null;
       if (callSid && callSid.startsWith('CA')) {
         existingRecordByTwilioSid = await prisma.callRecord.findFirst({
           where: { recording: callSid }
         });
+        console.log('   Search result:', existingRecordByTwilioSid ? `FOUND ${existingRecordByTwilioSid.callId}` : 'NOT FOUND');
         if (existingRecordByTwilioSid) {
           console.log(`🔗 Found existing conf record ${existingRecordByTwilioSid.callId} via Twilio SID ${callSid}`);
+          console.log('   Existing record details: outcome=${existingRecordByTwilioSid.outcome}, recording=${existingRecordByTwilioSid.recording}');
+        } else {
+          console.warn('⚠️  SAVE-CALL-DATA: No record found with recording=' + callSid);
+          console.warn('   This will create a DUPLICATE record!');
         }
       }
 
       const finalCallId = existingRecordByTwilioSid?.callId || callSid || uniqueCallId;
-      console.log('💾 Creating/updating call record with dispositionId:', validDispositionId, '| callId:', finalCallId);
+      console.log('💾 SAVE-CALL-DATA: Using callId for upsert:', finalCallId);
+      console.log('   Will', existingRecordByTwilioSid ? 'UPDATE existing' : 'CREATE NEW', 'record');
+      console.log('   dispositionId:', validDispositionId);
       
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
