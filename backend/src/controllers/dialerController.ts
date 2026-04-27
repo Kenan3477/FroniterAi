@@ -406,6 +406,7 @@ export const endCall = async (req: Request, res: Response) => {
 
     // 🚨 CRITICAL FIX: UPDATE existing call record instead of creating new one
     console.log('🔍 Searching for existing call record to update...');
+    console.log('   Search criteria: recording =', validatedData.callSid, 'OR callId =', validatedData.callSid);
     
     const existingCallRecord = await prisma.callRecord.findFirst({
       where: {
@@ -418,7 +419,9 @@ export const endCall = async (req: Request, res: Response) => {
     });
 
     if (existingCallRecord) {
-      console.log(`✅ Found existing call record: ${existingCallRecord.callId} - updating instead of creating`);
+      console.log(`✅ Found existing call record: ${existingCallRecord.callId} (DB ID: ${existingCallRecord.id})`);
+      console.log(`   Current outcome: ${existingCallRecord.outcome}, Recording: ${existingCallRecord.recording}`);
+      console.log('   Updating with disposition:', validatedData.disposition || 'completed');
       
       // Update the existing record
       await prisma.callRecord.update({
@@ -433,9 +436,10 @@ export const endCall = async (req: Request, res: Response) => {
         }
       });
       
-      console.log('✅ Updated existing call record');
+      console.log('✅ Updated existing call record successfully');
     } else {
-      console.warn('⚠️  No existing call record found - this should not happen for REST API calls');
+      console.warn('⚠️  No existing call record found for callSid:', validatedData.callSid);
+      console.warn('   This should not happen for REST API calls - check if Twilio SID was saved correctly');
     }
 
     // Create interaction record if customer info provided
