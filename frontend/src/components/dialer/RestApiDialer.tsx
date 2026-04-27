@@ -793,6 +793,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         setMicrophonePermissionGranted(true);
       }
 
+      // Capture callSid from state before setting up handlers (state might be cleared)
+      const callSid = activeRestApiCall?.callSid || '';
+      
       // Make WebRTC call to join conference
       const call = await device.connect({
         params: {
@@ -809,10 +812,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         console.log('✅ Agent conference call accepted - two way audio active');
         
         // Update Redux state with conferenceId for duplicate prevention
+        // IMPORTANT: Use conferenceId from function parameter (closure), not state which might be null
         dispatch(startCall({
           phoneNumber: phoneNumber,
-          callSid: activeRestApiCall?.callSid || '',
-          conferenceId: activeRestApiCall?.conferenceId, // CRITICAL: Needed for save-call-data to find preliminary record
+          callSid: callSid, // Captured before handler
+          conferenceId: conferenceId, // CRITICAL: From parameter, not state - ensures it's never null
           callType: 'outbound',
           customerInfo: {
             firstName: 'Customer',
