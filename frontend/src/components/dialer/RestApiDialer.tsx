@@ -454,20 +454,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       ? Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000)
       : 0;
     
-    console.log('📞 Call ended, preparing disposition...', { callSid, duration: callDuration });
+    console.log('📞 Ending call immediately via backend...', { callSid, duration: callDuration, trigger: autoDisposition || 'manual' });
     
-    // If this is an automatic disposition (like customer-hangup), show modal for agent to provide real disposition
-    if (autoDisposition) {
-      console.log('📋 Showing disposition modal for agent input...');
-      setPendingCallEnd({ callSid, duration: callDuration });
-      setShowDispositionModal(true);
-      return true; // Don't actually end the call yet, wait for disposition
-    }
-    
-    // This will be called after disposition modal is filled out
     try {
-      console.log('📞 Ending call via backend API:', { callSid, duration: callDuration });
-      
+      // � CRITICAL FIX: End the call in backend FIRST, regardless of disposition
+      // This ensures the call is marked as ended immediately when customer hangs up
+      // The disposition modal is shown AFTER the call is ended to collect additional details
       const response = await fetch('/api/dialer/end', {
         method: 'POST',
         headers: { 
@@ -478,21 +470,49 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           callSid: callSid,
           duration: callDuration,
           status: 'completed',
-          disposition: 'completed' // Generic status, real disposition comes from modal
+          disposition: autoDisposition || 'completed',
+          endedBy: autoDisposition === 'customer-hangup' ? 'customer' : 
+                   autoDisposition === 'customer-cancel' ? 'customer' : 'agent'
         })
       });
       
       const result = await response.json();
       
       if (result.success) {
-        console.log('✅ Call ended successfully via backend API');
+        console.log('✅ Call ended successfully in backend');
+        
+        // ✅ Now show disposition modal for agent to provide additional details
+        // The call is already ended, this is just for collecting disposition data
+        if (autoDisposition) {
+          console.log('📋 Showing disposition modal for agent to provide call outcome details...');
+          setPendingCallEnd({ callSid, duration: callDuration });
+          setShowDispositionModal(true);
+        }
+        
         return true;
       } else {
         console.error('❌ Backend call end failed:', result.error);
+        
+        // Still show disposition modal even if backend call fails
+        // This allows agent to at least record what happened
+        if (autoDisposition) {
+          console.log('⚠️  Backend failed but showing disposition modal anyway...');
+          setPendingCallEnd({ callSid, duration: callDuration });
+          setShowDispositionModal(true);
+        }
+        
         return false;
       }
     } catch (error) {
-      console.error('❌ Error calling backend API to end call:', error);
+      console.error('❌ Error ending call via backend:', error);
+      
+      // Still show disposition modal even if error occurs
+      if (autoDisposition) {
+        console.log('⚠️  Error occurred but showing disposition modal anyway...');
+        setPendingCallEnd({ callSid, duration: callDuration });
+        setShowDispositionModal(true);
+      }
+      
       return false;
     }
   };
