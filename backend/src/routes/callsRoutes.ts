@@ -629,15 +629,29 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       
       let existingRecordByTwilioSid = null;
       if (callSid && callSid.startsWith('CA')) {
+        // 🚨 CRITICAL FIX: Search by MULTIPLE criteria to handle race conditions
+        // Search order:
+        // 1. recording field (preferred - set immediately after call creation)
+        // 2. notes field (fallback - contains Twilio SID)
+        // 3. callId field (direct match - for webhook-created records)
         existingRecordByTwilioSid = await prisma.callRecord.findFirst({
-          where: { recording: callSid }
+          where: {
+            OR: [
+              { recording: callSid },                    // Primary: Recording field
+              { notes: { contains: callSid } },          // Fallback: Notes contains SID
+              { callId: callSid }                        // Direct: callId is the SID
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
         });
+        
         console.log('   Search result:', existingRecordByTwilioSid ? `FOUND ${existingRecordByTwilioSid.callId}` : 'NOT FOUND');
         if (existingRecordByTwilioSid) {
           console.log(`🔗 Found existing conf record ${existingRecordByTwilioSid.callId} via Twilio SID ${callSid}`);
-          console.log('   Existing record details: outcome=${existingRecordByTwilioSid.outcome}, recording=${existingRecordByTwilioSid.recording}');
+          console.log(`   Existing record details: outcome=${existingRecordByTwilioSid.outcome}, recording=${existingRecordByTwilioSid.recording}`);
         } else {
           console.warn('⚠️  SAVE-CALL-DATA: No record found with recording=' + callSid);
+          console.warn('   Searched: recording field, notes field, callId field');
           console.warn('   This will create a DUPLICATE record!');
         }
       }
