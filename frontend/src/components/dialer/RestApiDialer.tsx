@@ -488,7 +488,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       // � CRITICAL FIX: End the call in backend FIRST, regardless of disposition
       // This ensures the call is marked as ended immediately when customer hangs up
       // The disposition modal is shown AFTER the call is ended to collect additional details
-      const response = await fetch('/api/dialer/end', {
+      const response = await fetch('/api/calls/end', {  // ✅ FIXED: Correct endpoint
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
