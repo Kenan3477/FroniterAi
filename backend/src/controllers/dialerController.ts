@@ -371,7 +371,41 @@ export const endCall = async (req: Request, res: Response) => {
     // End the call through Twilio
     const result = await twilioService.endCall(validatedData.callSid);
 
-    // Create call record and interaction
+    // 🚨 CRITICAL FIX: UPDATE existing call record instead of creating new one
+    console.log('🔍 Searching for existing call record to update...');
+    
+    const existingCallRecord = await prisma.callRecord.findFirst({
+      where: {
+        OR: [
+          { recording: validatedData.callSid },  // REST API calls store SID here
+          { callId: validatedData.callSid },     // Direct SID match
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (existingCallRecord) {
+      console.log(`✅ Found existing call record: ${existingCallRecord.callId} - updating instead of creating`);
+      
+      // Update the existing record
+      await prisma.callRecord.update({
+        where: { id: existingCallRecord.id },
+        data: {
+          endTime: new Date(),
+          duration: validatedData.duration,
+          outcome: validatedData.disposition || 'completed',
+          notes: existingCallRecord.notes 
+            ? `${existingCallRecord.notes}\n[END CALL] ${validatedData.disposition || 'completed'}`
+            : `[END CALL] ${validatedData.disposition || 'completed'}`
+        }
+      });
+      
+      console.log('✅ Updated existing call record');
+    } else {
+      console.warn('⚠️  No existing call record found - this should not happen for REST API calls');
+    }
+
+    // Create interaction record if customer info provided
     if (validatedData.customerInfo) {
       try {
         const { customerInfo } = validatedData;
@@ -410,51 +444,38 @@ export const endCall = async (req: Request, res: Response) => {
           });
         }
 
-        // Create call record
-        const callRecord = await prisma.callRecord.create({
-          data: {
-            callId: validatedData.callSid,
-            contactId: contact?.contactId || customerInfo.contactId || `contact_${Date.now()}`,
-            campaignId: customerInfo.campaignId || 'default',
-            phoneNumber: customerInfo.phone || customerInfo.phoneNumber || '',
-            agentId: customerInfo.agentId || 'unknown',
-            callType: 'outbound',
-            startTime: callStartTime,
-            endTime: callEndTime,
-            duration: validatedData.duration,
-            outcome: validatedData.disposition || 'completed',
-            notes: customerInfo.notes,
-          },
-        });
+        // 🚨 NO LONGER CREATE CALL RECORD HERE - it already exists from makeRestApiCall!
+        // The call record was created in makeRestApiCall preliminary creation
+        // We already updated it above with the final disposition
+        
+        // Create interaction record for CRM tracking (optional)
+        if (existingCallRecord) {
+          const interaction = await prisma.interaction.create({
+            data: {
+              agentId: customerInfo.agentId || existingCallRecord.agentId || 'unknown',
+              contactId: contact?.contactId || customerInfo.contactId || existingCallRecord.contactId,
+              campaignId: customerInfo.campaignId || existingCallRecord.campaignId || 'default',
+              channel: 'voice',
+              outcome: validatedData.disposition || 'completed',
+              startedAt: existingCallRecord.startTime || callStartTime,
+              endedAt: callEndTime,
+              durationSeconds: validatedData.duration,
+              result: customerInfo.notes,
+            },
+          });
 
-        console.log('✅ Call record created:', callRecord.callId);
-
-        // Create interaction record
-        const interaction = await prisma.interaction.create({
-          data: {
-            agentId: customerInfo.agentId || 'unknown',
-            contactId: contact?.contactId || customerInfo.contactId || `contact_${Date.now()}`,
-            campaignId: customerInfo.campaignId || 'default',
-            channel: 'voice',
-            outcome: validatedData.disposition || 'completed',
-            startedAt: callStartTime,
-            endedAt: callEndTime,
-            durationSeconds: validatedData.duration,
-            result: customerInfo.notes,
-          },
-        });
-
-        console.log('✅ Interaction record created:', interaction.id);
+          console.log('✅ Interaction record created:', interaction.id);
+        }
 
         // Process call recordings asynchronously if we have a call SID
-        if (validatedData.callSid) {
+        if (validatedData.callSid && existingCallRecord) {
           console.log(`📼 Processing recordings for call: ${validatedData.callSid}`);
           // Don't await this - let it process in the background
           setTimeout(async () => {
             try {
               // Import recording service and process recordings
               const { processCallRecordings } = require('../services/recordingService');
-              await processCallRecordings(validatedData.callSid, callRecord.callId);
+              await processCallRecordings(validatedData.callSid, existingCallRecord.id);
               console.log(`✅ Recording processing completed for call: ${validatedData.callSid}`);
             } catch (recordingError) {
               console.error(`❌ Error processing recordings for call ${validatedData.callSid}:`, recordingError);
