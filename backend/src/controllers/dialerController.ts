@@ -1344,8 +1344,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         endTime: null,
         duration: null,
         outcome: 'in-progress',
-        recording: null, // Will be set immediately after Twilio call creation
-        notes: `[USER:${authenticatedUser.userId}|${authenticatedUser.username}] Call initiated - awaiting Twilio SID`
+        recording: conferenceId, // 🚨 CRITICAL FIX: Set conferenceId as placeholder so frontend can find this record
+        notes: `[USER:${authenticatedUser.userId}|${authenticatedUser.username}] [CONF:${conferenceId}] Call initiated - awaiting Twilio SID`
       }
     });
     
