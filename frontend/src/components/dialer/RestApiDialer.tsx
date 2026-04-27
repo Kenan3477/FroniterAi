@@ -245,13 +245,20 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                 customer: customerNumber, 
                 callSid: callSid,
                 direction: isOutboundCall ? 'outbound' : 'inbound',
-                parameters: callParameters 
+                parameters: callParameters,
+                conferenceId: activeRestApiCall?.conferenceId // Debug: Check if we have conferenceId
               });
               
-              // Start call in Redux with proper metadata
+              // CRITICAL: For REST API calls, get conferenceId from activeRestApiCall state
+              // This is needed to prevent duplicate call records in the database
+              const conferenceId = activeRestApiCall?.conferenceId || undefined;
+              console.log('🔍 DEBUG: conferenceId for Redux:', conferenceId);
+              
+              // Start call in Redux with proper metadata INCLUDING conferenceId
               dispatch(startCall({
                 phoneNumber: customerNumber,
                 callSid: callSid,
+                conferenceId: conferenceId, // CRITICAL: Include conferenceId for duplicate prevention
                 callType: isOutboundCall ? 'outbound' : 'inbound',
                 customerInfo: {
                   firstName: isOutboundCall ? 'Customer' : 'Inbound',
