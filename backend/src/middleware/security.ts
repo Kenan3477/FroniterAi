@@ -37,6 +37,26 @@ class SecurityMonitor {
       console.log(`⚡ Security check bypassed for whitelisted IP: ${ip}`);
       return next();
     }
+
+    // Skip IP whitelist check for authenticated API endpoints
+    // These endpoints already require JWT authentication, so IP checking is redundant
+    const authenticatedEndpoints = [
+      '/api/calls/',
+      '/api/dialer/',
+      '/api/campaigns/',
+      '/api/contacts/',
+      '/api/admin/',
+      '/api/user/'
+    ];
+    
+    const isAuthenticatedEndpoint = authenticatedEndpoints.some(endpoint => 
+      req.path.startsWith(endpoint)
+    );
+    
+    if (isAuthenticatedEndpoint) {
+      console.log(`⚡ IP whitelist check skipped for authenticated endpoint: ${req.path} (IP: ${ip})`);
+      return next();
+    }
     
     const suspiciousPatterns = [
       /\.\./,  // Directory traversal
