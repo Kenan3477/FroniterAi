@@ -623,7 +623,8 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       // we MUST first find the existing conf-xxx record by matching recording=callSid,
       // otherwise we create a duplicate orphan record with callId=CA... and the original
       // conf-xxx record never gets its disposition or recording attached.
-      console.log('🔍 SAVE-CALL-DATA: Searching for existing record...');
+      console.log('� SAVE-CALL-DATA ENDPOINT HIT - VERSION 2.0 🔥');
+      console.log('�🔍 SAVE-CALL-DATA: Searching for existing record...');
       console.log('   callSid from frontend:', callSid);
       console.log('   Is Twilio SID (CA...):', callSid?.startsWith('CA'));
       
