@@ -267,7 +267,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             });
             
             call.on('disconnect', async () => {
-              console.log('📱 Call disconnected by customer');
+              console.log('📱 Call disconnected - customer or network hangup detected');
               
               // Calculate call duration
               const startTime = activeRestApiCall?.startTime || new Date();
@@ -276,9 +276,53 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               stopCallStatusPolling();
               setCallStatus('completed');
 
-              // End call via backend API if we have call info
+              // 🚨 CRITICAL: End call on agent's side immediately
               if (activeRestApiCall?.callSid) {
+                console.log('🔚 Ending call on agent side and showing disposition modal...');
+                
+                // End the call in backend
                 await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
+                
+                // Show disposition modal for agent to record call outcome
+                setPendingCallEnd({
+                  callSid: activeRestApiCall.callSid,
+                  duration: duration
+                });
+                setShowDispositionModal(true);
+                
+                // Clear local call state (agent's call is ended)
+                setCurrentCall(null);
+                setActiveRestApiCall(null);
+                
+                // Update Redux to show call ended on agent side
+                dispatch(endCall());
+              }
+              
+              console.log('✅ Customer disconnected - agent call ended, disposition modal shown');
+            });
+
+            call.on('reject', () => {
+              console.log('📱 Call rejected by customer');
+              setCurrentCall(null);
+              setActiveRestApiCall(null);
+              dispatch(endCall());
+            });
+            
+            call.on('cancel', async () => {
+              console.log('📱 Call cancelled - customer or agent cancelled before answer');
+              
+              // Calculate call duration
+              const startTime = activeRestApiCall?.startTime || new Date();
+              const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
+              
+              stopCallStatusPolling();
+              setCallStatus('canceled');
+
+              // End call via backend and show disposition
+              if (activeRestApiCall?.callSid) {
+                console.log('� Ending cancelled call on agent side and showing disposition modal...');
+                
+                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel');
                 
                 // Show disposition modal
                 setPendingCallEnd({
@@ -286,37 +330,21 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                   duration: duration
                 });
                 setShowDispositionModal(true);
+                
+                // Clear local call state
+                setCurrentCall(null);
+                setActiveRestApiCall(null);
+                
+                // Update Redux to show call ended
+                dispatch(endCall());
+              } else {
+                // No call SID, just clear state
+                setCurrentCall(null);
+                setActiveRestApiCall(null);
+                dispatch(endCall());
               }
               
-              setCurrentCall(null);
-              setActiveRestApiCall(null);
-              
-              console.log('📱 Customer disconnected - disposition modal should appear');
-            });
-
-            call.on('reject', () => {
-              console.log('📱 Call rejected');
-              setCurrentCall(null);
-              dispatch(endCall());
-            });
-            
-            call.on('cancel', () => {
-              console.log('📱 Call cancelled');
-              setCurrentCall(null);
-              dispatch(endCall());
-            });
-            
-            call.on('cancel', async () => {
-              console.log('📱 Call cancelled by customer');
-              
-              // End call via backend API if we have call info - use activeRestApiCall for REST API calls
-              if (activeRestApiCall?.callSid) {
-                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel');
-              }
-              
-              setCurrentCall(null);
-              // Don't clear Redux state immediately - let disposition modal handle it
-              console.log('📱 Customer cancelled - disposition modal should appear');
+              console.log('✅ Call cancelled - agent call ended, disposition modal shown');
             });
             
             call.on('error', async (error: any) => {
@@ -553,16 +581,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       if (result.success) {
         console.log('✅ Call disposition saved successfully');
         
-        // Now actually end the call in backend
-        await endCallViaBackend(pendingCallEnd.callSid);
-        
-        // Clear Redux state now that disposition is complete
-        dispatch(endCall());
+        // ✅ Call was already ended in disconnect handler
+        // Just clear UI state and refresh data
         
         // Clear local state
         setShowDispositionModal(false);
         setPendingCallEnd(null);
-        setActiveRestApiCall(null);
         
         // Refresh work page data
         if (onCallCompleted) {
