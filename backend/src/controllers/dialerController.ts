@@ -24,7 +24,6 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
     const activeCall = await prisma.callRecord.findFirst({
       where: {
         agentId,
-        startTime: { not: null },
         outcome: 'in-progress', // 🚨 NEW: Use status instead of endTime check
         createdAt: { gte: twoHoursAgo }
       },
@@ -1282,7 +1281,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'] as const,
       statusCallbackMethod: 'POST' as const,
       // 🎙️ CRITICAL: ENABLE RECORDING AT CALL LEVEL (belt and suspenders approach)
-      record: 'record-from-answer-dual' as const, // Record both parties from answer
+      record: true, // Must be boolean - 'true' or 'false' only
       recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
       recordingStatusCallbackMethod: 'POST' as const,
       recordingChannels: 'dual' as const, // Dual channel for better quality
