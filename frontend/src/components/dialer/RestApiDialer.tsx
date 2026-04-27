@@ -561,6 +561,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         },
         body: JSON.stringify({
           callSid: pendingCallEnd.callSid,
+          conferenceId: activeRestApiCall?.conferenceId, // 🚨 NEW: Send conference ID to find preliminary record
           duration: pendingCallEnd.duration,
           disposition: {
             id: dispositionData.id,
