@@ -200,6 +200,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       agentId,
       campaignId,
       callSid,
+      conferenceId,  // 🚨 NEW: Conference ID for finding preliminary record
       recordingUrl
     } = req.body;
 
@@ -623,13 +624,36 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       // we MUST first find the existing conf-xxx record by matching recording=callSid,
       // otherwise we create a duplicate orphan record with callId=CA... and the original
       // conf-xxx record never gets its disposition or recording attached.
-      console.log('� SAVE-CALL-DATA ENDPOINT HIT - VERSION 2.0 🔥');
-      console.log('�🔍 SAVE-CALL-DATA: Searching for existing record...');
+      console.log('🔥 SAVE-CALL-DATA ENDPOINT HIT - VERSION 2.0 🔥');
+      console.log('🔍 SAVE-CALL-DATA: Searching for existing record...');
       console.log('   callSid from frontend:', callSid);
+      console.log('   conferenceId from frontend:', conferenceId);
       console.log('   Is Twilio SID (CA...):', callSid?.startsWith('CA'));
       
       let existingRecordByTwilioSid = null;
-      if (callSid && callSid.startsWith('CA')) {
+      
+      // 🚨 PRIORITY 1: Search by conferenceId if provided (most reliable - always set from start)
+      if (conferenceId) {
+        existingRecordByTwilioSid = await prisma.callRecord.findFirst({
+          where: {
+            OR: [
+              { callId: conferenceId },                  // Direct match on conf-xxx
+              { recording: conferenceId },               // Placeholder value before Twilio SID
+              { notes: { contains: conferenceId } },     // Fallback: notes contains conf ID
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+        
+        if (existingRecordByTwilioSid) {
+          console.log(`✅ Found record by conferenceId: ${existingRecordByTwilioSid.callId}`);
+        } else {
+          console.log(`⚠️  No record found with conferenceId: ${conferenceId}`);
+        }
+      }
+      
+      // 🚨 PRIORITY 2: Search by Twilio SID if conferenceId search failed
+      if (!existingRecordByTwilioSid && callSid && callSid.startsWith('CA')) {
         // 🚨 CRITICAL FIX: Search by MULTIPLE criteria to handle race conditions
         // Search order:
         // 1. recording field (preferred - set immediately after call creation)
