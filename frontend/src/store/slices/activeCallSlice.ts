@@ -4,6 +4,7 @@ export interface ActiveCallState {
   isActive: boolean;
   phoneNumber: string | null;
   callSid: string | null;
+  conferenceId: string | null; // CRITICAL: Conference ID for finding preliminary call records
   callType: 'inbound' | 'outbound' | null;
   customerInfo: {
     id?: string;
@@ -25,6 +26,7 @@ const initialState: ActiveCallState = {
   isActive: false,
   phoneNumber: null,
   callSid: null,
+  conferenceId: null,
   callType: null,
   customerInfo: null,
   callStartTime: null,
@@ -41,12 +43,14 @@ const activeCallSlice = createSlice({
       phoneNumber: string; 
       customerInfo: any; 
       callSid?: string;
+      conferenceId?: string;
       callType?: 'inbound' | 'outbound';
     }>) => {
       state.isActive = true;
       state.phoneNumber = action.payload.phoneNumber;
       state.customerInfo = action.payload.customerInfo;
       state.callSid = action.payload.callSid || null;
+      state.conferenceId = action.payload.conferenceId || null;
       state.callType = action.payload.callType || 'outbound';
       state.callStartTime = new Date();
       state.callDuration = 0;

@@ -808,10 +808,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       call.on('accept', () => {
         console.log('✅ Agent conference call accepted - two way audio active');
         
-        // Update Redux state
+        // Update Redux state with conferenceId for duplicate prevention
         dispatch(startCall({
           phoneNumber: phoneNumber,
           callSid: activeRestApiCall?.callSid || '',
+          conferenceId: activeRestApiCall?.conferenceId, // CRITICAL: Needed for save-call-data to find preliminary record
           callType: 'outbound',
           customerInfo: {
             firstName: 'Customer',

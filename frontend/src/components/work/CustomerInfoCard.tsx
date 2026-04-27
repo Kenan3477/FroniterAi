@@ -96,6 +96,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
       
       // Get call information from Redux state  
       const callSid = activeCallState?.callSid;
+      const conferenceId = activeCallState?.conferenceId; // CRITICAL: Needed to find preliminary record
       const callStartTime = activeCallState?.callStartTime;
       
       // Calculate call duration
@@ -103,7 +104,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
         : customerData.callDuration || 0;
       
-      console.log('📞 Ending call with backend API:', { callSid, duration: callDuration });
+      console.log('📞 Ending call with backend API:', { callSid, conferenceId, duration: callDuration });
       
       // End the call through backend API if we have a callSid
       if (callSid) {
@@ -138,7 +139,8 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({
-          callSid: callSid, // Add required recording evidence
+          callSid: callSid, // Twilio SID for recording
+          conferenceId: conferenceId, // CRITICAL: Conference ID to find preliminary record and prevent duplicates
           phoneNumber: customerData.phoneNumber,
           customerInfo: customerData,
           disposition: dispositionData,
