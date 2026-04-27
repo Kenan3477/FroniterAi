@@ -75,6 +75,12 @@ class IPWhitelistManager {
         name: 'Ken Home IP',
         description: 'Home IP - Always whitelisted',
         addedBy: 'system'
+      },
+      {
+        ipAddress: '44.215.104.214',
+        name: 'Kenan Current IP',
+        description: 'Current working IP - Auto-whitelisted',
+        addedBy: 'system'
       }
     ];
 
