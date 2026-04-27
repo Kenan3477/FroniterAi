@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../database';
 import { ensureBasicAgents } from '../utils/ensureBasicAgents';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
@@ -65,6 +66,50 @@ router.get('/check-database', async (req, res) => {
     });
   } catch (error: any) {
     console.error('❌ Error checking database:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/test/get-token
+ * Generate a test JWT token for diagnostic purposes
+ * SECURITY: This should be removed in production or require admin auth
+ */
+router.post('/get-token', async (req, res) => {
+  try {
+    const { userId = 509, username = 'test', role = 'ADMIN' } = req.body;
+    
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({
+        success: false,
+        error: 'JWT_SECRET not configured'
+      });
+    }
+    
+    const token = jwt.sign(
+      {
+        userId,
+        username,
+        role,
+        email: `${username}@test.omnivox.ai`
+      },
+      secret,
+      { expiresIn: '24h' }
+    );
+    
+    res.json({
+      success: true,
+      token,
+      decoded: jwt.decode(token),
+      expiresIn: '24h',
+      warning: '⚠️  This is a test endpoint - remove in production'
+    });
+  } catch (error: any) {
+    console.error('❌ Error generating test token:', error);
     res.status(500).json({
       success: false,
       error: error.message
