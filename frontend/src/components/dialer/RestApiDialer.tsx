@@ -551,6 +551,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     
     try {
       console.log('💾 Submitting disposition data:', dispositionData);
+      console.log('🔍 DEBUG: activeRestApiCall state:', activeRestApiCall);
+      console.log('🔍 DEBUG: conferenceId from state:', activeRestApiCall?.conferenceId);
+      console.log('🔍 DEBUG: callSid:', pendingCallEnd.callSid);
       
       // Save disposition to backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
@@ -674,6 +677,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       
       if (result.success) {
         console.log('✅ Call initiated:', result);
+        console.log('🔍 DEBUG: Backend returned conferenceId:', result.conferenceId);
+        console.log('🔍 DEBUG: Backend returned callSid:', result.callSid);
         
         setCallStatus('queued');
         setLastCallResult({
@@ -682,6 +687,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           conferenceId: result.conferenceId,
           status: result.status,
           message: result.message
+        });
+        
+        console.log('🔍 DEBUG: About to set activeRestApiCall with:', {
+          callSid: result.callSid,
+          conferenceId: result.conferenceId,
+          startTime: new Date()
         });
         
         setActiveRestApiCall({
