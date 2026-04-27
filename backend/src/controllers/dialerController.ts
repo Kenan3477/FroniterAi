@@ -1409,12 +1409,49 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // We store the userId in notes for tracking
     const now = new Date();
     
-    console.log(`📊 Pre-creating call record for user ${authenticatedUser.userId}...`);
+    console.log(`📊 Pre-creating contact and call record for user ${authenticatedUser.userId}...`);
+    
+    // 🚨 CRITICAL: Create contact FIRST to satisfy foreign key constraint
+    const tempContactId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const nameParts = contactName ? contactName.split(' ') : ['Unknown', 'Contact'];
+    
+    // Ensure DAC campaign list exists for temporary contacts
+    const dacListId = 'DAC-list';
+    let dacList = await prisma.dataList.findUnique({ where: { listId: dacListId } });
+    
+    if (!dacList) {
+      console.log('📝 Creating DAC list for temporary contacts...');
+      dacList = await prisma.dataList.create({
+        data: {
+          listId: dacListId,
+          name: 'Dial a Contact List',
+          campaignId: 'DAC',
+          active: true
+        }
+      });
+    }
+    
+    // Create temporary contact to satisfy foreign key
+    await prisma.contact.create({
+      data: {
+        contactId: tempContactId,
+        listId: dacListId,
+        firstName: nameParts[0] || 'Unknown',
+        lastName: nameParts.slice(1).join(' ') || 'Contact',
+        phone: formattedTo,
+        status: 'new',
+        attemptCount: 0
+      }
+    });
+    
+    console.log(`✅ Created temporary contact: ${tempContactId}`);
+    
+    // Now create call record with valid contactId
     const preliminaryCallRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: null, // Set to null to avoid foreign key constraint error
-        contactId: 'temp-placeholder', // Will be updated in background
+        agentId: null, // Set to null to avoid Agent foreign key constraint
+        contactId: tempContactId, // Valid contact ID that exists in database
         campaignId: campaignId || 'DAC',
         phoneNumber: formattedTo,
         dialedNumber: formattedTo,
