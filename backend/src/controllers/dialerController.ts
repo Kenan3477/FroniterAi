@@ -45,6 +45,39 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
 }
 
 /**
+ * Check if user has any active calls by searching notes field
+ * Used when agentId is null (no Agent table record)
+ */
+async function checkForActiveCallByUserId(userId: number): Promise<{ callId: string; phoneNumber: string; startTime: Date } | null> {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    const activeCall = await prisma.callRecord.findFirst({
+      where: {
+        notes: {
+          contains: `[USER:${userId}|`
+        },
+        outcome: 'in-progress',
+        createdAt: { gte: twoHoursAgo }
+      },
+      select: {
+        callId: true,
+        phoneNumber: true,
+        startTime: true
+      },
+      orderBy: {
+        startTime: 'desc'
+      }
+    });
+
+    return activeCall;
+  } catch (error) {
+    console.error('❌ Error checking for active calls by userId:', error);
+    return null;
+  }
+}
+
+/**
  * CRITICAL: End any active calls for an agent before starting a new one
  * This ensures only ONE call is active at a time, preventing call stacking
  * and ensuring seamless call flow without latency or stuck states
@@ -1289,17 +1322,17 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       role: authenticatedUser.role 
     });
 
-    // ⚡ OPTIMIZATION 1: Use cached or temporary agent ID to avoid DB lookup delay
-    const tempAgentId = `agent-${authenticatedUser.userId}`;
-    console.log('⚡ Using temporary agent ID for fast dial:', tempAgentId);
+    // ⚡ OPTIMIZATION 1: Check for active calls using userId in notes (since agentId is null)
+    const userId = authenticatedUser.userId;
+    console.log('⚡ Checking for active calls for user:', userId);
 
     // 🚫 CRITICAL: Check if agent has an active call already
     console.log('🔍 Checking for active calls before initiating new call...');
-    const activeCall = await checkForActiveCall(tempAgentId);
+    const activeCall = await checkForActiveCallByUserId(userId);
     
     if (activeCall) {
       const callDuration = Math.floor((Date.now() - new Date(activeCall.startTime).getTime()) / 1000);
-      console.log(`🚫 BLOCKED: Agent ${tempAgentId} already has an active call`);
+      console.log(`🚫 BLOCKED: User ${userId} (${authenticatedUser.username}) already has an active call`);
       console.log(`   Active call to: ${activeCall.phoneNumber}`);
       console.log(`   Call duration: ${callDuration}s`);
       console.log(`   Call ID: ${activeCall.callId}`);
@@ -1372,14 +1405,15 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
     // This ensures webhooks can find the record immediately when they arrive
-    const preliminaryAgentId = `agent-${authenticatedUser.userId}`;
+    // NOTE: agentId set to null to avoid foreign key constraint (Agent table not populated)
+    // We store the userId in notes for tracking
     const now = new Date();
     
-    console.log('📊 Pre-creating call record to prevent webhook duplicates...');
+    console.log(`📊 Pre-creating call record for user ${authenticatedUser.userId}...`);
     const preliminaryCallRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: preliminaryAgentId,
+        agentId: null, // Set to null to avoid foreign key constraint error
         contactId: 'temp-placeholder', // Will be updated in background
         campaignId: campaignId || 'DAC',
         phoneNumber: formattedTo,
@@ -1390,7 +1424,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         duration: null,
         outcome: 'in-progress',
         recording: null, // Will be set immediately after Twilio call creation
-        notes: '[SYSTEM] Call initiated - awaiting Twilio SID'
+        notes: `[USER:${authenticatedUser.userId}|${authenticatedUser.username}] Call initiated - awaiting Twilio SID`
       }
     });
     
