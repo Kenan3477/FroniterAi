@@ -854,19 +854,27 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
     if (isTerminalState) {
       console.log(`🔚 Terminal call state detected: ${CallSid} - ${CallStatus}`);
       
-      // Find call record.
-      // makeRestApiCall stores callId=conf-xxx and saves the Twilio SID in `recording`.
-      // Check both recording column AND callId column to handle both creation paths.
+      // 🚨 IMPROVED: Better search logic to find call records
+      // Search strategies in order of preference:
+      // 1. recording field contains Twilio SID (most reliable for REST API calls)
+      // 2. callId equals Twilio SID (for webhook-created records)
+      // 3. callId contains Twilio SID (partial match)
+      
+      console.log(`🔍 Searching for call record with Twilio SID: ${CallSid}`);
+      
       try {
         const callRecord = await prisma.callRecord.findFirst({
           where: {
             OR: [
-              { recording: CallSid },
-              { callId: CallSid }
+              { recording: CallSid },              // ✅ REST API calls store SID here
+              { callId: CallSid },                 // ✅ Webhook-created records
+              { callId: { contains: CallSid } },   // ⚠️ Partial match (rare)
             ]
           },
           orderBy: { createdAt: 'desc' }
         });
+        
+        console.log(`🔍 Search result: ${callRecord ? `FOUND ${callRecord.callId}` : 'NOT FOUND'}`);
 
         if (callRecord) {
           // ✅ Check if still in-progress (not already ended)
@@ -910,12 +918,50 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
             console.log(`ℹ️  Call ${callRecord.callId} already ended with outcome: ${callRecord.outcome}`);
           }
         } else {
-          console.warn(`⚠️  No call record found for Twilio SID: ${CallSid}`);
+          console.warn(`⚠️  FAILSAFE TRIGGER: No call record found for Twilio SID: ${CallSid}`);
+          console.warn(`⚠️  This should NOT happen for REST API calls (makeRestApiCall creates preliminary records)`);
+          console.warn(`⚠️  Check: 1) Is preliminary creation working? 2) Is this a non-REST call?`);
           
-          // FAILSAFE: Create missing call record from webhook data (only for completed calls)
+          // 🚨 ENHANCED FAILSAFE: More thorough search before creating duplicate
+          console.log(`🔍 FAILSAFE: Double-checking with broader search...`);
+          
+          const broaderSearch = await prisma.callRecord.findFirst({
+            where: {
+              OR: [
+                { recording: { contains: CallSid } },
+                { callId: { contains: CallSid } },
+                { notes: { contains: CallSid } }
+              ]
+            },
+            orderBy: { createdAt: 'desc' }
+          });
+          
+          if (broaderSearch) {
+            console.warn(`🚨 DUPLICATE PREVENTED: Found record via broader search: ${broaderSearch.callId}`);
+            console.warn(`🚨 Updating existing record instead of creating duplicate`);
+            
+            await prisma.callRecord.update({
+              where: { id: broaderSearch.id },
+              data: {
+                endTime: new Date(),
+                duration: parseInt(CallDuration) || 0,
+                outcome: CallStatus,
+                notes: broaderSearch.notes 
+                  ? `${broaderSearch.notes}\n[WEBHOOK-FAILSAFE] Found via broader search and updated`
+                  : `[WEBHOOK-FAILSAFE] Found via broader search and updated`
+              }
+            });
+            
+            console.log(`✅ Updated existing record instead of creating duplicate`);
+            return res.status(200).send('<Response></Response>');
+          }
+          
+          // LAST RESORT FAILSAFE: Only create if truly no record exists
+          // This should ONLY happen for non-REST API calls (e.g., forwarded calls, direct Twilio calls)
           if (CallStatus === 'completed') {
             try {
-              console.log(`🔧 Creating failsafe call record from webhook data...`);
+              console.log(`🔧 LAST RESORT: Creating failsafe call record from webhook data...`);
+              console.log(`🔧 This indicates a non-REST API call or system failure`);
               
               // Ensure required campaign exists
               await prisma.campaign.upsert({
@@ -978,7 +1024,7 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
                   duration: parseInt(CallDuration) || 0,
                   outcome: CallStatus,
                   recording: CallSid,
-                  notes: `Created from Twilio webhook failsafe - Status: ${CallStatus}`
+                  notes: `[FAILSAFE] Created from Twilio webhook - Status: ${CallStatus} - Direction: ${Direction}`
                 }
               });
 
@@ -988,6 +1034,8 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
             } catch (failsafeError) {
               console.error('❌ Error creating failsafe call record:', failsafeError);
             }
+          } else {
+            console.log(`ℹ️  Skipping failsafe creation for non-completed call status: ${CallStatus}`);
           }
         }
       } catch (dbError) {
@@ -1272,20 +1320,20 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
     // Enhanced call parameters for landline compatibility AND RECORDING
-    const callParams = {
+    const callParams: any = {
       to: formattedTo,
       from: fromNumber,
       url: twimlUrl,
       method: 'POST' as const,
       statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'] as const,
+      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
       // 🎙️ CRITICAL: ENABLE RECORDING AT CALL LEVEL (belt and suspenders approach)
       record: true, // Must be boolean - 'true' or 'false' only
       recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
       recordingStatusCallbackMethod: 'POST' as const,
       recordingChannels: 'dual' as const, // Dual channel for better quality
-      recordingStatusCallbackEvent: ['completed'] as const,
+      recordingStatusCallbackEvent: ['completed'],
       // Landline-specific optimizations
       ...(isLandline && {
         timeout: 90, // Extended timeout for landlines (90s vs default 60s)
@@ -1301,10 +1349,48 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     console.log('🎙️ Recording enabled: record-from-answer-dual with callback to /api/calls/recording-callback');
 
+    // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
+    // This ensures webhooks can find the record immediately when they arrive
+    const preliminaryAgentId = `agent-${authenticatedUser.userId}`;
+    const now = new Date();
+    
+    console.log('📊 Pre-creating call record to prevent webhook duplicates...');
+    const preliminaryCallRecord = await prisma.callRecord.create({
+      data: {
+        callId: conferenceId,
+        agentId: preliminaryAgentId,
+        contactId: 'temp-placeholder', // Will be updated in background
+        campaignId: campaignId || 'DAC',
+        phoneNumber: formattedTo,
+        dialedNumber: formattedTo,
+        callType: 'outbound',
+        startTime: now,
+        endTime: null,
+        duration: null,
+        outcome: 'in-progress',
+        recording: null, // Will be set immediately after Twilio call creation
+        notes: '[SYSTEM] Call initiated - awaiting Twilio SID'
+      }
+    });
+    
+    console.log(`✅ Preliminary call record created: ${preliminaryCallRecord.callId}`);
+
     const callResult = await twilioClient.calls.create(callParams);
 
     console.log('⚡ FAST DIAL SUCCESS: Customer call initiated in', Date.now() - parseInt(conferenceId.split('-')[1]), 'ms');
     console.log('✅ Twilio Call SID:', callResult.sid);
+
+    // 🚨 CRITICAL: Update with Twilio SID IMMEDIATELY so webhooks can find this record
+    await prisma.callRecord.update({
+      where: { callId: conferenceId },
+      data: { 
+        recording: callResult.sid,
+        notes: `[SYSTEM] Twilio SID: ${callResult.sid}. Waiting for call completion.`
+      }
+    });
+    
+    console.log(`✅ Call record updated with Twilio SID: ${callResult.sid}`);
+    console.log(`   Webhooks will now find this record by searching recording=${callResult.sid}`);
 
     // ⚡ OPTIMIZATION 3: Return success immediately, handle DB operations asynchronously
     res.json({
@@ -1315,10 +1401,10 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       message: '⚡ Fast dial initiated - database operations running in background'
     });
 
-    // 📊 BACKGROUND OPERATIONS: Handle all database setup asynchronously after call is started
+    // 📊 BACKGROUND OPERATIONS: Handle contact/campaign setup asynchronously after call is started
     setImmediate(async () => {
       try {
-        console.log('� Background: Starting database operations for call', callResult.sid);
+        console.log('📊 Background: Starting contact/campaign operations for call', callResult.sid);
         
         // Get user details from database
         const user = await prisma.user.findUnique({
@@ -1495,49 +1581,23 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
           console.log(`⚠️ Background: Ended ${endedCallsCount} active call(s) for agent ${agentId}`);
         }
 
-        // Create/update call record with proper data
-        console.log('📊 Background: Creating call record with proper data');
-        
-        const now = new Date();
+        // 🚨 FIX: UPDATE existing call record instead of creating new one
+        console.log('📊 Background: Updating call record with full contact/campaign data');
         
         try {
-          const callRecord = await prisma.callRecord.create({
+          await prisma.callRecord.update({
+            where: { callId: conferenceId },
             data: {
-              callId: conferenceId,
               agentId: agentId,
               contactId: contactId,
               campaignId: finalCampaignId,
-              phoneNumber: formattedTo,
-              dialedNumber: formattedTo,
-              callType: 'outbound',
-              startTime: now,
-              endTime: null, // ✅ Will be set when call actually ends
-              duration: null, // ✅ Will be calculated when call ends
-              outcome: 'in-progress', // ✅ Status: in-progress until agent/customer ends call
-              recording: callResult.sid, // Store Twilio SID for webhook matching
-              notes: `[SYSTEM] Call initiated. Waiting for agent or customer to end call.`
+              notes: `[SYSTEM] Twilio SID: ${callResult.sid}. Full contact data linked.`
             }
           });
           
-          console.log('✅ Background: Created call record with default 2hr expiration:', callRecord.callId);
-        } catch (callRecordError) {
-          console.error('❌ Background: Error creating call record:', callRecordError);
-          
-          // Try to update existing record if it exists
-          try {
-            await prisma.callRecord.update({
-              where: { callId: conferenceId },
-              data: { 
-                agentId: agentId,
-                contactId: contactId,
-                campaignId: finalCampaignId,
-                recording: callResult.sid
-              }
-            });
-            console.log('✅ Background: Updated existing call record');
-          } catch (updateError) {
-            console.error('❌ Background: Could not create or update call record:', updateError);
-          }
+          console.log('✅ Background: Updated call record with complete data:', conferenceId);
+        } catch (updateError) {
+          console.error('❌ Background: Error updating call record:', updateError);
         }
 
         console.log('✅ Background operations completed successfully for call', callResult.sid);
