@@ -1,58 +1,42 @@
-#!/usr/bin/env node
-
-// Quick script to check what inbound numbers exist in the database
 const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 async function checkInboundNumbers() {
-  const prisma = new PrismaClient();
-  
   try {
-    console.log('🔍 Checking database for inbound numbers...');
-    
-    // Get all inbound numbers
-    const allNumbers = await prisma.inboundNumber.findMany();
-    console.log(`\n📊 Total inbound numbers in database: ${allNumbers.length}`);
-    
-    allNumbers.forEach((num, index) => {
-      console.log(`\n${index + 1}. ${num.phoneNumber}`);
-      console.log(`   Display Name: ${num.displayName}`);
-      console.log(`   Is Active: ${num.isActive}`);
-      console.log(`   ID: ${num.id}`);
-      console.log(`   Provider: ${num.provider}`);
-      console.log(`   Country: ${num.country}`);
-      console.log(`   Created: ${num.createdAt}`);
-    });
-    
-    // Specifically check for the 130 number
-    console.log('\n🎯 Checking for the 130 number specifically...');
-    const specificNumber = await prisma.inboundNumber.findFirst({
-      where: {
-        phoneNumber: { contains: '130' }
+    console.log('📞 CHECKING INBOUND NUMBERS\n');
+    console.log('='.repeat(60));
+
+    const inboundNumbers = await prisma.inboundNumber.findMany({
+      select: {
+        id: true,
+        phoneNumber: true,
+        displayName: true,
+        isActive: true,
+        assignedFlowId: true,
+        greetingAudioUrl: true,
+        voicemailAudioUrl: true,
+        outOfHoursAudioUrl: true
       }
     });
-    
-    if (specificNumber) {
-      console.log('✅ Found the 130 number:');
-      console.log('   Phone:', specificNumber.phoneNumber);
-      console.log('   Active:', specificNumber.isActive);
-      console.log('   Display:', specificNumber.displayName);
-    } else {
-      console.log('❌ The 130 number was not found in the database');
-    }
-    
-    // Check active numbers specifically
-    console.log('\n🔍 Checking active numbers only...');
-    const activeNumbers = await prisma.inboundNumber.findMany({
-      where: { isActive: true }
+
+    console.log(`\nFound ${inboundNumbers.length} inbound numbers:\n`);
+
+    inboundNumbers.forEach((num, index) => {
+      console.log(`${index + 1}. ID: ${num.id}`);
+      console.log(`   Phone: ${num.phoneNumber}`);
+      console.log(`   Display Name: ${num.displayName || 'N/A'}`);
+      console.log(`   Active: ${num.isActive}`);
+      console.log(`   Assigned Flow: ${num.assignedFlowId || 'None'}`);
+      console.log(`   Greeting Audio: ${num.greetingAudioUrl || 'None'}`);
+      console.log(`   Voicemail Audio: ${num.voicemailAudioUrl || 'None'}`);
+      console.log(`   Out of Hours Audio: ${num.outOfHoursAudioUrl || 'None'}`);
+      console.log('');
     });
-    
-    console.log(`📊 Active inbound numbers: ${activeNumbers.length}`);
-    activeNumbers.forEach((num) => {
-      console.log(`   ✅ ${num.phoneNumber} - ${num.displayName}`);
-    });
-    
+
+    console.log('='.repeat(60));
+
   } catch (error) {
-    console.error('❌ Error checking database:', error);
+    console.error('❌ Error:', error);
   } finally {
     await prisma.$disconnect();
   }

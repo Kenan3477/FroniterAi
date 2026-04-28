@@ -20,29 +20,52 @@ const KNOWN_NUMBERS = [
   }
 ];
 
-(async () => {
+// Seed function that can be awaited
+async function seedInboundNumbers() {
   try {
+    console.log('📞 Seeding inbound numbers...');
     for (const num of KNOWN_NUMBERS) {
       const existing = await prisma.inboundNumber.findFirst({ where: { phoneNumber: num.phoneNumber } });
       if (!existing) {
-        await prisma.inboundNumber.create({
+        const created = await prisma.inboundNumber.create({
           data: {
             ...num,
             provider: 'TWILIO',
-            capabilities: JSON.stringify(['VOICE']),
-            isActive: true
+            capabilities: JSON.stringify(['VOICE', 'SMS']),
+            isActive: true,
+            businessHours: '24 Hours',
+            outOfHoursAction: 'Hangup',
+            routeTo: 'Hangup',
+            recordCalls: true,
+            autoRejectAnonymous: true,
+            createContactOnAnonymous: true,
+            integration: 'None',
+            countryCode: 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
+            lookupSearchFilter: 'All Lists',
+            assignedToDefaultList: true,
+            timezone: 'Europe/London',
+            businessDays: 'Monday,Tuesday,Wednesday,Thursday,Friday',
+            businessHoursStart: '09:00',
+            businessHoursEnd: '17:00'
           }
         });
-        console.log(`📞 Seeded number: ${num.phoneNumber} (${num.displayName})`);
-      } else if (!existing.isActive) {
-        await prisma.inboundNumber.update({ where: { id: existing.id }, data: { isActive: true } });
-        console.log(`📞 Re-activated number: ${num.phoneNumber}`);
+        console.log(`✅ Seeded inbound number: ${num.phoneNumber} (${num.displayName}) - ID: ${created.id}`);
+      } else {
+        console.log(`ℹ️  Inbound number already exists: ${num.phoneNumber} - ID: ${existing.id}`);
+        if (!existing.isActive) {
+          await prisma.inboundNumber.update({ where: { id: existing.id }, data: { isActive: true } });
+          console.log(`📞 Re-activated number: ${num.phoneNumber}`);
+        }
       }
     }
   } catch (err: any) {
-    console.warn('⚠️ Number seed failed (non-fatal):', err.message);
+    console.error('❌ Number seed failed:', err);
+    throw err; // Re-throw to prevent routes from working with bad data
   }
-})();
+}
+
+// Run seed on startup
+seedInboundNumbers().catch(err => console.error('Failed to seed inbound numbers:', err));
 // ──────────────────────────────────────────────────────────────────────────
 
 interface InboundNumber {
@@ -151,43 +174,21 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       updatedAt: number.updatedAt
     }));
 
+    console.log('✅ Returning', transformedNumbers.length, 'inbound numbers');
+
     res.json({
       success: true,
       data: transformedNumbers
     });
 
   } catch (error) {
-    console.error('Error fetching inbound numbers:', error);
+    console.error('❌ Error fetching inbound numbers:', error);
     
-    // Fallback to only the real Twilio number if database query fails
-    const fallbackNumbers: InboundNumber[] = [
-      {
-        id: 'uk-local-london',
-        phoneNumber: '+442046343130',
-        displayName: 'UK Local - London',
-        country: 'GB',
-        region: 'London',
-        numberType: 'LOCAL',
-        provider: 'TWILIO',
-        capabilities: ['VOICE', 'SMS'],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-
-    res.json({
-      success: true,
-      data: fallbackNumbers.map(number => ({
-        id: number.id,
-        phoneNumber: number.phoneNumber,
-        displayName: number.displayName,
-        country: number.country,
-        region: number.region,
-        numberType: number.numberType,
-        provider: number.provider,
-        capabilities: number.capabilities
-      }))
+    // Return error instead of fallback - this will help debug issues
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch inbound numbers',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
