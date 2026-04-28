@@ -686,6 +686,11 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       console.log('   Will', existingRecordByTwilioSid ? 'UPDATE existing' : 'CREATE NEW', 'record');
       console.log('   dispositionId:', validDispositionId);
       
+      console.log('🔥 CRITICAL: About to upsert call record');
+      console.log('   finalCallId:', finalCallId);
+      console.log('   mappedOutcome:', mappedOutcome);
+      console.log('   THIS SHOULD CHANGE outcome FROM "in-progress" TO:', mappedOutcome);
+      
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
         update: {
@@ -695,7 +700,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           campaignId: safeCampaignId,
           phoneNumber: safePhoneNumber,
           duration: safeDuration,
-          outcome: mappedOutcome,
+          outcome: mappedOutcome, // 🚨 CRITICAL: This changes from 'in-progress' to 'completed' (or other)
           dispositionId: validDispositionId,
           recording: recordingUrl || null,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
@@ -721,6 +726,17 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       });
 
       console.log('✅ Call record created/updated:', callRecord.callId, 'with dispositionId:', callRecord.dispositionId);
+      console.log('🔥 CRITICAL VERIFICATION: Call outcome AFTER upsert:', callRecord.outcome);
+      console.log('   If this is still "in-progress", the update FAILED!');
+      console.log('   Expected outcome:', mappedOutcome);
+      console.log('   Actual outcome:', callRecord.outcome);
+      
+      if (callRecord.outcome === 'in-progress') {
+        console.error('❌ BUG DETECTED: Call still shows "in-progress" after disposition save!');
+        console.error('   This will block future calls for this agent!');
+      } else {
+        console.log('✅ SUCCESS: Call marked as complete - agent can make new calls');
+      }
 
       // Create interaction history record for outcomed interactions display
       try {
