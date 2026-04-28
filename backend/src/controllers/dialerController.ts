@@ -50,7 +50,7 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
  */
 async function checkForActiveCallByUserId(userId: number): Promise<{ callId: string; phoneNumber: string; startTime: Date } | null> {
   try {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000); // Reduced from 2 hours to 10 minutes
     
     const activeCall = await prisma.callRecord.findFirst({
       where: {
@@ -58,22 +58,47 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
           contains: `[USER:${userId}|`
         },
         outcome: 'in-progress',
-        createdAt: { gte: twoHoursAgo }
+        createdAt: { gte: tenMinutesAgo } // Only consider recent calls
       },
       select: {
         callId: true,
         phoneNumber: true,
-        startTime: true
+        startTime: true,
+        createdAt: true
       },
       orderBy: {
         startTime: 'desc'
       }
     });
 
+    // 🚨 AUTO-CLEANUP: If call is older than 5 minutes, auto-end it (it's stuck)
+    if (activeCall) {
+      const callAge = Date.now() - new Date(activeCall.createdAt).getTime();
+      const fiveMinutes = 5 * 60 * 1000;
+      
+      if (callAge > fiveMinutes) {
+        console.log(`🧹 AUTO-CLEANUP: Ending stuck call ${activeCall.callId} (age: ${Math.floor(callAge / 1000)}s)`);
+        
+        // Auto-end the stuck call
+        await prisma.callRecord.update({
+          where: { callId: activeCall.callId },
+          data: {
+            outcome: 'no-answer',
+            endTime: new Date(),
+            duration: Math.floor(callAge / 1000),
+            notes: (await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } }))?.notes + ' [AUTO-CLEANUP: Stuck call auto-ended]'
+          }
+        });
+        
+        console.log(`✅ Stuck call cleaned up - user can now make new calls`);
+        return null; // Return null so new call can proceed
+      }
+    }
+
     return activeCall;
   } catch (error) {
     console.error('❌ Error checking for active calls by userId:', error);
-    return null;
+    return null; // On error, allow the call to proceed (fail open, not closed)
   }
 }
 
@@ -1210,27 +1235,36 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const userId = authenticatedUser.userId;
     console.log('⚡ Checking for active calls for user:', userId);
 
-    // 🚫 CRITICAL: Check if agent has an active call already
+    // 🚫 CRITICAL: Check if agent has an active call already (unless force flag is set)
+    const forceCall = req.body.force === true; // Allow admins to force new calls
+    
     console.log('🔍 Checking for active calls before initiating new call...');
     const activeCall = await checkForActiveCallByUserId(userId);
     
-    if (activeCall) {
+    if (activeCall && !forceCall) {
       const callDuration = Math.floor((Date.now() - new Date(activeCall.startTime).getTime()) / 1000);
       console.log(`🚫 BLOCKED: User ${userId} (${authenticatedUser.username}) already has an active call`);
       console.log(`   Active call to: ${activeCall.phoneNumber}`);
       console.log(`   Call duration: ${callDuration}s`);
       console.log(`   Call ID: ${activeCall.callId}`);
+      console.log(`   💡 Note: Call will auto-cleanup after 5 minutes`);
       
       return res.status(409).json({
         success: false,
         error: 'Agent already has an active call',
-        message: 'Please end your current call before starting a new one',
+        message: `Please end your current call before starting a new one. (Call will auto-cleanup in ${Math.max(0, 300 - callDuration)}s)`,
         activeCall: {
           phoneNumber: activeCall.phoneNumber,
           callId: activeCall.callId,
-          duration: callDuration
-        }
+          duration: callDuration,
+          autoCleanupIn: Math.max(0, 300 - callDuration) // 5 minutes = 300 seconds
+        },
+        hint: 'If this is a stuck call, try again in a few seconds - it will auto-cleanup after 5 minutes'
       });
+    }
+    
+    if (forceCall && activeCall) {
+      console.log(`⚡ FORCE FLAG: Overriding active call check for admin user`);
     }
     
     console.log('✅ No active calls found - proceeding with dial');
