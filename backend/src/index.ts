@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
@@ -193,6 +194,16 @@ class App {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Serve static audio files (for TTS replacement)
+    // Audio prompts served from /audio/* (no authentication required for Twilio)
+    this.app.use('/audio', express.static(path.join(__dirname, '../public/audio'), {
+      maxAge: '1d', // Cache for 1 day
+      setHeaders: (res) => {
+        res.set('Access-Control-Allow-Origin', '*'); // Allow Twilio to access
+        res.set('Content-Type', 'audio/mpeg');
+      }
+    }));
 
     // Rate limiting
     this.app.use(rateLimiter);
