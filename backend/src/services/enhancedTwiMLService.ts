@@ -305,8 +305,9 @@ export class EnhancedTwiMLService {
 
   /**
    * Generate TwiML for voicemail with transcription
+   * NO TTS - Uses voicemailAudioUrl from configuration
    */
-  static generateVoicemailTwiML(options?: {
+  static generateVoicemailTwiML(inboundNumber?: any, options?: {
     maxLength?: number;
     transcribe?: boolean;
   }): string {
@@ -320,10 +321,16 @@ export class EnhancedTwiMLService {
       track: 'inbound_track'
     });
 
-    twiml.say({
-      voice: 'alice',
-      language: 'en-GB'
-    }, 'Please leave your message after the beep. Press any key when finished.');
+    // ✅ CRITICAL: Use audio file instead of TTS
+    if (inboundNumber?.voicemailAudioUrl) {
+      console.log('🎵 Playing voicemail prompt audio:', inboundNumber.voicemailAudioUrl);
+      twiml.play(inboundNumber.voicemailAudioUrl);
+    } else {
+      console.error('❌ No voicemail prompt audio configured - TTS is disabled');
+      console.error('❌ Cannot take voicemail without audio file, hanging up');
+      twiml.hangup();
+      return twiml.toString();
+    }
 
     twiml.record({
       maxLength: options?.maxLength || 120,
@@ -334,7 +341,15 @@ export class EnhancedTwiMLService {
       finishOnKey: '#'
     });
 
-    twiml.say('Thank you for your message. Goodbye.');
+    // ✅ Thank you message: Use voicemailThankyouAudioUrl instead of TTS
+    if (inboundNumber?.voicemailThankyouAudioUrl) {
+      console.log('🎵 Playing voicemail thank you audio:', inboundNumber.voicemailThankyouAudioUrl);
+      twiml.play(inboundNumber.voicemailThankyouAudioUrl);
+    } else {
+      console.error('❌ No voicemail thank you audio configured - TTS is disabled, hanging up silently');
+    }
+
+    twiml.hangup();
 
     return twiml.toString();
   }
