@@ -586,7 +586,12 @@ export class AutoDialEngine {
         // Additional call parameters
         timeout: 30, // Ring timeout in seconds
         // 🎙️ MANDATORY: Call recording parameters (NEVER disable or remove these)
-        record: 'record-from-answer-dual', // Dual-channel recording (agent + customer separate tracks)
+        // Twilio REST API requires boolean `record`; use recordingChannels for dual-track.
+        // The string `record-from-answer-dual` is only valid as a TwiML <Dial> attribute
+        // and would cause Twilio error 20001 if sent here.
+        record: true,
+        recordingChannels: 'dual', // Dual-channel recording (agent + customer separate tracks)
+        recordingTrack: 'both',
         recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
         recordingStatusCallbackMethod: 'POST',
         recordingStatusCallbackEvent: ['completed'],

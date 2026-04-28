@@ -1322,10 +1322,22 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
-    // All calls MUST be recorded for compliance and quality assurance
-    const MANDATORY_RECORDING = 'record-from-answer-dual';
+    // All calls MUST be recorded for compliance and quality assurance.
+    //
+    // ⚠️ IMPORTANT: At the Twilio REST API (calls.create) level, `record` is a
+    // BOOLEAN (true/false) — values like `record-from-answer-dual` are only
+    // valid as TwiML <Dial> attributes. Sending the string here triggers
+    // Twilio error 20001: "Record must be either 'true' or 'false'", which
+    // surfaces in the frontend as "Backend call request failed".
+    //
+    // To get dual-channel recording starting at answer at the REST API level:
+    //   - record: true
+    //   - recordingChannels: 'dual'
+    //   - recordingTrack: 'both'
+    //   - The actual "from-answer" semantics is the default for outbound REST
+    //     calls (recording is created when the call is answered).
     const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
-    
+
     if (!RECORDING_CALLBACK || !process.env.BACKEND_URL) {
       console.warn('⚠️  WARNING: BACKEND_URL not configured - recording callbacks may fail');
       console.warn('⚠️  Set BACKEND_URL in Railway environment variables to: https://[your-backend].up.railway.app');
@@ -1333,12 +1345,12 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       // TODO: Re-enable this check once BACKEND_URL is configured in Railway
       // throw new Error('🚨 CRITICAL: Cannot make calls - recording callback URL not configured');
     }
-    
+
     console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded dual-channel');
     if (RECORDING_CALLBACK) {
       console.log('📞 Recording callback URL:', RECORDING_CALLBACK);
     }
-    
+
     // Enhanced call parameters for landline compatibility AND RECORDING
     const callParams: any = {
       to: formattedTo,
@@ -1349,7 +1361,10 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
       // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
-      record: MANDATORY_RECORDING, // record-from-answer-dual = dual-channel recording from answer
+      // Twilio REST API requires boolean record + separate channel/track flags.
+      record: true,
+      recordingChannels: 'dual' as const, // Dual-channel: agent on one track, customer on the other
+      recordingTrack: 'both' as const,
       recordingStatusCallback: RECORDING_CALLBACK,
       recordingStatusCallbackMethod: 'POST' as const,
       recordingStatusCallbackEvent: ['completed'],
@@ -1362,17 +1377,17 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         asyncAmd: 'true' // Use asynchronous machine detection to avoid blocking
       })
     };
-    
+
     // 🔒 FINAL VALIDATION: Verify recording is enabled before making call
-    if (callParams.record !== MANDATORY_RECORDING) {
-      throw new Error('🚨 SECURITY VIOLATION: Attempted to make call without mandatory recording enabled');
+    if (callParams.record !== true || callParams.recordingChannels !== 'dual') {
+      throw new Error('🚨 SECURITY VIOLATION: Attempted to make call without mandatory dual-channel recording enabled');
     }
 
     if (isLandline) {
       console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
     }
     
-    console.log('✅ RECORDING VALIDATED: record-from-answer-dual with callback to /api/calls/recording-callback');
+    console.log('✅ RECORDING VALIDATED: record=true, recordingChannels=dual, callback=/api/calls/recording-callback');
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
     // This ensures webhooks can find the record immediately when they arrive
