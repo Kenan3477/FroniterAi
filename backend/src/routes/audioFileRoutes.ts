@@ -38,12 +38,25 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB max
   },
   fileFilter: (req, file, cb) => {
-    // Accept only audio files
-    const allowedMimes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav'];
+    // Accept all common audio formats including Apple M4A
+    const allowedMimes = [
+      'audio/mpeg',           // MP3
+      'audio/mp3',            // MP3 (alternative)
+      'audio/wav',            // WAV
+      'audio/wave',           // WAV (alternative)
+      'audio/x-wav',          // WAV (alternative)
+      'audio/mp4',            // M4A (Apple audio)
+      'audio/x-m4a',          // M4A (alternative)
+      'audio/aac',            // AAC
+      'audio/ogg',            // OGG
+      'audio/webm',           // WebM audio
+      'audio/flac',           // FLAC
+      'audio/x-flac'          // FLAC (alternative)
+    ];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only MP3 and WAV files are allowed.'));
+      cb(new Error(`Invalid file type: ${file.mimetype}. Supported formats: MP3, WAV, M4A, AAC, OGG, FLAC, WebM`));
     }
   }
 });

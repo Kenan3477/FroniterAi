@@ -993,12 +993,12 @@ export const AudioFilesManager: React.FC<{
           {/* File Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Audio File (MP3 or WAV, max 10MB)
+              Select Audio File (MP3, WAV, M4A, AAC, OGG, FLAC, max 10MB)
             </label>
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/mpeg,audio/mp3,audio/wav"
+              accept="audio/mpeg,audio/mp3,audio/wav,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/webm,audio/flac,audio/x-flac"
               onChange={handleFileSelect}
               className="block w-full text-sm text-gray-500
                 file:mr-4 file:py-2 file:px-4
