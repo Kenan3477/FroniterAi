@@ -38,33 +38,27 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
 
     const recording = twilioRecordings[0]; // Use the first recording
     
-    // Ensure recordings directory exists
-    await fs.mkdir(RECORDINGS_DIR, { recursive: true });
+    // Extract Twilio Recording SID from URL
+    // URL format: https://api.twilio.com/2010-04-01/Accounts/AC.../Recordings/RExxxxx.mp3
+    const recordingSidMatch = recording.url.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
+    if (!recordingSidMatch) {
+      throw new Error(`Could not extract Recording SID from URL: ${recording.url}`);
+    }
+    const recordingSid = recordingSidMatch[1];
     
     // Generate filename: callId_timestamp.mp3
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `${callSid}_${timestamp}.mp3`;
-    const filePath = path.join(RECORDINGS_DIR, fileName);
     
-    // Download the recording from Twilio
-    console.log(`📥 Downloading from Twilio: ${recording.url}`);
-    const response = await fetch(recording.url, {
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`
-      }
-    });
+    // 🔥 FIX: Store Twilio Recording SID instead of local file path
+    // Railway has ephemeral storage - files are lost on redeploy
+    // Download endpoint already supports Twilio SIDs for streaming
+    const filePath = recordingSid; // Store "RExxxxx" - download endpoint will stream from Twilio
     
-    if (!response.ok) {
-      throw new Error(`Failed to download recording: ${response.statusText}`);
-    }
+    console.log(`💾 Recording SID: ${recordingSid} (will stream from Twilio on download)`);
     
-    // Save to local file
-    const buffer = await response.buffer();
-    await fs.writeFile(filePath, buffer);
-    
-    // Get file size
-    const stats = await fs.stat(filePath);
-    const fileSizeBytes = stats.size;
+    // File size will be determined when streaming from Twilio
+    const fileSizeBytes = null;
     
     console.log(`💾 Recording saved: ${fileName} (${fileSizeBytes} bytes)`);
     
