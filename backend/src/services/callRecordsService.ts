@@ -41,6 +41,14 @@ export interface CallSearchFilters {
  * Start a new call record
  */
 export async function startCall(data: CreateCallRecordRequest) {
+  console.log(`\n🔵 START CALL REQUEST:`, {
+    callId: data.callId,
+    phoneNumber: data.phoneNumber,
+    campaignId: data.campaignId,
+    agentId: data.agentId,
+    timestamp: new Date().toISOString()
+  });
+
   // 🆕 DUPLICATE PREVENTION: Check if a call record already exists for this phone number + campaign + recent time
   // Twilio creates DIFFERENT callIds for each leg, so we can't check by callId alone!
   // Must check by: phone number + campaign + time window (within last 10 seconds)
@@ -61,15 +69,19 @@ export async function startCall(data: CreateCallRecordRequest) {
   });
 
   if (existingCall) {
-    console.log(`⚠️ Call record already exists for ${data.phoneNumber} (within 10s, same campaign/agent)`);
-    console.log(`   Existing: ${existingCall.callId} at ${existingCall.startTime.toISOString()}`);
-    console.log(`   New request: ${data.callId} - IGNORING to prevent duplicate`);
+    console.log(`⚠️ DUPLICATE DETECTED - Call record already exists for ${data.phoneNumber}`);
+    console.log(`   Existing callId: ${existingCall.callId}`);
+    console.log(`   Existing startTime: ${existingCall.startTime.toISOString()}`);
+    console.log(`   New callId: ${data.callId}`);
+    console.log(`   PREVENTED DUPLICATE - returning existing record\n`);
     return {
       callId: existingCall.callId,
       startTime: existingCall.startTime,
       existingRecord: true
     };
   }
+
+  console.log(`✅ NO DUPLICATE - Creating new call record for ${data.phoneNumber}\n`);
 
   // Ensure required campaigns exist
   if (data.campaignId === 'MANUAL-DIAL') {

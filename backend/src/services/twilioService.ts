@@ -256,16 +256,21 @@ export const generateCustomerToAgentTwiML = (phoneNumber?: string): string => {
   
   console.log(`🔍 TwiML Generation: ${phoneNumber} detected as ${isLandline ? 'LANDLINE' : 'MOBILE'}`);
   
-  // Enhanced settings for landline compatibility
+  // 🎙️ MANDATORY RECORDING SETTINGS - DO NOT DISABLE
+  // Enhanced settings for landline compatibility + MANDATORY dual-channel recording
   const dialSettings = {
     timeout: isLandline ? 90 : 60, // Longer timeout for landlines (90s vs 60s)
-    record: 'record-from-answer-dual-channel' as any,
+    record: 'record-from-answer-dual' as any, // ✅ MANDATORY: Dual-channel recording (agent + customer)
     recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback` as any,
     recordingStatusCallbackMethod: 'POST' as any,
+    recordingStatusCallbackEvent: ['completed'] as any, // Callback when recording completes
+    trim: 'trim-silence' as any, // Remove silence from beginning/end of recording
     answerOnBridge: true as any, // Only answer customer when agent picks up
     ringTone: isLandline ? 'gb' : 'us' as any, // UK ring tone for landlines, US for mobiles
     callerId: process.env.TWILIO_PHONE_NUMBER
   } as any;
+  
+  console.log('🎙️ MANDATORY RECORDING ENABLED: record-from-answer-dual with callback');
   
   // Add landline-specific optimizations
   if (isLandline) {

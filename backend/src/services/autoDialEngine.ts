@@ -586,11 +586,11 @@ export class AutoDialEngine {
         // Additional call parameters
         timeout: 30, // Ring timeout in seconds
         // 🎙️ MANDATORY: Call recording parameters (NEVER disable or remove these)
-        record: 'record-from-answer-dual',
+        record: 'record-from-answer-dual', // Dual-channel recording (agent + customer separate tracks)
         recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
         recordingStatusCallbackMethod: 'POST',
-        recordingChannels: 'dual',
         recordingStatusCallbackEvent: ['completed'],
+        trim: 'trim-silence', // Remove silence from start/end
         // Status callbacks
         statusCallback: `${process.env.BACKEND_URL}/api/auto-dial/call-status-webhook`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']

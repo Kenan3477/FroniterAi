@@ -68,6 +68,7 @@ import routingRoutes from './routes/routingRoutes'; // Inbound call routing syst
 import voiceRoutes from './routes/voiceRoutes'; // Voice/telephony configuration for CLI selection
 import inboundQueueRoutes from './routes/inboundQueueRoutes'; // Inbound queue management system
 import cleanupRoutes from './routes/cleanup'; // ADMIN: Emergency cleanup endpoints
+import adminCleanupRoutes from './routes/admin/cleanup'; // ADMIN: Database cleanup for call records
 import kpiRoutes from './routes/kpi'; // Real database-driven KPI analytics
 import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management system
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
@@ -301,6 +302,7 @@ class App {
     this.app.use('/api/emergency', emergencyCleanupRoutes); // Emergency cleanup routes for nuclear reset
     this.app.use('/api/calls', callsRoutes); // Frontend compatibility for save-call-data
     this.app.use('/api/admin-setup', adminSetupRoutes); // Admin setup for initial user creation
+    this.app.use('/api/admin/cleanup', adminCleanupRoutes); // ADMIN: Database cleanup for call records without recordings
     this.app.use('/api/admin', cleanupRoutes); // TEMPORARILY ENABLED: Admin cleanup endpoints for demo record removal
     this.app.use('/api/admin', updateOrgAdminRoutes); // TEMPORARY: Fix existing organization administrator names
     this.app.use('/api/admin', migrationRoutes); // Database migration endpoints

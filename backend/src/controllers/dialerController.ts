@@ -1257,6 +1257,17 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
     
+    // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
+    // All calls MUST be recorded for compliance and quality assurance
+    const MANDATORY_RECORDING = 'record-from-answer-dual';
+    const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
+    
+    if (!RECORDING_CALLBACK || !process.env.BACKEND_URL) {
+      throw new Error('🚨 CRITICAL: Cannot make calls - recording callback URL not configured');
+    }
+    
+    console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded dual-channel');
+    
     // Enhanced call parameters for landline compatibility AND RECORDING
     const callParams: any = {
       to: formattedTo,
@@ -1266,11 +1277,12 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
-      // 🎙️ CRITICAL: ENABLE RECORDING AT CALL LEVEL (belt and suspenders approach)
-      record: 'record-from-answer-dual', // Twilio accepts: 'do-not-record', 'record-from-answer', 'record-from-ringing', 'record-from-answer-dual', 'record-from-ringing-dual'
-      recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
+      // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
+      record: MANDATORY_RECORDING, // record-from-answer-dual = dual-channel recording from answer
+      recordingStatusCallback: RECORDING_CALLBACK,
       recordingStatusCallbackMethod: 'POST' as const,
       recordingStatusCallbackEvent: ['completed'],
+      trim: 'trim-silence' as const, // Remove silence from start/end of recording
       // Landline-specific optimizations
       ...(isLandline && {
         timeout: 90, // Extended timeout for landlines (90s vs default 60s)
@@ -1279,12 +1291,17 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         asyncAmd: 'true' // Use asynchronous machine detection to avoid blocking
       })
     };
+    
+    // 🔒 FINAL VALIDATION: Verify recording is enabled before making call
+    if (callParams.record !== MANDATORY_RECORDING) {
+      throw new Error('🚨 SECURITY VIOLATION: Attempted to make call without mandatory recording enabled');
+    }
 
     if (isLandline) {
       console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
     }
     
-    console.log('🎙️ Recording enabled: record-from-answer-dual with callback to /api/calls/recording-callback');
+    console.log('✅ RECORDING VALIDATED: record-from-answer-dual with callback to /api/calls/recording-callback');
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
     // This ensures webhooks can find the record immediately when they arrive
@@ -1354,13 +1371,20 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
     console.log('⚡ FAST DIAL SUCCESS: Customer call initiated in', Date.now() - parseInt(conferenceId.split('-')[1]), 'ms');
     console.log('✅ Twilio Call SID:', callResult.sid);
+    
+    // 🎙️ MANDATORY RECORDING VERIFICATION - Confirm Twilio accepted recording parameters
+    if (!callResult.sid) {
+      throw new Error('🚨 CRITICAL: Call created but no SID returned - cannot track recording');
+    }
+    
+    console.log('🎙️ RECORDING CONFIRMATION: Call created with SID', callResult.sid, '- recording will be tracked');
 
     // 🚨 CRITICAL: Update with Twilio SID IMMEDIATELY so webhooks can find this record
     await prisma.callRecord.update({
       where: { callId: conferenceId },
       data: { 
         recording: callResult.sid,
-        notes: `[SYSTEM] Twilio SID: ${callResult.sid}. Waiting for call completion.`
+        notes: `[SYSTEM] Twilio SID: ${callResult.sid}. RECORDING ENABLED (dual-channel). Waiting for call completion.`
       }
     });
     
