@@ -8,7 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { AudioFileService } from '../services/audioFileService';
 
 const router = Router();
@@ -52,7 +52,7 @@ const upload = multer({
  * GET /api/voice/audio-files
  * Retrieve all uploaded audio files
  */
-router.get('/audio-files', authenticateToken, async (req: Request, res: Response) => {
+router.get('/audio-files', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('📁 Fetching all audio files...');
     
@@ -76,7 +76,7 @@ router.get('/audio-files', authenticateToken, async (req: Request, res: Response
  * GET /api/voice/audio-files/:id
  * Retrieve a specific audio file by ID
  */
-router.get('/audio-files/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/audio-files/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -107,7 +107,7 @@ router.get('/audio-files/:id', authenticateToken, async (req: Request, res: Resp
  * POST /api/voice/audio-files/upload
  * Upload a new audio file
  */
-router.post('/audio-files/upload', authenticateToken, upload.single('audio'), async (req: Request, res: Response) => {
+router.post('/audio-files/upload', authenticate, upload.single('audio'), async (req: Request, res: Response) => {
   try {
     console.log('📤 Audio file upload request received');
     console.log('📤 User:', (req as any).user);
@@ -184,7 +184,7 @@ router.post('/audio-files/upload', authenticateToken, upload.single('audio'), as
  * DELETE /api/voice/audio-files/:id
  * Delete an audio file
  */
-router.delete('/audio-files/:id', authenticateToken, async (req: Request, res: Response) => {
+router.delete('/audio-files/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -230,7 +230,7 @@ router.delete('/audio-files/:id', authenticateToken, async (req: Request, res: R
  * PATCH /api/voice/audio-files/:id
  * Update audio file metadata
  */
-router.patch('/audio-files/:id', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/audio-files/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, type, description, tags } = req.body;

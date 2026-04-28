@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "npx prisma generate && echo 'Build complete for Railway v1.0.5'",
-    "start": "npx prisma generate && npx prisma db push --accept-data-loss && npx tsx src/index.ts",
+    "start": "npx --omit=dev prisma generate && npx --omit=dev prisma db push --accept-data-loss && npx --omit=dev tsx src/index.ts",
     "start:prod": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
