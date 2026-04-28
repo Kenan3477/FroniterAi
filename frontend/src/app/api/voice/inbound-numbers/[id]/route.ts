@@ -10,8 +10,23 @@ export async function PUT(
     console.log('🔧 Proxying inbound number update to backend...');
     console.log('🔧 Number ID:', params.id);
 
-    // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
+    // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
+    let authToken = request.cookies.get('session_token')?.value;
+    
+    // Fallback to auth-token for backwards compatibility
+    if (!authToken) {
+      authToken = request.cookies.get('auth-token')?.value;
+    }
+    
+    // Also check Authorization header
+    if (!authToken) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        authToken = authHeader.substring(7);
+      }
+    }
+    
+    console.log('🔒 Auth token found:', authToken ? `${authToken.substring(0, 10)}...` : 'NONE');
     
     if (!authToken) {
       console.log('🔒 No auth token found in cookies');
@@ -89,8 +104,23 @@ export async function DELETE(
     console.log('🗑️ Proxying inbound number deletion to backend...');
     console.log('🗑️ Number ID:', params.id);
 
-    // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
+    // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
+    let authToken = request.cookies.get('session_token')?.value;
+    
+    // Fallback to auth-token for backwards compatibility
+    if (!authToken) {
+      authToken = request.cookies.get('auth-token')?.value;
+    }
+    
+    // Also check Authorization header
+    if (!authToken) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        authToken = authHeader.substring(7);
+      }
+    }
+    
+    console.log('🔒 Auth token found:', authToken ? `${authToken.substring(0, 10)}...` : 'NONE');
     
     if (!authToken) {
       console.log('🔒 No auth token found in cookies');

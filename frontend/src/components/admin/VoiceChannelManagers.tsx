@@ -187,10 +187,11 @@ export const InboundNumbersManager: React.FC<{
   const [editingNumber, setEditingNumber] = useState<InboundNumber | null>(null);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null);
+  const [realAudioFiles, setRealAudioFiles] = useState<AudioFile[]>([]);
 
-  // Get available audio files from config
+  // Get available audio files from REAL backend data
   const getAvailableAudioFiles = (): AudioFile[] => {
-    return config.audioFiles || [];
+    return realAudioFiles;
   };
 
   // Filter audio files by type for specific use cases
@@ -199,6 +200,35 @@ export const InboundNumbersManager: React.FC<{
     if (type === 'all') return audioFiles;
     return audioFiles.filter(file => file.type === type);
   };
+
+  // Fetch real audio files from backend API
+  useEffect(() => {
+    const fetchAudioFiles = async () => {
+      try {
+        console.log('🎵 Fetching real audio files from backend...');
+        const response = await fetch('/api/voice/audio-files', {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🎵 Audio files fetched:', data);
+          const audioArray = Array.isArray(data) ? data : (data.data || data.audioFiles || []);
+          setRealAudioFiles(audioArray);
+          console.log(`✅ Loaded ${audioArray.length} real audio files`);
+        } else {
+          console.error('❌ Failed to fetch audio files:', response.statusText);
+          setRealAudioFiles([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching audio files:', error);
+        setRealAudioFiles([]);
+      }
+    };
+
+    fetchAudioFiles();
+  }, []);
 
   // Fetch real inbound numbers from backend API
   useEffect(() => {
