@@ -52,6 +52,9 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
   try {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // Look back 2 hours for safety
     
+    console.log('🔍 ACTIVE CALL CHECK: Searching for active calls for userId:', userId);
+    console.log('   Looking for: outcome="in-progress" AND notes contains [USER:${userId}|');
+    
     const activeCall = await prisma.callRecord.findFirst({
       where: {
         notes: {
@@ -72,6 +75,19 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         startTime: 'desc'
       }
     });
+
+    console.log('🔍 ACTIVE CALL CHECK RESULT:', activeCall ? 'FOUND' : 'NONE');
+    if (activeCall) {
+      console.log('   ⚠️  Active call found:');
+      console.log('   - callId:', activeCall.callId);
+      console.log('   - phoneNumber:', activeCall.phoneNumber);
+      console.log('   - dispositionId:', activeCall.dispositionId);
+      console.log('   - endTime:', activeCall.endTime);
+      console.log('   - createdAt:', activeCall.createdAt);
+      console.log('   This will BLOCK the new call attempt!');
+    } else {
+      console.log('   ✅ No active calls - new call will proceed');
+    }
 
     // 🚨 AUTO-CLEANUP: If call has been dispositioned OR has endTime, it's actually complete
     if (activeCall) {

@@ -150,8 +150,9 @@ export class EnhancedTwiMLService {
 
   /**
    * Generate TwiML for inbound calls with live analysis
+   * NO TTS - Uses audio files from inbound number configuration
    */
-  static generateInboundCallTwiML(options?: { 
+  static generateInboundCallTwiML(inboundNumber?: any, options?: { 
     enableGreeting?: boolean;
     queueName?: string;
   }): string {
@@ -165,11 +166,12 @@ export class EnhancedTwiMLService {
       track: 'both_tracks'
     });
 
-    if (options?.enableGreeting !== false) {
-      twiml.say({
-        voice: 'alice',
-        language: 'en-GB'
-      }, 'Thank you for calling. Please hold while I connect you to an available agent.');
+    // ✅ CRITICAL: Use audio file instead of TTS
+    if (options?.enableGreeting !== false && inboundNumber?.greetingAudioUrl) {
+      console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
+      twiml.play(inboundNumber.greetingAudioUrl);
+    } else if (options?.enableGreeting !== false) {
+      console.error('❌ No greeting audio configured - TTS is disabled');
     }
 
     // Route to agent queue
@@ -184,8 +186,17 @@ export class EnhancedTwiMLService {
       dial.queue('default-queue');
     }
 
-    // Fallback if no agents available
-    twiml.say('All our agents are currently busy. Please call back later or leave a voicemail.');
+    // ✅ Fallback: Use busyAudioUrl or noAnswerAudioUrl instead of TTS
+    if (inboundNumber?.busyAudioUrl) {
+      console.log('🎵 Playing busy audio:', inboundNumber.busyAudioUrl);
+      twiml.play(inboundNumber.busyAudioUrl);
+    } else if (inboundNumber?.noAnswerAudioUrl) {
+      console.log('🎵 Playing no answer audio:', inboundNumber.noAnswerAudioUrl);
+      twiml.play(inboundNumber.noAnswerAudioUrl);
+    } else {
+      console.error('❌ No busy/no-answer audio configured - TTS is disabled, hanging up silently');
+      twiml.hangup();
+    }
     
     return twiml.toString();
   }
@@ -222,8 +233,9 @@ export class EnhancedTwiMLService {
 
   /**
    * Generate TwiML for call transfer with analysis continuation
+   * NO TTS - Uses transferAudioUrl from configuration
    */
-  static generateTransferTwiML(targetNumber: string, callId: string): string {
+  static generateTransferTwiML(targetNumber: string, callId: string, inboundNumber?: any): string {
     const twiml = new twilio.twiml.VoiceResponse();
 
     // Continue live analysis during transfer
@@ -234,22 +246,36 @@ export class EnhancedTwiMLService {
       track: 'both_tracks'
     });
 
-    twiml.say('Transferring your call, please hold.');
+    // ✅ CRITICAL: Use audio file instead of TTS
+    if (inboundNumber?.transferAudioUrl) {
+      console.log('🎵 Playing transfer audio:', inboundNumber.transferAudioUrl);
+      twiml.play(inboundNumber.transferAudioUrl);
+    } else {
+      console.error('❌ No transfer audio configured - TTS is disabled');
+    }
 
     twiml.dial({
       record: 'record-from-answer',
       timeout: 30
     }).number(targetNumber);
 
-    twiml.say('The transfer was unsuccessful. Returning to original call.');
+    // ✅ Transfer failed: Use transferFailedAudioUrl instead of TTS
+    if (inboundNumber?.transferFailedAudioUrl) {
+      console.log('🎵 Playing transfer failed audio:', inboundNumber.transferFailedAudioUrl);
+      twiml.play(inboundNumber.transferFailedAudioUrl);
+    } else {
+      console.error('❌ No transfer failed audio configured - TTS is disabled, hanging up silently');
+      twiml.hangup();
+    }
 
     return twiml.toString();
   }
 
   /**
    * Generate TwiML for call parking with analysis
+   * NO TTS - Uses holdAudioUrl or hold music
    */
-  static generateCallParkTwiML(callId: string): string {
+  static generateCallParkTwiML(callId: string, inboundNumber?: any): string {
     const twiml = new twilio.twiml.VoiceResponse();
 
     // Maintain analysis during hold
@@ -260,10 +286,19 @@ export class EnhancedTwiMLService {
       track: 'inbound_track' // Only need to monitor customer
     });
 
-    twiml.say('Your call is being placed on hold. Please wait for an available agent.');
+    // ✅ CRITICAL: Use audio file instead of TTS
+    if (inboundNumber?.holdAudioUrl) {
+      console.log('🎵 Playing hold prompt audio:', inboundNumber.holdAudioUrl);
+      twiml.play(inboundNumber.holdAudioUrl);
+    } else {
+      console.error('❌ No hold audio configured - TTS is disabled, skipping prompt');
+    }
 
     // Play hold music with periodic updates
-    twiml.play('https://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.wav');
+    const holdMusicUrl = inboundNumber?.queueAudioUrl || 
+                         'https://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.wav';
+    console.log('🎵 Playing hold music:', holdMusicUrl);
+    twiml.play(holdMusicUrl);
 
     return twiml.toString();
   }

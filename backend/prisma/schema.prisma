@@ -1199,6 +1199,12 @@ model InboundNumber {
   selectedRingGroupId      String?
   timezone                 String?       @default("Europe/London")
   voicemailAudioUrl        String?
+  // 🎵 Additional audio prompts for complete TTS replacement
+  queueAudioUrl            String?       // Hold music/queue waiting audio
+  transferAudioUrl         String?       // "Transferring your call..." message
+  transferFailedAudioUrl   String?       // "Transfer unsuccessful..." message
+  holdAudioUrl             String?       // "Call being placed on hold..." message
+  voicemailThankyouAudioUrl String?      // "Thank you for your message..." after voicemail
   flows                    Flow?         @relation(fields: [assignedFlowId], references: [id])
   inbound_queues           InboundQueue? @relation(fields: [routeToQueueId], references: [id])
 
