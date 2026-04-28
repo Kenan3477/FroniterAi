@@ -71,9 +71,41 @@ router.get('/audio-files', authenticate, async (req: Request, res: Response) => 
     
     const audioFiles = await AudioFileService.getAllAudioFiles();
     
+    // Transform database fields to match frontend expectations
+    const transformedFiles = audioFiles.map(file => {
+      // Parse tags from JSON string
+      let tags: string[] = [];
+      if (file.tags) {
+        try {
+          tags = JSON.parse(file.tags);
+        } catch (e) {
+          console.warn(`Failed to parse tags for file ${file.id}:`, file.tags);
+          tags = [];
+        }
+      }
+      
+      // Extract format from mimeType (e.g., "audio/mpeg" -> "mpeg" or "mp3")
+      const format = file.mimeType?.split('/')[1] || 'unknown';
+      
+      return {
+        id: file.id,
+        name: file.displayName,
+        filename: file.filename,
+        format: format,
+        mimeType: file.mimeType,
+        size: file.size,
+        duration: file.duration || 0,
+        type: file.type,
+        description: file.description || '',
+        tags: tags,
+        uploadedBy: file.uploadedBy,
+        uploadedAt: file.uploadedAt
+      };
+    });
+    
     res.json({
       success: true,
-      audioFiles
+      audioFiles: transformedFiles
     });
   } catch (error: any) {
     console.error('❌ Error fetching audio files:', error);
@@ -188,16 +220,36 @@ router.post('/audio-files/upload', authenticate, upload.single('audio'), async (
     
     console.log('✅ Audio file uploaded successfully:', audioFile.id);
     
+    // Parse tags from JSON string for response
+    let parsedTags: string[] = [];
+    if (audioFile.tags) {
+      try {
+        parsedTags = JSON.parse(audioFile.tags);
+      } catch (e) {
+        console.warn(`Failed to parse tags for uploaded file ${audioFile.id}`);
+        parsedTags = [];
+      }
+    }
+    
+    // Extract format from mimeType
+    const formatFromMime = audioFile.mimeType?.split('/')[1] || 'unknown';
+    
     res.json({
       success: true,
       message: 'Audio file uploaded successfully',
       audioFile: {
         id: audioFile.id,
+        name: audioFile.displayName,
         displayName: audioFile.displayName,
         filename: audioFile.filename,
+        format: formatFromMime,
+        mimeType: audioFile.mimeType,
         size: audioFile.size,
         type: audioFile.type,
-        duration: audioFile.duration
+        duration: audioFile.duration || 0,
+        description: audioFile.description || '',
+        tags: parsedTags,
+        uploadedAt: audioFile.uploadedAt
       }
     });
   } catch (error: any) {
