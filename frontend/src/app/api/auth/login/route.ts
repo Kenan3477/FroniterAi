@@ -57,12 +57,20 @@ export async function POST(request: NextRequest) {
         message: 'Authentication successful (local bypass with real JWT)'
       });
 
-      // Set auth cookie
-      response.cookies.set('auth-token', realToken, {
+      // Set session_token cookie (CRITICAL: must match what other routes expect!)
+      response.cookies.set('session_token', realToken, {
         httpOnly: true,
         secure: false, // Set to false for localhost
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 // 24 hours
+      });
+      
+      // Also set auth-token for backward compatibility
+      response.cookies.set('auth-token', realToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60
       });
 
       return response;
@@ -118,16 +126,25 @@ export async function POST(request: NextRequest) {
       message: 'Authentication successful'
     });
 
-    // Set secure cookie with backend token
+    // Set secure cookies with backend token
     const isProduction = process.env.NODE_ENV === 'production';
     
-    console.log('🍪 Setting auth-token cookie:', {
+    console.log('🍪 Setting session cookies:', {
       token: backendData.data.token ? 'EXISTS' : 'NULL',
       sessionId: backendData.data.sessionId || 'NULL',
       isProduction,
       tokenLength: backendData.data.token?.length || 0
     });
     
+    // CRITICAL: Set session_token cookie (what the app actually uses!)
+    response.cookies.set('session_token', backendData.data.token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 // 24 hours
+    });
+    
+    // Also set auth-token for backward compatibility
     response.cookies.set('auth-token', backendData.data.token, {
       httpOnly: true,
       secure: isProduction,
