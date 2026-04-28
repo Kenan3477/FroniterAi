@@ -101,6 +101,16 @@ export class AISystemManager {
   private setupSystemIntegration() {
     console.log('🔗 Setting up AI system integration...');
 
+    // 🚨 TEMPORARY DISABLE: RealTimeAIScoringEngine is not an EventEmitter
+    // This causes backend crash: "this.scoringEngine.on is not a function"
+    // TODO: Either make RealTimeAIScoringEngine extend EventEmitter or use polling instead
+    console.log('⚠️  AI system integration disabled - scoringEngine is not EventEmitter');
+    return; // Skip event-based integration
+
+    /* DISABLED - RealTimeAIScoringEngine needs to extend EventEmitter
+    // When scoring engine updates, trigger coaching and disposition analysis
+    this.scoringEngine.on('analysis:updated', async (data: any) => {
+    /* DISABLED - RealTimeAIScoringEngine needs to extend EventEmitter
     // When scoring engine updates, trigger coaching and disposition analysis
     this.scoringEngine.on('analysis:updated', async (data: any) => {
       const { callId, analysis } = data;
@@ -139,6 +149,7 @@ export class AISystemManager {
     });
 
     console.log('✅ AI system integration complete');
+    */
   }
 
   /**
