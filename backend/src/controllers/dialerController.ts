@@ -24,7 +24,7 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
     const activeCall = await prisma.callRecord.findFirst({
       where: {
         agentId,
-        outcome: 'in-progress', // 🚨 NEW: Use status instead of endTime check
+        endTime: null, // 🚨 CRITICAL FIX: Check for NULL endTime instead of outcome
         createdAt: { gte: twoHoursAgo }
       },
       select: {
@@ -53,14 +53,14 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // Look back 2 hours for safety
     
     console.log('🔍 ACTIVE CALL CHECK: Searching for active calls for userId:', userId);
-    console.log('   Looking for: outcome="in-progress" AND notes contains [USER:${userId}|');
+    console.log('   Looking for: endTime=NULL (active) AND notes contains [USER:${userId}|');
     
     const activeCall = await prisma.callRecord.findFirst({
       where: {
         notes: {
           contains: `[USER:${userId}|`
         },
-        outcome: 'in-progress',
+        endTime: null, // 🚨 CRITICAL FIX: Check for NULL endTime instead of outcome
         createdAt: { gte: twoHoursAgo }
       },
       select: {
