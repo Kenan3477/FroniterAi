@@ -1267,10 +1267,9 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
       // 🎙️ CRITICAL: ENABLE RECORDING AT CALL LEVEL (belt and suspenders approach)
-      record: true, // Must be boolean - 'true' or 'false' only
+      record: 'record-from-answer-dual', // Twilio accepts: 'do-not-record', 'record-from-answer', 'record-from-ringing', 'record-from-answer-dual', 'record-from-ringing-dual'
       recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
       recordingStatusCallbackMethod: 'POST' as const,
-      recordingChannels: 'dual' as const, // Dual channel for better quality
       recordingStatusCallbackEvent: ['completed'],
       // Landline-specific optimizations
       ...(isLandline && {
