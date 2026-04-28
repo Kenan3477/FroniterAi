@@ -68,9 +68,22 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
     
     console.log(`💾 Recording saved: ${fileName} (${fileSizeBytes} bytes)`);
     
-    // Create recording record in database
-    const recordingRecord = await prisma.recording.create({
-      data: {
+    // 🆕 UPSERT: Create or update recording record to prevent duplicate constraint errors
+    // This handles race conditions where multiple processes try to create same recording
+    const recordingRecord = await prisma.recording.upsert({
+      where: { callRecordId: callRecordId },
+      update: {
+        fileName: fileName,
+        filePath: filePath,
+        fileSize: fileSizeBytes,
+        duration: recording.duration ? parseInt(recording.duration.toString()) : null,
+        format: 'mp3',
+        quality: 'standard',
+        storageType: 'local',
+        uploadStatus: 'completed',
+        updatedAt: new Date()
+      },
+      create: {
         callRecordId: callRecordId,
         fileName: fileName,
         filePath: filePath,
@@ -83,7 +96,7 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
       }
     });
     
-    console.log(`✅ Recording record created: ${recordingRecord.id}`);
+    console.log(`✅ Recording record ${recordingRecord.id} saved (upsert)`);
     
     // Update the call record with the recording reference
     await prisma.callRecord.update({
@@ -108,10 +121,15 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
   } catch (error) {
     console.error(`❌ Error downloading recording for call ${callSid}:`, error);
     
-    // Update recording status as failed
+    // 🆕 UPSERT: Update existing failed record or create new one
     try {
-      await prisma.recording.create({
-        data: {
+      await prisma.recording.upsert({
+        where: { callRecordId: callRecordId },
+        update: {
+          uploadStatus: 'failed',
+          updatedAt: new Date()
+        },
+        create: {
           callRecordId: callRecordId,
           fileName: `failed_${callSid}.mp3`,
           filePath: '',
