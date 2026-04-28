@@ -211,14 +211,20 @@ export const InboundNumbersManager: React.FC<{
           credentials: 'include'
         });
 
+        console.log('🎵 Audio files response status:', response.status);
+
         if (response.ok) {
           const data = await response.json();
-          console.log('🎵 Audio files fetched:', data);
+          console.log('🎵 Audio files RAW response:', data);
           const audioArray = Array.isArray(data) ? data : (data.data || data.audioFiles || []);
+          console.log('🎵 Parsed audio array:', audioArray);
+          console.log('🎵 Audio array sample:', audioArray.slice(0, 3));
           setRealAudioFiles(audioArray);
-          console.log(`✅ Loaded ${audioArray.length} real audio files`);
+          console.log(`✅ Loaded ${audioArray.length} real audio files into state`);
         } else {
-          console.error('❌ Failed to fetch audio files:', response.statusText);
+          console.error('❌ Failed to fetch audio files:', response.status, response.statusText);
+          const errorText = await response.text();
+          console.error('❌ Error details:', errorText);
           setRealAudioFiles([]);
         }
       } catch (error) {

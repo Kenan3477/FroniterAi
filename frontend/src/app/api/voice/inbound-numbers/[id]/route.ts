@@ -55,6 +55,8 @@ export async function PUT(
 
     if (!response.ok) {
       console.error(`❌ Backend response not ok: ${response.status} ${response.statusText}`);
+      console.error(`❌ Request was: PUT ${backendUrl}`);
+      console.error(`❌ Request body:`, JSON.stringify(updateData, null, 2));
       
       if (response.status === 401) {
         console.error('🔑 Authentication failed - token may be expired');
