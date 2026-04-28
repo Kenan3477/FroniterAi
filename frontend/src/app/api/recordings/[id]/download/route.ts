@@ -7,9 +7,11 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_U
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const params = await context.params;
     const recordingId = params.id;
     console.log('💾 Downloading recording:', recordingId);
 
