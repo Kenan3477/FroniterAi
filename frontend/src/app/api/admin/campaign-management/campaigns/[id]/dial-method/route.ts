@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
@@ -8,6 +9,16 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
+    const cookieStore = cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+
+    if (!sessionToken) {
+      console.error('❌ No session token found');
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - No session token' },
+        { status: 401 }
+      );
+    }
     
     console.log(`📞 Frontend: Attempting dial method update for campaign ${params.id} to ${body.dialMethod}`);
     
@@ -16,6 +27,7 @@ export async function PATCH(
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
       },
       body: JSON.stringify(body),
     });
@@ -26,7 +38,11 @@ export async function PATCH(
       
       try {
         // Fetch all campaigns to find the one with matching UUID
-        const campaignsResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`);
+        const campaignsResponse = await fetch(`${BACKEND_URL}/api/admin/campaign-management/campaigns`, {
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`,
+          },
+        });
         
         if (campaignsResponse.ok) {
           const campaignsData = await campaignsResponse.json();
@@ -44,6 +60,7 @@ export async function PATCH(
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${sessionToken}`,
                 },
                 body: JSON.stringify(body),
               });
