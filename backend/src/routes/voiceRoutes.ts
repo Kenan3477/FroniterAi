@@ -154,22 +154,22 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       timezone: number.timezone,
       assignedFlowId: number.assignedFlowId,
       assignedFlow: number.assignedFlow,
-      // Add default configuration fields (until we add them to the schema)
-      businessHours: "24 Hours",
-      outOfHoursAction: "Hangup", 
-      routeTo: "Hangup",
-      outOfHoursTransferNumber: null,
-      selectedFlowId: null,
-      selectedQueueId: null,
-      selectedRingGroupId: null,
-      selectedExtension: null,
-      autoRejectAnonymous: true,
-      createContactOnAnonymous: true,
-      integration: "None",
-      countryCode: "United Kingdom Of Great Britain And Northern Ireland (The) (GB)",
-      recordCalls: true,
-      lookupSearchFilter: "All Lists",
-      assignedToDefaultList: true,
+      // ✅ CRITICAL: Return persisted configuration from database
+      businessHours: number.businessHours || "24 Hours",
+      outOfHoursAction: number.outOfHoursAction || "Hangup", 
+      routeTo: number.routeTo || "Hangup",
+      outOfHoursTransferNumber: number.outOfHoursTransferNumber || null,
+      selectedFlowId: number.selectedFlowId || null,
+      selectedQueueId: number.selectedQueueId || null,
+      selectedRingGroupId: number.selectedRingGroupId || null,
+      selectedExtension: number.selectedExtension || null,
+      autoRejectAnonymous: number.autoRejectAnonymous !== undefined ? number.autoRejectAnonymous : true,
+      createContactOnAnonymous: number.createContactOnAnonymous !== undefined ? number.createContactOnAnonymous : true,
+      integration: number.integration || "None",
+      countryCode: number.countryCode || "United Kingdom Of Great Britain And Northern Ireland (The) (GB)",
+      recordCalls: number.recordCalls !== undefined ? number.recordCalls : true,
+      lookupSearchFilter: number.lookupSearchFilter || "All Lists",
+      assignedToDefaultList: number.assignedToDefaultList !== undefined ? number.assignedToDefaultList : true,
       createdAt: number.createdAt,
       updatedAt: number.updatedAt
     }));
@@ -360,6 +360,22 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       timezone,
       isActive,
       assignedFlowId: finalFlowId || null,
+      // ✅ CRITICAL: Save all configuration fields to database for persistence
+      businessHours: businessHours !== undefined ? businessHours : existingNumber.businessHours,
+      outOfHoursAction: outOfHoursAction !== undefined ? outOfHoursAction : existingNumber.outOfHoursAction,
+      routeTo: routeTo !== undefined ? routeTo : existingNumber.routeTo,
+      outOfHoursTransferNumber: outOfHoursTransferNumber !== undefined ? outOfHoursTransferNumber : existingNumber.outOfHoursTransferNumber,
+      selectedFlowId: selectedFlowId !== undefined ? selectedFlowId : existingNumber.selectedFlowId,
+      selectedQueueId: selectedQueueId !== undefined ? selectedQueueId : existingNumber.selectedQueueId,
+      selectedRingGroupId: selectedRingGroupId !== undefined ? selectedRingGroupId : existingNumber.selectedRingGroupId,
+      selectedExtension: selectedExtension !== undefined ? selectedExtension : existingNumber.selectedExtension,
+      autoRejectAnonymous: autoRejectAnonymous !== undefined ? autoRejectAnonymous : existingNumber.autoRejectAnonymous,
+      createContactOnAnonymous: createContactOnAnonymous !== undefined ? createContactOnAnonymous : existingNumber.createContactOnAnonymous,
+      integration: integration !== undefined ? integration : existingNumber.integration,
+      countryCode: countryCode !== undefined ? countryCode : existingNumber.countryCode,
+      recordCalls: recordCalls !== undefined ? recordCalls : existingNumber.recordCalls,
+      lookupSearchFilter: lookupSearchFilter !== undefined ? lookupSearchFilter : existingNumber.lookupSearchFilter,
+      assignedToDefaultList: assignedToDefaultList !== undefined ? assignedToDefaultList : existingNumber.assignedToDefaultList,
       updatedAt: new Date()
     };
 
@@ -382,7 +398,8 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
 
     console.log('✅ Database updated successfully');
 
-    // Transform response with extended configuration
+    // ✅ CRITICAL: Return the SAVED values from database, not the request body
+    // This ensures frontend sees what's actually persisted
     const transformedNumber = {
       id: updatedNumber.id,
       phoneNumber: updatedNumber.phoneNumber,
@@ -405,25 +422,34 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       timezone: updatedNumber.timezone,
       assignedFlowId: updatedNumber.assignedFlowId,
       assignedFlow: updatedNumber.assignedFlow,
-      // Return the configuration fields that were sent in the request
-      businessHours: businessHours,
-      outOfHoursAction: outOfHoursAction,
-      routeTo: routeTo,
-      outOfHoursTransferNumber: outOfHoursTransferNumber,
-      selectedFlowId: selectedFlowId,
-      selectedQueueId: selectedQueueId,
-      selectedRingGroupId: selectedRingGroupId,
-      selectedExtension: selectedExtension,
-      autoRejectAnonymous: autoRejectAnonymous,
-      createContactOnAnonymous: createContactOnAnonymous,
-      integration: integration,
-      countryCode: countryCode,
-      recordCalls: recordCalls,
-      lookupSearchFilter: lookupSearchFilter,
-      assignedToDefaultList: assignedToDefaultList,
+      // Return the PERSISTED configuration from database
+      businessHours: updatedNumber.businessHours,
+      outOfHoursAction: updatedNumber.outOfHoursAction,
+      routeTo: updatedNumber.routeTo,
+      outOfHoursTransferNumber: updatedNumber.outOfHoursTransferNumber,
+      selectedFlowId: updatedNumber.selectedFlowId,
+      selectedQueueId: updatedNumber.selectedQueueId,
+      selectedRingGroupId: updatedNumber.selectedRingGroupId,
+      selectedExtension: updatedNumber.selectedExtension,
+      autoRejectAnonymous: updatedNumber.autoRejectAnonymous,
+      createContactOnAnonymous: updatedNumber.createContactOnAnonymous,
+      integration: updatedNumber.integration,
+      countryCode: updatedNumber.countryCode,
+      recordCalls: updatedNumber.recordCalls,
+      lookupSearchFilter: updatedNumber.lookupSearchFilter,
+      assignedToDefaultList: updatedNumber.assignedToDefaultList,
       createdAt: updatedNumber.createdAt,
       updatedAt: updatedNumber.updatedAt
     };
+
+    console.log('📤 Returning updated inbound number:', {
+      id: transformedNumber.id,
+      phoneNumber: transformedNumber.phoneNumber,
+      outOfHoursAction: transformedNumber.outOfHoursAction,
+      routeTo: transformedNumber.routeTo,
+      voicemailAudioUrl: transformedNumber.voicemailAudioUrl,
+      outOfHoursAudioUrl: transformedNumber.outOfHoursAudioUrl
+    });
 
     res.json({
       success: true,

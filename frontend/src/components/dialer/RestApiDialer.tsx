@@ -592,12 +592,22 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       if (result.success) {
         console.log('✅ Call disposition saved successfully');
         
-        // ✅ Call was already ended in disconnect handler
-        // Just clear UI state and refresh data
+        // ✅ CRITICAL: Clear ALL call-related state after disposition submission
+        // This ensures no lingering state blocks future calls
         
-        // Clear local state
+        // Clear disposition modal state
         setShowDispositionModal(false);
         setPendingCallEnd(null);
+        
+        // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
+        setActiveRestApiCall(null);
+        setCurrentCall(null);
+        setCallStatus('idle');
+        
+        // Clear Redux state
+        dispatch(endCall());
+        
+        console.log('🧹 All call state cleared after disposition submission');
         
         // Refresh work page data
         if (onCallCompleted) {

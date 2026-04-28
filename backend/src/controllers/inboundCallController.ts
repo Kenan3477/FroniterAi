@@ -255,28 +255,38 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // Check for assigned flow first
-    const assignedFlow = await checkForAssignedFlow(To);
+    // ✅ CRITICAL: Route based on inbound number configuration
     let twiml: string;
     
-    if (assignedFlow) {
-      console.log(`🌊 Flow assigned to inbound number ${To}: ${assignedFlow.name}`);
-      twiml = await executeAssignedFlow(assignedFlow.id, inboundCall, inboundCallId);
-      console.log('✅ Inbound call routed through assigned flow');
-    } else {
-      // Fallback to original agent/queue routing
-      const availableAgents = callerInfo.routing.availableAgents;
+    console.log('🔀 Routing decision:', {
+      routeTo: inboundNumber.routeTo,
+      selectedQueueId: inboundNumber.selectedQueueId,
+      selectedFlowId: inboundNumber.selectedFlowId,
+      assignedFlowId: inboundNumber.assignedFlowId
+    });
+
+    // Priority 1: Check routeTo setting
+    if (inboundNumber.routeTo === 'Queue' && inboundNumber.selectedQueueId) {
+      console.log(`📋 Routing to queue: ${inboundNumber.selectedQueueId}`);
+      twiml = generateQueueTwiML(inboundNumber);
+    } 
+    // Priority 2: Check for assigned/selected flow
+    else if (inboundNumber.routeTo === 'Flow' || inboundNumber.assignedFlowId || inboundNumber.selectedFlowId) {
+      const flowId = inboundNumber.selectedFlowId || inboundNumber.assignedFlowId;
+      const assignedFlow = await checkForAssignedFlow(To);
       
-      // Route based on agent availability
-      if (availableAgents.length > 0) {
-        // Agents available - generate TwiML to ring them directly with greeting audio if available
-        twiml = generateDirectAgentRingTwiML(availableAgents, inboundCallId, inboundNumber);
-        console.log('✅ Inbound call routed to available agents:', availableAgents.length);
+      if (assignedFlow || flowId) {
+        console.log(`🌊 Routing to flow: ${assignedFlow?.name || flowId}`);
+        twiml = await executeAssignedFlow(flowId || assignedFlow.id, inboundCall, inboundCallId);
       } else {
-        // No agents available - send to queue/flow
-        twiml = generateQueueTwiML(inboundNumber);
-        console.log('✅ Inbound call sent to queue (no available agents)');
+        console.log('⚠️ Flow routing configured but no flow found - falling back to agent routing');
+        twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
       }
+    }
+    // Priority 3: Route to available agents (default behavior)
+    else {
+      console.log('📞 Routing to available agents (default)');
+      twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
     }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
@@ -326,6 +336,24 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
   console.log('✅ Conference TwiML generated for customer');
   return twiml;
 };
+
+/**
+ * Helper function to route calls to available agents
+ */
+function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string, inboundNumber: any): string {
+  const availableAgents = callerInfo.routing.availableAgents;
+  
+  // Route based on agent availability
+  if (availableAgents.length > 0) {
+    // Agents available - generate TwiML to ring them directly with greeting audio if available
+    console.log('✅ Routing to available agents:', availableAgents.length);
+    return generateDirectAgentRingTwiML(availableAgents, callId, inboundNumber);
+  } else {
+    // No agents available - send to queue
+    console.log('✅ No agents available - routing to queue');
+    return generateQueueTwiML(inboundNumber);
+  }
+}
 
 /**
  * Generate TwiML to ring agents directly for immediate pickup
