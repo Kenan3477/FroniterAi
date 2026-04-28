@@ -50,20 +50,24 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `${callSid}_${timestamp}.mp3`;
     
-    // 🔥 FIX: Store Twilio Recording SID instead of local file path
-    // Railway has ephemeral storage - files are lost on redeploy
-    // Download endpoint already supports Twilio SIDs for streaming
-    const filePath = recordingSid; // Store "RExxxxx" - download endpoint will stream from Twilio
-    
-    console.log(`💾 Recording SID: ${recordingSid} (will stream from Twilio on download)`);
-    
-    // File size will be determined when streaming from Twilio
+    // Store the Twilio Recording SID (the file is hosted on Twilio, not local disk).
+    // The /api/recordings/:id/stream endpoint extracts this SID from `filePath` and
+    // proxies the audio from Twilio's REST API with the account's Basic auth.
+    //
+    // ⚠️ IMPORTANT: storageType MUST be 'twilio' here. With 'local', the streaming
+    // route falls through to a 501 "Local file streaming not implemented" branch
+    // (Railway has ephemeral storage; nothing is actually written to disk), and the
+    // browser <audio> element reports MEDIA_ERR_SRC_NOT_SUPPORTED, surfacing in the
+    // UI as "Recording file not found or format not supported".
+    const filePath = recordingSid;
+
+    console.log(`💾 Recording SID: ${recordingSid} (will stream from Twilio on playback)`);
+
     const fileSizeBytes = null;
-    
-    console.log(`💾 Recording saved: ${fileName} (${fileSizeBytes} bytes)`);
-    
-    // 🆕 UPSERT: Create or update recording record to prevent duplicate constraint errors
-    // This handles race conditions where multiple processes try to create same recording
+
+    console.log(`💾 Recording saved: ${fileName}`);
+
+    // UPSERT: handle races where multiple processes try to create the same recording.
     const recordingRecord = await prisma.recording.upsert({
       where: { callRecordId: callRecordId },
       update: {
@@ -73,7 +77,7 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
         duration: recording.duration ? parseInt(recording.duration.toString()) : null,
         format: 'mp3',
         quality: 'standard',
-        storageType: 'local',
+        storageType: 'twilio',
         uploadStatus: 'completed',
         updatedAt: new Date()
       },
@@ -85,7 +89,7 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
         duration: recording.duration ? parseInt(recording.duration.toString()) : null,
         format: 'mp3',
         quality: 'standard',
-        storageType: 'local',
+        storageType: 'twilio',
         uploadStatus: 'completed',
       }
     });

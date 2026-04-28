@@ -1,24 +1,14 @@
 /**
  * Recording Streaming Routes
- * Handles audio playback         // Extract recording SID from fileName or filePath
-        let recordingSid = '';
-        
-        // First try from fileName (e.g., "CA123abc_timestamp.mp3" or "RE123abc.wav")
-        if (recording.fileName.includes('_')) {
-          recordingSid = recording.fileName.split('_')[0]?.replace('.wav', '').replace('.mp3', '');
-        } else {
-          recordingSid = recording.fileName.replace('.wav', '').replace('.mp3', '');
-        }
-        
-        // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
-        if (!recordingSid && recording.filePath) {
-          const pathParts = recording.filePath.split('/');
-          recordingSid = pathParts[pathParts.length - 1];
-        }
-
-        if (!recordingSid || (!recordingSid.startsWith('RE') && !recordingSid.startsWith('CA'))) {
-          throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
-        }dings
+ *
+ * Handles audio playback for call recordings. The recording binary always lives
+ * on Twilio's CDN (Railway has ephemeral storage); we proxy from Twilio with the
+ * account's Basic auth so the browser never sees Twilio credentials.
+ *
+ * The `Recording` row's `storageType` field may be 'twilio' (correct for newly
+ * recorded calls) or legacy 'local' (older code wrote this even though no file
+ * exists on disk). We detect Twilio-hosted rows by also checking whether
+ * `filePath` / `fileName` looks like a Twilio SID (`RE...` or `CA...`).
  */
 
 import express, { Request, Response } from 'express';
@@ -27,6 +17,50 @@ import { prisma } from '../database/index';
 import twilio from 'twilio';
 
 const router = express.Router();
+
+/**
+ * Extract a Twilio SID (RE... for a Recording, CA... for a Call) from the
+ * `filePath` and/or `fileName` columns of our `Recording` row.
+ *
+ * Historically these have been written in different formats by different code
+ * paths:
+ *   - filePath = "RExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"   (preferred — just the SID)
+ *   - filePath = "https://api.twilio.com/.../Recordings/RExxxxx.mp3"
+ *   - filePath = "/2010-04-01/Accounts/AC.../Recordings/RExxxxx"
+ *   - fileName = "CAxxxxx_2026-04-28T19-21-42-432Z.mp3"
+ *   - fileName = "REyyy.wav"
+ * Returns the SID if found, otherwise null.
+ */
+function extractTwilioSid(filePath: string | null, fileName: string | null): string | null {
+  const candidates: string[] = [];
+
+  if (filePath) {
+    // Match against any RE/CA SID inside a URL or path.
+    const m = filePath.match(/\b(RE[a-f0-9]{32}|CA[a-f0-9]{32})\b/i);
+    if (m) candidates.push(m[1]);
+
+    // If filePath is just the SID itself.
+    if (/^(RE|CA)[a-f0-9]{32}$/i.test(filePath)) candidates.push(filePath);
+  }
+
+  if (fileName) {
+    // fileName like "CAxxx_timestamp.mp3" → take everything before the first '_'.
+    const beforeUnderscore = fileName.split('_')[0]?.replace(/\.(mp3|wav)$/i, '');
+    if (beforeUnderscore && /^(RE|CA)[a-f0-9]{32}$/i.test(beforeUnderscore)) {
+      candidates.push(beforeUnderscore);
+    }
+    // fileName like "RExxx.wav".
+    const stripped = fileName.replace(/\.(mp3|wav)$/i, '');
+    if (/^(RE|CA)[a-f0-9]{32}$/i.test(stripped)) candidates.push(stripped);
+  }
+
+  // Prefer Recording SIDs (RE) over Call SIDs (CA) when both are available, since
+  // RE SIDs go directly to the audio file (no extra REST round-trip).
+  const re = candidates.find(c => /^RE/i.test(c));
+  if (re) return re;
+  const ca = candidates.find(c => /^CA/i.test(c));
+  return ca || null;
+}
 
 /**
  * GET /api/recordings/test
@@ -63,126 +97,110 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
       });
     }
 
-    console.log(`✅ Recording found: ${recording.fileName}`);
+    console.log(`✅ Recording found: ${recording.fileName} (storageType=${recording.storageType})`);
     console.log(`📁 File path: ${recording.filePath}`);
 
-    // If the recording is stored in Twilio, stream from there
-    if (recording.storageType === 'twilio') {
-      try {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        
-        if (!accountSid || !authToken) {
-          throw new Error('Twilio credentials not configured');
-        }
+    // Try to extract a Twilio SID from filePath / fileName. In our schema:
+    //   - filePath holds either a full Twilio URL or just the SID (e.g. "REe1fb...")
+    //   - fileName looks like "<CallSid>_<timestamp>.mp3" or "RE...wav"
+    const recordingSid = extractTwilioSid(recording.filePath, recording.fileName);
 
-        // Extract recording SID from filename or filePath
-        let recordingSid = '';
-        
-        console.log(`🔍 DEBUG: Processing filename: "${recording.fileName}"`);
-        
-        // First try from fileName (e.g., "CA123abc_timestamp.mp3" or "RE123abc.wav")
-        if (recording.fileName.includes('_')) {
-          recordingSid = recording.fileName.split('_')[0]?.replace('.wav', '').replace('.mp3', '');
-          console.log(`🔍 DEBUG: Extracted from filename (before _): "${recordingSid}"`);
-        } else {
-          recordingSid = recording.fileName.replace('.wav', '').replace('.mp3', '');
-          console.log(`🔍 DEBUG: Extracted from full filename: "${recordingSid}"`);
-        }
-        
-        // If not found, extract from filePath (e.g., "/2010-04-01/Accounts/.../Recordings/RE123abc")
-        if (!recordingSid && recording.filePath) {
-          const pathParts = recording.filePath.split('/');
-          recordingSid = pathParts[pathParts.length - 1];
-          console.log(`🔍 DEBUG: Extracted from filePath: "${recordingSid}"`);
-        }
+    // We can stream from Twilio whenever:
+    //   (a) storageType is 'twilio', or
+    //   (b) we successfully extracted an RE/CA SID — older code paths set
+    //       storageType='local' even though the file lives on Twilio.
+    const isTwilioHosted = recording.storageType === 'twilio' || !!recordingSid;
 
-        console.log(`🔍 DEBUG: Final SID: "${recordingSid}", starts with CA: ${recordingSid.startsWith('CA')}, starts with RE: ${recordingSid.startsWith('RE')}`);
-
-        if (!recordingSid || (!recordingSid.startsWith('RE') && !recordingSid.startsWith('CA'))) {
-          throw new Error(`Could not extract valid recording SID. fileName: ${recording.fileName}, filePath: ${recording.filePath}`);
-        }
-
-        console.log(`🔍 Extracted recording SID: ${recordingSid}`);
-
-        let mediaUrl;
-        if (recordingSid.startsWith('CA')) {
-          // For call SIDs, we need to get the recording via the call's recordings
-          const recordingsListUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${recordingSid}/Recordings.json`;
-          
-          console.log(`📡 Fetching call recordings list from: ${recordingsListUrl}`);
-          
-          // First get the list of recordings for this call
-          const fetch = (await import('node-fetch')).default;
-          const recordingsListResponse = await fetch(recordingsListUrl, {
-            headers: {
-              'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
-            }
-          });
-
-          if (!recordingsListResponse.ok) {
-            console.error(`❌ Twilio Calls API error: ${recordingsListResponse.status} ${recordingsListResponse.statusText}`);
-            throw new Error(`Twilio Calls API error: ${recordingsListResponse.status} ${recordingsListResponse.statusText}`);
-          }
-
-          const recordingsList = await recordingsListResponse.json();
-          if (!recordingsList.recordings || recordingsList.recordings.length === 0) {
-            throw new Error('No recordings found for this call');
-          }
-
-          // Use the first recording found
-          const recordingResource = recordingsList.recordings[0];
-          const actualRecordingSid = recordingResource.sid;
-          mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${actualRecordingSid}.wav`;
-          
-          console.log(`📡 Found recording SID ${actualRecordingSid}, fetching audio from: ${mediaUrl}`);
-        } else {
-          // For recording SIDs (RE), use direct access
-          mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.wav`;
-          console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
-        }
-        
-        console.log(`📡 Fetching audio from Twilio: ${mediaUrl}`);
-
-        // Fetch the audio file from Twilio
-        const fetch = (await import('node-fetch')).default;
-        const twilioResponse = await fetch(mediaUrl, {
-          headers: {
-            'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
-          }
-        });
-
-        if (!twilioResponse.ok) {
-          console.error(`❌ Twilio API error: ${twilioResponse.status} ${twilioResponse.statusText}`);
-          throw new Error(`Twilio API error: ${twilioResponse.status} ${twilioResponse.statusText}`);
-        }
-
-        // Set proper headers for audio streaming
-        res.set({
-          'Content-Type': 'audio/wav',
-          'Content-Disposition': `inline; filename="${recording.fileName}"`,
-          'Cache-Control': 'public, max-age=3600',
-          'Access-Control-Allow-Origin': '*'
-        });
-
-        console.log(`🎵 Streaming audio for recording: ${recording.fileName}`);
-
-        // Stream the audio data
-        twilioResponse.body.pipe(res);
-
-      } catch (twilioError) {
-        console.error('❌ Twilio streaming error:', twilioError);
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to stream recording from Twilio',
-          details: twilioError instanceof Error ? twilioError.message : String(twilioError)
-        });
-      }
-    } else {
-      // Handle local file streaming (if we ever store files locally)
+    if (!isTwilioHosted) {
+      console.warn(`⚠️ Recording ${id} is not Twilio-hosted and no local-file streaming is implemented`);
       return res.status(501).json({
         success: false,
-        error: 'Local file streaming not implemented'
+        error: 'Recording storage not supported',
+        details: `storageType=${recording.storageType}, filePath=${recording.filePath}`,
+      });
+    }
+
+    if (!recordingSid) {
+      console.error(`❌ Could not extract Twilio SID from recording ${id}`, {
+        fileName: recording.fileName,
+        filePath: recording.filePath,
+      });
+      return res.status(500).json({
+        success: false,
+        error: 'Could not extract Twilio recording SID',
+        details: `fileName=${recording.fileName}, filePath=${recording.filePath}`,
+      });
+    }
+
+    try {
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      if (!accountSid || !authToken) {
+        throw new Error('Twilio credentials not configured');
+      }
+
+      const auth = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
+      const fetch = (await import('node-fetch')).default;
+
+      let mediaUrl: string;
+
+      if (recordingSid.startsWith('CA')) {
+        // Call SID → look up recordings for that call, then stream the first one.
+        const recordingsListUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${recordingSid}/Recordings.json`;
+        console.log(`📡 Fetching call recordings list: ${recordingsListUrl}`);
+
+        const listResponse = await fetch(recordingsListUrl, { headers: { Authorization: auth } });
+        if (!listResponse.ok) {
+          throw new Error(`Twilio Calls API error: ${listResponse.status} ${listResponse.statusText}`);
+        }
+
+        const recordingsList: any = await listResponse.json();
+        if (!recordingsList?.recordings?.length) {
+          return res.status(404).json({
+            success: false,
+            error: 'No Twilio recordings found for this call',
+            callSid: recordingSid,
+          });
+        }
+
+        const actualRecordingSid = recordingsList.recordings[0].sid;
+        mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${actualRecordingSid}.mp3`;
+        console.log(`📡 Resolved Call SID ${recordingSid} → Recording SID ${actualRecordingSid}`);
+      } else {
+        // Recording SID (RE...) → direct access. Use .mp3 (smaller, also what we stored).
+        mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.mp3`;
+      }
+
+      console.log(`📡 Streaming from Twilio: ${mediaUrl}`);
+      const twilioResponse = await fetch(mediaUrl, { headers: { Authorization: auth } });
+
+      if (!twilioResponse.ok) {
+        // Recording probably hasn't finished uploading yet on Twilio's side.
+        console.error(`❌ Twilio media error: ${twilioResponse.status} ${twilioResponse.statusText}`);
+        return res.status(twilioResponse.status === 404 ? 404 : 502).json({
+          success: false,
+          error: 'Recording not yet available on Twilio',
+          details: `${twilioResponse.status} ${twilioResponse.statusText}`,
+          recordingSid,
+        });
+      }
+
+      const contentType = twilioResponse.headers.get('content-type') || 'audio/mpeg';
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${recording.fileName}"`,
+        'Cache-Control': 'public, max-age=3600',
+        'Accept-Ranges': 'bytes',
+      });
+
+      console.log(`🎵 Streaming audio: ${recording.fileName} (${contentType})`);
+      twilioResponse.body.pipe(res);
+    } catch (twilioError: any) {
+      console.error('❌ Twilio streaming error:', twilioError);
+      return res.status(502).json({
+        success: false,
+        error: 'Failed to stream recording from Twilio',
+        details: twilioError?.message || String(twilioError),
       });
     }
 
