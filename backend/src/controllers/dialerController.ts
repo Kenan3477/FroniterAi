@@ -50,7 +50,7 @@ async function checkForActiveCall(agentId: string): Promise<{ callId: string; ph
  */
 async function checkForActiveCallByUserId(userId: number): Promise<{ callId: string; phoneNumber: string; startTime: Date } | null> {
   try {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000); // Reduced from 2 hours to 10 minutes
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // Look back 2 hours for safety
     
     const activeCall = await prisma.callRecord.findFirst({
       where: {
@@ -58,39 +58,44 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
           contains: `[USER:${userId}|`
         },
         outcome: 'in-progress',
-        createdAt: { gte: tenMinutesAgo } // Only consider recent calls
+        createdAt: { gte: twoHoursAgo }
       },
       select: {
         callId: true,
         phoneNumber: true,
         startTime: true,
-        createdAt: true
+        createdAt: true,
+        dispositionId: true,
+        endTime: true
       },
       orderBy: {
         startTime: 'desc'
       }
     });
 
-    // 🚨 AUTO-CLEANUP: If call is older than 5 minutes, auto-end it (it's stuck)
+    // 🚨 AUTO-CLEANUP: If call has been dispositioned OR has endTime, it's actually complete
     if (activeCall) {
-      const callAge = Date.now() - new Date(activeCall.createdAt).getTime();
-      const fiveMinutes = 5 * 60 * 1000;
+      const hasDisposition = activeCall.dispositionId !== null;
+      const hasEndTime = activeCall.endTime !== null;
       
-      if (callAge > fiveMinutes) {
-        console.log(`🧹 AUTO-CLEANUP: Ending stuck call ${activeCall.callId} (age: ${Math.floor(callAge / 1000)}s)`);
+      if (hasDisposition || hasEndTime) {
+        const callAge = Date.now() - new Date(activeCall.createdAt).getTime();
+        console.log(`🧹 AUTO-CLEANUP: Closing dispositioned/ended call ${activeCall.callId} (disposition: ${hasDisposition}, endTime: ${hasEndTime})`);
         
-        // Auto-end the stuck call
+        // Auto-close the call that was already dispositioned but stuck in 'in-progress'
         await prisma.callRecord.update({
           where: { callId: activeCall.callId },
           data: {
-            outcome: 'no-answer',
-            endTime: new Date(),
-            duration: Math.floor(callAge / 1000),
-            notes: (await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } }))?.notes + ' [AUTO-CLEANUP: Stuck call auto-ended]'
+            outcome: 'completed',
+            endTime: activeCall.endTime || new Date(),
+            duration: activeCall.endTime 
+              ? Math.floor((new Date(activeCall.endTime).getTime() - new Date(activeCall.startTime).getTime()) / 1000)
+              : Math.floor(callAge / 1000),
+            notes: (await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } }))?.notes + ' [AUTO-CLEANUP: Dispositioned call marked complete]'
           }
         });
         
-        console.log(`✅ Stuck call cleaned up - user can now make new calls`);
+        console.log(`✅ Dispositioned call cleaned up - user can now make new calls`);
         return null; // Return null so new call can proceed
       }
     }
@@ -1247,19 +1252,17 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       console.log(`   Active call to: ${activeCall.phoneNumber}`);
       console.log(`   Call duration: ${callDuration}s`);
       console.log(`   Call ID: ${activeCall.callId}`);
-      console.log(`   💡 Note: Call will auto-cleanup after 5 minutes`);
       
       return res.status(409).json({
         success: false,
         error: 'Agent already has an active call',
-        message: `Please end your current call before starting a new one. (Call will auto-cleanup in ${Math.max(0, 300 - callDuration)}s)`,
+        message: 'Please end your current call and select a disposition before starting a new one.',
         activeCall: {
           phoneNumber: activeCall.phoneNumber,
           callId: activeCall.callId,
-          duration: callDuration,
-          autoCleanupIn: Math.max(0, 300 - callDuration) // 5 minutes = 300 seconds
+          duration: callDuration
         },
-        hint: 'If this is a stuck call, try again in a few seconds - it will auto-cleanup after 5 minutes'
+        hint: 'Make sure to disposition your call after hanging up. The system will auto-cleanup stuck calls that have been dispositioned.'
       });
     }
     
@@ -1401,10 +1404,32 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     console.log(`✅ Preliminary call record created: ${preliminaryCallRecord.callId}`);
 
-    const callResult = await twilioClient.calls.create(callParams);
+    console.log('📞 === TWILIO CALL CREATION DEBUG ===');
+    console.log('📞 Call Parameters:', JSON.stringify(callParams, null, 2));
+    console.log('📞 Twilio Account SID:', process.env.TWILIO_ACCOUNT_SID ? `${process.env.TWILIO_ACCOUNT_SID.substring(0, 10)}...` : 'MISSING');
+    console.log('📞 Twilio Auth Token:', process.env.TWILIO_AUTH_TOKEN ? 'SET' : 'MISSING');
+    console.log('📞 Backend URL:', process.env.BACKEND_URL || 'MISSING');
+    console.log('📞 === CREATING TWILIO CALL NOW ===');
+
+    let callResult;
+    try {
+      callResult = await twilioClient.calls.create(callParams);
+    } catch (twilioError: any) {
+      console.error('❌ TWILIO CALL CREATION FAILED:', {
+        code: twilioError.code,
+        message: twilioError.message,
+        status: twilioError.status,
+        moreInfo: twilioError.moreInfo,
+        details: twilioError.details
+      });
+      throw twilioError; // Re-throw to be caught by outer catch
+    }
 
     console.log('⚡ FAST DIAL SUCCESS: Customer call initiated in', Date.now() - parseInt(conferenceId.split('-')[1]), 'ms');
     console.log('✅ Twilio Call SID:', callResult.sid);
+    console.log('✅ Call Status:', callResult.status);
+    console.log('✅ Call To:', callResult.to);
+    console.log('✅ Call From:', callResult.from);
     
     // 🎙️ MANDATORY RECORDING VERIFICATION - Confirm Twilio accepted recording parameters
     if (!callResult.sid) {

@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 /**
  * Find and Clean Stuck "In-Progress" Call Records
- * This script identifies calls that are marked as 'in-progress' but are actually completed
+ * This script identifies calls that are marked as 'in-progress' but have been dispositioned or ended
+ * 
+ * A call is "stuck" if:
+ * - outcome = 'in-progress' BUT
+ * - dispositionId is set (call was dispositioned) OR
+ * - endTime is set (call was ended)
  */
 
 const { PrismaClient } = require('@prisma/client');
@@ -24,7 +29,7 @@ async function findStuckCalls() {
   console.log(`📊 Found ${inProgressCalls.length} calls marked as 'in-progress'\n`);
 
   if (inProgressCalls.length === 0) {
-    console.log('✅ No stuck calls found!');
+    console.log('✅ No in-progress calls found!');
     return;
   }
 
@@ -36,49 +41,56 @@ async function findStuckCalls() {
     const ageMinutes = Math.floor((now - startTime) / 1000 / 60);
     const ageHours = Math.floor(ageMinutes / 60);
     
-    // Calls older than 10 minutes are likely stuck
-    const isStuck = ageMinutes > 10;
+    // A call is stuck if it has a disposition OR endTime but is still marked in-progress
+    const hasDisposition = call.dispositionId !== null;
+    const hasEndTime = call.endTime !== null;
+    const isStuck = hasDisposition || hasEndTime;
     
-    console.log(`${isStuck ? '❌' : '✅'} Call ID: ${call.callId}`);
+    console.log(`${isStuck ? '❌ STUCK' : '✅ ACTIVE'} Call ID: ${call.callId}`);
     console.log(`   Phone: ${call.phoneNumber}`);
     console.log(`   Agent: ${call.agentId || 'null'}`);
     console.log(`   Started: ${startTime.toISOString()}`);
     console.log(`   Age: ${ageHours}h ${ageMinutes % 60}m`);
+    console.log(`   Disposition: ${hasDisposition ? 'SET ✓' : 'not set'}`);
+    console.log(`   End Time: ${hasEndTime ? 'SET ✓' : 'not set'}`);
     console.log(`   Notes: ${call.notes?.substring(0, 100) || 'none'}`);
     console.log('');
 
     if (isStuck) {
       stuckCalls.push({
         ...call,
-        ageMinutes
+        ageMinutes,
+        reason: hasDisposition ? 'dispositioned' : 'endTime set'
       });
     }
   }
 
   if (stuckCalls.length > 0) {
     console.log(`\n🚨 Found ${stuckCalls.length} STUCK calls that need cleanup!\n`);
+    console.log('These calls have been dispositioned or ended but are still marked as in-progress.');
     console.log('To clean these up, run: node clean-stuck-calls.js\n');
   } else {
-    console.log('✅ All in-progress calls are recent (< 10 minutes old)');
+    console.log('✅ All in-progress calls are legitimate active calls');
   }
 
   return stuckCalls;
 }
 
 async function cleanStuckCalls(dryRun = true) {
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(dryRun ? '🔍 DRY RUN - No changes will be made' : '🚨 CLEANING STUCK CALLS');
   console.log(`${'='.repeat(60)}\n`);
 
-  // Find all stuck calls (in-progress for more than 10 minutes)
+  // Find all stuck calls (in-progress but have disposition or endTime)
   const stuckCalls = await prisma.callRecord.findMany({
     where: {
       outcome: 'in-progress',
-      startTime: {
-        lt: tenMinutesAgo
-      }
+      OR: [
+        { dispositionId: { not: null } }, // Has disposition but still in-progress
+        { endTime: { not: null } }        // Has endTime but still in-progress
+      ]
     }
   });
 
@@ -93,19 +105,22 @@ async function cleanStuckCalls(dryRun = true) {
 
   for (const call of stuckCalls) {
     const startTime = new Date(call.startTime);
+    const endTime = call.endTime || new Date();
     const ageMinutes = Math.floor((Date.now() - startTime.getTime()) / 1000 / 60);
+    const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+    const reason = call.dispositionId ? 'has disposition' : 'has endTime';
 
-    console.log(`${dryRun ? '📋' : '🧹'} ${call.callId} - ${call.phoneNumber} (${ageMinutes}m old)`);
+    console.log(`${dryRun ? '📋' : '🧹'} ${call.callId} - ${call.phoneNumber} (${ageMinutes}m old, ${reason})`);
 
     if (!dryRun) {
       try {
         await prisma.callRecord.update({
           where: { callId: call.callId },
           data: {
-            outcome: 'no-answer', // Mark as no-answer since we don't know what happened
-            endTime: new Date(),
-            duration: Math.floor((Date.now() - startTime.getTime()) / 1000),
-            notes: (call.notes || '') + ' [SYSTEM-CLEANUP: Stuck call auto-ended after timeout]'
+            outcome: 'completed',
+            endTime: endTime,
+            duration: duration,
+            notes: (call.notes || '') + ` [SYSTEM-CLEANUP: Dispositioned call marked complete]`
           }
         });
         cleanedCount++;
