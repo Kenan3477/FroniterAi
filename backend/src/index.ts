@@ -85,6 +85,7 @@ import stripeRoutes from './routes/stripe'; // Stripe payment portal integration
 
 // NEW: Audio File Storage Routes
 import audioRoutes from './routes/audioRoutes'; // Audio file upload, storage, and streaming
+import audioFileRoutes from './routes/audioFileRoutes'; // Audio file upload and management for IVR prompts
 
 // Temporarily disabled routes with model conflicts - RE-ENABLING CRITICAL ONES
 // import campaignRoutes from './routes/campaigns';
@@ -311,6 +312,7 @@ class App {
     this.app.use('/api/routing', routingRoutes); // Inbound call routing system
     this.app.use('/api/voice', voiceRoutes); // Voice/telephony configuration for CLI selection
     this.app.use('/api/voice', inboundQueueRoutes); // Inbound queue management system (under /api/voice/inbound-queues)
+    this.app.use('/api/voice', audioFileRoutes); // Audio file upload and management (under /api/voice/audio-files)
     this.app.use('/api/dialer', productionDialerRoutes); // PRODUCTION: Real Twilio SIP dialer with telephony integration
     this.app.use('/api/call-management', callManagementRoutes); // PRODUCTION: Call state machine for finite-state call lifecycle management
     this.app.use('/api/interaction-history', interactionHistoryRoutes); // NEW: Call history for manual and auto-dial with categorization

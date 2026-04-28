@@ -315,6 +315,129 @@ export class AudioFileService {
         return 'unknown';
     }
   }
+
+  /**
+   * Create a new audio file record for uploaded prompts
+   */
+  static async createAudioFile(data: {
+    name: string;
+    filename: string;
+    originalName: string;
+    size: number;
+    format: string;
+    type: 'greeting' | 'hold_music' | 'announcement' | 'ivr_prompt' | 'voicemail' | 'other';
+    description?: string;
+    tags?: string[];
+    duration: number;
+    uploadedBy: string;
+  }) {
+    const audioFile = await prisma.audioFile.create({
+      data: {
+        name: data.name,
+        filename: data.filename,
+        originalName: data.originalName,
+        size: data.size,
+        format: data.format,
+        type: data.type,
+        description: data.description || '',
+        tags: data.tags || [],
+        duration: data.duration,
+        uploadedBy: data.uploadedBy,
+        uploadedAt: new Date()
+      }
+    });
+
+    return audioFile;
+  }
+
+  /**
+   * Get all audio files
+   */
+  static async getAllAudioFiles() {
+    const audioFiles = await prisma.audioFile.findMany({
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+
+    return audioFiles;
+  }
+
+  /**
+   * Get audio file by ID
+   */
+  static async getAudioFileById(id: string) {
+    const audioFile = await prisma.audioFile.findUnique({
+      where: { id }
+    });
+
+    return audioFile;
+  }
+
+  /**
+   * Get audio files by type
+   */
+  static async getAudioFilesByType(type: string) {
+    const audioFiles = await prisma.audioFile.findMany({
+      where: { type },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+
+    return audioFiles;
+  }
+
+  /**
+   * Update audio file metadata
+   */
+  static async updateAudioFile(id: string, data: {
+    name?: string;
+    type?: 'greeting' | 'hold_music' | 'announcement' | 'ivr_prompt' | 'voicemail' | 'other';
+    description?: string;
+    tags?: string[];
+  }) {
+    const audioFile = await prisma.audioFile.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.type && { type: data.type }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.tags && { tags: data.tags })
+      }
+    });
+
+    return audioFile;
+  }
+
+  /**
+   * Delete audio file
+   */
+  static async deleteAudioFile(id: string) {
+    await prisma.audioFile.delete({
+      where: { id }
+    });
+  }
+
+  /**
+   * Search audio files by name or tags
+   */
+  static async searchAudioFiles(query: string) {
+    const audioFiles = await prisma.audioFile.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } },
+          { tags: { has: query } }
+        ]
+      },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+
+    return audioFiles;
+  }
 }
 
 // Export singleton instance

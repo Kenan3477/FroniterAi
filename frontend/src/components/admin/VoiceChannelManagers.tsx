@@ -786,11 +786,430 @@ export const AudioFilesManager: React.FC<{
   config: any;
   onUpdate: (config: any) => void;
 }> = ({ config, onUpdate }) => {
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [audioMetadata, setAudioMetadata] = useState({
+    name: '',
+    type: 'greeting' as AudioFile['type'],
+    description: '',
+    tags: ''
+  });
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch audio files from backend
+  useEffect(() => {
+    fetchAudioFiles();
+  }, []);
+
+  const fetchAudioFiles = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/voice/audio-files', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAudioFiles(data.audioFiles || []);
+      } else {
+        console.error('Failed to fetch audio files');
+        // Fallback to config
+        setAudioFiles(config.audioFiles || []);
+      }
+    } catch (error) {
+      console.error('Error fetching audio files:', error);
+      setAudioFiles(config.audioFiles || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav'];
+      if (!validTypes.includes(file.type)) {
+        alert('Please select a valid audio file (MP3 or WAV)');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+
+      setSelectedFile(file);
+      setAudioMetadata(prev => ({
+        ...prev,
+        name: file.name.replace(/\.[^/.]+$/, '') // Remove extension
+      }));
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a file to upload');
+      return;
+    }
+
+    if (!audioMetadata.name.trim()) {
+      alert('Please enter a file name');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      const formData = new FormData();
+      formData.append('audio', selectedFile);
+      formData.append('name', audioMetadata.name);
+      formData.append('type', audioMetadata.type);
+      formData.append('description', audioMetadata.description);
+      formData.append('tags', audioMetadata.tags);
+
+      const response = await fetch('/api/voice/audio-files/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Audio file uploaded:', data);
+        
+        // Refresh the list
+        await fetchAudioFiles();
+        
+        // Reset form
+        setSelectedFile(null);
+        setAudioMetadata({
+          name: '',
+          type: 'greeting',
+          description: '',
+          tags: ''
+        });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        
+        alert('Audio file uploaded successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDelete = async (fileId: string) => {
+    if (!confirm('Are you sure you want to delete this audio file?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/voice/audio-files/${fileId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        await fetchAudioFiles();
+        alert('Audio file deleted successfully');
+      } else {
+        alert('Failed to delete audio file');
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      alert('Delete failed. Please try again.');
+    }
+  };
+
+  const handlePlayPause = (file: AudioFile) => {
+    if (playingAudioId === file.id) {
+      // Pause
+      audioRef.current?.pause();
+      setPlayingAudioId(null);
+    } else {
+      // Play
+      if (audioRef.current) {
+        audioRef.current.src = `/audio/${file.filename}`;
+        audioRef.current.play();
+        setPlayingAudioId(file.id);
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="p-6">
-      <h2 className="text-lg font-medium text-gray-900 mb-4">Audio Files Manager</h2>
-      <div className="bg-gray-50 p-4 rounded-md">
-        <p className="text-gray-600">Audio files management interface coming soon...</p>
+    <div className="space-y-6">
+      <audio
+        ref={audioRef}
+        onEnded={() => setPlayingAudioId(null)}
+        onError={() => setPlayingAudioId(null)}
+      />
+
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium text-gray-900">Audio Files Manager</h3>
+          <p className="text-sm text-gray-500">
+            Upload and manage audio files for IVR prompts, hold music, voicemail greetings, and announcements
+          </p>
+        </div>
+      </div>
+
+      {/* Upload Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+          <CloudArrowUpIcon className="h-5 w-5 mr-2 text-slate-600" />
+          Upload New Audio File
+        </h4>
+
+        <div className="space-y-4">
+          {/* File Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Audio File (MP3 or WAV, max 10MB)
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/wav"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-medium
+                file:bg-slate-50 file:text-slate-700
+                hover:file:bg-slate-100
+                cursor-pointer"
+              disabled={uploading}
+            />
+            {selectedFile && (
+              <p className="mt-2 text-sm text-gray-600">
+                Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+              </p>
+            )}
+          </div>
+
+          {/* Metadata Form */}
+          {selectedFile && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={audioMetadata.name}
+                    onChange={(e) => setAudioMetadata(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    placeholder="e.g., Welcome Greeting"
+                    disabled={uploading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    File Type *
+                  </label>
+                  <select
+                    value={audioMetadata.type}
+                    onChange={(e) => setAudioMetadata(prev => ({ ...prev, type: e.target.value as AudioFile['type'] }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    disabled={uploading}
+                  >
+                    <option value="greeting">Greeting</option>
+                    <option value="hold_music">Hold Music</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="ivr_prompt">IVR Prompt</option>
+                    <option value="voicemail">Voicemail</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={audioMetadata.description}
+                  onChange={(e) => setAudioMetadata(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  rows={2}
+                  placeholder="Brief description of this audio file..."
+                  disabled={uploading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={audioMetadata.tags}
+                  onChange={(e) => setAudioMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  placeholder="e.g., english, professional, female-voice"
+                  disabled={uploading}
+                />
+              </div>
+
+              {/* Upload Button */}
+              <button
+                onClick={handleUpload}
+                disabled={uploading || !audioMetadata.name.trim()}
+                className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
+              >
+                {uploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading... {uploadProgress > 0 && `${uploadProgress}%`}
+                  </>
+                ) : (
+                  <>
+                    <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+                    Upload Audio File
+                  </>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Audio Files List */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-6 border-b border-gray-200">
+          <h4 className="text-md font-medium text-gray-900 flex items-center">
+            <DocumentIcon className="h-5 w-5 mr-2 text-slate-600" />
+            Uploaded Audio Files ({audioFiles.length})
+          </h4>
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
+            <p className="mt-4 text-gray-500">Loading audio files...</p>
+          </div>
+        ) : audioFiles.length === 0 ? (
+          <div className="p-12 text-center">
+            <MicrophoneIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No audio files uploaded yet</p>
+            <p className="text-sm text-gray-400 mt-2">Upload your first audio file to get started</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {audioFiles.map((file) => (
+              <div key={file.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center flex-1 min-w-0">
+                    <button
+                      onClick={() => handlePlayPause(file)}
+                      className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center mr-4"
+                    >
+                      {playingAudioId === file.id ? (
+                        <PauseIcon className="h-5 w-5 text-slate-600" />
+                      ) : (
+                        <PlayIcon className="h-5 w-5 text-slate-600 ml-0.5" />
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center">
+                        <h5 className="text-sm font-medium text-gray-900 truncate">
+                          {file.name}
+                        </h5>
+                        <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
+                          {file.type}
+                        </span>
+                      </div>
+                      <div className="flex items-center mt-1 text-xs text-gray-500 space-x-4">
+                        <span>{file.filename}</span>
+                        <span>{formatFileSize(file.size)}</span>
+                        <span>{formatDuration(file.duration)}</span>
+                        <span>{file.format.toUpperCase()}</span>
+                      </div>
+                      {file.description && (
+                        <p className="mt-1 text-xs text-gray-600">{file.description}</p>
+                      )}
+                      {file.tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {file.tags.map((tag, idx) => (
+                            <span key={idx} className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      onClick={() => {
+                        const url = `/audio/${file.filename}`;
+                        navigator.clipboard.writeText(url);
+                        alert('URL copied to clipboard!');
+                      }}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded"
+                      title="Copy URL"
+                    >
+                      <DocumentIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(file.id)}
+                      className="p-2 text-red-400 hover:text-red-600 rounded"
+                      title="Delete"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Help Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h5 className="text-sm font-medium text-blue-900 mb-2">📘 Audio File Guidelines</h5>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• <strong>Format:</strong> MP3 (recommended) or WAV</li>
+          <li>• <strong>Quality:</strong> 192kbps or higher, mono channel</li>
+          <li>• <strong>Sample Rate:</strong> 16kHz or higher</li>
+          <li>• <strong>Duration:</strong> Keep prompts concise (30-60 seconds)</li>
+          <li>• <strong>Naming:</strong> Use clear, descriptive names</li>
+          <li>• <strong>Loudness:</strong> Normalize to -1.0dB peak to prevent clipping</li>
+        </ul>
       </div>
     </div>
   );
