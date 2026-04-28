@@ -41,6 +41,21 @@ export interface CallSearchFilters {
  * Start a new call record
  */
 export async function startCall(data: CreateCallRecordRequest) {
+  // 🆕 DUPLICATE PREVENTION: Check if a call record already exists for this callId
+  // This prevents Twilio inbound/outbound leg duplicates from creating separate records
+  const existingCall = await prisma.callRecord.findUnique({
+    where: { callId: data.callId }
+  });
+
+  if (existingCall) {
+    console.log(`⚠️ Call record already exists for callId ${data.callId}, returning existing record (prevents duplicate leg)`);
+    return {
+      callId: existingCall.callId,
+      startTime: existingCall.startTime,
+      existingRecord: true
+    };
+  }
+
   // Ensure required campaigns exist
   if (data.campaignId === 'MANUAL-DIAL') {
     await prisma.campaign.upsert({
@@ -106,9 +121,7 @@ export async function startCall(data: CreateCallRecordRequest) {
     callId: callRecord.callId,
     startTime: callRecord.startTime
   };
-}
-
-/**
+}/**
  * Update call record with outcome and process recordings
  */
 export async function endCall(callId: string, data: UpdateCallRecordRequest, twilioCallSid?: string) {
@@ -158,10 +171,15 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest, twi
   }
 
   // 🆕 DEDUPLICATION: Automatically check for and consolidate duplicate call records
-  // This runs asynchronously after call ends to detect inbound/outbound leg duplicates
-  deduplicateRecentCall(callId).catch(error => {
+  // This runs SYNCHRONOUSLY after call ends to detect inbound/outbound leg duplicates
+  // Changed from async to sync to ensure duplicates are consolidated before returning
+  console.log(`🔍 Running deduplication check for callId: ${callId}`);
+  try {
+    await deduplicateRecentCall(callId);
+    console.log(`✅ Deduplication check completed for callId: ${callId}`);
+  } catch (error) {
     console.error(`❌ Error deduplicating call ${callId}:`, error);
-  });
+  }
 
   return {
     callId: updatedRecord.callId,
@@ -179,7 +197,6 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
 
   if (filters.agentId) where.agentId = filters.agentId;
   if (filters.campaignId) where.campaignId = filters.campaignId;
-  if (filters.outcome) where.outcome = filters.outcome;
   if (filters.phoneNumber) where.phoneNumber = { contains: filters.phoneNumber };
   
   if (filters.dateFrom || filters.dateTo) {
@@ -205,9 +222,17 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
 
   // 🆕 DEDUPLICATION: Exclude consolidated duplicate records by default
   // Only show canonical records in UI/reports
-  where.outcome = where.outcome 
-    ? { AND: [{ equals: where.outcome }, { not: 'consolidated-duplicate' }] }
-    : { not: 'consolidated-duplicate' };
+  // If outcome filter is specified, use AND logic; otherwise just exclude duplicates
+  if (filters.outcome) {
+    where.outcome = {
+      AND: [
+        { equals: filters.outcome },
+        { not: 'consolidated-duplicate' }
+      ]
+    };
+  } else {
+    where.outcome = { not: 'consolidated-duplicate' };
+  }
 
   const callRecords = await prisma.callRecord.findMany({
     where,
