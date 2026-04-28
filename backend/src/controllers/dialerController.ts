@@ -1265,6 +1265,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     }
     
     console.log('⚡ Checking for active calls for user:', userId);
+    console.log('✅ Using endTime=NULL check (not outcome="in-progress")');
 
     // 🚫 CRITICAL: Check if agent has an active call already (unless force flag is set)
     const forceCall = req.body.force === true; // Allow admins to force new calls
