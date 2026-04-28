@@ -330,20 +330,20 @@ export class AudioFileService {
     tags?: string[];
     duration: number;
     uploadedBy: string;
+    fileData: Buffer;
   }) {
     const audioFile = await prisma.audioFile.create({
       data: {
-        name: data.name,
+        displayName: data.name,
         filename: data.filename,
-        originalName: data.originalName,
+        mimeType: `audio/${data.format}`,
         size: data.size,
-        format: data.format,
         type: data.type,
         description: data.description || '',
-        tags: data.tags || [],
+        tags: data.tags && data.tags.length > 0 ? JSON.stringify(data.tags) : null,
         duration: data.duration,
         uploadedBy: data.uploadedBy,
-        uploadedAt: new Date()
+        fileData: data.fileData
       }
     });
 

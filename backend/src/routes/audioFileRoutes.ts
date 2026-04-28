@@ -145,6 +145,9 @@ router.post('/audio-files/upload', authenticate, upload.single('audio'), async (
       });
     }
     
+    // Read file data as Buffer for database storage
+    const fileData = await fs.readFile(req.file.path);
+    
     // Get audio duration (would need a library like 'music-metadata' for this)
     // For now, we'll estimate based on file size
     const estimatedDuration = Math.round(req.file.size / 16000); // Rough estimate
@@ -152,26 +155,50 @@ router.post('/audio-files/upload', authenticate, upload.single('audio'), async (
     // Parse tags
     const tagArray = tags ? tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [];
     
+    // Determine MIME type from file extension
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const mimeTypeMap: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.ogg': 'audio/ogg',
+      '.flac': 'audio/flac',
+      '.webm': 'audio/webm'
+    };
+    const format = ext.substring(1); // Remove the dot
+    
     // Create audio file record
     const audioFile = await AudioFileService.createAudioFile({
       name,
       filename: req.file.filename,
       originalName: req.file.originalname,
       size: req.file.size,
-      format: path.extname(req.file.filename).substring(1),
+      format,
       type,
       description: description || '',
       tags: tagArray,
       duration: estimatedDuration,
-      uploadedBy: (req as any).user.id.toString()
+      uploadedBy: (req as any).user.id.toString(),
+      fileData
     });
     
-    console.log('✅ Audio file uploaded successfully:', audioFile);
+    // Clean up temp file after storing in database
+    await fs.unlink(req.file.path);
+    
+    console.log('✅ Audio file uploaded successfully:', audioFile.id);
     
     res.json({
       success: true,
       message: 'Audio file uploaded successfully',
-      audioFile
+      audioFile: {
+        id: audioFile.id,
+        displayName: audioFile.displayName,
+        filename: audioFile.filename,
+        size: audioFile.size,
+        type: audioFile.type,
+        duration: audioFile.duration
+      }
     });
   } catch (error: any) {
     console.error('❌ Error uploading audio file:', error);
