@@ -188,12 +188,13 @@ const DispositionModal: React.FC<DispositionModalProps> = ({
         },
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/dispositions`, {
+      // Use Next.js API route which handles cookie-based authentication
+      const response = await fetch('/api/dispositions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('omnivox_token')}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(dispositionData),
       });
 

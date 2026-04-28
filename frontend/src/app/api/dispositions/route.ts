@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 /**
  * GET /api/dispositions
@@ -56,4 +57,56 @@ export async function GET() {
     dispositions: fallbackDispositions,
     fallback: true
   });
+}
+
+/**
+ * POST /api/dispositions
+ * Create a call disposition
+ * Uses cookie-based authentication for all agents
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+
+    if (!sessionToken) {
+      console.error('❌ No session token found in cookies');
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - please log in again' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    console.log('📋 Proxying disposition save for agent:', body.agentId);
+
+    const backendUrl = process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
+    const response = await fetch(`${backendUrl}/api/dispositions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sessionToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Backend disposition save failed:', data);
+      return NextResponse.json(
+        { success: false, error: data.error || 'Failed to save disposition' },
+        { status: response.status }
+      );
+    }
+
+    console.log('✅ Disposition saved successfully via proxy');
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('❌ Error in disposition proxy:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
