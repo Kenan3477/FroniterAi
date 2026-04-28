@@ -157,6 +157,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
 router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const recordingId = req.params.id;
+    console.log(`📥 Download request for recording: ${recordingId}`);
     
     // Get recording record from database
     const recording = await prisma.recording.findFirst({
@@ -171,14 +172,26 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
     });
 
     if (!recording) {
+      console.error(`❌ Recording not found: ${recordingId}`);
       return res.status(404).json({
         success: false,
-        error: 'Recording not found'
+        error: 'Recording not found',
+        details: `No recording found with ID: ${recordingId}`
       });
     }
 
+    console.log(`📋 Recording found:`, {
+      id: recording.id,
+      fileName: recording.fileName,
+      filePath: recording.filePath,
+      fileSize: recording.fileSize,
+      storageType: recording.storageType,
+      uploadStatus: recording.uploadStatus
+    });
+
     // Security: Agents can only access their own recordings
     if (req.user?.role === 'AGENT' && recording.callRecord.agentId !== req.user.userId) {
+      console.error(`🔒 Access denied: User ${req.user.userId} tried to access recording from agent ${recording.callRecord.agentId}`);
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -187,6 +200,15 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
 
     // Check if this is a Twilio recording URL or SID for download
     const filePath = recording.filePath;
+    
+    if (!filePath) {
+      console.error(`❌ No file path stored for recording: ${recordingId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Recording file path not available',
+        details: 'This recording does not have a file path stored. It may still be processing or failed to upload.'
+      });
+    }
     
     // Handle Twilio recordings in different formats:
     // 1. Full URL: https://api.twilio.com/.../Recordings/RExxxxx.mp3
@@ -201,9 +223,11 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
         // Extract SID from URL
         const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
         if (!recordingSidMatch) {
+          console.error(`❌ Invalid Twilio URL format: ${filePath}`);
           return res.status(400).json({
             success: false,
-            error: 'Invalid Twilio recording URL format'
+            error: 'Invalid Twilio recording URL format',
+            details: filePath
           });
         }
         recordingSid = recordingSidMatch[1];
@@ -222,11 +246,15 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
         const audioBuffer = await streamTwilioRecording(recordingSid);
         
         if (!audioBuffer) {
+          console.error(`❌ Twilio returned empty buffer for: ${recordingSid}`);
           return res.status(404).json({
             success: false,
-            error: 'Twilio recording not found or inaccessible'
+            error: 'Twilio recording not found or inaccessible',
+            details: `Recording SID: ${recordingSid}. Check Twilio credentials and that the recording exists.`
           });
         }
+        
+        console.log(`✅ Successfully downloaded ${audioBuffer.length} bytes from Twilio`);
         
         // Set headers for audio download
         res.setHeader('Content-Type', 'audio/mpeg');
@@ -236,14 +264,15 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
         // Send the audio buffer for download
         res.send(audioBuffer);
         
-        console.log(`✅ Successfully downloading Twilio recording: ${recordingSid}`);
+        console.log(`✅ Successfully sent Twilio recording to client: ${recordingSid}`);
         return;
         
-      } catch (twilioError) {
-        console.error(`❌ Error downloading from Twilio: ${twilioError}`);
+      } catch (twilioError: any) {
+        console.error(`❌ Error downloading from Twilio:`, twilioError);
         return res.status(500).json({
           success: false,
-          error: 'Failed to download from Twilio'
+          error: 'Failed to download from Twilio',
+          details: twilioError.message || 'Twilio API error. Check credentials and recording availability.'
         });
       }
     }
