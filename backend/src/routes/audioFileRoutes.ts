@@ -149,6 +149,54 @@ router.get('/audio-files/:id', authenticate, async (req: Request, res: Response)
 });
 
 /**
+ * GET /api/voice/audio-files/:id/stream
+ * Stream audio file for playback (returns audio binary data)
+ */
+router.get('/audio-files/:id/stream', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🎵 Streaming audio file: ${id}`);
+    
+    const audioFile = await AudioFileService.getAudioFileById(id);
+    
+    if (!audioFile) {
+      console.error(`❌ Audio file not found: ${id}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Audio file not found'
+      });
+    }
+    
+    if (!audioFile.fileData) {
+      console.error(`❌ No file data for audio file: ${id}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Audio file data not found'
+      });
+    }
+    
+    // Set appropriate headers for audio streaming
+    res.setHeader('Content-Type', audioFile.mimeType || 'audio/mpeg');
+    res.setHeader('Content-Length', audioFile.size);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
+    // Send the binary audio data
+    res.send(audioFile.fileData);
+    
+    console.log(`✅ Audio file streamed successfully: ${id} (${audioFile.displayName})`);
+  } catch (error: any) {
+    console.error('❌ Error streaming audio file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to stream audio file',
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/voice/audio-files/upload
  * Upload a new audio file
  */

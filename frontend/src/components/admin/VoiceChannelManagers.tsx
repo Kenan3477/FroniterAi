@@ -767,14 +767,298 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
   flows = [], 
   audioFiles = [] 
 }) => {
-  
+  const [formData, setFormData] = React.useState<Partial<InboundNumber>>({
+    name: number?.name || '',
+    description: number?.description || '',
+    type: number?.type || 'voice',
+    status: number?.status ?? true,
+    routeTo: number?.routeTo || 'Flow',
+    recordCalls: number?.recordCalls ?? true,
+    autoRejectAnonymous: number?.autoRejectAnonymous ?? false,
+    createContactOnAnonymous: number?.createContactOnAnonymous ?? false,
+    businessHours: number?.businessHours || '24 Hours',
+    outOfHoursAction: number?.outOfHoursAction || 'Hangup',
+    voicemailAudioFile: number?.voicemailAudioFile || '',
+    ...number
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData as InboundNumber);
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-        <div className="p-4">
-          <h3>Test Component</h3>
-          <button onClick={() => onCancel()}>Cancel</button>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+      <div className="relative bg-white rounded-lg shadow-xl p-8 m-4 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold text-gray-900">
+            {number ? 'Configure Inbound Number' : 'Add Inbound Number'}
+          </h3>
+          <button
+            onClick={onCancel}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Number Display (Read-only) */}
+          {number && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number
+              </label>
+              <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-900">
+                {number.number}
+              </div>
+            </div>
+          )}
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name || ''}
+              onChange={(e) => handleChange('name', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              placeholder="e.g., Main Support Line"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={formData.description || ''}
+              onChange={(e) => handleChange('description', e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              placeholder="Brief description of this inbound number"
+            />
+          </div>
+
+          {/* Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={formData.type || 'voice'}
+              onChange={(e) => handleChange('type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <option value="voice">Voice</option>
+              <option value="sms">SMS</option>
+              <option value="both">Voice & SMS</option>
+            </select>
+          </div>
+
+          {/* Status */}
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('status', !formData.status)}
+              className={`${
+                formData.status ? 'bg-green-600' : 'bg-gray-300'
+              } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500`}
+            >
+              <span
+                className={`${
+                  formData.status ? 'translate-x-5' : 'translate-x-0'
+                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              />
+            </button>
+          </div>
+
+          {/* Route To */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Route To <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={formData.routeTo || 'Flow'}
+              onChange={(e) => handleChange('routeTo', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <option value="Flow">Flow</option>
+              <option value="Queue">Queue</option>
+              <option value="RingGroup">Ring Group</option>
+              <option value="Extension">Extension</option>
+              <option value="IVR">IVR</option>
+              <option value="Voicemail">Voicemail</option>
+            </select>
+          </div>
+
+          {/* Flow Assignment (if Route To is Flow) */}
+          {formData.routeTo === 'Flow' && flows.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assigned Flow
+              </label>
+              <select
+                value={formData.assignedFlowId || ''}
+                onChange={(e) => handleChange('assignedFlowId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">-- Select Flow --</option>
+                {flows.map((flow) => (
+                  <option key={flow.id} value={flow.id}>
+                    {flow.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Business Hours */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Business Hours
+            </label>
+            <select
+              value={formData.businessHours || '24 Hours'}
+              onChange={(e) => handleChange('businessHours', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <option value="24 Hours">24 Hours</option>
+              <option value="Business Hours">Business Hours (9am-5pm)</option>
+              <option value="Custom">Custom Schedule</option>
+            </select>
+          </div>
+
+          {/* Out of Hours Action */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Out of Hours Action
+            </label>
+            <select
+              value={formData.outOfHoursAction || 'Hangup'}
+              onChange={(e) => handleChange('outOfHoursAction', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <option value="Hangup">Hangup</option>
+              <option value="Voicemail">Voicemail</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Announcement">Announcement</option>
+            </select>
+          </div>
+
+          {/* Voicemail Audio (if Out of Hours Action is Voicemail) */}
+          {formData.outOfHoursAction === 'Voicemail' && audioFiles.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Voicemail Greeting
+              </label>
+              <select
+                value={formData.voicemailAudioFile || ''}
+                onChange={(e) => handleChange('voicemailAudioFile', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">-- Select Audio File --</option>
+                {audioFiles.map((file) => (
+                  <option key={file.id} value={file.id}>
+                    {file.name} ({file.duration ? `${Math.round(file.duration)}s` : 'N/A'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Record Calls */}
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Record Calls
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('recordCalls', !formData.recordCalls)}
+              className={`${
+                formData.recordCalls ? 'bg-green-600' : 'bg-gray-300'
+              } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500`}
+            >
+              <span
+                className={`${
+                  formData.recordCalls ? 'translate-x-5' : 'translate-x-0'
+                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              />
+            </button>
+          </div>
+
+          {/* Auto Reject Anonymous */}
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Auto Reject Anonymous Calls
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('autoRejectAnonymous', !formData.autoRejectAnonymous)}
+              className={`${
+                formData.autoRejectAnonymous ? 'bg-green-600' : 'bg-gray-300'
+              } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500`}
+            >
+              <span
+                className={`${
+                  formData.autoRejectAnonymous ? 'translate-x-5' : 'translate-x-0'
+                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              />
+            </button>
+          </div>
+
+          {/* Create Contact on Anonymous */}
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Create Contact for Anonymous Calls
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('createContactOnAnonymous', !formData.createContactOnAnonymous)}
+              className={`${
+                formData.createContactOnAnonymous ? 'bg-green-600' : 'bg-gray-300'
+              } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500`}
+            >
+              <span
+                className={`${
+                  formData.createContactOnAnonymous ? 'translate-x-5' : 'translate-x-0'
+                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              />
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700"
+            >
+              {number ? 'Save Changes' : 'Create Number'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -956,9 +1240,9 @@ export const AudioFilesManager: React.FC<{
       audioRef.current?.pause();
       setPlayingAudioId(null);
     } else {
-      // Play
+      // Play - use the streaming endpoint from backend
       if (audioRef.current) {
-        audioRef.current.src = `/audio/${file.filename}`;
+        audioRef.current.src = `/api/voice/audio-files/${file.id}/stream`;
         audioRef.current.play();
         setPlayingAudioId(file.id);
       }
