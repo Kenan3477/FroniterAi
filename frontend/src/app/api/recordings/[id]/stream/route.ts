@@ -28,8 +28,13 @@ export async function GET(
       return NextResponse.redirect(new URL('/api/recordings/demo-1/stream', request.url));
     }
 
-    // Get auth token from cookies or Authorization header
-    let authToken = request.cookies.get('auth-token')?.value;
+    // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
+    let authToken = request.cookies.get('session_token')?.value;
+    
+    // Fallback to auth-token for backwards compatibility
+    if (!authToken) {
+      authToken = request.cookies.get('auth-token')?.value;
+    }
     
     // If no cookie, try to get from Authorization header (for direct API calls)
     if (!authToken) {
