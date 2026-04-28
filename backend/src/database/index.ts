@@ -12,9 +12,10 @@ console.log('🔧 Database Configuration:', {
 });
 
 // Connection pooling configuration for Railway PostgreSQL
-// Railway free tier has limited connections - use conservative pooling
-const connectionLimit = isPostgreSQL ? 5 : undefined; // Limit to 5 connections for PostgreSQL
-const poolTimeout = isPostgreSQL ? 10 : undefined; // 10 second timeout
+// 🚨 INCREASED: Railway was exhausting 5 connections with parallel queries
+// Interaction history makes 50+ parallel findBetterContact queries
+const connectionLimit = isPostgreSQL ? 20 : undefined; // Increased from 5 to 20
+const poolTimeout = isPostgreSQL ? 30 : undefined; // Increased from 10s to 30s
 
 // Append connection pool settings to PostgreSQL URL
 let finalDatabaseUrl = databaseUrl;
