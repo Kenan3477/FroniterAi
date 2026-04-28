@@ -132,7 +132,7 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
           data: {
             endTime: new Date(), // ✅ Set actual end time NOW
             duration: duration,
-            outcome: twilioStatus === 'completed' ? 'completed' : 'system-cleanup', // Use Twilio status if available
+            outcome: twilioStatus === 'completed' ? 'completed' : 'abandoned', // ✅ FIXED: Use 'abandoned' instead of 'system-cleanup'
             notes: call.notes 
               ? `${call.notes}\n[CLEANUP] Call never ended properly. Auto-cleaned after ${Math.floor(duration / 60)} min (ended by: ${endedBy}, Twilio status: ${twilioStatus})`
               : `[CLEANUP] Call never ended properly. Auto-cleaned after ${Math.floor(duration / 60)} min (ended by: ${endedBy}, Twilio status: ${twilioStatus})`

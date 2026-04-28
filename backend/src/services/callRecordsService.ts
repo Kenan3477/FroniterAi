@@ -41,14 +41,29 @@ export interface CallSearchFilters {
  * Start a new call record
  */
 export async function startCall(data: CreateCallRecordRequest) {
-  // 🆕 DUPLICATE PREVENTION: Check if a call record already exists for this callId
-  // This prevents Twilio inbound/outbound leg duplicates from creating separate records
-  const existingCall = await prisma.callRecord.findUnique({
-    where: { callId: data.callId }
+  // 🆕 DUPLICATE PREVENTION: Check if a call record already exists for this phone number + campaign + recent time
+  // Twilio creates DIFFERENT callIds for each leg, so we can't check by callId alone!
+  // Must check by: phone number + campaign + time window (within last 10 seconds)
+  const tenSecondsAgo = new Date(Date.now() - 10000);
+  
+  const existingCall = await prisma.callRecord.findFirst({
+    where: {
+      phoneNumber: data.phoneNumber,
+      campaignId: data.campaignId,
+      agentId: data.agentId,
+      startTime: {
+        gte: tenSecondsAgo
+      }
+    },
+    orderBy: {
+      startTime: 'desc'
+    }
   });
 
   if (existingCall) {
-    console.log(`⚠️ Call record already exists for callId ${data.callId}, returning existing record (prevents duplicate leg)`);
+    console.log(`⚠️ Call record already exists for ${data.phoneNumber} (within 10s, same campaign/agent)`);
+    console.log(`   Existing: ${existingCall.callId} at ${existingCall.startTime.toISOString()}`);
+    console.log(`   New request: ${data.callId} - IGNORING to prevent duplicate`);
     return {
       callId: existingCall.callId,
       startTime: existingCall.startTime,

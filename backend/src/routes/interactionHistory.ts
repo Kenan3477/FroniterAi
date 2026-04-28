@@ -433,7 +433,7 @@ router.get('/counts', async (req, res) => {
         },
         data: {
           endTime: new Date(),
-          outcome: 'system-cleanup',
+          outcome: 'abandoned', // ✅ FIXED: Use 'abandoned' instead of 'system-cleanup'
           duration: 7200, // 2 hours
           notes: 'Auto-cleaned stuck call (no activity for 2+ hours)'
         }
