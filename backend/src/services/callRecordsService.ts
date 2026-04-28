@@ -5,6 +5,7 @@
 
 import { prisma } from '../database/index';
 import { processCallRecordings } from './recordingService';
+import { deduplicateRecentCall } from './callDeduplicationService';
 
 export interface CreateCallRecordRequest {
   callId: string;
@@ -156,6 +157,12 @@ export async function endCall(callId: string, data: UpdateCallRecordRequest, twi
     });
   }
 
+  // 🆕 DEDUPLICATION: Automatically check for and consolidate duplicate call records
+  // This runs asynchronously after call ends to detect inbound/outbound leg duplicates
+  deduplicateRecentCall(callId).catch(error => {
+    console.error(`❌ Error deduplicating call ${callId}:`, error);
+  });
+
   return {
     callId: updatedRecord.callId,
     endTime: updatedRecord.endTime,
@@ -195,6 +202,12 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
   if (filters.dispositionId) {
     where.dispositionId = filters.dispositionId;
   }
+
+  // 🆕 DEDUPLICATION: Exclude consolidated duplicate records by default
+  // Only show canonical records in UI/reports
+  where.outcome = where.outcome 
+    ? { AND: [{ equals: where.outcome }, { not: 'consolidated-duplicate' }] }
+    : { not: 'consolidated-duplicate' };
 
   const callRecords = await prisma.callRecord.findMany({
     where,

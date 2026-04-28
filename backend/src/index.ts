@@ -73,6 +73,7 @@ import dncRoutes from './routes/admin/dnc'; // DNC (Do Not Call) management syst
 import auditLogRoutes from './routes/admin/auditLogs'; // Audit logs and user session tracking
 import advancedAuditRoutes from './routes/advancedAudit'; // Advanced user activity audit system with AI-powered suspicious behavior detection
 import adaptiveQuickActionsRoutes from './routes/adaptiveQuickActions'; // NEW: Advanced adaptive quick actions with AI-powered workflow intelligence
+import callDeduplicationRoutes from './routes/callDeduplication'; // NEW: Call record deduplication management
 // import pauseEventsRoutes from './routes/pauseEventsSecure'; // ✅ SECURE: Agent pause/break tracking with audit trails - TEMPORARILY DISABLED
 import testRoutes from './routes/test'; // Testing and debugging endpoints
 import updateOrgAdminRoutes from './routes/updateOrgAdmin'; // Temporary route to fix existing org admin names
@@ -273,6 +274,7 @@ class App {
     this.app.use('/api/users', userRoutes); // User endpoints for regular user access (my-campaigns, etc.)
     this.app.use('/api/user-management', userManagementRoutes); // Enterprise user management system
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
+    this.app.use('/api/call-deduplication', callDeduplicationRoutes); // NEW: Call record deduplication management
     this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
     this.app.use('/api', workingTranscriptRoutes); // WORKING: No-auth transcript routes
     // this.app.use('/api/admin/transcripts', transcriptManagementRoutes); // Transcription system management API
