@@ -121,7 +121,7 @@ export class LiveCoachingSystem {
       prompt: {
         type: 'WHISPER',
         priority: 'HIGH',
-        message: `Objection detected: "${analysis.objections[0]}" - Acknowledge, clarify, respond`,
+        message: 'Objection detected - Acknowledge, clarify, respond',
         action: 'Use the 3-step objection handling process',
         timing: 'IMMEDIATE',
         duration: 12

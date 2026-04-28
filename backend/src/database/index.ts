@@ -11,10 +11,26 @@ console.log('🔧 Database Configuration:', {
   environment: process.env.NODE_ENV || 'development'
 });
 
+// Connection pooling configuration for Railway PostgreSQL
+// Railway free tier has limited connections - use conservative pooling
+const connectionLimit = isPostgreSQL ? 5 : undefined; // Limit to 5 connections for PostgreSQL
+const poolTimeout = isPostgreSQL ? 10 : undefined; // 10 second timeout
+
+// Append connection pool settings to PostgreSQL URL
+let finalDatabaseUrl = databaseUrl;
+if (isPostgreSQL && !databaseUrl.includes('connection_limit')) {
+  const separator = databaseUrl.includes('?') ? '&' : '?';
+  finalDatabaseUrl = `${databaseUrl}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}`;
+  console.log('🔧 PostgreSQL connection pooling enabled:', {
+    connectionLimit,
+    poolTimeout: `${poolTimeout}s`
+  });
+}
+
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: databaseUrl
+      url: finalDatabaseUrl
     }
   },
   log: ['error', 'warn'],
