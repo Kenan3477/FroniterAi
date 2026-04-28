@@ -1,24 +1,16 @@
 /**
- * IP Whitelist Management API
- * Only accessible by Ken (ken@simpleemails.co.uk) - Creator of Omnivox
- * Manages IP addresses that are allowed to access the system
+ * IP Whitelist Management API - Backend Proxy
+ * Proxies requests to backend PostgreSQL database for IP whitelist management
+ * Maintains single source of truth in backend database
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/middleware/auth';
-import { 
-  getIPWhitelist, 
-  addIPToWhitelist, 
-  removeIPFromWhitelist, 
-  type IPWhitelistEntry 
-} from '@/lib/ipWhitelist';
+import { cookies } from 'next/headers';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-function isKenTheCreator(email: string): boolean {
-  return email === 'ken@simpleemails.co.uk';
-}
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
 function getClientIP(request: NextRequest): string {
   // Check various headers for the real IP
@@ -43,168 +35,102 @@ function getClientIP(request: NextRequest): string {
   return request.ip || '127.0.0.1';
 }
 
-function updateIPActivity(ipAddress: string) {
-  // This is now handled by the shared module
-  import('@/lib/ipWhitelist').then(({ updateIPActivity }) => {
-    updateIPActivity(ipAddress);
-  });
-}
-
-// GET - List all whitelisted IPs (Ken only)
-export const GET = requireAuth(async (request, user) => {
+// GET - List all whitelisted IPs (proxied to backend)
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔒 IP Whitelist GET request from user:', user.email);
+    console.log('🔒 IP Whitelist GET request - proxying to backend database');
     
-    if (!isKenTheCreator(user.email)) {
-      console.log('❌ Access denied - only Ken can access IP whitelist');
+    // Get session token from cookies
+    const cookieStore = cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+    
+    if (!sessionToken) {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Only the creator of Omnivox can manage IP whitelists.' },
-        { status: 403 }
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
       );
     }
 
-    // Update activity for current request
-    const currentIP = getClientIP(request);
-    const whitelist = getIPWhitelist();
-    
-    // Update activity for current IP
-    import('@/lib/ipWhitelist').then(({ updateIPActivity }) => {
-      updateIPActivity(currentIP);
-    });
-
-    console.log('✅ Returning IP whitelist data', { count: whitelist.length, currentIP });
-    return NextResponse.json({
-      success: true,
-      data: {
-        whitelist,
-        currentIP: currentIP,
-        totalEntries: whitelist.length,
-        activeEntries: whitelist.filter(item => item.isActive).length
+    // Proxy request to backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/admin/ip-whitelist`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${sessionToken}`,
+        'Content-Type': 'application/json'
       }
     });
 
+    const data = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      console.error('❌ Backend IP whitelist fetch failed:', data);
+      return NextResponse.json(
+        { success: false, error: data.error || 'Failed to fetch IP whitelist from backend' },
+        { status: backendResponse.status }
+      );
+    }
+
+    console.log('✅ IP whitelist fetched from backend database');
+    return NextResponse.json(data);
+
   } catch (error) {
-    console.error('❌ IP Whitelist GET error:', error);
+    console.error('❌ IP Whitelist GET proxy error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch IP whitelist' },
       { status: 500 }
     );
   }
-});
+}
 
-// POST - Add new IP to whitelist (Ken only)
-export const POST = requireAuth(async (request, user) => {
+// POST - Add new IP to whitelist (proxied to backend)
+export async function POST(request: NextRequest) {
   try {
-    console.log('🔒 IP Whitelist POST request from user:', user.email);
+    console.log('🔒 IP Whitelist POST request - proxying to backend database');
     
-    if (!isKenTheCreator(user.email)) {
-      console.log('❌ Access denied - only Ken can add IPs to whitelist');
+    // Get session token from cookies
+    const cookieStore = cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+    
+    if (!sessionToken) {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Only the creator of Omnivox can manage IP whitelists.' },
-        { status: 403 }
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
       );
     }
 
     const body = await request.json();
-    const { ipAddress, name, description } = body;
 
-    // Validate required fields
-    if (!ipAddress || !name) {
+    // Proxy request to backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/admin/ip-whitelist`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sessionToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      console.error('❌ Backend IP add failed:', data);
       return NextResponse.json(
-        { success: false, error: 'IP address and name are required' },
-        { status: 400 }
+        { success: false, error: data.error || 'Failed to add IP to whitelist' },
+        { status: backendResponse.status }
       );
     }
 
-    // Check if IP already exists
-    const whitelist = getIPWhitelist();
-    const existingEntry = whitelist.find(item => item.ipAddress === ipAddress);
-    if (existingEntry) {
-      return NextResponse.json(
-        { success: false, error: 'IP address is already whitelisted' },
-        { status: 409 }
-      );
-    }
-
-    // Create new whitelist entry using shared function
-    const newEntry = addIPToWhitelist({
-      ipAddress,
-      name,
-      description: description || '',
-      addedBy: user.email,
-      isActive: true
-    });
-
-    console.log(`✅ Added IP ${ipAddress} (${name}) to whitelist`);
-    return NextResponse.json({
-      success: true,
-      message: 'IP address successfully added to whitelist',
-      data: newEntry
-    });
+    console.log('✅ IP added to backend database whitelist');
+    return NextResponse.json(data);
 
   } catch (error) {
-    console.error('❌ IP Whitelist POST error:', error);
+    console.error('❌ IP Whitelist POST proxy error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to add IP to whitelist' },
       { status: 500 }
     );
   }
-});
+}
 
-// DELETE - Remove IP from whitelist (Ken only)
-export const DELETE = requireAuth(async (request, user) => {
-  try {
-    console.log('🔒 IP Whitelist DELETE request from user:', user.email);
-    
-    if (!isKenTheCreator(user.email)) {
-      console.log('❌ Access denied - only Ken can remove IPs from whitelist');
-      return NextResponse.json(
-        { success: false, error: 'Access denied. Only the creator of Omnivox can manage IP whitelists.' },
-        { status: 403 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const ipId = searchParams.get('id');
-
-    if (!ipId) {
-      return NextResponse.json(
-        { success: false, error: 'IP ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const entryToRemove = getIPWhitelist().find(item => item.id === ipId);
-    if (!entryToRemove) {
-      return NextResponse.json(
-        { success: false, error: 'IP address not found in whitelist' },
-        { status: 404 }
-      );
-    }
-
-    const success = removeIPFromWhitelist(ipId);
-    if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to remove IP from whitelist' },
-        { status: 500 }
-      );
-    }
-
-    console.log(`✅ Removed IP ${entryToRemove.ipAddress} (${entryToRemove.name}) from whitelist`);
-    return NextResponse.json({
-      success: true,
-      message: 'IP address successfully removed from whitelist',
-      data: entryToRemove
-    });
-
-  } catch (error) {
-    console.error('❌ IP Whitelist DELETE error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to remove IP from whitelist' },
-      { status: 500 }
-    );
-  }
-});
-
-// Export utility functions for use by middleware
-export { getClientIP, isKenTheCreator };
+// Export utility function for use by middleware
+export { getClientIP };
