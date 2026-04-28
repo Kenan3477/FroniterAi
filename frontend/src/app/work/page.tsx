@@ -962,10 +962,11 @@ export default function WorkPage() {
                             previewContact.id !== 'unknown' && 
                             showPreviewCard;
         
-        // TEMPORARY: Force render for testing
-        const forceRender = previewContact && previewContact.id && previewContact.id !== 'unknown';
+        // ONLY render preview card if campaign is in MANUAL_PREVIEW mode
+        const isPreviewMode = currentCampaign?.dialMethod === 'MANUAL_PREVIEW';
+        const shouldRenderCard = isPreviewMode && previewContact && previewContact.id && previewContact.id !== 'unknown';
         
-        return forceRender ? (
+        return shouldRenderCard ? (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <PreviewContactCard
               contact={previewContact}

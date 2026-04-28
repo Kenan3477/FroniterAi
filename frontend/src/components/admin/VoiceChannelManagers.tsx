@@ -832,10 +832,23 @@ export const AudioFilesManager: React.FC<{
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav'];
+      // Validate file type - accept all supported audio formats
+      const validTypes = [
+        'audio/mpeg',       // MP3
+        'audio/mp3',        // MP3 (alternative)
+        'audio/wav',        // WAV
+        'audio/wave',       // WAV (alternative)
+        'audio/x-wav',      // WAV (alternative)
+        'audio/mp4',        // M4A
+        'audio/x-m4a',      // M4A (alternative)
+        'audio/aac',        // AAC
+        'audio/ogg',        // OGG
+        'audio/webm',       // WebM
+        'audio/flac',       // FLAC
+        'audio/x-flac'      // FLAC (alternative)
+      ];
       if (!validTypes.includes(file.type)) {
-        alert('Please select a valid audio file (MP3 or WAV)');
+        alert('Please select a valid audio file (MP3, WAV, M4A, AAC, OGG, FLAC)');
         return;
       }
 
