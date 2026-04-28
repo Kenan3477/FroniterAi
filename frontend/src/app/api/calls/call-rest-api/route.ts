@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📞 Call request body:', body);
 
-    const response = await fetch(`${BACKEND_URL}/api/calls/call-rest-api`, {
+    // 🚨 CRITICAL FIX: Backend route is /api/calls/rest-api (not /call-rest-api)
+    const response = await fetch(`${BACKEND_URL}/api/calls/rest-api`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

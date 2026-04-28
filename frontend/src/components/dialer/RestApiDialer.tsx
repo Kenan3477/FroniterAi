@@ -635,12 +635,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       return;
     }
 
-    // CRITICAL: Check if Twilio Device is registered before making calls
-    if (!device || !isDeviceReady) {
-      console.error('❌ Cannot make call: WebRTC device not ready');
-      alert('Please wait for the dialler to initialise. The system is connecting to Twilio...');
-      return;
-    }
+    // 🚀 SPEED OPTIMIZATION: WebRTC Device NOT required for REST API calls
+    // Device only needed for incoming calls (agent receives call in browser)
+    // For outbound REST API calls, Twilio handles everything server-side
+    // This removes the 60-second wait that was blocking users
+    
+    console.log('📞 REST API Call - WebRTC Device check skipped (not required)');
 
     setIsLoading(true);
     setCallStatus('initiating');
