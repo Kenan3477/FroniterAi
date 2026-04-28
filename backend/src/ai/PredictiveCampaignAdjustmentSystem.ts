@@ -74,6 +74,12 @@ export class PredictiveCampaignAdjustmentSystem {
     });
 
     // Load historical benchmarks for each campaign type
+    // 🚨 TEMPORARY DISABLE: CampaignAnalytics schema missing required fields
+    // Missing: conversionRate, averageCallDuration, leadQuality
+    // This causes backend crash on startup
+    console.log('⚠️  Historical benchmarks disabled - using defaults only');
+    
+    /* DISABLED - Schema incompatibility
     try {
       const historicalData = await this.prisma.campaignAnalytics.groupBy({
         by: ['campaignId'],
@@ -103,6 +109,7 @@ export class PredictiveCampaignAdjustmentSystem {
     } catch (error) {
       console.error('Error loading historical benchmarks:', error);
     }
+    */
   }
 
   /**
