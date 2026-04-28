@@ -409,7 +409,6 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
     const method = request.method;
 
     console.log(`🔒 IP Security Check: ${clientIP} ${method} ${path}`);
-    console.log(`🔍 IP Whitelist version: 2026-04-21-18:22 (includes 86.160.65.85)`);
 
     // Skip IP validation for certain paths (like health checks)
     const skipPaths = ['/api/health', '/favicon.ico', '/_next/'];
@@ -425,8 +424,31 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
       return null; // Allow access
     }
 
-    // Check IP whitelist using shared function
-    const isWhitelisted = isIPWhitelisted(clientIP);
+    // Check IP whitelist from backend database
+    let isWhitelisted = false;
+    
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/admin/ip-whitelist/check/${clientIP}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store' // Don't cache whitelist checks
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        isWhitelisted = data.whitelisted === true;
+        console.log(`🔍 Backend whitelist check for ${clientIP}: ${isWhitelisted ? 'ALLOWED' : 'DENIED'}`);
+      } else {
+        console.warn(`⚠️  Backend whitelist check failed (${response.status}), falling back to local whitelist`);
+        // Fallback to local whitelist if backend is unreachable
+        isWhitelisted = isIPWhitelisted(clientIP);
+      }
+    } catch (fetchError) {
+      console.error('❌ Error fetching whitelist from backend:', fetchError);
+      // Fallback to local whitelist on network error
+      isWhitelisted = isIPWhitelisted(clientIP);
+    }
     
     if (!isWhitelisted) {
       console.log(`❌ IP ${clientIP} not whitelisted - blocking access to ${path}`);

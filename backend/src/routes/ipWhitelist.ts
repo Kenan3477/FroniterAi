@@ -127,4 +127,46 @@ router.delete('/:ipAddress', authenticate, requireRole('SUPER_ADMIN'), async (re
   }
 });
 
+/**
+ * GET /api/admin/ip-whitelist/check/:ipAddress
+ * Check if an IP is whitelisted (PUBLIC - no auth required for middleware to use)
+ */
+router.get('/check/:ipAddress', async (req: Request, res: Response) => {
+  try {
+    const { ipAddress } = req.params;
+
+    if (!ipAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'IP address is required',
+        whitelisted: false
+      });
+    }
+
+    console.log(`🔍 Checking whitelist status for IP: ${ipAddress}`);
+
+    const isWhitelisted = await ipWhitelistManager.isWhitelisted(ipAddress);
+    const entry = isWhitelisted ? ipWhitelistManager.getByIP(ipAddress) : null;
+
+    res.json({
+      success: true,
+      whitelisted: isWhitelisted,
+      ipAddress,
+      entry: entry ? {
+        name: entry.name,
+        description: entry.description,
+        addedAt: entry.addedAt,
+        activityCount: entry.activityCount
+      } : null
+    });
+  } catch (error) {
+    console.error('❌ Error checking IP whitelist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check IP whitelist',
+      whitelisted: false
+    });
+  }
+});
+
 export default router;
