@@ -4,9 +4,12 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_U
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const params = await context.params;
+    
     console.log('🔧 Proxying inbound number update to backend...');
     console.log('🔧 Number ID:', params.id);
 
@@ -100,9 +103,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const params = await context.params;
+    
     console.log('🗑️ Proxying inbound number deletion to backend...');
     console.log('🗑️ Number ID:', params.id);
 
