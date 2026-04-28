@@ -1254,6 +1254,16 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
     // ⚡ OPTIMIZATION 1: Check for active calls using userId in notes (since agentId is null)
     const userId = authenticatedUser.userId;
+    
+    if (!userId) {
+      console.error('🚨 CRITICAL: userId is missing from authenticatedUser!', authenticatedUser);
+      return res.status(500).json({
+        success: false,
+        error: 'User ID not found in authentication context',
+        debug: 'authenticatedUser.userId is undefined - check auth middleware'
+      });
+    }
+    
     console.log('⚡ Checking for active calls for user:', userId);
 
     // 🚫 CRITICAL: Check if agent has an active call already (unless force flag is set)
