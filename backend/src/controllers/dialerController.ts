@@ -1355,11 +1355,12 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // valid as TwiML <Dial> attributes. Sending the string here triggers
     // Twilio error 20001: "Record must be either 'true' or 'false'", which
     // surfaces in the frontend as "Backend call request failed".
-    //
-    // To get dual-channel recording at the REST API level:
+    // To get dual-channel recording starting at answer at the REST API level:
     //   - record: true
     //   - recordingChannels: 'dual'
     //   - recordingTrack: 'both'
+    //   - The actual "from-answer" semantics is the default for outbound REST
+    //     calls (recording is created when the call is answered).
     const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
 
     if (!RECORDING_CALLBACK || !process.env.BACKEND_URL) {
@@ -1387,7 +1388,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
       // Twilio REST API requires boolean record + separate channel/track flags.
       record: true,
-      recordingChannels: 'dual' as const,
+      recordingChannels: 'dual' as const, // Dual-channel: agent on one track, customer on the other
       recordingTrack: 'both' as const,
       recordingStatusCallback: RECORDING_CALLBACK,
       recordingStatusCallbackMethod: 'POST' as const,
