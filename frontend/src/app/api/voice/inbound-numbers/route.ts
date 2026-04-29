@@ -5,14 +5,25 @@ export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
+function getBearerForBackend(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  const session = request.cookies.get('session_token')?.value;
+  if (session) return session;
+  const legacy = request.cookies.get('auth-token')?.value || request.cookies.get('authToken')?.value;
+  if (legacy) return legacy;
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('📞 === INBOUND NUMBERS API CALLED ===');
     console.log('📞 Proxying inbound numbers request to backend...');
     console.log('📞 Request headers:', Object.fromEntries(request.headers.entries()));
 
-    // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
+    const authToken = getBearerForBackend(request);
     console.log('🔒 Auth token exists:', !!authToken);
     console.log('🔒 Auth token length:', authToken?.length || 0);
     console.log('🔒 Auth token preview:', authToken ? `${authToken.substring(0, 20)}...` : 'NONE');
@@ -105,7 +116,7 @@ export async function POST(request: NextRequest) {
     console.log('📞 Creating new inbound number via backend...');
 
     // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
+    const authToken = getBearerForBackend(request);
     console.log('🔒 Auth token exists:', !!authToken);
     
     if (!authToken) {

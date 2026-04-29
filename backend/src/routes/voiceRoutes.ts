@@ -150,7 +150,15 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       region: number.region,
       numberType: number.numberType,
       provider: number.provider,
-      capabilities: number.capabilities ? JSON.parse(number.capabilities) : [],
+      capabilities: (() => {
+        if (!number.capabilities) return [];
+        if (typeof number.capabilities === 'object') return number.capabilities;
+        try {
+          return JSON.parse(number.capabilities);
+        } catch {
+          return [];
+        }
+      })(),
       isActive: number.isActive,
       greetingAudioUrl: number.greetingAudioUrl,
       noAnswerAudioUrl: number.noAnswerAudioUrl,

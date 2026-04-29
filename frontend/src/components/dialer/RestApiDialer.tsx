@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Device } from '@twilio/voice-sdk';
 import { useAuth } from '@/contexts/AuthContext';
 import { RootState } from '@/store';
-import { startCall, answerCall, endCall } from '@/store/slices/activeCallSlice';
+import { startCall, answerCall, endCall, clearCall } from '@/store/slices/activeCallSlice';
 import { DispositionCard, DispositionData } from './DispositionCard';
 
 interface RestApiDialerProps {
@@ -41,13 +41,22 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   
   // Disposition modal state
   const [showDispositionModal, setShowDispositionModal] = useState(false);
-  const [pendingCallEnd, setPendingCallEnd] = useState<{callSid: string, duration: number} | null>(null);
+  const [pendingCallEnd, setPendingCallEnd] = useState<{
+    callSid: string;
+    duration: number;
+    conferenceId?: string;
+  } | null>(null);
   
   const deviceRef = useRef<Device | null>(null);
 
   // Get active call state from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
   const dispatch = useDispatch();
+
+  const authBearer = () =>
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('omnivox_token') ||
+    '';
 
   // Debug logging for device ready state
   useEffect(() => {
@@ -133,7 +142,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${authBearer()}`
           },
           body: JSON.stringify({ agentId: 'agent-browser' })
         });
@@ -288,15 +297,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                 console.log('🔚 Ending call on agent side and showing disposition modal...');
                 
                 // End the call in backend
-                await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
+                await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup', activeRestApiCall.conferenceId);
                 
                 // Show disposition modal for agent to record call outcome
                 setPendingCallEnd({
                   callSid: activeRestApiCall.callSid,
-                  duration: duration
+                  duration: duration,
+                  conferenceId: activeRestApiCall.conferenceId,
                 });
                 setShowDispositionModal(true);
-                
+
                 // Clear local call state (agent's call is ended)
                 setCurrentCall(null);
                 setActiveRestApiCall(null);
@@ -329,16 +339,17 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               if (activeRestApiCall?.callSid) {
                 console.log('� Ending cancelled call on agent side and showing disposition modal...');
                 
-                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel');
+                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel', activeRestApiCall.conferenceId);
                 
                 // Show disposition modal
                 setPendingCallEnd({
                   callSid: activeRestApiCall.callSid,
-                  duration: duration
+                  duration: duration,
+                  conferenceId: activeRestApiCall.conferenceId,
                 });
                 setShowDispositionModal(true);
                 
-                // Clear local call state
+                // Clear local call state (agent's call is ended)
                 setCurrentCall(null);
                 setActiveRestApiCall(null);
                 
@@ -359,7 +370,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               
               // End call via backend API if we have call info
               if (activeRestApiCall?.callSid) {
-                await endCallViaBackend(activeRestApiCall.callSid, 'call-error');
+                await endCallViaBackend(activeRestApiCall.callSid, 'call-error', activeRestApiCall.conferenceId);
               }
               
               setCurrentCall(null);
@@ -484,7 +495,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   };
 
   // Helper function to end call via backend API
-  const endCallViaBackend = async (callSid: string, autoDisposition?: string) => {
+  const endCallViaBackend = async (
+    callSid: string,
+    autoDisposition?: string,
+    conferenceIdForDisposition?: string
+  ) => {
     const callDuration = activeRestApiCall?.startTime 
       ? Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000)
       : 0;
@@ -499,7 +514,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authBearer()}`
         },
         body: JSON.stringify({ 
           callSid: callSid,
@@ -520,7 +535,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // The call is already ended, this is just for collecting disposition data
         if (autoDisposition) {
           console.log('📋 Showing disposition modal for agent to provide call outcome details...');
-          setPendingCallEnd({ callSid, duration: callDuration });
+          setPendingCallEnd({
+            callSid,
+            duration: callDuration,
+            conferenceId: conferenceIdForDisposition || activeRestApiCall?.conferenceId,
+          });
           setShowDispositionModal(true);
         }
         
@@ -532,7 +551,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // This allows agent to at least record what happened
         if (autoDisposition) {
           console.log('⚠️  Backend failed but showing disposition modal anyway...');
-          setPendingCallEnd({ callSid, duration: callDuration });
+          setPendingCallEnd({
+            callSid,
+            duration: callDuration,
+            conferenceId: conferenceIdForDisposition || activeRestApiCall?.conferenceId,
+          });
           setShowDispositionModal(true);
         }
         
@@ -544,7 +567,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       // Still show disposition modal even if error occurs
       if (autoDisposition) {
         console.log('⚠️  Error occurred but showing disposition modal anyway...');
-        setPendingCallEnd({ callSid, duration: callDuration });
+        setPendingCallEnd({
+          callSid,
+          duration: callDuration,
+          conferenceId: conferenceIdForDisposition || activeRestApiCall?.conferenceId,
+        });
         setShowDispositionModal(true);
       }
       
@@ -559,19 +586,24 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     try {
       console.log('💾 Submitting disposition data:', dispositionData);
       console.log('🔍 DEBUG: activeRestApiCall state:', activeRestApiCall);
-      console.log('🔍 DEBUG: conferenceId from state:', activeRestApiCall?.conferenceId);
+      console.log('🔍 DEBUG: conferenceId:', pendingCallEnd.conferenceId || activeCall.conferenceId);
       console.log('🔍 DEBUG: callSid:', pendingCallEnd.callSid);
       
+      const conferenceIdForSave =
+        pendingCallEnd.conferenceId ||
+        activeCall.conferenceId ||
+        undefined;
+
       // Save disposition to backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authBearer()}`
         },
         body: JSON.stringify({
           callSid: pendingCallEnd.callSid,
-          conferenceId: activeRestApiCall?.conferenceId, // 🚨 CRITICAL: Conference ID to find preliminary record
+          conferenceId: conferenceIdForSave, // conf-xxx to merge with preliminary call record
           duration: pendingCallEnd.duration,
           disposition: {
             id: dispositionData.id,
@@ -606,6 +638,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         
         // Clear Redux state
         dispatch(endCall());
+        dispatch(clearCall());
         
         console.log('🧹 All call state cleared after disposition submission');
         
@@ -659,7 +692,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authBearer()}`
         },
         body: JSON.stringify({ 
           to: normalisedNumber,
@@ -756,7 +789,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     const poll = async () => {
       try {
         const res = await fetch(`/api/calls/${callSid}/live-status`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+          headers: { 'Authorization': `Bearer ${authBearer()}` }
         });
         const data = await res.json();
 
@@ -873,7 +906,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // Show disposition modal instead of immediately ending with hardcoded disposition
         setPendingCallEnd({ 
           callSid: activeRestApiCall.callSid, 
-          duration: callDuration 
+          duration: callDuration,
+          conferenceId: activeRestApiCall.conferenceId,
         });
         setShowDispositionModal(true);
         
@@ -1120,6 +1154,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           onClose={() => {
             // Clear Redux state when modal is closed without saving
             dispatch(endCall());
+            dispatch(clearCall());
             setShowDispositionModal(false);
             setPendingCallEnd(null);
             setActiveRestApiCall(null);

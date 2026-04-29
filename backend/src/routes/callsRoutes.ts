@@ -772,6 +772,10 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       console.log('   mappedOutcome:', mappedOutcome);
       console.log('   THIS SHOULD CHANGE outcome FROM "in-progress" TO:', mappedOutcome);
       
+      const existingRec = existingRecordByTwilioSid?.recording || null;
+      const mergedRecording =
+        recordingUrl || (callSid?.startsWith('CA') ? callSid : null) || existingRec;
+
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
         update: {
@@ -783,7 +787,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           duration: safeDuration,
           outcome: mappedOutcome, // 🚨 CRITICAL: This changes from 'in-progress' to 'completed' (or other)
           dispositionId: validDispositionId,
-          recording: recordingUrl || null,
+          recording: mergedRecording,
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
           endTime: new Date()
         },
@@ -801,7 +805,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           duration: safeDuration,
           outcome: mappedOutcome,
           dispositionId: validDispositionId,
-          recording: recordingUrl || null,
+          recording: recordingUrl || (callSid?.startsWith('CA') ? callSid : null),
           notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
         }
       });
