@@ -168,13 +168,8 @@ router.post('/twiml/outbound', async (req, res) => {
     console.log(`📞 Generating outbound TwiML for call ${CallSid} to ${To}`);
     
     const twiml = new twilio.twiml.VoiceResponse();
-    
-    // Add a brief greeting to establish connection
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Please hold while we connect you to an agent.');
-    
+    // No TTS — connect immediately (Twilio <Say> is billable)
+    twiml.pause({ length: 1 });
     // Connect to WebRTC agent client
     const dial = twiml.dial({
       timeout: 30, // 30 second timeout for agent pickup
@@ -186,12 +181,6 @@ router.post('/twiml/outbound', async (req, res) => {
     // Connect to the browser-based agent
     dial.client('agent-browser');
     
-    // If agent doesn't answer, handle gracefully
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Sorry, all agents are currently busy. Please try again later.');
-    
     twiml.hangup();
     
     res.type('text/xml');
@@ -202,7 +191,6 @@ router.post('/twiml/outbound', async (req, res) => {
     
     // Fallback TwiML
     const errorTwiml = new twilio.twiml.VoiceResponse();
-    errorTwiml.say('We apologize, but we are experiencing technical difficulties. Please try again later.');
     errorTwiml.hangup();
     
     res.type('text/xml');
@@ -223,9 +211,7 @@ router.post('/twiml/agent-connect', async (req, res) => {
     const twiml = new twilio.twiml.VoiceResponse();
     
     if (conference) {
-      // Conference-based connection
-      twiml.say('Connecting you to the customer.');
-      
+      // Conference-based connection (no TTS)
       const dial = twiml.dial();
       dial.conference({
         startConferenceOnEnter: true,
@@ -234,9 +220,7 @@ router.post('/twiml/agent-connect', async (req, res) => {
       }, conference);
       
     } else {
-      // Direct connection
-      twiml.say('You are now connected.');
-      
+      // Direct connection (no TTS)
       const dial = twiml.dial({
         callerId: process.env.TWILIO_PHONE_NUMBER,
         timeout: 30
@@ -252,7 +236,6 @@ router.post('/twiml/agent-connect', async (req, res) => {
     console.error('❌ Error generating agent connect TwiML:', error);
     
     const errorTwiml = new twilio.twiml.VoiceResponse();
-    errorTwiml.say('Connection failed. Please try again.');
     errorTwiml.hangup();
     
     res.type('text/xml');

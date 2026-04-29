@@ -333,10 +333,9 @@ async function main() {
                 category: 'Action',
                 x: 300,
                 y: 250,
-                config: JSON.stringify({ 
-                  audioType: 'tts', 
-                  ttsText: 'Welcome to Omnivox AI. Your call is important to us.',
-                  voice: 'english-female'
+                config: JSON.stringify({
+                  audioType: 'file',
+                  audioUrl: 'https://demo.twilio.com/docs/classic.mp3'
                 })
               },
               {

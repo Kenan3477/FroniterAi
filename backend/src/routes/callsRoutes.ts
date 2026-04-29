@@ -165,7 +165,6 @@ router.post('/twiml-outbound', async (req: Request, res: Response) => {
     res.status(500).set('Content-Type', 'text/xml').send(`
       <?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say>An error occurred. Please try again.</Say>
         <Hangup/>
       </Response>
     `);
@@ -179,7 +178,6 @@ router.post('/twiml-agent', async (req: Request, res: Response) => {
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Connecting you to the customer.</Say>
   <Conference waitUrl="" startConferenceOnEnter="true" endConferenceOnExit="true">
     ${conference}
   </Conference>
@@ -192,7 +190,6 @@ router.post('/twiml-agent', async (req: Request, res: Response) => {
     res.status(500).set('Content-Type', 'text/xml').send(`
       <?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say>An error occurred. Please try again.</Say>
         <Hangup/>
       </Response>
     `);
@@ -218,7 +215,6 @@ router.post('/twiml-customer', async (req: Request, res: Response) => {
     res.status(500).set('Content-Type', 'text/xml').send(`
       <?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say>An error occurred. Please try again.</Say>
         <Hangup/>
       </Response>
     `);

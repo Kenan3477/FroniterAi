@@ -144,10 +144,10 @@ router.post('/recording', validateTwilioSignature, async (req: Request, res: Res
 router.post('/welcome', validateTwilioSignature, (req: Request, res: Response) => {
   console.log('🎤 Welcome webhook called:', req.body);
   
+  // No <Say> — Twilio TTS is disabled to avoid per-character/minute charges.
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Thank you for calling. Please hold while we connect you to an available agent.</Say>
-  <Pause length="2"/>
+  <Pause length="1"/>
   <Redirect>/api/webhooks/queue</Redirect>
 </Response>`;
 

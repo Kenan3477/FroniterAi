@@ -867,34 +867,15 @@ export class FlowExecutionEngine extends EventEmitter {
   }
 
   /**
-   * Execute text-to-speech
+   * Execute text-to-speech — disabled: Twilio &lt;Say&gt; TTS is not used (cost control).
    */
-  private async executeTextToSpeech(config: any, context: FlowExecutionContext) {
-    console.log('🗣️ Converting text to speech:', config.text?.substring(0, 50) + '...');
-
-    try {
-      // TODO: Integrate with actual TTS system (e.g., Twilio, AWS Polly)
-      const estimatedDuration = (config.text?.length || 0) * 100; // 100ms per character estimate
-
-      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing
-
-      return {
-        success: true,
-        output: {
-          text: config.text,
-          voice: config.voice || 'alice',
-          speed: config.speed || 1.0,
-          language: config.language || 'en-GB',
-          estimatedDuration: estimatedDuration,
-          completed: true
-        }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `TTS failed: ${error}`
-      };
-    }
+  private async executeTextToSpeech(_config: any, _context: FlowExecutionContext) {
+    console.warn('🚫 textToSpeech node skipped: Twilio TTS is disabled for cost control');
+    return {
+      success: false,
+      error:
+        'Text-to-speech is disabled. Use a Play Audio node with a hosted audio URL instead of Twilio TTS.'
+    };
   }
 
   /**

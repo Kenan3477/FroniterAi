@@ -300,7 +300,6 @@ router.post('/twiml/inbound-agent', async (req, res) => {
       return res.type('text/xml').send(`
         <?xml version="1.0" encoding="UTF-8"?>
         <Response>
-          <Say>Call ID not specified</Say>
           <Hangup/>
         </Response>
       `);
@@ -308,12 +307,7 @@ router.post('/twiml/inbound-agent', async (req, res) => {
 
     const twilio = require('twilio');
     const twiml = new twilio.twiml.VoiceResponse();
-    
-    // Brief connection message
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Connecting you to the customer...');
+    twiml.pause({ length: 1 });
     
     // Join the conference for this specific inbound call
     const conferenceRoom = `inbound-${callId}`;
@@ -331,7 +325,6 @@ router.post('/twiml/inbound-agent', async (req, res) => {
     res.type('text/xml').send(`
       <?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say>An error occurred connecting to the call</Say>
         <Hangup/>
       </Response>
     `);
