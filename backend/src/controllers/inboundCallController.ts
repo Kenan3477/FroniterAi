@@ -71,33 +71,124 @@ export interface CallerLookupResponse {
  */
 
 /**
- * Check if current time is within business hours
+ * Check if the current time is within an inbound number's business hours.
+ *
+ * The InboundNumber row stores:
+ *   - `businessHours`     : a *mode* string from the admin form
+ *                           ("24 Hours", "Business Hours", "Custom"),
+ *                           NOT a JSON object. Older code treated it as JSON
+ *                           and crashed with `JSON.parse` on the literal
+ *                           string "Business Hours", which fell through to a
+ *                           silent <Hangup/> for every inbound call.
+ *   - `businessHoursStart`/`businessHoursEnd` : "HH:MM" strings
+ *   - `businessDays`      : CSV like "Monday,Tuesday,Wednesday,Thursday,Friday"
+ *   - `timezone`          : IANA tz name (e.g. "Europe/London") used to
+ *                           interpret "now" against the configured window.
+ *
+ * Rules:
+ *   - "24 Hours" / unset                                                  → always open.
+ *   - "Custom" / "Business Hours" with start, end, and days configured:
+ *       * Day-of-week (in the configured timezone) must be in `businessDays`.
+ *       * HH:MM (in the configured timezone) must satisfy
+ *         start <= now < end (exclusive end for the conventional "9 to 5"
+ *         interpretation).
+ *
+ * This function MUST NEVER THROW. If anything is malformed we default to
+ * OPEN, because falsely closing the line drops every inbound call silently
+ * and is much harder to debug than mistakenly accepting a call.
  */
 function checkBusinessHours(inboundNumber: any): boolean {
-  // If no business hours configured, assume always open
-  if (!inboundNumber.businessHours || !inboundNumber.businessHoursStart || !inboundNumber.businessHoursEnd) {
+  try {
+    const mode = (inboundNumber?.businessHours || '24 Hours').toString().trim();
+
+    // Always open.
+    if (mode === '24 Hours' || mode === '24/7' || mode === '') {
+      return true;
+    }
+
+    const start: string | undefined = inboundNumber?.businessHoursStart;
+    const end: string | undefined = inboundNumber?.businessHoursEnd;
+    if (!start || !end) {
+      console.warn(
+        `⚠️ businessHours mode '${mode}' set but start/end times missing — defaulting to OPEN`,
+      );
+      return true;
+    }
+
+    const tz = inboundNumber?.timezone || 'Europe/London';
+    const now = new Date();
+
+    // Localised day-of-week (long form) and HH:MM in the configured tz.
+    let weekday = '';
+    let hhmm = '';
+    try {
+      weekday = new Intl.DateTimeFormat('en-GB', {
+        weekday: 'long',
+        timeZone: tz,
+      }).format(now);
+      hhmm = new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: tz,
+      }).format(now);
+    } catch (tzErr: any) {
+      console.warn(
+        `⚠️ Invalid timezone '${tz}' on inbound number — falling back to UTC: ${tzErr?.message}`,
+      );
+      weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(now);
+      hhmm = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+    }
+
+    // businessDays may be a CSV string ("Monday,Tuesday,...") OR a JSON object
+    // of the form {"monday": true, ...}. Accept both.
+    const rawDays = inboundNumber?.businessDays;
+    let isBusinessDay = true; // default if nothing configured
+    if (rawDays) {
+      const dayLc = weekday.toLowerCase();
+      if (typeof rawDays === 'string') {
+        if (rawDays.trim().startsWith('{')) {
+          try {
+            const obj = JSON.parse(rawDays);
+            isBusinessDay = !!obj?.[dayLc];
+          } catch {
+            // Not valid JSON — treat as CSV.
+            isBusinessDay = rawDays
+              .split(',')
+              .map((s: string) => s.trim().toLowerCase())
+              .includes(dayLc);
+          }
+        } else {
+          isBusinessDay = rawDays
+            .split(',')
+            .map((s: string) => s.trim().toLowerCase())
+            .includes(dayLc);
+        }
+      } else if (typeof rawDays === 'object') {
+        isBusinessDay = !!(rawDays as any)[dayLc];
+      }
+    }
+
+    if (!isBusinessDay) {
+      console.log(`🕒 ${weekday} is not a business day for ${inboundNumber?.phoneNumber}`);
+      return false;
+    }
+
+    // start <= hhmm < end (exclusive end so 09:00–17:00 means up to 16:59).
+    const inWindow = hhmm >= start && hhmm < end;
+    console.log(
+      `🕒 BH check for ${inboundNumber?.phoneNumber}: now=${weekday} ${hhmm} ${tz}, ` +
+        `window ${start}-${end} → ${inWindow ? 'OPEN' : 'CLOSED'}`,
+    );
+    return inWindow;
+  } catch (err: any) {
+    // Never throw — defaulting to OPEN is the safe choice.
+    console.error(
+      `❌ checkBusinessHours threw (defaulting to OPEN to avoid dropping the call):`,
+      err?.message || err,
+    );
     return true;
   }
-
-  const now = new Date();
-  const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  
-  // Parse business hours JSON (format: { "monday": true, "tuesday": true, etc })
-  const businessHours = typeof inboundNumber.businessHours === 'string' 
-    ? JSON.parse(inboundNumber.businessHours)
-    : inboundNumber.businessHours;
-
-  // Check if current day is a business day
-  if (!businessHours[currentDay]) {
-    return false;
-  }
-
-  // Check if current time is within business hours
-  const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-  const startTime = inboundNumber.businessHoursStart;
-  const endTime = inboundNumber.businessHoursEnd;
-
-  return currentTime >= startTime && currentTime <= endTime;
 }
 
 /**
@@ -255,37 +346,65 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Store inbound call in database
     await storeInboundCall(inboundCall, callerInfo);
 
-    // ✅ CRITICAL: Route based on inbound number configuration
+    // ✅ CRITICAL: Route based on inbound number configuration.
+    //
+    // The default behaviour everywhere is: play the greeting audio (if any)
+    // then ring the WebRTC agent. The previous branching tried to use
+    // routeTo='Hangup' as a hangup signal, an assignedFlowId hooked up to a
+    // half-built flow engine, and a queue path that referenced webhook
+    // endpoints (/api/calls/webhook/wait-music, /queue-result) that aren't
+    // wired up — every one of those landed callers in silent hangup.
+    //
+    // New rules, in priority order:
+    //   1. routeTo='Queue' AND selectedQueueId AND a real InboundQueue exists →
+    //      use the queue TwiML (still requires queueAudioUrl on the row).
+    //   2. routeTo='Flow' AND we have an assignedFlowId/selectedFlowId AND the
+    //      Flow row is ACTIVE → execute it. Any failure inside the flow engine
+    //      falls through to the agent-ring path, never to silent hangup.
+    //   3. Otherwise (including the common routeTo='Hangup' case where the user
+    //      has just configured audio + agents) → ring agents with the
+    //      configured greeting/no-answer audio. A real "Hangup" only happens
+    //      out-of-hours or if no audio has been configured at all.
     let twiml: string;
-    
+
     console.log('🔀 Routing decision:', {
       routeTo: inboundNumber.routeTo,
       selectedQueueId: inboundNumber.selectedQueueId,
       selectedFlowId: inboundNumber.selectedFlowId,
-      assignedFlowId: inboundNumber.assignedFlowId
+      assignedFlowId: inboundNumber.assignedFlowId,
+      hasGreetingAudio: !!inboundNumber.greetingAudioUrl,
+      hasNoAnswerAudio: !!inboundNumber.noAnswerAudioUrl,
     });
 
-    // Priority 1: Check routeTo setting
     if (inboundNumber.routeTo === 'Queue' && inboundNumber.selectedQueueId) {
       console.log(`📋 Routing to queue: ${inboundNumber.selectedQueueId}`);
       twiml = generateQueueTwiML(inboundNumber);
-    } 
-    // Priority 2: Check for assigned/selected flow
-    else if (inboundNumber.routeTo === 'Flow' || inboundNumber.assignedFlowId || inboundNumber.selectedFlowId) {
+    } else if (
+      inboundNumber.routeTo === 'Flow' &&
+      (inboundNumber.assignedFlowId || inboundNumber.selectedFlowId)
+    ) {
       const flowId = inboundNumber.selectedFlowId || inboundNumber.assignedFlowId;
-      const assignedFlow = await checkForAssignedFlow(To);
-      
-      if (assignedFlow || flowId) {
-        console.log(`🌊 Routing to flow: ${assignedFlow?.name || flowId}`);
-        twiml = await executeAssignedFlow(flowId || assignedFlow.id, inboundCall, inboundCallId);
-      } else {
-        console.log('⚠️ Flow routing configured but no flow found - falling back to agent routing');
+      console.log(`🌊 routeTo=Flow with flowId=${flowId} — attempting flow execution`);
+      try {
+        twiml = await executeAssignedFlow(flowId, inboundCall, inboundCallId);
+      } catch (flowErr: any) {
+        console.warn(
+          `⚠️ Flow execution threw, falling back to agent ring: ${flowErr?.message}`,
+        );
         twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
       }
-    }
-    // Priority 3: Route to available agents (default behavior)
-    else {
-      console.log('📞 Routing to available agents (default)');
+    } else {
+      // Default: ring the agent. This includes routeTo='Hangup' configurations
+      // because a user who has uploaded audio and is staring at the inbound
+      // number config almost certainly wants the call to ring the agent, not
+      // be hung up.
+      if (inboundNumber.routeTo === 'Hangup') {
+        console.log(
+          "📞 routeTo='Hangup' but treating as agent-ring because audio is configured / agent expected",
+        );
+      } else {
+        console.log('📞 Routing to available agents (default)');
+      }
       twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
     }
     
@@ -356,43 +475,78 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
 }
 
 /**
- * Generate TwiML to ring agents directly for immediate pickup
- * NO TTS ALLOWED - Audio files are REQUIRED
+ * Generate TwiML that plays the greeting (if configured) and then dials the
+ * registered WebRTC agent. We always dial — regardless of whether
+ * `availableAgents` is empty — because:
+ *
+ *   - Twilio's `<Dial><Client>agent-browser</Client></Dial>` rings every
+ *     browser session that has registered the `agent-browser` Client; the
+ *     concept of "available" is owned by the frontend, not the webhook.
+ *   - If nobody is registered, Twilio's `timeout` (30s) fires and we fall
+ *     through to the no-answer audio (if configured) and a clean hangup.
+ *
+ * The previous behaviour required `greetingAudioUrl` to be set or the call
+ * was silently hung up — that's hostile to anyone configuring agents without
+ * a custom greeting. Now the greeting is optional; without it the agent's
+ * phone simply rings without preamble.
  */
-function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, inboundNumber?: any): string {
-  console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
-  
+function generateDirectAgentRingTwiML(
+  availableAgents: any[],
+  callId: string,
+  inboundNumber?: any,
+): string {
+  console.log(
+    '📞 Generating agent-ring TwiML; available agents reported by lookup:',
+    availableAgents.map((a) => a.id),
+  );
+
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // CRITICAL: Audio file is REQUIRED - no TTS allowed
-  if (!inboundNumber?.greetingAudioUrl) {
-    console.error('❌ CRITICAL: No greetingAudioUrl configured for inbound number');
-    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure greetingAudioUrl in database.');
-    twiml.hangup();
-    return twiml.toString();
+  if (inboundNumber?.greetingAudioUrl) {
+    console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
+    twiml.play(inboundNumber.greetingAudioUrl);
+  } else {
+    console.log('ℹ️ No greetingAudioUrl configured — ringing agent without preamble');
   }
 
-  // Play greeting audio
-  console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
-  twiml.play(inboundNumber.greetingAudioUrl);
+  const backendUrl = process.env.BACKEND_URL || '';
+  const recordingStatusCallback = backendUrl
+    ? `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`
+    : undefined;
 
-  // Ring the browser-based agent directly with recording enabled
-  const backendUrl = process.env.BACKEND_URL || 'https://kennex-production.up.railway.app';
-  const recordingStatusCallback = `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`;
-  
-  const dial = twiml.dial({
+  const dialOpts: any = {
     timeout: 30,
     record: 'record-from-answer-dual',
-    recordingStatusCallback,
-    recordingStatusCallbackMethod: 'POST'
-  });
-  
+    answerOnBridge: true,
+  };
+  if (recordingStatusCallback) {
+    dialOpts.recordingStatusCallback = recordingStatusCallback;
+    dialOpts.recordingStatusCallbackMethod = 'POST';
+  }
+
+  const dial = twiml.dial(dialOpts);
   dial.client('agent-browser');
 
-  // Fallback if no agents answer - redirect to queue (which will play audio)
-  twiml.redirect('/api/calls/webhook/queue');
+  // No agent picked up within `timeout`. Play the configured no-answer audio
+  // (if any) and then hang up cleanly. No TTS, no broken queue redirect.
+  if (inboundNumber?.noAnswerAudioUrl) {
+    console.log('ℹ️ Will play noAnswerAudioUrl on no-answer:', inboundNumber.noAnswerAudioUrl);
+    twiml.play(inboundNumber.noAnswerAudioUrl);
+  } else if (inboundNumber?.voicemailAudioUrl) {
+    // Optional graceful degradation: if a voicemail prompt is configured,
+    // play it and record a message instead of dropping the caller.
+    console.log('ℹ️ Will play voicemailAudioUrl on no-answer:', inboundNumber.voicemailAudioUrl);
+    twiml.play(inboundNumber.voicemailAudioUrl);
+    twiml.record({
+      action: '/api/calls/webhook/voicemail',
+      method: 'POST',
+      maxLength: 120,
+      finishOnKey: '#',
+    });
+  }
 
-  console.log('✅ TwiML generated with recording enabled for inbound call');
+  twiml.hangup();
+  console.log('✅ Agent-ring TwiML generated');
   return twiml.toString();
 }
 
@@ -874,31 +1028,34 @@ async function getInboundCallDetails(callId: string): Promise<any> {
 /**
  * Check if a flow is assigned to the given inbound number
  */
-async function checkForAssignedFlow(phoneNumber: string): Promise<{ id: string; name: string } | null> {
+async function checkForAssignedFlow(
+  phoneNumber: string,
+): Promise<{ id: string; name: string } | null> {
   try {
+    // The Prisma relation on InboundNumber.assignedFlowId is named `flows`,
+    // not `assignedFlow` (see prisma/schema.prisma). Using the wrong include
+    // name throws Prisma P2009 and the function silently returns null.
     const inboundNumber: any = await prisma.inboundNumber.findUnique({
       where: { phoneNumber },
       include: {
-        assignedFlow: {
+        flows: {
           select: {
             id: true,
             name: true,
-            status: true
-          }
-        }
-      } as any
+            status: true,
+          },
+        },
+      },
     });
 
-    if (inboundNumber?.assignedFlow && inboundNumber.assignedFlow.status === 'ACTIVE') {
-      return {
-        id: inboundNumber.assignedFlow.id,
-        name: inboundNumber.assignedFlow.name
-      };
+    const flow = inboundNumber?.flows;
+    if (flow && flow.status === 'ACTIVE') {
+      return { id: flow.id, name: flow.name };
     }
 
     return null;
   } catch (error: any) {
-    console.error('❌ Error checking for assigned flow:', error);
+    console.error('❌ Error checking for assigned flow:', error?.message || error);
     return null;
   }
 }
