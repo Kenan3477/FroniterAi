@@ -328,37 +328,34 @@ router.post('/twiml/inbound-agent', async (req, res) => {
     console.log(`📞 Generating agent TwiML for inbound call ${callId}, agent ${agentId}`);
     
     if (!callId) {
-      return res.type('text/xml').send(`
-        <?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-          <Hangup/>
-        </Response>
-      `);
+      // 🚫 NO TTS — silent hangup.
+      return res.type('text/xml').send(
+        `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+      );
     }
 
     const twilio = require('twilio');
     const twiml = new twilio.twiml.VoiceResponse();
+    // 🚫 NO TTS — brief pause then conference. Use greetingAudioUrl on the inbound number for a custom prompt.
     twiml.pause({ length: 1 });
-    
-    // Join the conference for this specific inbound call
     const conferenceRoom = `inbound-${callId}`;
-    twiml.dial().conference({
-      startConferenceOnEnter: true,
-      endConferenceOnExit: true,
-      beep: false
-    }, conferenceRoom);
-    
+    twiml.dial().conference(
+      {
+        startConferenceOnEnter: true,
+        endConferenceOnExit: true,
+        beep: false,
+      },
+      conferenceRoom,
+    );
+
     res.type('text/xml');
     res.send(twiml.toString());
-    
+
   } catch (error: any) {
     console.error('❌ Error generating agent TwiML for inbound call:', error);
-    res.type('text/xml').send(`
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Hangup/>
-      </Response>
-    `);
+    res.type('text/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+    );
   }
 });
 

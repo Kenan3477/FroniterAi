@@ -4,6 +4,115 @@ import { authenticate } from '../middleware/auth';
 
 import { prisma } from '../lib/prisma';
 const router = express.Router();
+
+/**
+ * Resolve an "audio file reference" coming from the inbound-number admin form
+ * to an absolute, public URL that Twilio can fetch via <Play>.
+ *
+ * The form lets users pick an audio file from a dropdown whose `<option value>`
+ * is the AudioFile DB row ID (e.g. "cmoif0qyc000e9nybpzc6pbk6"). Previously we
+ * stored that bare ID into `greetingAudioUrl` / `outOfHoursAudioUrl` /
+ * `voicemailAudioUrl`, then handed it to Twilio with `twiml.play(value)`.
+ * Twilio's <Play> needs a URL; a bare CUID resolves to nothing, so the call
+ * fell through to twiml.hangup() (silent) and the user thought "the system is
+ * still relying on TTS". It wasn't TTS — it was silence followed by Twilio's
+ * default error message.
+ *
+ * This helper accepts:
+ *   - An empty / falsy value → returns null (clears the field).
+ *   - A full http(s) URL       → returned unchanged (user pasted a URL).
+ *   - A relative path starting with /api/voice/audio-files → prefixed with
+ *     BACKEND_URL so Twilio can reach it.
+ *   - Anything else (treated as an AudioFile ID) → looked up in the DB; if it
+ *     exists, we return an absolute stream URL pointing at our public stream
+ *     endpoint. If the ID doesn't resolve, we return null and log a warning so
+ *     we never silently persist garbage.
+ */
+async function resolveAudioFileToUrl(
+  value: string | null | undefined,
+): Promise<string | null> {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // Already an absolute URL — pass through.
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  const backendUrl =
+    process.env.BACKEND_URL ||
+    process.env.PUBLIC_BACKEND_URL ||
+    'https://froniterai-production.up.railway.app';
+
+  // Relative path → make absolute.
+  if (trimmed.startsWith('/')) {
+    return `${backendUrl.replace(/\/$/, '')}${trimmed}`;
+  }
+
+  // Treat as an AudioFile ID: confirm it exists, then return the public stream
+  // URL. The /api/voice/audio-files/:id/stream endpoint is intentionally
+  // unauthenticated so Twilio's CDN can fetch it.
+  try {
+    const audioFile = await prisma.audioFile.findUnique({
+      where: { id: trimmed },
+      select: { id: true, displayName: true },
+    });
+    if (audioFile) {
+      const url = `${backendUrl.replace(/\/$/, '')}/api/voice/audio-files/${audioFile.id}/stream`;
+      console.log(
+        `🎵 Resolved audio file ID ${audioFile.id} (${audioFile.displayName}) → ${url}`,
+      );
+      return url;
+    }
+    console.warn(
+      `⚠️ Audio file ID "${trimmed}" not found in DB; refusing to persist as URL`,
+    );
+    return null;
+  } catch (err: any) {
+    console.warn(
+      `⚠️ Could not resolve audio file ID "${trimmed}": ${err?.message || err}`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Resolve all four (currently used) audio slots in one go. Accepts the legacy
+ * frontend field names (*AudioFile) as fallbacks for the canonical *AudioUrl
+ * fields.
+ */
+async function resolveInboundAudioUrls(input: {
+  greetingAudioUrl?: string | null;
+  noAnswerAudioUrl?: string | null;
+  outOfHoursAudioUrl?: string | null;
+  busyAudioUrl?: string | null;
+  voicemailAudioUrl?: string | null;
+  // Legacy form field names that older versions of the React form sent.
+  greetingAudioFile?: string | null;
+  noAnswerAudioFile?: string | null;
+  outOfHoursAudioFile?: string | null;
+  busyAudioFile?: string | null;
+  voicemailAudioFile?: string | null;
+  businessHoursAudioFile?: string | null;
+  businessHoursVoicemailFile?: string | null;
+}) {
+  const [greeting, noAnswer, outOfHours, busy, voicemail] = await Promise.all([
+    resolveAudioFileToUrl(input.greetingAudioUrl ?? input.greetingAudioFile ?? input.businessHoursAudioFile),
+    resolveAudioFileToUrl(input.noAnswerAudioUrl ?? input.noAnswerAudioFile),
+    resolveAudioFileToUrl(input.outOfHoursAudioUrl ?? input.outOfHoursAudioFile),
+    resolveAudioFileToUrl(input.busyAudioUrl ?? input.busyAudioFile),
+    resolveAudioFileToUrl(
+      input.voicemailAudioUrl ?? input.voicemailAudioFile ?? input.businessHoursVoicemailFile,
+    ),
+  ]);
+  return {
+    greetingAudioUrl: greeting,
+    noAnswerAudioUrl: noAnswer,
+    outOfHoursAudioUrl: outOfHours,
+    busyAudioUrl: busy,
+    voicemailAudioUrl: voicemail,
+  };
+}
+
 // ── Auto-seed known Twilio numbers on startup ──────────────────────────────
 const KNOWN_NUMBERS = [
   {
@@ -115,7 +224,11 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       console.log(`   ${index + 1}. Phone: ${num.phoneNumber}, Active: ${num.isActive}, ID: ${num.id}`);
     });
     
-    // Now fetch active inbound numbers from database
+    // Now fetch active inbound numbers from database.
+    // ⚠️ The Prisma relation on `InboundNumber.assignedFlowId` is named `flows`
+    // in schema.prisma, NOT `assignedFlow`. Using the wrong include name throws
+    // P2009 "Unknown field `assignedFlow`" and the GET endpoint returns 500,
+    // which is what was breaking the inbound-number admin page entirely.
     console.log('🔍 Now filtering for isActive: true...');
     const inbound_numbers = await prisma.inboundNumber.findMany({
       where: {
@@ -170,6 +283,7 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       businessDays: number.businessDays,
       timezone: number.timezone,
       assignedFlowId: number.assignedFlowId,
+      // Prisma relation is `flows`; API exposes `assignedFlow` for the Channels UI.
       assignedFlow: number.flows ?? null,
       // ✅ CRITICAL: Return persisted configuration from database
       businessHours: number.businessHours || "24 Hours",
@@ -362,15 +476,77 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       }
     }
 
-    // Map new fields to existing database fields where possible
+    // 🎵 Resolve audio file IDs / paths to absolute URLs that Twilio can fetch.
+    // The frontend dropdowns use AudioFile row IDs as values (because that's
+    // what the user sees in the picker). Twilio <Play> needs a real URL.
+    // Without this conversion, the inbound webhook would fall through to
+    // twiml.hangup() (no audio configured) and the call drops silently.
+    const resolvedAudio = await resolveInboundAudioUrls({
+      // Canonical *AudioUrl fields (preferred; might already be a URL).
+      greetingAudioUrl,
+      noAnswerAudioUrl,
+      outOfHoursAudioUrl,
+      busyAudioUrl,
+      voicemailAudioUrl,
+      // *AudioFile fields sent by the current admin form (these hold AudioFile
+      // row IDs and are the primary source of truth post-fix). Each is read
+      // from req.body in case TS strips fields not declared in the destructure.
+      greetingAudioFile: (req.body as any).greetingAudioFile,
+      noAnswerAudioFile: (req.body as any).noAnswerAudioFile,
+      outOfHoursAudioFile,
+      busyAudioFile: (req.body as any).busyAudioFile,
+      voicemailAudioFile,
+      businessHoursAudioFile: (req.body as any).businessHoursAudioFile,
+      businessHoursVoicemailFile,
+    });
+
+    console.log('🎵 Resolved audio URLs for inbound number:', {
+      greetingAudioUrl: resolvedAudio.greetingAudioUrl,
+      noAnswerAudioUrl: resolvedAudio.noAnswerAudioUrl,
+      outOfHoursAudioUrl: resolvedAudio.outOfHoursAudioUrl,
+      busyAudioUrl: resolvedAudio.busyAudioUrl,
+      voicemailAudioUrl: resolvedAudio.voicemailAudioUrl,
+    });
+
+    // Map fields to existing database columns. We only overwrite each audio
+    // URL when the request sent something for it (treat `undefined` as
+    // "leave alone"); otherwise the existing value is preserved.
+    //
+    // The frontend may send EITHER the *AudioUrl form (legacy: user pasted a
+    // URL) OR the *AudioFile form (current: user picked from a dropdown of
+    // uploaded audio files). Both paths get resolved via
+    // resolveInboundAudioUrls() above.
+    const greetingProvided =
+      greetingAudioUrl !== undefined || (req.body as any).greetingAudioFile !== undefined;
+    const noAnswerProvided =
+      noAnswerAudioUrl !== undefined || (req.body as any).noAnswerAudioFile !== undefined;
+    const outOfHoursProvided =
+      outOfHoursAudioUrl !== undefined || outOfHoursAudioFile !== undefined;
+    const busyProvided =
+      busyAudioUrl !== undefined || (req.body as any).busyAudioFile !== undefined;
+    const voicemailProvided =
+      voicemailAudioUrl !== undefined ||
+      voicemailAudioFile !== undefined ||
+      businessHoursVoicemailFile !== undefined;
+
     const updateData: any = {
       displayName,
       description: description || `Inbound number ${req.params.id}`,
-      greetingAudioUrl,
-      noAnswerAudioUrl,
-      outOfHoursAudioUrl: outOfHoursAudioFile || outOfHoursAudioUrl, // Map new field to existing
-      busyAudioUrl,
-      voicemailAudioUrl: voicemailAudioFile || businessHoursVoicemailFile || voicemailAudioUrl, // Map voicemail files
+      greetingAudioUrl: greetingProvided
+        ? resolvedAudio.greetingAudioUrl
+        : existingNumber.greetingAudioUrl,
+      noAnswerAudioUrl: noAnswerProvided
+        ? resolvedAudio.noAnswerAudioUrl
+        : existingNumber.noAnswerAudioUrl,
+      outOfHoursAudioUrl: outOfHoursProvided
+        ? resolvedAudio.outOfHoursAudioUrl
+        : existingNumber.outOfHoursAudioUrl,
+      busyAudioUrl: busyProvided
+        ? resolvedAudio.busyAudioUrl
+        : existingNumber.busyAudioUrl,
+      voicemailAudioUrl: voicemailProvided
+        ? resolvedAudio.voicemailAudioUrl
+        : existingNumber.voicemailAudioUrl,
       businessHoursStart,
       businessHoursEnd,
       businessDays,
@@ -398,19 +574,22 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
 
     console.log('🔧 Updating database with:', updateData);
 
-    // Update the inbound number in the database
+    // Update the inbound number in the database.
+    // The Prisma relation field is `flows` (see schema.prisma → model InboundNumber).
     const updatedNumber: any = await prisma.inboundNumber.update({
       where: { id },
       data: updateData,
       include: {
-        assignedFlow: finalFlowId ? {
-          select: {
-            id: true,
-            name: true,
-            status: true
-          }
-        } : false
-      } as any
+        flows: finalFlowId
+          ? {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            }
+          : false,
+      },
     });
 
     console.log('✅ Database updated successfully');
@@ -438,7 +617,8 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       businessDays: updatedNumber.businessDays,
       timezone: updatedNumber.timezone,
       assignedFlowId: updatedNumber.assignedFlowId,
-      assignedFlow: updatedNumber.assignedFlow,
+      // Frontend expects `assignedFlow`; Prisma relation is `flows`.
+      assignedFlow: updatedNumber.flows ?? null,
       // Return the PERSISTED configuration from database
       businessHours: updatedNumber.businessHours,
       outOfHoursAction: updatedNumber.outOfHoursAction,

@@ -142,9 +142,13 @@ router.post('/recording', validateTwilioSignature, async (req: Request, res: Res
 });
 
 // Welcome route for inbound calls - SECURED
+// 🚫 NO TTS — this webhook used to play a Twilio Polly "Thank you for
+// calling..." prompt. The platform's contract is audio-files-only. If you
+// need a greeting prompt for inbound calls, configure greetingAudioUrl on
+// the InboundNumber row; the inbound webhook in inboundCallController.ts
+// plays it before queuing the call.
 router.post('/welcome', validateTwilioSignature, (req: Request, res: Response) => {
   console.log('🎤 Welcome webhook called:', req.body);
-  
   // No <Say> — Twilio TTS is disabled to avoid per-character/minute charges.
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

@@ -170,31 +170,28 @@ router.post('/twiml/outbound', async (req, res) => {
     console.log(`📞 Generating outbound TwiML for call ${CallSid} to ${To}`);
     
     const twiml = new twilio.twiml.VoiceResponse();
-    // No TTS — connect immediately (Twilio <Say> is billable)
+    // 🚫 NO TTS — brief pause then connect to WebRTC agent (no billable <Say>).
     twiml.pause({ length: 1 });
-    // Connect to WebRTC agent client
     const dial = twiml.dial({
       timeout: 30, // 30 second timeout for agent pickup
       record: 'record-from-answer-dual',
       answerOnBridge: true, // Only answer when agent picks up
-      callerId: From
+      callerId: From,
     });
-    
-    // Connect to the browser-based agent
     dial.client('agent-browser');
-    
+    // No agents picked up: hang up (use noAnswerAudioUrl on inbound config for custom audio).
     twiml.hangup();
-    
+
     res.type('text/xml');
     res.send(twiml.toString());
-    
+
   } catch (error) {
     console.error('❌ Error generating outbound TwiML:', error);
-    
-    // Fallback TwiML
+
+    // No-TTS fallback.
     const errorTwiml = new twilio.twiml.VoiceResponse();
     errorTwiml.hangup();
-    
+
     res.type('text/xml');
     res.send(errorTwiml.toString());
   }
@@ -211,9 +208,9 @@ router.post('/twiml/agent-connect', async (req, res) => {
     console.log(`👤 Connecting agent to call ${CallSid}`);
     
     const twiml = new twilio.twiml.VoiceResponse();
-    
+
     if (conference) {
-      // Conference-based connection (no TTS)
+      // Conference-based connection (no TTS); waitUrl from app config, not Twilio-hosted music.
       const dial = twiml.dial();
       const waitUrl = resolveConferenceWaitUrl();
       dial.conference(
@@ -229,21 +226,20 @@ router.post('/twiml/agent-connect', async (req, res) => {
       // Direct connection (no TTS)
       const dial = twiml.dial({
         callerId: process.env.TWILIO_PHONE_NUMBER,
-        timeout: 30
+        timeout: 30,
       });
-      
       dial.number(To);
     }
-    
+
     res.type('text/xml');
     res.send(twiml.toString());
-    
+
   } catch (error) {
     console.error('❌ Error generating agent connect TwiML:', error);
-    
+
     const errorTwiml = new twilio.twiml.VoiceResponse();
     errorTwiml.hangup();
-    
+
     res.type('text/xml');
     res.send(errorTwiml.toString());
   }
