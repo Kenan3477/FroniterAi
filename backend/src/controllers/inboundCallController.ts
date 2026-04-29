@@ -266,7 +266,13 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     });
 
     // Priority 1: Check routeTo setting
-    if (inboundNumber.routeTo === 'Queue' && inboundNumber.selectedQueueId) {
+    if (inboundNumber.routeTo === 'Hangup') {
+      console.log('☎️ Routing to hangup - call will be terminated');
+      const twimlResponse = new twilio.twiml.VoiceResponse();
+      twimlResponse.hangup();
+      twiml = twimlResponse.toString();
+    }
+    else if (inboundNumber.routeTo === 'Queue' && inboundNumber.selectedQueueId) {
       console.log(`📋 Routing to queue: ${inboundNumber.selectedQueueId}`);
       twiml = generateQueueTwiML(inboundNumber);
     } 
@@ -339,28 +345,10 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 
 /**
  * Helper function to route calls to available agents
+ * 🚨 ROBUST FIX: Always dial browser client, let Twilio timeout handle offline agents
  */
 function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string, inboundNumber: any): string {
-  const availableAgents = callerInfo.routing.availableAgents;
-  
-  // Route based on agent availability
-  if (availableAgents.length > 0) {
-    // Agents available - generate TwiML to ring them directly with greeting audio if available
-    console.log('✅ Routing to available agents:', availableAgents.length);
-    return generateDirectAgentRingTwiML(availableAgents, callId, inboundNumber);
-  } else {
-    // No agents available - send to queue
-    console.log('✅ No agents available - routing to queue');
-    return generateQueueTwiML(inboundNumber);
-  }
-}
-
-/**
- * Generate TwiML to ring agents directly for immediate pickup
- * NO TTS ALLOWED - Audio files are REQUIRED
- */
-function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, inboundNumber?: any): string {
-  console.log('📞 Generating direct agent ring TwiML for agents:', availableAgents.map(a => a.id));
+  console.log('📞 Routing call to browser agent (robust approach)');
   
   const twiml = new twilio.twiml.VoiceResponse();
 
@@ -376,23 +364,33 @@ function generateDirectAgentRingTwiML(availableAgents: any[], callId: string, in
   console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
   twiml.play(inboundNumber.greetingAudioUrl);
 
-  // Ring the browser-based agent directly with recording enabled
+  // ROBUST APPROACH: Always dial the browser client
+  // If agent is online → call connects immediately
+  // If agent is offline → Twilio 30s timeout → noAnswerAudio → hangup
   const backendUrl = process.env.BACKEND_URL || 'https://kennex-production.up.railway.app';
   const recordingStatusCallback = `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`;
   
   const dial = twiml.dial({
-    timeout: 30,
+    timeout: 30, // 30 second timeout for agent to answer
     record: 'record-from-answer-dual',
     recordingStatusCallback,
     recordingStatusCallbackMethod: 'POST'
   });
   
+  // Always dial the browser client - it's the only client we register
   dial.client('agent-browser');
 
-  // Fallback if no agents answer - redirect to queue (which will play audio)
-  twiml.redirect('/api/calls/webhook/queue');
+  // If agent doesn't answer within 30s, play no-answer audio and hangup
+  if (inboundNumber.noAnswerAudioUrl) {
+    console.log('🎵 Will play no-answer audio if agent unavailable:', inboundNumber.noAnswerAudioUrl);
+    twiml.play(inboundNumber.noAnswerAudioUrl);
+  } else {
+    console.log('⚠️ No noAnswerAudioUrl configured - will hangup silently');
+  }
+  
+  twiml.hangup();
 
-  console.log('✅ TwiML generated with recording enabled for inbound call');
+  console.log('✅ TwiML generated - will dial browser agent with 30s timeout');
   return twiml.toString();
 }
 
@@ -873,26 +871,32 @@ async function getInboundCallDetails(callId: string): Promise<any> {
 
 /**
  * Check if a flow is assigned to the given inbound number
+ * 🚨 FIXED: Use assignedFlowId field and fetch flow details separately
  */
 async function checkForAssignedFlow(phoneNumber: string): Promise<{ id: string; name: string } | null> {
   try {
-    const inboundNumber: any = await prisma.inboundNumber.findUnique({
-      where: { phoneNumber },
-      include: {
-        assignedFlow: {
-          select: {
-            id: true,
-            name: true,
-            status: true
-          }
-        }
-      } as any
+    const inboundNumber = await prisma.inboundNumber.findUnique({
+      where: { phoneNumber }
     });
 
-    if (inboundNumber?.assignedFlow && inboundNumber.assignedFlow.status === 'ACTIVE') {
+    if (!inboundNumber?.assignedFlowId) {
+      return null;
+    }
+
+    // Fetch flow details separately
+    const flow = await prisma.flow.findUnique({
+      where: { id: inboundNumber.assignedFlowId },
+      select: {
+        id: true,
+        name: true,
+        status: true
+      }
+    });
+
+    if (flow && flow.status === 'ACTIVE') {
       return {
-        id: inboundNumber.assignedFlow.id,
-        name: inboundNumber.assignedFlow.name
+        id: flow.id,
+        name: flow.name
       };
     }
 
