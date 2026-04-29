@@ -751,15 +751,60 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           },
           orderBy: { createdAt: 'desc' }
         });
-        
+
         console.log('   Search result:', existingRecordByTwilioSid ? `FOUND ${existingRecordByTwilioSid.callId}` : 'NOT FOUND');
         if (existingRecordByTwilioSid) {
           console.log(`🔗 Found existing conf record ${existingRecordByTwilioSid.callId} via Twilio SID ${callSid}`);
           console.log(`   Existing record details: outcome=${existingRecordByTwilioSid.outcome}, recording=${existingRecordByTwilioSid.recording}`);
         } else {
-          console.warn('⚠️  SAVE-CALL-DATA: No record found with recording=' + callSid);
-          console.warn('   Searched: recording field, notes field, callId field');
-          console.warn('   This will create a DUPLICATE record!');
+          console.warn(`⚠️  SAVE-CALL-DATA: No record found with recording/notes/callId=${callSid}`);
+        }
+      }
+
+      // 🚨 PRIORITY 3: Anti-duplicate fallback.
+      //
+      // Manual dial via the WebRTC bridge produces TWO Twilio CallSids: the
+      // customer-leg (which is what makeRestApiCall stores in `recording`) and
+      // an agent-leg created by Twilio when our number bridges to the agent's
+      // browser Device. The frontend disposition flow can end up sending us
+      // the agent-leg SID + the agent's caller-id number (not the customer's),
+      // which previously fell through to the `create` branch of the upsert and
+      // produced an orphan row showing the agent's number with no recording.
+      //
+      // Before creating, look for this agent's most recent still-open outbound
+      // call from the last 5 minutes and update it instead.
+      if (!existingRecordByTwilioSid && safeAgentId && safeAgentId !== 'system-agent') {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentOpenCall = await prisma.callRecord.findFirst({
+          where: {
+            agentId: safeAgentId,
+            callType: 'outbound',
+            endTime: null,
+            createdAt: { gte: fiveMinutesAgo },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (recentOpenCall) {
+          console.log(
+            `🛡️  Anti-duplicate: linking save-call-data to recent open call ${recentOpenCall.callId} ` +
+              `(agent=${safeAgentId}, callSid=${callSid})`
+          );
+          existingRecordByTwilioSid = recentOpenCall;
+
+          // Stamp the Twilio SID into notes so future webhooks can find this row.
+          if (callSid && (!recentOpenCall.notes || !recentOpenCall.notes.includes(callSid))) {
+            try {
+              await prisma.callRecord.update({
+                where: { id: recentOpenCall.id },
+                data: {
+                  notes: `${recentOpenCall.notes || ''}\n[SAVE-CALL-DATA] linked Twilio SID: ${callSid}`.trim(),
+                },
+              });
+            } catch (linkErr: any) {
+              console.warn('⚠️  Could not stamp linked Twilio SID into notes:', linkErr?.message);
+            }
+          }
         }
       }
 
