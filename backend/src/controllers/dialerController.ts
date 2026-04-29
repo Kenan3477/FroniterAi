@@ -10,6 +10,18 @@ import { getBackendBaseUrl } from '../config/voiceMedia';
 
 // twilioClient from twilioService (null-safe when credentials missing)
 
+/** Outcomes that indicate the call already finished but endTime was never written (phantom active) */
+const TERMINAL_CALLOUTCOMES = new Set([
+  'completed',
+  'busy',
+  'failed',
+  'no-answer',
+  'canceled',
+  'cancelled',
+  'interrupted',
+  'abandoned',
+]);
+
 /**
  * Check if agent has any active calls
  * Returns the active call info if found, null otherwise
@@ -68,7 +80,8 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         startTime: true,
         createdAt: true,
         dispositionId: true,
-        endTime: true
+        endTime: true,
+        outcome: true
       },
       orderBy: {
         startTime: 'desc'
@@ -112,6 +125,47 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         
         console.log(`✅ Dispositioned call cleaned up - user can now make new calls`);
         return null; // Return null so new call can proceed
+      }
+
+      const oc = (activeCall.outcome || '').toLowerCase();
+      if (TERMINAL_CALLOUTCOMES.has(oc)) {
+        const callAge = Date.now() - new Date(activeCall.startTime).getTime();
+        console.log(
+          `🧹 AUTO-CLEANUP: Call ${activeCall.callId} has terminal outcome "${activeCall.outcome}" but null endTime — closing phantom active row`
+        );
+        const existing = await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } });
+        await prisma.callRecord.update({
+          where: { callId: activeCall.callId },
+          data: {
+            endTime: new Date(),
+            duration: Math.max(0, Math.floor(callAge / 1000)),
+            notes: existing?.notes
+              ? `${existing.notes}\n[AUTO-CLEANUP: Terminal outcome with missing endTime]`
+              : '[AUTO-CLEANUP: Terminal outcome with missing endTime]'
+          }
+        });
+        return null;
+      }
+
+      const staleOpenMs = 10 * 60 * 1000;
+      if (Date.now() - new Date(activeCall.startTime).getTime() > staleOpenMs) {
+        const callAge = Date.now() - new Date(activeCall.startTime).getTime();
+        console.log(
+          `🧹 AUTO-CLEANUP: Call ${activeCall.callId} open for ${Math.floor(callAge / 60000)}m — marking interrupted (stale active)`
+        );
+        const existing = await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } });
+        await prisma.callRecord.update({
+          where: { callId: activeCall.callId },
+          data: {
+            endTime: new Date(),
+            outcome: 'interrupted',
+            duration: Math.max(0, Math.floor(callAge / 1000)),
+            notes: existing?.notes
+              ? `${existing.notes}\n[AUTO-CLEANUP: Stale open call cleared at dial attempt]`
+              : '[AUTO-CLEANUP: Stale open call cleared at dial attempt]'
+          }
+        });
+        return null;
       }
     }
 
@@ -1003,12 +1057,11 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
         console.log(`🔍 Search result: ${callRecord ? `FOUND ${callRecord.callId}` : 'NOT FOUND'}`);
 
         if (callRecord) {
-          // Always close the row on terminal Twilio status when endTime is missing, even if the
-          // agent already dispositioned the call (outcome is no longer "in-progress"). Otherwise
-          // the UI and active-call checks can disagree with Twilio after customer hangup.
-          const needsClose = !callRecord.endTime || callRecord.outcome === 'in-progress';
-
-          if (needsClose) {
+          // Close rows that still have no endTime on terminal Twilio status. If the agent already
+          // dispositioned, preserve outcome when dispositionId is set (customer hangup after wrap).
+          if (callRecord.endTime) {
+            console.log(`ℹ️  Call ${callRecord.callId} already has endTime set; skipping duplicate terminal update`);
+          } else {
             let endedBy = 'unknown';
             if (CallStatus === 'completed') {
               endedBy = 'customer';
@@ -1023,15 +1076,17 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
               callRecord.outcome &&
               callRecord.outcome !== 'in-progress';
 
+            const prevOutcome = callRecord.outcome;
             const noteLine = preserveDisposition
               ? `[WEBHOOK] Twilio terminal: ${CallStatus} (customer leg ended; disposition preserved)`
-              : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`;
+              : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})${prevOutcome && prevOutcome !== 'in-progress' ? ` [was: ${prevOutcome}]` : ''}`;
 
             await prisma.callRecord.update({
               where: { id: callRecord.id },
               data: {
                 endTime: new Date(),
-                duration: parseInt(String(CallDuration), 10) || callRecord.duration || 0,
+                duration:
+                  parseInt(String(CallDuration), 10) || callRecord.duration || 0,
                 ...(preserveDisposition ? {} : { outcome: CallStatus }),
                 notes: callRecord.notes ? `${callRecord.notes}\n${noteLine}` : noteLine,
               },
@@ -1048,8 +1103,6 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
                 console.error('❌ Error processing recordings:', error);
               });
             }
-          } else {
-            console.log(`ℹ️  Call ${callRecord.callId} already has endTime; skipping duplicate terminal update`);
           }
         } else {
           console.warn(`⚠️  FAILSAFE TRIGGER: No call record found for Twilio SID: ${CallSid}`);
@@ -1074,27 +1127,32 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
             console.warn(`🚨 DUPLICATE PREVENTED: Found record via broader search: ${broaderSearch.callId}`);
             console.warn(`🚨 Updating existing record instead of creating duplicate`);
 
-            const preserveBroader =
-              Boolean(broaderSearch.dispositionId) &&
-              broaderSearch.outcome &&
-              broaderSearch.outcome !== 'in-progress';
-            const broaderNote = preserveBroader
-              ? `[WEBHOOK-FAILSAFE] Twilio terminal: ${CallStatus} (disposition preserved)`
-              : `[WEBHOOK-FAILSAFE] Found via broader search and updated`;
+            if (broaderSearch.endTime) {
+              console.log(`ℹ️  Broader-search record already closed; skipping update`);
+            } else {
+              const preserveBroader =
+                Boolean(broaderSearch.dispositionId) &&
+                broaderSearch.outcome &&
+                broaderSearch.outcome !== 'in-progress';
+              const broaderNote = preserveBroader
+                ? `[WEBHOOK-FAILSAFE] Twilio terminal: ${CallStatus} (disposition preserved)`
+                : `[WEBHOOK-FAILSAFE] Found via broader search and updated`;
 
-            await prisma.callRecord.update({
-              where: { id: broaderSearch.id },
-              data: {
-                endTime: new Date(),
-                duration: parseInt(String(CallDuration), 10) || broaderSearch.duration || 0,
-                ...(preserveBroader ? {} : { outcome: CallStatus }),
-                notes: broaderSearch.notes
-                  ? `${broaderSearch.notes}\n${broaderNote}`
-                  : broaderNote,
-              },
-            });
+              await prisma.callRecord.update({
+                where: { id: broaderSearch.id },
+                data: {
+                  endTime: new Date(),
+                  duration:
+                    parseInt(String(CallDuration), 10) || broaderSearch.duration || 0,
+                  ...(preserveBroader ? {} : { outcome: CallStatus }),
+                  notes: broaderSearch.notes
+                    ? `${broaderSearch.notes}\n${broaderNote}`
+                    : broaderNote,
+                },
+              });
 
-            console.log(`✅ Updated existing record instead of creating duplicate`);
+              console.log(`✅ Updated existing record instead of creating duplicate`);
+            }
             return res.status(200).send('<Response></Response>');
           }
 
