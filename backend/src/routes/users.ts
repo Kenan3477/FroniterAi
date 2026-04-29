@@ -10,6 +10,12 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma';
 const router = express.Router();
+
+/** Platform / tenant admins who must see every user (not org-scoped). */
+function seesAllUsersAcrossOrganizations(user: { role?: string }): boolean {
+  const r = String(user?.role || '').toUpperCase();
+  return r === 'SUPER_ADMIN' || r === 'ADMIN';
+}
 /**
  * @route   GET /api/users/my-inbound-queues
  * @desc    Get inbound call queues assigned to the current agent
@@ -50,12 +56,12 @@ router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), as
     // For organization users (excluding system creator), show only users in their organization
     let whereClause = {};
     
-    // Only apply organization filter if user has an organization AND is not ADMIN with null org (system creator)
-    if (user.organizationId && user.role !== 'SUPER_ADMIN') {
+    // Only tenant-scoped roles (e.g. MANAGER) see their organization. SUPER_ADMIN and ADMIN see everyone.
+    if (user.organizationId && !seesAllUsersAcrossOrganizations(user)) {
       whereClause = { organizationId: user.organizationId };
       console.log('👥 Filtering by organization:', user.organizationId);
     } else {
-      console.log('👥 Showing ALL users (SUPER_ADMIN, ADMIN with no org, or system creator)');
+      console.log('👥 Showing ALL users (SUPER_ADMIN / ADMIN, or no organization on account)');
     }
     
     const users = await prisma.user.findMany({
@@ -619,7 +625,7 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req: Request, r
  * @desc    Get user statistics for admin dashboard
  * @access  Private (requires authentication)
  */
-router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     
@@ -633,11 +639,11 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), async (req: 
     // For SUPER_ADMIN or users without organization, show all user stats
     // For organization users, show only stats for their organization
     let whereClause = {};
-    if (user.organizationId && user.role !== 'SUPER_ADMIN') {
+    if (user.organizationId && !seesAllUsersAcrossOrganizations(user)) {
       whereClause = { organizationId: user.organizationId };
       console.log('📊 Stats filtering by organization:', user.organizationId);
     } else {
-      console.log('📊 Stats showing all users (SUPER_ADMIN or no organization)');
+      console.log('📊 Stats showing all users (SUPER_ADMIN / ADMIN, or no organization)');
     }
     
     // Get total user count
