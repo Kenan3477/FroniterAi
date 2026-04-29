@@ -5,8 +5,72 @@ import express from 'express';
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
+import { authenticate, requireRole } from '../middleware/auth';
 
 const router = express.Router();
+
+// POST /api/calls/force-end - Force end a stuck call (ADMIN ONLY)
+router.post('/force-end', authenticate, requireRole('ADMIN', 'SUPERVISOR'), async (req: Request, res: Response) => {
+  try {
+    const { callId, reason } = req.body;
+    
+    if (!callId) {
+      return res.status(400).json({
+        success: false,
+        error: 'callId is required'
+      });
+    }
+    
+    console.log(`🔧 ADMIN FORCE END: ${req.user?.username} force ending call ${callId}`);
+    console.log(`📋 Reason: ${reason || 'No reason provided'}`);
+    
+    // Find the call
+    const call = await prisma.callRecord.findFirst({
+      where: {
+        callId: callId,
+        endTime: null // Only end active calls
+      }
+    });
+    
+    if (!call) {
+      return res.status(404).json({
+        success: false,
+        error: 'Active call not found with that ID'
+      });
+    }
+    
+    // Force end the call
+    const now = new Date();
+    const updatedCall = await prisma.callRecord.update({
+      where: { id: call.id },
+      data: {
+        endTime: now,
+        outcome: 'COMPLETED',
+        notes: (call.notes || '') + ` [ADMIN-FORCE-END-${now.toISOString()}] Ended by ${req.user?.username}. Reason: ${reason || 'Stuck call cleanup'}`
+      }
+    });
+    
+    console.log(`✅ Call ${callId} force ended successfully by ${req.user?.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Call ended successfully',
+      data: {
+        callId: callId,
+        endedAt: now,
+        endedBy: req.user?.username,
+        reason: reason
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error force ending call:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to force end call'
+    });
+  }
+});
 
 // GET /api/calls/token - Generate Twilio access token for agent
 router.get('/token/:agentId', async (req: Request, res: Response) => {
