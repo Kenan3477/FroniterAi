@@ -54,6 +54,25 @@ const validateTwilioWebhook = (req: any, res: any, next: any) => {
 router.post('/webhook/inbound-call', validateTwilioWebhook, handleInboundWebhook);
 
 /**
+ * POST /api/calls/webhook/wait-music
+ * Twilio fetches this for <Enqueue waitUrl> / <Conference waitUrl>.
+ * Silent loop — no Twilio-hosted music, no TTS, no <Gather>.
+ */
+router.post('/webhook/wait-music', validateTwilioWebhook, (_req, res) => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.pause({ length: 3600 });
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+router.get('/webhook/wait-music', validateTwilioWebhook, (_req, res) => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.pause({ length: 3600 });
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+/**
  * POST /api/calls/webhook/inbound-status
  * Webhook for inbound call status updates from Twilio
  */

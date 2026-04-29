@@ -19,6 +19,7 @@ import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
 import { FlowExecutionEngine } from '../services/flowExecutionEngine';
 import crypto from 'crypto';
+import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl } from '../config/voiceMedia';
 
 // Inbound call interface
 export interface InboundCall {
@@ -74,26 +75,47 @@ export interface CallerLookupResponse {
  * Check if current time is within business hours
  */
 function checkBusinessHours(inboundNumber: any): boolean {
-  // If no business hours configured, assume always open
-  if (!inboundNumber.businessHours || !inboundNumber.businessHoursStart || !inboundNumber.businessHoursEnd) {
+  const raw = inboundNumber.businessHours;
+
+  // Literal "24 Hours" / empty / missing = always open (do not JSON.parse)
+  if (
+    raw == null ||
+    raw === '' ||
+    (typeof raw === 'string' && (raw === '24 Hours' || raw.toLowerCase().includes('24 hour')))
+  ) {
+    return true;
+  }
+
+  // If no clock window configured, assume always open
+  if (!inboundNumber.businessHoursStart || !inboundNumber.businessHoursEnd) {
+    return true;
+  }
+
+  let businessHours: Record<string, boolean> | null = null;
+  if (typeof raw === 'string') {
+    try {
+      businessHours = JSON.parse(raw);
+    } catch {
+      // Non-JSON legacy values (e.g. "Monday-Friday") — treat as always open to avoid throwing in webhook
+      console.warn('⚠️ businessHours is not valid JSON; treating as 24/7 open:', raw);
+      return true;
+    }
+  } else if (typeof raw === 'object') {
+    businessHours = raw;
+  }
+
+  if (!businessHours || typeof businessHours !== 'object') {
     return true;
   }
 
   const now = new Date();
   const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  
-  // Parse business hours JSON (format: { "monday": true, "tuesday": true, etc })
-  const businessHours = typeof inboundNumber.businessHours === 'string' 
-    ? JSON.parse(inboundNumber.businessHours)
-    : inboundNumber.businessHours;
 
-  // Check if current day is a business day
   if (!businessHours[currentDay]) {
     return false;
   }
 
-  // Check if current time is within business hours
-  const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+  const currentTime = now.toTimeString().slice(0, 5);
   const startTime = inboundNumber.businessHoursStart;
   const endTime = inboundNumber.businessHoursEnd;
 
@@ -139,17 +161,16 @@ function generateOutOfHoursTwiML(inboundNumber: any): string {
 function generateQueueTwiML(inboundNumber: any): string {
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // CRITICAL: Audio file is REQUIRED - no TTS allowed
-  if (!inboundNumber.greetingAudioUrl) {
-    console.error('❌ CRITICAL: No greetingAudioUrl configured for inbound number:', inboundNumber.phoneNumber);
-    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure greetingAudioUrl in database.');
+  const greetingUrl = inboundNumber.greetingAudioUrl || resolveDefaultInboundGreetingUrl();
+  if (!greetingUrl) {
+    console.error('❌ CRITICAL: No greetingAudioUrl for queue and no default greeting URL');
+    console.error('❌ TTS is disabled. Configure greetingAudioUrl or DEFAULT_INBOUND_GREETING_AUDIO_URL.');
     twiml.hangup();
     return twiml.toString();
   }
 
-  // Play greeting audio
-  console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
-  twiml.play(inboundNumber.greetingAudioUrl);
+  console.log('🎵 Playing greeting audio:', greetingUrl);
+  twiml.play(greetingUrl);
   
   // If queue audio is configured, play it, otherwise use hold music
   if (inboundNumber.queueAudioUrl) {
@@ -328,19 +349,22 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
  */
 export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
   console.log('🎵 Generating conference TwiML for inbound call, conference:', conferenceRoom);
-  
-  // Put customer in conference room with hold music (NO TTS)
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial>
-    <Conference waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical" startConferenceOnEnter="false" endConferenceOnExit="true">
-      ${conferenceRoom}
-    </Conference>
-  </Dial>
-</Response>`;
+
+  const twiml = new twilio.twiml.VoiceResponse();
+  const dial = twiml.dial();
+  const waitUrl = resolveConferenceWaitUrl();
+  const confOpts: Parameters<typeof dial.conference>[0] = {
+    startConferenceOnEnter: false,
+    endConferenceOnExit: true,
+    beep: 'false',
+  };
+  if (waitUrl) {
+    (confOpts as { waitUrl?: string }).waitUrl = waitUrl;
+  }
+  dial.conference(confOpts, conferenceRoom);
 
   console.log('✅ Conference TwiML generated for customer');
-  return twiml;
+  return twiml.toString();
 };
 
 /**
@@ -352,17 +376,16 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // CRITICAL: Audio file is REQUIRED - no TTS allowed
-  if (!inboundNumber?.greetingAudioUrl) {
-    console.error('❌ CRITICAL: No greetingAudioUrl configured for inbound number');
-    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure greetingAudioUrl in database.');
+  const greetingUrl = inboundNumber?.greetingAudioUrl || resolveDefaultInboundGreetingUrl();
+  if (!greetingUrl) {
+    console.error('❌ CRITICAL: No greetingAudioUrl and no DEFAULT_INBOUND_GREETING_AUDIO_URL / BACKEND_URL for /audio/inbound-greeting.mp3');
+    console.error('❌ TTS is disabled. Configure greeting on the inbound number or set DEFAULT_INBOUND_GREETING_AUDIO_URL.');
     twiml.hangup();
     return twiml.toString();
   }
 
-  // Play greeting audio
-  console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
-  twiml.play(inboundNumber.greetingAudioUrl);
+  console.log('🎵 Playing greeting audio:', greetingUrl);
+  twiml.play(greetingUrl);
 
   // ROBUST APPROACH: Always dial the browser client
   // If agent is online → call connects immediately
@@ -714,41 +737,15 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
       console.log('🔔 WebSocket service available, proceeding with agent notification');
       
       try {
-        // Find agents available in DAC campaign (campaign_1766695393511)
-        console.log('🔍 Querying for available agents in DAC campaign...');
-        
-        // First check what agent records exist
-        console.log('🔍 Checking sample agent records...');
-        const allAgentsCheck = await prisma.$queryRaw`
-          SELECT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
-          FROM agents a
-          LIMIT 5
-        ` as any[];
-        console.log('🔍 Sample agent records:', allAgentsCheck);
-        
-        // Check user_campaign_assignments structure
-        console.log('🔍 Checking user campaigns for DAC...');
-        const userCampaignsCheck = await prisma.$queryRaw`
-          SELECT uca."userId", uca."campaignId"
-          FROM user_campaign_assignments uca
-          WHERE uca."campaignId" = 'campaign_1766695393511'
-          LIMIT 5
-        ` as any[];
-        console.log('🔍 User campaigns for DAC:', userCampaignsCheck);
-        
-        // Modified query - handle potential type mismatch between agentId and userId
-        console.log('🔍 Running main agent availability query...');
+        // Notify all agents who are Available and logged in (any campaign).
+        // Previously this required DAC campaign assignment, so inbound calls never rang most agents.
+        console.log('🔍 Running agent availability query (any campaign)...');
         const availableAgents = await prisma.$queryRaw`
-          SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn", uca."userId"
+          SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
           FROM agents a
-          INNER JOIN user_campaign_assignments uca ON (
-            a."agentId" = uca."userId"::text 
-            OR a."agentId"::integer = uca."userId"
-          )
-          WHERE a.status = 'Available' 
+          WHERE a.status = 'Available'
             AND a."isLoggedIn" = true
-            AND uca."campaignId" = 'campaign_1766695393511'
-            AND uca."isActive" = true
+          LIMIT 50
         ` as any[];
 
         console.log('🎯 Found available agents for inbound call:', availableAgents.length);
@@ -768,12 +765,11 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
 
           // Get dialler namespace for agent communications
           const diallerNamespace = (webSocketService as any).diallerNamespace;
-          
+
           console.log('🔍 Dialler namespace status:', diallerNamespace ? 'AVAILABLE' : 'NULL');
-          
+
           if (diallerNamespace) {
             console.log('📡 Using dialler namespace for notifications');
-            // Send to each agent individually using dialler namespace
             for (const agent of availableAgents) {
               console.log(`📤 Sending inbound call notification to agent: ${agent.agentId}`);
               try {
@@ -783,21 +779,10 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
                 console.error(`❌ Error sending to agent ${agent.agentId}:`, emitError);
               }
             }
-
-            // Also broadcast to the DAC campaign room in dialler namespace
-            console.log('📡 Broadcasting to DAC campaign room');
-            try {
-              diallerNamespace.to('campaign:campaign_1766695393511').emit('inbound-call-ringing', notificationData);
-              console.log('✅ Campaign room broadcast sent');
-            } catch (broadcastError: any) {
-              console.error('❌ Error broadcasting to campaign room:', broadcastError);
-            }
-            
             console.log('✅ Inbound call notifications sent to available agents via dialler namespace');
           } else {
             console.log('⚠️ Dialler namespace not available, using main namespace');
-            
-            // Fallback to main namespace
+
             for (const agent of availableAgents) {
               console.log(`📤 Fallback notification to agent: ${agent.agentId}`);
               try {
@@ -807,32 +792,11 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
                 console.error(`❌ Error sending fallback to agent ${agent.agentId}:`, fallbackError);
               }
             }
-            
-            try {
-              webSocketService.sendToCampaign('campaign_1766695393511', 'inbound-call-ringing', notificationData);
-              console.log('✅ Fallback campaign notification sent');
-            } catch (campaignError: any) {
-              console.error('❌ Error sending fallback campaign notification:', campaignError);
-            }
-            
+
             console.log('✅ Inbound call notifications sent via main namespace');
           }
         } else {
           console.log('⚠️ No available agents found for inbound call notification');
-          console.log('🔍 Checking all agents in campaign...');
-          
-          const allAgents = await prisma.$queryRaw`
-            SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
-            FROM agents a
-            INNER JOIN user_campaign_assignments uca ON (
-              a."agentId" = uca."userId"::text 
-              OR a."agentId"::integer = uca."userId"
-            )
-            WHERE uca."campaignId" = 'campaign_1766695393511'
-              AND uca."isActive" = true
-          ` as any[];
-          
-          console.log('🔍 All agents in DAC campaign:', allAgents);
         }
         
       } catch (dbError: any) {

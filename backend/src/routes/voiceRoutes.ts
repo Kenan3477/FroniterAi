@@ -35,7 +35,7 @@ async function seedInboundNumbers() {
             isActive: true,
             businessHours: '24 Hours',
             outOfHoursAction: 'Hangup',
-            routeTo: 'Hangup',
+            routeTo: 'Agent',
             recordCalls: true,
             autoRejectAnonymous: true,
             createContactOnAnonymous: true,
@@ -57,6 +57,15 @@ async function seedInboundNumbers() {
           console.log(`📞 Re-activated number: ${num.phoneNumber}`);
         }
       }
+    }
+    // Fix legacy rows that still hang up on inbound (e.g. old seeds with routeTo Hangup)
+    const fixList = KNOWN_NUMBERS.map((n) => n.phoneNumber);
+    const fixed = await prisma.inboundNumber.updateMany({
+      where: { phoneNumber: { in: fixList }, routeTo: 'Hangup' },
+      data: { routeTo: 'Agent' }
+    });
+    if (fixed.count > 0) {
+      console.log(`📞 Updated ${fixed.count} inbound number(s) from Hangup → Agent routing`);
     }
   } catch (err: any) {
     console.error('❌ Number seed failed:', err);

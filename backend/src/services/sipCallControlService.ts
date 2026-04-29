@@ -328,7 +328,7 @@ class SIPCallControlService {
         await twilioClient.calls(callState.sipCallId).update({
           twiml: `
             <Response>
-              <Play loop="0">http://com.twilio.sounds.music.s3.amazonaws.com/BusySignal.wav</Play>
+              <Pause length="3600"/>
             </Response>
           `
         });

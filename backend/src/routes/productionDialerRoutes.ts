@@ -10,6 +10,7 @@
 
 import { Router } from 'express';
 import twilio from 'twilio';
+import { resolveConferenceWaitUrl } from '../config/voiceMedia';
 import { productionDialerService } from '../services/productionDialerService';
 import { CallOutcome } from '../services/callStateMachine';
 import { prisma } from '../database';
@@ -213,11 +214,15 @@ router.post('/twiml/agent-connect', async (req, res) => {
     if (conference) {
       // Conference-based connection (no TTS)
       const dial = twiml.dial();
-      dial.conference({
-        startConferenceOnEnter: true,
-        endConferenceOnExit: true,
-        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical'
-      }, conference);
+      const waitUrl = resolveConferenceWaitUrl();
+      dial.conference(
+        {
+          startConferenceOnEnter: true,
+          endConferenceOnExit: true,
+          ...(waitUrl ? { waitUrl } : {}),
+        },
+        conference
+      );
       
     } else {
       // Direct connection (no TTS)

@@ -4,12 +4,11 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import twilioService from '../services/twilioService';
+import twilioService, { twilioClient } from '../services/twilioService';
 import { prisma } from '../lib/prisma';
-import twilio from 'twilio';
+import { getBackendBaseUrl } from '../config/voiceMedia';
 
-// Initialize Twilio client
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+// twilioClient from twilioService (null-safe when credentials missing)
 
 /**
  * Check if agent has any active calls
@@ -171,7 +170,7 @@ async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
         console.log(`📞 Ending active call ${call.callId} (to: ${call.phoneNumber}, age: ${callAge}s)`);
 
         // 1. End the call in Twilio (if it exists)
-        if (call.callId) {
+        if (call.callId && twilioClient) {
           try {
             await twilioClient.calls(call.callId).update({ 
               status: 'completed' 
@@ -185,6 +184,8 @@ async function endAnyActiveCallsForAgent(agentId: string): Promise<number> {
               console.error(`⚠️  Error ending call in Twilio: ${twilioError.message}`);
             }
           }
+        } else if (call.callId && !twilioClient) {
+          console.warn(`⚠️  Skipping Twilio end for ${call.callId} — Twilio client not configured`);
         }
 
         // 2. Update the database record
@@ -610,17 +611,38 @@ export const holdCall = async (req: Request, res: Response) => {
     
     console.log(`📞 ${action === 'hold' ? 'Holding' : 'Resuming'} call ${callId}`);
 
+    if (!twilioClient) {
+      return res.status(503).json({
+        success: false,
+        error: 'Twilio is not configured — cannot change call hold state',
+      });
+    }
+
+    const base = getBackendBaseUrl();
+    const holdAudio =
+      process.env.HOLD_MUSIC_AUDIO_URL?.trim() ||
+      (base ? `${base}/audio/call-on-hold.mp3` : undefined);
+
     // Use Twilio to modify the call with hold music or resume
     try {
       if (action === 'hold') {
-        // Put call on hold with hold music (no TTS)
-        await twilioClient.calls(callId).update({
-          twiml: `
+        if (holdAudio) {
+          await twilioClient.calls(callId).update({
+            twiml: `
             <Response>
-              <Play loop="0">http://com.twilio.music.ambient.mp3</Play>
+              <Play loop="0">${holdAudio}</Play>
             </Response>
-          `
-        });
+          `,
+          });
+        } else {
+          await twilioClient.calls(callId).update({
+            twiml: `
+            <Response>
+              <Pause length="3600"/>
+            </Response>
+          `,
+          });
+        }
       } else {
         // Resume call by removing hold music (no TTS)
         await twilioClient.calls(callId).update({
@@ -1251,6 +1273,13 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       username: authenticatedUser.username,
       role: authenticatedUser.role 
     });
+
+    if (!twilioClient) {
+      return res.status(503).json({
+        success: false,
+        error: 'Twilio is not configured on this server (missing credentials).',
+      });
+    }
 
     // ⚡ OPTIMIZATION 1: Check for active calls using userId in notes (since agentId is null)
     const userId = authenticatedUser.userId;

@@ -4,6 +4,7 @@
  */
 
 import twilio from 'twilio';
+import { resolveConferenceWaitUrl } from '../config/voiceMedia';
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -12,7 +13,9 @@ const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
 // Twilio configuration - require environment variables for production
 const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN;
 if (!TWILIO_SIP_DOMAIN) {
-  throw new Error('TWILIO_SIP_DOMAIN environment variable is required for production');
+  console.warn(
+    '⚠️  TWILIO_SIP_DOMAIN is not set — SIP/WebRTC may be limited. Set it in production for full voice.'
+  );
 }
 
 // Validate environment variables
@@ -29,6 +32,8 @@ if (!hasValidCredentials) {
 const twilioClient = hasValidCredentials 
   ? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
   : null;
+
+export { twilioClient };
 
 interface CallEndParams {
   callSid: string;
@@ -372,12 +377,16 @@ export const generateCustomerTwiML = (conference: string): string => {
     record: 'record-from-answer-dual' // Record both sides from when call is answered
   });
   
-  dial.conference({
+  const waitUrl = resolveConferenceWaitUrl();
+  const confOpts: Parameters<typeof dial.conference>[0] = {
     startConferenceOnEnter: false, // Wait for agent
     endConferenceOnExit: true, // End conference when customer leaves
-    waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient', // Music while waiting
-    maxParticipants: 2
-  }, conference);
+    maxParticipants: 2,
+  };
+  if (waitUrl) {
+    (confOpts as { waitUrl?: string }).waitUrl = waitUrl;
+  }
+  dial.conference(confOpts, conference);
 
   // If conference fails, just hangup (no TTS)
   twiml.hangup();

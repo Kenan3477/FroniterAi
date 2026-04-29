@@ -335,7 +335,8 @@ async function main() {
                 y: 250,
                 config: JSON.stringify({
                   audioType: 'file',
-                  audioUrl: 'https://demo.twilio.com/docs/classic.mp3'
+                  // Non-Twilio sample clip for local/demo only; production should use your own CDN or /audio/* on BACKEND_URL
+                  audioUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/audio/door.mp3'
                 })
               },
               {

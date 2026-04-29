@@ -294,11 +294,13 @@ export class EnhancedTwiMLService {
       console.error('❌ No hold audio configured - TTS is disabled, skipping prompt');
     }
 
-    // Play hold music with periodic updates
-    const holdMusicUrl = inboundNumber?.queueAudioUrl || 
-                         'https://com.twilio.music.classical.s3.amazonaws.com/BusyStrings.wav';
-    console.log('🎵 Playing hold music:', holdMusicUrl);
-    twiml.play(holdMusicUrl);
+    // Play hold music only when a URL is configured (no Twilio-hosted default)
+    if (inboundNumber?.queueAudioUrl) {
+      console.log('🎵 Playing hold music:', inboundNumber.queueAudioUrl);
+      twiml.play(inboundNumber.queueAudioUrl);
+    } else {
+      twiml.pause({ length: 3600 });
+    }
 
     return twiml.toString();
   }
