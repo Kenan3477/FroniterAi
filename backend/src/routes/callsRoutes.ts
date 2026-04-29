@@ -6,6 +6,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 import { authenticate, requireRole } from '../middleware/auth';
+import { getBackendBaseUrl } from '../config/voiceMedia';
 
 const router = express.Router();
 
@@ -892,11 +893,10 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
   try {
     const {
       CallSid,
-      RecordingSid, 
+      RecordingSid,
       RecordingUrl,
       RecordingDuration,
       RecordingStatus,
-      AccountSid
     } = req.body;
 
     console.log('📋 Recording callback data:', {
@@ -904,16 +904,19 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
       RecordingSid,
       RecordingStatus,
       Duration: RecordingDuration,
-      Url: RecordingUrl ? 'provided' : 'missing'
+      Url: RecordingUrl ? 'provided' : 'missing',
     });
 
-    // Validate required fields
-    if (!CallSid || !RecordingSid || !RecordingUrl) {
-      console.error('❌ Missing required recording fields');
+    if (!CallSid || !RecordingSid) {
+      console.error('❌ Missing CallSid or RecordingSid');
       return res.status(400).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     }
 
-    // Only process completed recordings
+    // Twilio often omits RecordingUrl on status callbacks; RecordingSid is enough to fetch media.
+    if (!RecordingUrl) {
+      console.log('ℹ️ RecordingUrl missing — will store RecordingSid for streaming');
+    }
+
     if (RecordingStatus !== 'completed') {
       console.log(`⏸️ Recording ${RecordingSid} status: ${RecordingStatus} - skipping`);
       return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
@@ -922,40 +925,35 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
     console.log('🎯 Processing completed recording...');
 
     try {
-      // Find call record using the Twilio CallSid.
-      // makeRestApiCall stores callId=conf-xxx and saves the Twilio SID in the `recording` column.
-      // So we must check BOTH callId and recording columns.
       console.log(`🔍 Searching for call record with CallSid: ${CallSid}`);
-      
+
       let callRecord = await prisma.callRecord.findFirst({
         where: {
           OR: [
             { callId: CallSid },
             { callId: { contains: CallSid } },
-            { recording: CallSid },              // FIXED: conf-xxx records store Twilio SID here
-            { notes: { contains: CallSid } }
-          ]
+            { recording: CallSid },
+            { notes: { contains: CallSid } },
+          ],
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
 
       if (!callRecord) {
-        console.log('⚠️ No call record found with CallSid, searching recent calls...');
-        
-        // Try to find by timing - look for recent calls within last 10 minutes
-        const recentTime = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
+        console.log('⚠️ No call record found with CallSid, searching recent in-progress rows...');
+        const recentTime = new Date(Date.now() - 15 * 60 * 1000);
         const recentCalls = await prisma.callRecord.findMany({
           where: {
             startTime: { gte: recentTime },
-            recording: null // No recording URL yet
+            outcome: 'in-progress',
           },
           orderBy: { startTime: 'desc' },
-          take: 5
+          take: 10,
         });
 
         if (recentCalls.length > 0) {
-          callRecord = recentCalls[0]; // Use most recent call
-          console.log(`📞 Using most recent call as fallback: ${callRecord.callId}`);
+          callRecord = recentCalls[0];
+          console.log(`📞 Using most recent in-progress call as fallback: ${callRecord.callId}`);
         }
       }
 
@@ -966,76 +964,76 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
 
       console.log(`✅ Found call record: ${callRecord.id} (${callRecord.callId})`);
 
-      // Check if recording already exists to avoid duplicates
+      const twilioFileRef = RecordingUrl || RecordingSid;
+
       const existingRecording = await prisma.recording.findFirst({
-        where: { callRecordId: callRecord.id }
+        where: { callRecordId: callRecord.id },
       });
 
       if (existingRecording) {
-        console.log(`⚠️ Recording already exists for call ${callRecord.callId}: ${existingRecording.id}`);
-        // Update existing recording with new URL if needed
-        if (existingRecording.uploadStatus !== 'completed') {
-          await prisma.recording.update({
-            where: { id: existingRecording.id },
-            data: {
-              fileName: `${RecordingSid}.mp3`,
-              filePath: RecordingUrl,
-              duration: RecordingDuration ? parseInt(RecordingDuration) : null,
-              uploadStatus: 'completed'
-            }
-          });
-          console.log(`✅ Updated existing recording: ${existingRecording.id}`);
-        }
+        console.log(`⚠️ Recording row exists for call ${callRecord.callId}: ${existingRecording.id}`);
+        await prisma.recording.update({
+          where: { id: existingRecording.id },
+          data: {
+            fileName: `${RecordingSid}.mp3`,
+            filePath: twilioFileRef,
+            duration: RecordingDuration ? parseInt(String(RecordingDuration), 10) : null,
+            uploadStatus: 'completed',
+            storageType: 'twilio',
+          },
+        });
+        console.log(`✅ Updated existing recording: ${existingRecording.id}`);
       } else {
-        // Create new recording record
         console.log('📁 Creating new recording record...');
-        
-        const newRecording = await prisma.recording.create({
+        await prisma.recording.create({
           data: {
             callRecordId: callRecord.id,
             fileName: `${RecordingSid}.mp3`,
-            filePath: RecordingUrl, // Store Twilio URL directly
-            fileSize: null, // Will be populated if we download the file
-            duration: RecordingDuration ? parseInt(RecordingDuration) : null,
+            filePath: twilioFileRef,
+            fileSize: null,
+            duration: RecordingDuration ? parseInt(String(RecordingDuration), 10) : null,
             format: 'mp3',
             quality: 'standard',
-            storageType: 'twilio', // Indicate this is stored on Twilio
-            uploadStatus: 'completed'
-          }
+            storageType: 'twilio',
+            uploadStatus: 'completed',
+          },
         });
-        
-        console.log(`✅ Recording record created: ${newRecording.id}`);
+        console.log('✅ Recording record created');
       }
 
-      // Update call record with recording URL
+      // Keep call_record.recording as Twilio Call SID (CA…) for status webhooks / lookups; RE… lives on Recording row.
       await prisma.callRecord.update({
         where: { id: callRecord.id },
         data: {
-          recording: `https://froniterai-production.up.railway.app/api/recordings/${callRecord.id}/stream`
-        }
+          recording: CallSid,
+        },
       });
 
-      console.log(`✅ Call record updated with recording URL`);
+      console.log('✅ Call record left with CallSid in recording field for webhook correlation');
 
-      // Optional: Queue for transcription
       try {
         const { onNewCallRecording } = require('../services/transcriptionWorker');
-        await onNewCallRecording(callRecord.id, RecordingUrl);
-        console.log(`📝 Transcription queued for recording`);
+        const base = getBackendBaseUrl() || '';
+        const rec = await prisma.recording.findFirst({
+          where: { callRecordId: callRecord.id },
+          select: { id: true },
+        });
+        if (rec?.id && base) {
+          await onNewCallRecording(callRecord.id, `${base}/api/recordings/${rec.id}/stream`);
+          console.log('📝 Transcription queued for recording');
+        } else if (!base) {
+          console.warn('⚠️ BACKEND_URL unset — skipping transcription URL');
+        }
       } catch (transcriptionError: any) {
-        console.warn(`⚠️ Failed to queue transcription:`, transcriptionError.message);
-        // Don't fail the recording callback if transcription fails
+        console.warn('⚠️ Failed to queue transcription:', transcriptionError?.message);
       }
-
     } catch (dbError) {
       console.error('❌ Database error processing recording:', dbError);
       return res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     }
 
-    // Return TwiML response
     console.log('✅ Recording callback processed successfully');
     return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-
   } catch (error) {
     console.error('❌ Error in recording callback:', error);
     return res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
