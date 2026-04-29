@@ -1,8 +1,33 @@
 import express, { Request, Response } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireRole } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
 import { prisma } from '../lib/prisma';
 const router = express.Router();
+
+const TERMINAL_TWILIO_OUTCOMES = new Set([
+  'completed',
+  'busy',
+  'failed',
+  'no-answer',
+  'canceled',
+  'abandoned',
+]);
+
+function isLikelyConnectedCall(outcome: string | null | undefined, duration: number | null | undefined): boolean {
+  const o = (outcome || '').toLowerCase();
+  if (TERMINAL_TWILIO_OUTCOMES.has(o) && o !== 'completed') return false;
+  if (o === 'in-progress' || o === 'ringing' || o === 'queued') return true;
+  if ((duration ?? 0) > 0) return true;
+  if (['connected', 'answered', 'sale', 'interested', 'callback', 'appointment'].includes(o)) return true;
+  return false;
+}
+
+function isConversionOutcome(outcome: string | null | undefined, dispositionName: string | null | undefined): boolean {
+  const o = (outcome || '').toLowerCase();
+  const d = (dispositionName || '').toLowerCase();
+  const positives = ['sale', 'interested', 'callback', 'appointment', 'contact_made', 'converted'];
+  return positives.some((p) => o.includes(p) || d.includes(p));
+}
 /**
  * Dashboard Stats Endpoint
  * GET /api/dashboard/stats
@@ -15,8 +40,13 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     // Get campaign filter if provided
     const campaignId = req.query.campaignId as string | undefined;
     
-    // Get overview KPIs
-    const metrics = await overviewDashboardService.getOverviewKPIs('today');
+    // Get overview KPIs (respect campaign filter when provided)
+    const metrics = await overviewDashboardService.getOverviewKPIs(
+      'today',
+      undefined,
+      undefined,
+      campaignId && campaignId !== 'all' ? campaignId : undefined
+    );
     
     // Get recent activities (calls, interactions)
     const recentActivities = await prisma.callRecord.findMany({
@@ -61,26 +91,61 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       } : undefined
     }));
 
-    // Get performance overview
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+
+    // Get performance overview (use same calendar day boundary for all counts)
     const callsToday = await prisma.callRecord.count({
       where: {
         ...(campaignId ? { campaignId } : {}),
-        startTime: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0))
-        }
-      }
+        startTime: { gte: dayStart },
+      },
     });
 
     const connectedCalls = await prisma.callRecord.count({
       where: {
         ...(campaignId ? { campaignId } : {}),
-        startTime: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0))
-        },
-        outcome: {
-          in: ['CONNECTED', 'completed', 'answered']
-        }
-      }
+        startTime: { gte: dayStart },
+        endTime: { not: null },
+        OR: [
+          { duration: { gt: 0 } },
+          { dispositionId: { not: null } },
+          {
+            outcome: {
+              in: [
+                'completed',
+                'CONNECTED',
+                'connected',
+                'answered',
+                'in-progress',
+                'sale',
+                'SALE',
+                'interested',
+                'INTERESTED',
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const salesToday = await prisma.callRecord.count({
+      where: {
+        ...(campaignId ? { campaignId } : {}),
+        startTime: { gte: dayStart },
+        OR: [
+          { outcome: { in: ['sale', 'SALE', 'Sale', 'SALE_MADE'] } },
+          { outcome: { contains: 'sale', mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    const callsInProgress = await prisma.callRecord.count({
+      where: {
+        ...(campaignId ? { campaignId } : {}),
+        endTime: null,
+        startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
     });
 
     const activeAgents = await prisma.agent.count({
@@ -91,15 +156,17 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
 
     // Calculate stats
     const connectionRate = callsToday > 0 ? (connectedCalls / callsToday) * 100 : 0;
+    const conversionFromSales =
+      connectedCalls > 0 ? Math.min(100, (salesToday / connectedCalls) * 100) : 0;
 
     const dashboardStats = {
       totalCallsToday: callsToday,
       connectedCallsToday: connectedCalls,
       totalRevenue: metrics.revenueConversions || 0,
-      conversionRate: connectionRate,
+      conversionRate: conversionFromSales > 0 ? conversionFromSales : connectionRate,
       averageCallDuration: metrics.averageCallDuration || 0,
       agentsOnline: activeAgents,
-      callsInProgress: 0, // TODO: Implement real-time call tracking
+      callsInProgress,
       averageWaitTime: 0,
       activeAgents: activeAgents,
       recentActivities: formattedActivities,
@@ -107,8 +174,8 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
         callVolume: callsToday,
         connectionRate: Math.round(connectionRate),
         avgDuration: metrics.averageCallDuration || 0,
-        conversions: connectedCalls
-      }
+        conversions: salesToday,
+      },
     };
 
     res.json({
@@ -274,6 +341,119 @@ router.get('/top-agents', authenticate, async (req: Request, res: Response) => {
     res.status(500).json({
       error: 'Failed to fetch top agents data'
     });
+  }
+});
+
+/**
+ * GET /api/dashboard/active-calls
+ * Open call_record rows (no endTime) for admin monitoring — backed by DB, not live-analysis stubs.
+ */
+router.get(
+  '/active-calls',
+  authenticate,
+  requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'),
+  async (req: Request, res: Response) => {
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const rows = await prisma.callRecord.findMany({
+        where: {
+          endTime: null,
+          startTime: { gte: since },
+        },
+        orderBy: { startTime: 'desc' },
+        take: 50,
+        include: {
+          agent: { select: { agentId: true, firstName: true, lastName: true } },
+          campaign: { select: { campaignId: true, name: true } },
+        },
+      });
+
+      const activeCalls = rows.map((r) => ({
+        callId: r.callId,
+        agentId: r.agentId || '',
+        agentName: r.agent
+          ? `${r.agent.firstName || ''} ${r.agent.lastName || ''}`.trim() || 'Agent'
+          : 'Unassigned',
+        phoneNumber: r.phoneNumber,
+        campaignId: r.campaignId,
+        campaignName: r.campaign?.name || r.campaignId,
+        callDuration: Math.floor((Date.now() - new Date(r.startTime).getTime()) / 1000),
+        callStatus: r.outcome || 'active',
+        isAnsweringMachine: false,
+        confidence: 0,
+        sentimentScore: 0,
+        intentClassification: '—',
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          activeCalls,
+          count: activeCalls.length,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error('❌ Dashboard active-calls error:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch active calls' });
+    }
+  }
+);
+
+/**
+ * GET /api/dashboard/performance-series?days=7&campaignId=
+ * Daily buckets for charts: total calls, connected-ish, conversions (positive dispositions).
+ */
+router.get('/performance-series', authenticate, async (req: Request, res: Response) => {
+  try {
+    const rawDays = parseInt(String(req.query.days || '7'), 10);
+    const days = Number.isFinite(rawDays) ? Math.min(30, Math.max(1, rawDays)) : 7;
+    const campaignId = req.query.campaignId as string | undefined;
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+
+    const records = await prisma.callRecord.findMany({
+      where: {
+        startTime: { gte: start },
+        ...(campaignId ? { campaignId } : {}),
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+        duration: true,
+        outcome: true,
+        disposition: { select: { name: true } },
+      },
+    });
+
+    const buckets: Record<string, { date: string; totalCalls: number; connectedCalls: number; conversions: number }> =
+      {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, totalCalls: 0, connectedCalls: 0, conversions: 0 };
+    }
+
+    for (const r of records) {
+      const key = new Date(r.startTime).toISOString().slice(0, 10);
+      if (!buckets[key]) continue;
+      buckets[key].totalCalls += 1;
+      if (isLikelyConnectedCall(r.outcome, r.duration)) {
+        buckets[key].connectedCalls += 1;
+      }
+      if (isConversionOutcome(r.outcome, r.disposition?.name)) {
+        buckets[key].conversions += 1;
+      }
+    }
+
+    const series = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+    res.json({ success: true, data: series });
+  } catch (error) {
+    console.error('❌ Dashboard performance-series error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch performance series' });
   }
 });
 

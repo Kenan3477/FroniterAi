@@ -3,17 +3,38 @@
 // Dashboard with enhanced authentication and interaction history fixes - v27.02.2026-FORCE-DEPLOY
 // Force deployment: Authentication fixes ready for production
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
 import LiveCallsModule from '@/components/dashboard/LiveCallsModule';
 import AdaptiveDashboardQuickActions from '@/components/dashboard/AdaptiveDashboardQuickActions';
 import { UniversalNavigationTrackingWrapper } from '@/components/dashboard/UniversalNavigationTrackingWrapper';
-import { kpiApi, DashboardStats } from '@/services/kpiApi';
-import { demoDataService, DemoStats } from '@/services/demoDataService';
-import { agentSocket } from '@/services/agentSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { agentSocket } from '@/services/agentSocket';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // API Response interface matching the actual backend response
 interface DashboardApiResponse {
@@ -47,158 +68,25 @@ interface DashboardApiResponse {
   };
 }
 
+interface PerformanceDay {
+  date: string;
+  totalCalls: number;
+  connectedCalls: number;
+  conversions: number;
+}
+
 function DashboardContent() {
   const [dashboardStats, setDashboardStats] = useState<DashboardApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [performanceSeries, setPerformanceSeries] = useState<PerformanceDay[]>([]);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
-  const [isClient, setIsClient] = useState(false);
   
   // Get authenticated user and current campaign - dashboard now requires authentication
   const { user, isAuthenticated, loading: authLoading, currentCampaign } = useAuth();
 
-  // Client-side hydration guard
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  // Client-side hydration guard (reserved for future SSR-safe widgets)
 
-  // Load dashboard stats when user is authenticated or campaign changes
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardStats();
-    }
-  }, [isAuthenticated, user, currentCampaign]); // Added currentCampaign as dependency
-
-  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
-  useEffect(() => {
-    if (!user || !isAuthenticated) return;
-    
-    console.log('🔌 Setting up WebSocket connection for inbound calls...');
-    console.log('👤 User ID:', user.id, 'Username:', user.username);
-    
-    // Get auth token for WebSocket authentication
-    const token = localStorage.getItem('omnivox_token');
-    
-    // Connect to agent socket using user ID (important!)
-    agentSocket.connect(user.id.toString());
-    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
-    
-    // Handle inbound call notifications
-    const handleInboundCallRinging = (data: any) => {
-      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
-      
-      // Extract caller number properly
-      let callerNumber = 'Unknown';
-      if (data.from) {
-        callerNumber = data.from;
-      } else if (data.callSid && data.caller) {
-        callerNumber = data.caller;
-      } else if (data.caller_id_number) {
-        callerNumber = data.caller_id_number;
-      }
-      
-      const inboundCall = {
-        id: data.callSid || `call_${Date.now()}`,
-        callerNumber: callerNumber,
-        timestamp: new Date().toLocaleTimeString(),
-        status: 'ringing'
-      };
-      
-      console.log('📋 Adding inbound call to state:', inboundCall);
-      setInboundCalls(prev => [inboundCall, ...prev.slice(0, 4)]); // Keep max 5 calls
-      
-      // Show system notification if permitted
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('📞 Incoming Call', {
-          body: `Call from ${callerNumber}`,
-          icon: '/favicon.ico',
-          tag: inboundCall.id
-        });
-      }
-    };
-    
-    // Register the inbound call listener
-    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
-    
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('🔔 Notification permission:', permission);
-      });
-    }
-    
-    return () => {
-      console.log('🔌 Cleaning up WebSocket connection...');
-      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
-      agentSocket.disconnect();
-    };
-  }, [user, isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardStats();
-    }
-  }, [isAuthenticated, user]);
-
-  // CRITICAL: Set up WebSocket connection for inbound call notifications (authenticated users only)
-  useEffect(() => {
-    if (!user || !isAuthenticated) return;
-    
-    console.log('🔌 Setting up WebSocket connection for inbound calls...');
-    console.log('👤 User ID:', user.id, 'Username:', user.username);
-    
-    // Get auth token for WebSocket authentication
-    const token = localStorage.getItem('omnivox_token');
-    
-    // Connect to agent socket using user ID (important!)
-    agentSocket.connect(user.id.toString());
-    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
-    
-    // Handle inbound call notifications
-    const handleInboundCallRinging = (data: any) => {
-      console.log('🔔 INBOUND CALL NOTIFICATION RECEIVED:', data);
-      
-      // Extract caller number properly
-      const callerNumber = data.call?.callerNumber || data.call?.from || 'Unknown Number';
-      const callerName = data.call?.callerName || data.callerInfo?.name || null;
-      const displayName = callerName ? `${callerName} (${callerNumber})` : callerNumber;
-      
-      console.log('📞 Caller details:', { callerNumber, callerName, displayName });
-      
-      // Show browser notification
-      if (Notification.permission === 'granted') {
-        new Notification('Incoming Call', {
-          body: `Call from ${displayName}`,
-          icon: '/favicon.ico',
-          tag: 'inbound-call'
-        });
-      }
-      
-      // Add to UI state
-      setInboundCalls(prev => [...prev, {
-        id: data.call?.id || `call-${Date.now()}`,
-        displayName,
-        number: callerNumber,
-        timestamp: new Date().toISOString()
-      }]);
-    };
-    
-    // Listen for inbound call events
-    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
-    
-    // Request browser notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then((permission) => {
-        console.log('📱 Notification permission:', permission);
-      });
-    }
-    
-    return () => {
-      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
-      agentSocket.disconnect();
-    };
-  }, [user, isAuthenticated]);
-  
-  const loadDashboardStats = async () => {
+  const loadDashboardStats = useCallback(async () => {
     setLoading(true);
     try {
       // Get the JWT token from localStorage for proper authentication
@@ -290,14 +178,100 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentCampaign]);
 
-  const answerCall = (callId: string) => {
-    console.log('📞 Answering call:', callId);
-    // Remove from inbound calls list
-    setInboundCalls(prev => prev.filter(call => call.id !== callId));
-    // Implement actual call answering logic here
-  };
+  const loadPerformanceSeries = useCallback(async () => {
+    try {
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const q = new URLSearchParams({ days: '7' });
+      if (currentCampaign?.campaignId) {
+        q.append('campaignId', currentCampaign.campaignId);
+      }
+
+      const res = await fetch(`/api/dashboard/performance-series?${q.toString()}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setPerformanceSeries(json.data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load performance series:', e);
+    }
+  }, [currentCampaign]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDashboardStats();
+      loadPerformanceSeries();
+    }
+  }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token');
+
+    agentSocket.connect(user.id.toString());
+    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
+
+    const handleInboundCallRinging = (data: any) => {
+      const callerNumber =
+        data.call?.callerNumber ||
+        data.call?.from ||
+        data.from ||
+        data.caller ||
+        data.caller_id_number ||
+        'Unknown Number';
+      const callerName = data.call?.callerName || data.callerInfo?.name || null;
+      const displayName = callerName ? `${callerName} (${callerNumber})` : callerNumber;
+
+      setInboundCalls((prev) => [
+        {
+          id: data.call?.id || data.callSid || `call-${Date.now()}`,
+          displayName,
+          callerNumber,
+          number: callerNumber,
+          timestamp: new Date().toISOString(),
+        },
+        ...prev.slice(0, 4),
+      ]);
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Incoming call', {
+          body: `From ${displayName}`,
+          icon: '/favicon.ico',
+          tag: 'inbound-call',
+        });
+      }
+    };
+
+    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    return () => {
+      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
+      agentSocket.disconnect();
+    };
+  }, [user, isAuthenticated]);
 
   // Show loading while authentication is being checked
   if (authLoading) {
@@ -433,7 +407,7 @@ function DashboardContent() {
                   <div>
                     <p className="font-bold text-lg">🚨 Incoming Call</p>
                     <p className="font-semibold text-base">From: {call.displayName || call.callerNumber || call.from || 'Unknown Number'}</p>
-                    <p className="text-sm">Received: {call.timestamp?.toLocaleTimeString()}</p>
+                    <p className="text-sm">Received: {call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '—'}</p>
                     <p className="text-sm">Call ID: {call.id}</p>
                   </div>
                 </div>
@@ -573,22 +547,55 @@ function DashboardContent() {
                 Performance Overview
                 {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
               </h3>
-              <div className="h-64 flex items-center justify-center theme-bg-secondary rounded-lg border-2 border-dashed theme-border">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">📈</div>
-                  <p className="theme-text-secondary">
-                    {showPreviewBanner 
-                      ? "Advanced analytics and charts available in full version" 
-                      : "Charts and analytics will be displayed here"
-                    }
-                  </p>
-                  <p className="text-sm theme-text-secondary">
-                    {showPreviewBanner 
-                      ? "Sign in to see your real performance data" 
-                      : "Coming soon in the next update"
-                    }
-                  </p>
-                </div>
+              <div className="h-72 theme-bg-secondary rounded-lg border theme-border p-4">
+                {performanceSeries.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center">
+                    <p className="theme-text-secondary">No call data in the last 7 days yet.</p>
+                    <p className="text-sm theme-text-secondary mt-2">Complete a few calls to see volume, connections, and conversions here.</p>
+                  </div>
+                ) : (
+                  <Line
+                    data={{
+                      labels: performanceSeries.map((d) => d.date.slice(5)),
+                      datasets: [
+                        {
+                          label: 'Total calls',
+                          data: performanceSeries.map((d) => d.totalCalls),
+                          borderColor: 'rgb(59, 130, 246)',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          tension: 0.25,
+                          fill: true,
+                        },
+                        {
+                          label: 'Connected / meaningful',
+                          data: performanceSeries.map((d) => d.connectedCalls),
+                          borderColor: 'rgb(34, 197, 94)',
+                          backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                          tension: 0.25,
+                          fill: true,
+                        },
+                        {
+                          label: 'Conversions (positive outcomes)',
+                          data: performanceSeries.map((d) => d.conversions),
+                          borderColor: 'rgb(249, 115, 22)',
+                          backgroundColor: 'rgba(249, 115, 22, 0.08)',
+                          tension: 0.25,
+                          fill: true,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { position: 'bottom' },
+                      },
+                      scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                      },
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

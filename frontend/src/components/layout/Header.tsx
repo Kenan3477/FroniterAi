@@ -205,8 +205,17 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const fetchInboundQueues = async () => {
     try {
       setIsLoadingQueues(true);
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('omnivox_token') ||
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('auth_token')
+          : null;
       const response = await fetch('/api/voice/my-inbound-queues', {
         credentials: 'include',
+        headers: token
+          ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+          : { 'Content-Type': 'application/json' },
       });
       
       if (response.ok) {

@@ -21,9 +21,37 @@ export const GET = requireAuth(async (request, user) => {
     const period = searchParams.get('period') || 'today'; // today, week, month, year
     const agentId = searchParams.get('agentId');
 
-    // Check if we're using local bypass authentication
+    // Prefer backend API (same source of truth as production) when we have a real JWT
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const backendBase = (
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      ''
+    ).replace(/\/$/, '');
+
+    if (token && !token.startsWith('temp_local_token_') && backendBase) {
+      const query = new URL(request.url).search;
+      try {
+        const br = await fetch(`${backendBase}/api/dashboard/stats${query}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        });
+        if (br.ok) {
+          const payload = await br.json();
+          if (payload?.success && payload?.data) {
+            return NextResponse.json(payload);
+          }
+        }
+      } catch (e) {
+        console.error('Dashboard stats proxy to backend failed:', e);
+      }
+    }
+
+    // Check if we're using local bypass authentication
     
     if (token && token.startsWith('temp_local_token_')) {
       console.log('✅ Using mock dashboard stats for local bypass');

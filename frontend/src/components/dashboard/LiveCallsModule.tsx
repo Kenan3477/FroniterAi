@@ -49,19 +49,21 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
 
   const fetchLiveCalls = async () => {
     try {
-      const token = localStorage.getItem('omnivox_token');
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
       if (!token) {
         setError('Authentication token not found');
         return;
       }
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3004';
-      
-      const response = await fetch(`${backendUrl}/api/live-analysis/active-calls`, {
+      const response = await fetch('/api/dashboard/active-calls', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -82,7 +84,10 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
 
   const handleListenLive = async (callId: string) => {
     try {
-      const token = localStorage.getItem('omnivox_token');
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3004';
       
       const response = await fetch(`${backendUrl}/api/live-analysis/listen-live`, {

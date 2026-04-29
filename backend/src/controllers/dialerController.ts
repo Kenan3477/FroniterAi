@@ -1003,45 +1003,53 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
         console.log(`🔍 Search result: ${callRecord ? `FOUND ${callRecord.callId}` : 'NOT FOUND'}`);
 
         if (callRecord) {
-          // ✅ Check if still in-progress (not already ended)
-          if (callRecord.outcome === 'in-progress') {
-            
-            // Determine who ended the call based on Twilio webhook data
+          // Always close the row on terminal Twilio status when endTime is missing, even if the
+          // agent already dispositioned the call (outcome is no longer "in-progress"). Otherwise
+          // the UI and active-call checks can disagree with Twilio after customer hangup.
+          const needsClose = !callRecord.endTime || callRecord.outcome === 'in-progress';
+
+          if (needsClose) {
             let endedBy = 'unknown';
             if (CallStatus === 'completed') {
-              // For completed calls, check the AnsweredBy field or other indicators
-              endedBy = 'customer'; // Default to customer hangup for completed calls
+              endedBy = 'customer';
             } else if (CallStatus === 'canceled') {
-              endedBy = 'agent'; // Agent canceled before customer answered
+              endedBy = 'agent';
             } else {
-              endedBy = 'system'; // busy, failed, no-answer are system outcomes
+              endedBy = 'system';
             }
-            
+
+            const preserveDisposition =
+              Boolean(callRecord.dispositionId) &&
+              callRecord.outcome &&
+              callRecord.outcome !== 'in-progress';
+
+            const noteLine = preserveDisposition
+              ? `[WEBHOOK] Twilio terminal: ${CallStatus} (customer leg ended; disposition preserved)`
+              : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`;
+
             await prisma.callRecord.update({
               where: { id: callRecord.id },
               data: {
-                endTime: new Date(), // ✅ Set actual end time
-                duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus, // completed, busy, failed, no-answer, canceled
-                notes: callRecord.notes 
-                  ? `${callRecord.notes}\n[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
-                  : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
-              }
+                endTime: new Date(),
+                duration: parseInt(String(CallDuration), 10) || callRecord.duration || 0,
+                ...(preserveDisposition ? {} : { outcome: CallStatus }),
+                notes: callRecord.notes ? `${callRecord.notes}\n${noteLine}` : noteLine,
+              },
             });
 
-            console.log(`✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s (ended by: ${endedBy})`);
+            console.log(
+              `✅ Terminal webhook applied: ${callRecord.callId} — ${CallStatus}${preserveDisposition ? ' (disposition kept)' : ''}`
+            );
 
-            // Process recordings ONLY for completed calls (successful connections)
             if (CallStatus === 'completed' && CallSid) {
               console.log(`📼 Triggering recording processing for completed call: ${CallSid}`);
-              // Import here to avoid circular dependency
               const { processCallRecordings } = require('../services/recordingService');
               processCallRecordings(CallSid, callRecord.id).catch((error: any) => {
                 console.error('❌ Error processing recordings:', error);
               });
             }
           } else {
-            console.log(`ℹ️  Call ${callRecord.callId} already ended with outcome: ${callRecord.outcome}`);
+            console.log(`ℹ️  Call ${callRecord.callId} already has endTime; skipping duplicate terminal update`);
           }
         } else {
           console.warn(`⚠️  FAILSAFE TRIGGER: No call record found for Twilio SID: ${CallSid}`);
@@ -1065,104 +1073,35 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
           if (broaderSearch) {
             console.warn(`🚨 DUPLICATE PREVENTED: Found record via broader search: ${broaderSearch.callId}`);
             console.warn(`🚨 Updating existing record instead of creating duplicate`);
-            
+
+            const preserveBroader =
+              Boolean(broaderSearch.dispositionId) &&
+              broaderSearch.outcome &&
+              broaderSearch.outcome !== 'in-progress';
+            const broaderNote = preserveBroader
+              ? `[WEBHOOK-FAILSAFE] Twilio terminal: ${CallStatus} (disposition preserved)`
+              : `[WEBHOOK-FAILSAFE] Found via broader search and updated`;
+
             await prisma.callRecord.update({
               where: { id: broaderSearch.id },
               data: {
                 endTime: new Date(),
-                duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus,
-                notes: broaderSearch.notes 
-                  ? `${broaderSearch.notes}\n[WEBHOOK-FAILSAFE] Found via broader search and updated`
-                  : `[WEBHOOK-FAILSAFE] Found via broader search and updated`
-              }
+                duration: parseInt(String(CallDuration), 10) || broaderSearch.duration || 0,
+                ...(preserveBroader ? {} : { outcome: CallStatus }),
+                notes: broaderSearch.notes
+                  ? `${broaderSearch.notes}\n${broaderNote}`
+                  : broaderNote,
+              },
             });
-            
+
             console.log(`✅ Updated existing record instead of creating duplicate`);
             return res.status(200).send('<Response></Response>');
           }
-          
-          // LAST RESORT FAILSAFE: Only create if truly no record exists
-          // This should ONLY happen for non-REST API calls (e.g., forwarded calls, direct Twilio calls)
-          if (CallStatus === 'completed') {
-            try {
-              console.log(`🔧 LAST RESORT: Creating failsafe call record from webhook data...`);
-              console.log(`🔧 This indicates a non-REST API call or system failure`);
-              
-              // Ensure required campaign exists
-              await prisma.campaign.upsert({
-                where: { campaignId: 'webhook-calls' },
-                update: {},
-                create: {
-                  campaignId: 'webhook-calls',
-                  name: 'Webhook Created Calls',
-                  dialMethod: 'Manual',
-                  status: 'Active',
-                  isActive: true,
-                  description: 'Call records created from Twilio webhooks',
-                  recordCalls: true
-                }
-              });
 
-              // Ensure required data list exists
-              await prisma.dataList.upsert({
-                where: { listId: 'webhook-contacts' },
-                update: {},
-                create: {
-                  listId: 'webhook-contacts',
-                  name: 'Webhook Contacts',
-                  campaignId: 'webhook-calls',
-                  active: true,
-                  totalContacts: 0
-                }
-              });
-
-              // Create contact for this call
-              const contactId = `webhook-${CallSid}`;
-              await prisma.contact.upsert({
-                where: { contactId },
-                update: {},
-                create: {
-                  contactId,
-                  listId: 'webhook-contacts',
-                  firstName: 'Webhook',
-                  lastName: 'Contact',
-                  phone: To || From || 'Unknown',
-                  status: 'contacted'
-                }
-              });
-
-              // Get a default agent (first available agent)
-              const defaultAgent = await prisma.agent.findFirst();
-
-              // Create the call record
-              const failsafeCallRecord = await prisma.callRecord.create({
-                data: {
-                  callId: CallSid,
-                  agentId: defaultAgent?.agentId || null,
-                  contactId: contactId,
-                  campaignId: 'webhook-calls',
-                  phoneNumber: To || From || 'Unknown',
-                  dialedNumber: To || 'Unknown',
-                  callType: Direction === 'inbound' ? 'inbound' : 'outbound',
-                  startTime: new Date(Date.now() - (parseInt(CallDuration) * 1000) || 0), // Estimate start time
-                  endTime: new Date(),
-                  duration: parseInt(CallDuration) || 0,
-                  outcome: CallStatus,
-                  recording: CallSid,
-                  notes: `[FAILSAFE] Created from Twilio webhook - Status: ${CallStatus} - Direction: ${Direction}`
-                }
-              });
-
-              console.log(`✅ Created failsafe call record: ${failsafeCallRecord.callId}`);
-              console.log(`📝 Phone: ${failsafeCallRecord.phoneNumber}, Agent: ${failsafeCallRecord.agentId}`);
-              
-            } catch (failsafeError) {
-              console.error('❌ Error creating failsafe call record:', failsafeError);
-            }
-          } else {
-            console.log(`ℹ️  Skipping failsafe creation for non-completed call status: ${CallStatus}`);
-          }
+          // Do not auto-create campaigns or orphan call rows (prevents "Webhook Created Calls" and duplicates).
+          console.warn(
+            `⚠️ Terminal status ${CallStatus} for ${CallSid} but no matching call_record — skipping synthetic record`
+          );
         }
       } catch (dbError) {
         console.error('❌ Error updating call record:', dbError);

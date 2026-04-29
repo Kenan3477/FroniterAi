@@ -18,15 +18,66 @@ function seesAllUsersAcrossOrganizations(user: { role?: string }): boolean {
 }
 /**
  * @route   GET /api/users/my-inbound-queues
- * @desc    Get inbound call queues assigned to the current agent
+ * @desc    Inbound queues assigned to the current user (matches Agent.email → User, or agentId in queue JSON)
  * @access  Private
- * NOTE: Inbound queue management is not yet fully implemented — returns empty array
  */
 router.get('/my-inbound-queues', authenticate, async (req: Request, res: Response) => {
   try {
-    // Inbound queue assignment is a future capability.
-    // Return an empty array so the frontend degrades gracefully.
-    res.json({ success: true, data: [] });
+    const auth = (req as any).user as { userId?: string };
+    const userId = parseInt(String(auth?.userId || ''), 10);
+    if (!userId || Number.isNaN(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid user context' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+
+    if (!user?.email) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const agent = await prisma.agent.findUnique({
+      where: { email: user.email },
+      select: { agentId: true },
+    });
+
+    const queues = await prisma.inboundQueue.findMany({
+      orderBy: [{ priority: 'desc' }, { name: 'asc' }],
+    });
+
+    const parseAssigned = (raw: string | null | undefined): string[] => {
+      if (!raw) return [];
+      try {
+        const v = JSON.parse(raw);
+        return Array.isArray(v) ? v.map((x: unknown) => String(x)) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const uidStr = String(user.id);
+    const mine = queues.filter((q) => {
+      const ids = parseAssigned(q.assignedAgents);
+      if (!ids.length) return false;
+      if (agent?.agentId && ids.includes(agent.agentId)) return true;
+      if (ids.includes(uidStr)) return true;
+      if (ids.includes(String(userId))) return true;
+      return false;
+    });
+
+    const data = mine.map((q) => ({
+      id: q.id,
+      name: q.name,
+      displayName: q.displayName,
+      description: q.description,
+      status: q.isActive ? 'ACTIVE' : 'INACTIVE',
+      isActive: q.isActive,
+      priority: q.priority,
+    }));
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error('❌ Error fetching inbound queues:', error);
     res.status(500).json({
