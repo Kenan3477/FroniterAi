@@ -11,6 +11,17 @@ import twilio from 'twilio';
 // Initialize Twilio client
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
+/** Outcomes that indicate the call already finished but endTime was never written (phantom active) */
+const TERMINAL_CALLOUTCOMES = new Set([
+  'completed',
+  'busy',
+  'failed',
+  'no-answer',
+  'canceled',
+  'cancelled',
+  'interrupted',
+]);
+
 /**
  * Check if agent has any active calls
  * Returns the active call info if found, null otherwise
@@ -69,7 +80,8 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         startTime: true,
         createdAt: true,
         dispositionId: true,
-        endTime: true
+        endTime: true,
+        outcome: true
       },
       orderBy: {
         startTime: 'desc'
@@ -113,6 +125,47 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         
         console.log(`✅ Dispositioned call cleaned up - user can now make new calls`);
         return null; // Return null so new call can proceed
+      }
+
+      const oc = (activeCall.outcome || '').toLowerCase();
+      if (TERMINAL_CALLOUTCOMES.has(oc)) {
+        const callAge = Date.now() - new Date(activeCall.startTime).getTime();
+        console.log(
+          `🧹 AUTO-CLEANUP: Call ${activeCall.callId} has terminal outcome "${activeCall.outcome}" but null endTime — closing phantom active row`
+        );
+        const existing = await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } });
+        await prisma.callRecord.update({
+          where: { callId: activeCall.callId },
+          data: {
+            endTime: new Date(),
+            duration: Math.max(0, Math.floor(callAge / 1000)),
+            notes: existing?.notes
+              ? `${existing.notes}\n[AUTO-CLEANUP: Terminal outcome with missing endTime]`
+              : '[AUTO-CLEANUP: Terminal outcome with missing endTime]'
+          }
+        });
+        return null;
+      }
+
+      const staleOpenMs = 45 * 60 * 1000;
+      if (Date.now() - new Date(activeCall.startTime).getTime() > staleOpenMs) {
+        const callAge = Date.now() - new Date(activeCall.startTime).getTime();
+        console.log(
+          `🧹 AUTO-CLEANUP: Call ${activeCall.callId} open for ${Math.floor(callAge / 60000)}m — marking interrupted (stale active)`
+        );
+        const existing = await prisma.callRecord.findUnique({ where: { callId: activeCall.callId } });
+        await prisma.callRecord.update({
+          where: { callId: activeCall.callId },
+          data: {
+            endTime: new Date(),
+            outcome: 'interrupted',
+            duration: Math.max(0, Math.floor(callAge / 1000)),
+            notes: existing?.notes
+              ? `${existing.notes}\n[AUTO-CLEANUP: Stale open call cleared at dial attempt]`
+              : '[AUTO-CLEANUP: Stale open call cleared at dial attempt]'
+          }
+        });
+        return null;
       }
     }
 
@@ -981,45 +1034,45 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
         console.log(`🔍 Search result: ${callRecord ? `FOUND ${callRecord.callId}` : 'NOT FOUND'}`);
 
         if (callRecord) {
-          // ✅ Check if still in-progress (not already ended)
-          if (callRecord.outcome === 'in-progress') {
-            
-            // Determine who ended the call based on Twilio webhook data
+          // Always close open rows on terminal Twilio status. Previously we only updated when
+          // outcome === 'in-progress', which left ringing/queued (and casing variants) stuck with
+          // endTime=null and blocked new dials.
+          if (callRecord.endTime) {
+            console.log(`ℹ️  Call ${callRecord.callId} already has endTime set; skipping duplicate terminal update`);
+          } else {
             let endedBy = 'unknown';
             if (CallStatus === 'completed') {
-              // For completed calls, check the AnsweredBy field or other indicators
-              endedBy = 'customer'; // Default to customer hangup for completed calls
+              endedBy = 'customer';
             } else if (CallStatus === 'canceled') {
-              endedBy = 'agent'; // Agent canceled before customer answered
+              endedBy = 'agent';
             } else {
-              endedBy = 'system'; // busy, failed, no-answer are system outcomes
+              endedBy = 'system';
             }
-            
+
+            const prevOutcome = callRecord.outcome;
             await prisma.callRecord.update({
               where: { id: callRecord.id },
               data: {
-                endTime: new Date(), // ✅ Set actual end time
-                duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus, // completed, busy, failed, no-answer, canceled
-                notes: callRecord.notes 
-                  ? `${callRecord.notes}\n[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
+                endTime: new Date(),
+                duration: parseInt(CallDuration, 10) || 0,
+                outcome: CallStatus,
+                notes: callRecord.notes
+                  ? `${callRecord.notes}\n[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})${prevOutcome && prevOutcome !== 'in-progress' ? ` [was: ${prevOutcome}]` : ''}`
                   : `[WEBHOOK] Call ended: ${CallStatus} (ended by: ${endedBy})`
               }
             });
 
-            console.log(`✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s (ended by: ${endedBy})`);
+            console.log(
+              `✅ Call ${CallStatus}: ${callRecord.callId} - Duration: ${CallDuration}s (ended by: ${endedBy})`
+            );
 
-            // Process recordings ONLY for completed calls (successful connections)
             if (CallStatus === 'completed' && CallSid) {
               console.log(`📼 Triggering recording processing for completed call: ${CallSid}`);
-              // Import here to avoid circular dependency
               const { processCallRecordings } = require('../services/recordingService');
               processCallRecordings(CallSid, callRecord.id).catch((error: any) => {
                 console.error('❌ Error processing recordings:', error);
               });
             }
-          } else {
-            console.log(`ℹ️  Call ${callRecord.callId} already ended with outcome: ${callRecord.outcome}`);
           }
         } else {
           console.warn(`⚠️  FAILSAFE TRIGGER: No call record found for Twilio SID: ${CallSid}`);
@@ -1042,21 +1095,22 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
           
           if (broaderSearch) {
             console.warn(`🚨 DUPLICATE PREVENTED: Found record via broader search: ${broaderSearch.callId}`);
-            console.warn(`🚨 Updating existing record instead of creating duplicate`);
-            
-            await prisma.callRecord.update({
-              where: { id: broaderSearch.id },
-              data: {
-                endTime: new Date(),
-                duration: parseInt(CallDuration) || 0,
-                outcome: CallStatus,
-                notes: broaderSearch.notes 
-                  ? `${broaderSearch.notes}\n[WEBHOOK-FAILSAFE] Found via broader search and updated`
-                  : `[WEBHOOK-FAILSAFE] Found via broader search and updated`
-              }
-            });
-            
-            console.log(`✅ Updated existing record instead of creating duplicate`);
+            if (broaderSearch.endTime) {
+              console.log(`ℹ️  Broader-search record already closed; skipping update`);
+            } else {
+              await prisma.callRecord.update({
+                where: { id: broaderSearch.id },
+                data: {
+                  endTime: new Date(),
+                  duration: parseInt(CallDuration, 10) || 0,
+                  outcome: CallStatus,
+                  notes: broaderSearch.notes
+                    ? `${broaderSearch.notes}\n[WEBHOOK-FAILSAFE] Found via broader search and updated`
+                    : `[WEBHOOK-FAILSAFE] Found via broader search and updated`
+                }
+              });
+              console.log(`✅ Updated existing record instead of creating duplicate`);
+            }
             return res.status(200).send('<Response></Response>');
           }
           
