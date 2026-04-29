@@ -122,14 +122,14 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
         isActive: true
       },
       include: {
-        assignedFlow: {
+        flows: {
           select: {
             id: true,
             name: true,
             status: true
           }
         }
-      } as any,
+      },
       orderBy: [
         { country: 'asc' },
         { numberType: 'asc' },
@@ -170,7 +170,7 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       businessDays: number.businessDays,
       timezone: number.timezone,
       assignedFlowId: number.assignedFlowId,
-      assignedFlow: number.assignedFlow,
+      assignedFlow: number.flows ?? null,
       // ✅ CRITICAL: Return persisted configuration from database
       businessHours: number.businessHours || "24 Hours",
       outOfHoursAction: number.outOfHoursAction || "Hangup", 

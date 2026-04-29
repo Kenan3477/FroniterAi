@@ -4,6 +4,7 @@
  */
 
 import twilio from 'twilio';
+import https from 'https';
 import { resolveConferenceWaitUrl } from '../config/voiceMedia';
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -524,7 +525,12 @@ export const getTwilioRecordingUrl = async (recordingSid: string): Promise<strin
 /**
  * Stream Twilio recording with authentication
  */
-export const streamTwilioRecording = async (recordingSid: string): Promise<Buffer | null> => {
+export type TwilioRecordingMedia = { buffer: Buffer; contentType: string };
+
+/**
+ * Download Twilio recording bytes. Returns correct Content-Type (mp3 or wav).
+ */
+export const streamTwilioRecording = async (recordingSid: string): Promise<TwilioRecordingMedia | null> => {
   if (!twilioClient) {
     console.error('❌ Twilio client not initialized');
     return null;
@@ -532,52 +538,67 @@ export const streamTwilioRecording = async (recordingSid: string): Promise<Buffe
 
   try {
     console.log(`🎵 Streaming Twilio recording: ${recordingSid}`);
-    
-    // Use Twilio client to get the recording data directly
-    const recording = await twilioClient.recordings(recordingSid).fetch();
-    
-    // Get the recording content using authenticated request
+
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
-    
+
     if (!accountSid || !authToken) {
       console.error('❌ Missing Twilio credentials');
       return null;
     }
-    
-    const mediaUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
-    
-    // Use basic auth with Twilio credentials
+
+    const recording = await twilioClient.recordings(recordingSid).fetch();
+    const baseUri = recording.uri.replace('.json', '');
     const authString = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-    
-    const https = require('https');
-    const response = await new Promise<any>((resolve, reject) => {
-      const req = https.get(mediaUrl, {
-        headers: {
-          'Authorization': `Basic ${authString}`,
-          'User-Agent': 'Omnivox-AI/1.0'
-        }
-      }, resolve);
-      req.on('error', reject);
-    });
-    
-    if (response.statusCode !== 200) {
-      console.error(`❌ Twilio recording stream failed: ${response.statusCode}`);
+
+    const fetchBuffer = (url: string): Promise<{ status: number; buffer: Buffer }> =>
+      new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const req = https.get(
+          url,
+          {
+            headers: {
+              Authorization: `Basic ${authString}`,
+              'User-Agent': 'Omnivox-AI/1.0',
+            },
+          },
+          (res) => {
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => {
+              resolve({ status: res.statusCode || 0, buffer: Buffer.concat(chunks) });
+            });
+          }
+        );
+        req.on('error', reject);
+      });
+
+    const tryMp3 = `https://api.twilio.com${baseUri}.mp3`;
+    const tryWav = `https://api.twilio.com${baseUri}.wav`;
+
+    let { status, buffer } = await fetchBuffer(tryMp3);
+    let contentType = 'audio/mpeg';
+
+    if (status !== 200 || buffer.length < 100) {
+      const second = await fetchBuffer(tryWav);
+      if (second.status === 200 && second.buffer.length >= 100) {
+        status = second.status;
+        buffer = second.buffer;
+        contentType = 'audio/wav';
+      }
+    }
+
+    if (status !== 200) {
+      console.error(`❌ Twilio recording stream failed: HTTP ${status}, bytes=${buffer.length}`);
       return null;
     }
-    
-    // Collect the audio data
-    const chunks: Buffer[] = [];
-    response.on('data', (chunk: Buffer) => chunks.push(chunk));
-    
-    return new Promise((resolve) => {
-      response.on('end', () => {
-        const audioBuffer = Buffer.concat(chunks);
-        console.log(`✅ Successfully streamed ${audioBuffer.length} bytes from Twilio`);
-        resolve(audioBuffer);
-      });
-    });
-    
+
+    if (buffer.length < 100) {
+      console.error(`❌ Twilio recording stream returned trivial body (${buffer.length} bytes)`);
+      return null;
+    }
+
+    console.log(`✅ Successfully streamed ${buffer.length} bytes from Twilio (${contentType})`);
+    return { buffer, contentType };
   } catch (error) {
     console.error(`❌ Error streaming Twilio recording: ${error}`);
     return null;

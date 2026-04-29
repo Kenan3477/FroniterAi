@@ -7,6 +7,7 @@ import express, { Request, Response } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { prisma } from '../database/index';
 import { syncAllRecordings, getRecordingSyncStatus } from '../services/recordingSyncService';
+import { twilioClient } from '../services/twilioService';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -16,6 +17,73 @@ const router = express.Router();
 router.use(authenticate);
 
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR || path.join(process.cwd(), 'recordings');
+
+/** callRecord.agentId is Agent.agentId (e.g. "42"); JWT userId is User.id string — match via Agent.email */
+async function userOwnsCallRecording(userIdStr: string, callAgentId: string | null): Promise<boolean> {
+  if (!callAgentId) return false;
+  if (callAgentId === userIdStr) return true;
+  const agent = await prisma.agent.findUnique({
+    where: { agentId: callAgentId },
+    select: { email: true },
+  });
+  if (!agent?.email) return false;
+  const user = await prisma.user.findUnique({
+    where: { email: agent.email },
+    select: { id: true },
+  });
+  return user?.id != null && String(user.id) === userIdStr;
+}
+
+/** Twilio Recording SID (RE…) or extract from media URL */
+function parseTwilioRecordingSid(raw: string): string | null {
+  const s = raw.trim();
+  if (/^RE[a-f0-9]{32}$/i.test(s)) return s;
+  const m = s.match(/\/Recordings\/(RE[a-f0-9]+)/i);
+  return m ? m[1] : null;
+}
+
+/** Twilio Call SID (CA…) */
+function parseTwilioCallSid(raw: string): string | null {
+  const s = raw.trim();
+  return /^CA[a-f0-9]{32}$/i.test(s) ? s : null;
+}
+
+/**
+ * Resolve a Twilio Recording SID for playback.
+ * Rows sometimes store the parent Call SID (CA…) instead of RE… — list recordings for that call.
+ */
+async function resolveTwilioRecordingSidForPlayback(
+  filePath: string | null | undefined,
+  callRecordCallId: string | null | undefined,
+  callRecordRecordingField: string | null | undefined
+): Promise<string | null> {
+  const candidates = [filePath, callRecordRecordingField, callRecordCallId].filter(Boolean) as string[];
+
+  for (const c of candidates) {
+    const re = parseTwilioRecordingSid(c);
+    if (re) return re;
+  }
+
+  for (const c of candidates) {
+    const ca = parseTwilioCallSid(c);
+    if (ca && twilioClient) {
+      try {
+        const list = await twilioClient.recordings.list({ callSid: ca, limit: 30 });
+        if (!list.length) continue;
+        const dual = list.find((r: { channels?: number }) => r.channels === 2);
+        const sid = (dual || list[0])?.sid;
+        if (sid) {
+          console.log(`🔗 Resolved CallSid ${ca} → RecordingSid ${sid} (${list.length} recording(s))`);
+          return sid;
+        }
+      } catch (e) {
+        console.warn(`⚠️ Could not list recordings for CallSid ${ca}:`, e);
+      }
+    }
+  }
+
+  return null;
+}
 
 /**
  * GET /api/recordings/:id/stream
@@ -44,76 +112,64 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
       });
     }
 
-    // Security: Agents can only access their own recordings
-    if (req.user?.role === 'AGENT' && recording.callRecord.agentId !== req.user.userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
+    if (req.user?.role === 'AGENT') {
+      const allowed = await userOwnsCallRecording(req.user.userId, recording.callRecord.agentId);
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+        });
+      }
     }
 
-    // Check if this is a Twilio recording URL or SID
-    const filePath = recording.filePath;
-    
-    // Handle Twilio recordings in different formats:
-    // 1. Full URL: https://api.twilio.com/.../Recordings/RExxxxx.mp3
-    // 2. Recording SID directly: RExxxxx
-    const isTwilioUrl = filePath && filePath.includes('api.twilio.com');
-    const isTwilioSid = filePath && /^RE[a-zA-Z0-9]{32}$/.test(filePath);
-    
-    if (isTwilioUrl || isTwilioSid) {
-      let recordingSid: string;
-      
-      if (isTwilioUrl) {
-        // Extract SID from URL
-        const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
-        if (!recordingSidMatch) {
-          return res.status(400).json({
-            success: false,
-            error: 'Invalid Twilio recording URL format'
-          });
-        }
-        recordingSid = recordingSidMatch[1];
-      } else {
-        // Use the SID directly
-        recordingSid = filePath;
-      }
-      
-      console.log(`🎵 Streaming Twilio recording: ${recordingSid} (from ${isTwilioUrl ? 'URL' : 'SID'})`);
-      
+    // Twilio: filePath may be RE…, CA…, URL, or empty while callRecord.recording holds CA…
+    let filePath = recording.filePath || undefined;
+    if (!filePath && recording.callRecord?.recording) {
+      filePath = recording.callRecord.recording;
+    }
+
+    const recordingSid = await resolveTwilioRecordingSidForPlayback(
+      filePath,
+      recording.callRecord?.callId,
+      recording.callRecord?.recording
+    );
+
+    if (recordingSid) {
+      console.log(`🎵 Streaming Twilio recording resolved to SID: ${recordingSid}`);
       try {
-        // Import Twilio service
         const { streamTwilioRecording } = await import('../services/twilioService');
-        
-        // Stream the recording with authentication
-        const audioBuffer = await streamTwilioRecording(recordingSid);
-        
-        if (!audioBuffer) {
+        const media = await streamTwilioRecording(recordingSid);
+
+        if (!media) {
           return res.status(404).json({
             success: false,
-            error: 'Twilio recording not found or inaccessible'
+            error: 'Twilio recording not found or inaccessible',
           });
         }
-        
-        // Set headers for audio streaming
-        res.setHeader('Content-Type', 'audio/mpeg');
+
+        res.setHeader('Content-Type', media.contentType);
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Length', audioBuffer.length);
-        res.setHeader('Content-Disposition', `inline; filename="${recording.fileName}"`);
-        
-        // Stream the audio buffer to client
-        res.send(audioBuffer);
-        
+        res.setHeader('Content-Length', media.buffer.length);
+        res.setHeader('Content-Disposition', `inline; filename="${recording.fileName || 'recording'}"`);
+        res.send(media.buffer);
+
         console.log(`✅ Successfully streaming Twilio recording: ${recordingSid}`);
         return;
-        
       } catch (twilioError) {
         console.error(`❌ Error streaming from Twilio: ${twilioError}`);
         return res.status(500).json({
           success: false,
-          error: 'Failed to stream from Twilio'
+          error: 'Failed to stream from Twilio',
         });
       }
+    }
+
+    // Local file path (legacy)
+    if (!filePath) {
+      return res.status(404).json({
+        success: false,
+        error: 'No recording file or Twilio reference on this row',
+      });
     }
 
     // Handle local file streaming (legacy)
@@ -189,92 +245,66 @@ router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (
       uploadStatus: recording.uploadStatus
     });
 
-    // Security: Agents can only access their own recordings
-    if (req.user?.role === 'AGENT' && recording.callRecord.agentId !== req.user.userId) {
-      console.error(`🔒 Access denied: User ${req.user.userId} tried to access recording from agent ${recording.callRecord.agentId}`);
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
+    if (req.user?.role === 'AGENT') {
+      const allowed = await userOwnsCallRecording(req.user.userId, recording.callRecord.agentId);
+      if (!allowed) {
+        console.error(
+          `🔒 Access denied: User ${req.user.userId} tried to access recording for agent row ${recording.callRecord.agentId}`
+        );
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+        });
+      }
     }
 
-    // Check if this is a Twilio recording URL or SID for download
-    const filePath = recording.filePath;
-    
-    if (!filePath) {
-      console.error(`❌ No file path stored for recording: ${recordingId}`);
-      return res.status(404).json({
-        success: false,
-        error: 'Recording file path not available',
-        details: 'This recording does not have a file path stored. It may still be processing or failed to upload.'
-      });
+    // Twilio or local — same resolution as stream
+    let filePath = recording.filePath || undefined;
+    if (!filePath && recording.callRecord?.recording) {
+      filePath = recording.callRecord.recording;
     }
-    
-    // Handle Twilio recordings in different formats:
-    // 1. Full URL: https://api.twilio.com/.../Recordings/RExxxxx.mp3
-    // 2. Recording SID directly: RExxxxx
-    const isTwilioUrl = filePath && filePath.includes('api.twilio.com');
-    const isTwilioSid = filePath && /^RE[a-zA-Z0-9]{32}$/.test(filePath);
-    
-    if (isTwilioUrl || isTwilioSid) {
-      let recordingSid: string;
-      
-      if (isTwilioUrl) {
-        // Extract SID from URL
-        const recordingSidMatch = filePath.match(/\/Recordings\/(RE[a-zA-Z0-9]+)/);
-        if (!recordingSidMatch) {
-          console.error(`❌ Invalid Twilio URL format: ${filePath}`);
-          return res.status(400).json({
-            success: false,
-            error: 'Invalid Twilio recording URL format',
-            details: filePath
-          });
-        }
-        recordingSid = recordingSidMatch[1];
-      } else {
-        // Use the SID directly
-        recordingSid = filePath;
-      }
-      
-      console.log(`📥 Downloading Twilio recording: ${recordingSid} (from ${isTwilioUrl ? 'URL' : 'SID'})`);
-      
+
+    const recordingSid = await resolveTwilioRecordingSidForPlayback(
+      filePath,
+      recording.callRecord?.callId,
+      recording.callRecord?.recording
+    );
+
+    if (recordingSid) {
+      console.log(`📥 Download Twilio recording resolved to SID: ${recordingSid}`);
       try {
-        // Import Twilio service
         const { streamTwilioRecording } = await import('../services/twilioService');
-        
-        // Download the recording with authentication
-        const audioBuffer = await streamTwilioRecording(recordingSid);
-        
-        if (!audioBuffer) {
-          console.error(`❌ Twilio returned empty buffer for: ${recordingSid}`);
+        const media = await streamTwilioRecording(recordingSid);
+
+        if (!media) {
           return res.status(404).json({
             success: false,
             error: 'Twilio recording not found or inaccessible',
-            details: `Recording SID: ${recordingSid}. Check Twilio credentials and that the recording exists.`
+            details: `Recording SID: ${recordingSid}. Check Twilio credentials and that the recording exists.`,
           });
         }
-        
-        console.log(`✅ Successfully downloaded ${audioBuffer.length} bytes from Twilio`);
-        
-        // Set headers for audio download
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Content-Disposition', `attachment; filename="${recording.fileName}"`);
-        res.setHeader('Content-Length', audioBuffer.length);
-        
-        // Send the audio buffer for download
-        res.send(audioBuffer);
-        
-        console.log(`✅ Successfully sent Twilio recording to client: ${recordingSid}`);
+
+        res.setHeader('Content-Type', media.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${recording.fileName || 'recording'}"`);
+        res.setHeader('Content-Length', media.buffer.length);
+        res.send(media.buffer);
         return;
-        
       } catch (twilioError: any) {
         console.error(`❌ Error downloading from Twilio:`, twilioError);
         return res.status(500).json({
           success: false,
           error: 'Failed to download from Twilio',
-          details: twilioError.message || 'Twilio API error. Check credentials and recording availability.'
+          details: twilioError.message || 'Twilio API error. Check credentials and recording availability.',
         });
       }
+    }
+
+    if (!filePath) {
+      return res.status(404).json({
+        success: false,
+        error: 'Recording file path not available',
+        details: 'This recording does not have a file path or Twilio reference.',
+      });
     }
 
     // Handle local file download (legacy)
