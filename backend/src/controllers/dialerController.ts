@@ -1323,7 +1323,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
     // All calls MUST be recorded for compliance and quality assurance
-    const MANDATORY_RECORDING = 'record-from-answer-dual';
+    const MANDATORY_RECORDING = true; // REST API requires boolean, not TwiML string
     const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
     
     if (!RECORDING_CALLBACK || !process.env.BACKEND_URL) {
@@ -1349,7 +1349,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
       // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
-      record: MANDATORY_RECORDING, // record-from-answer-dual = dual-channel recording from answer
+      record: MANDATORY_RECORDING, // true = enable recording
+      recordingChannels: 'dual', // Record both caller and callee on separate channels
       recordingStatusCallback: RECORDING_CALLBACK,
       recordingStatusCallbackMethod: 'POST' as const,
       recordingStatusCallbackEvent: ['completed'],
@@ -1372,7 +1373,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
     }
     
-    console.log('✅ RECORDING VALIDATED: record-from-answer-dual with callback to /api/calls/recording-callback');
+    console.log('✅ RECORDING VALIDATED: dual-channel recording enabled with callback to /api/calls/recording-callback');
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
     // This ensures webhooks can find the record immediately when they arrive
