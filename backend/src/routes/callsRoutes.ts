@@ -98,13 +98,10 @@ router.post('/twiml-outbound', async (req: Request, res: Response) => {
     res.send(twiml);
   } catch (error) {
     console.error('Error in TwiML outbound:', error);
-    res.status(500).set('Content-Type', 'text/xml').send(`
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Say>An error occurred. Please try again.</Say>
-        <Hangup/>
-      </Response>
-    `);
+    // 🚫 NO TTS — silent hangup on error.
+    res.status(500).set('Content-Type', 'text/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+    );
   }
 });
 
@@ -113,9 +110,9 @@ router.post('/twiml-agent', async (req: Request, res: Response) => {
   try {
     const { conference } = req.query;
 
+    // 🚫 NO TTS — straight into the conference.
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Connecting you to the customer.</Say>
   <Conference waitUrl="" startConferenceOnEnter="true" endConferenceOnExit="true">
     ${conference}
   </Conference>
@@ -125,13 +122,9 @@ router.post('/twiml-agent', async (req: Request, res: Response) => {
     res.send(twiml);
   } catch (error) {
     console.error('Error in TwiML agent:', error);
-    res.status(500).set('Content-Type', 'text/xml').send(`
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Say>An error occurred. Please try again.</Say>
-        <Hangup/>
-      </Response>
-    `);
+    res.status(500).set('Content-Type', 'text/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+    );
   }
 });
 
@@ -151,13 +144,9 @@ router.post('/twiml-customer', async (req: Request, res: Response) => {
     res.send(twiml);
   } catch (error) {
     console.error('Error in TwiML customer:', error);
-    res.status(500).set('Content-Type', 'text/xml').send(`
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Say>An error occurred. Please try again.</Say>
-        <Hangup/>
-      </Response>
-    `);
+    res.status(500).set('Content-Type', 'text/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+    );
   }
 });
 

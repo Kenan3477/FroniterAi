@@ -395,27 +395,41 @@ export const InboundNumbersManager: React.FC<{
       console.log('🔧 Saving inbound number with ID:', number.id);
       console.log('🔧 Number details:', number);
 
-      // Use URL fields directly (user should paste real URLs)
-      // If URLs are not provided, configuration will still save but Twilio won't be able to play audio
+      // The form's audio dropdowns store AudioFile DB IDs, NOT URLs. The
+      // backend's `resolveInboundAudioUrls` helper converts each ID into an
+      // absolute /api/voice/audio-files/<id>/stream URL on save, so Twilio's
+      // <Play> can fetch them. We deliberately send *AudioFile fields as the
+      // primary input here; *AudioUrl is only used if the user has pasted a
+      // full URL manually (legacy behaviour preserved).
       const updateData = {
         displayName: number.displayName,
         description: number.description,
         isActive: number.status,
         assignedFlowId: number.assignedFlowId || null,
-        
+
         // Routing configuration
         businessHours: number.businessHours,
         outOfHoursAction: number.outOfHoursAction,
         routeTo: number.routeTo,
         outOfHoursTransferNumber: number.outOfHoursTransferNumber,
-        
-        // Audio URLs - these are what Twilio actually needs
+
+        // Audio file IDs from the dropdowns. The backend resolves these to
+        // absolute URLs and stores them in the *AudioUrl columns.
+        greetingAudioFile: number.greetingAudioFile || number.businessHoursAudioFile || '',
+        noAnswerAudioFile: number.noAnswerAudioFile || '',
+        outOfHoursAudioFile: number.outOfHoursAudioFile || '',
+        voicemailAudioFile: number.voicemailAudioFile || number.businessHoursVoicemailFile || '',
+        busyAudioFile: number.busyAudioFile || '',
+
+        // Audio URLs (legacy - only sent if user manually pasted a URL).
+        // These are passed through unchanged by the backend when they look
+        // like real URLs; otherwise the *AudioFile fields above take effect.
         greetingAudioUrl: number.greetingAudioUrl,
         outOfHoursAudioUrl: number.outOfHoursAudioUrl,
         voicemailAudioUrl: number.voicemailAudioUrl,
         busyAudioUrl: number.busyAudioUrl,
         noAnswerAudioUrl: number.noAnswerAudioUrl,
-        
+
         // Flow/Queue/RingGroup selections
         selectedFlowId: number.selectedFlowId || '',
         selectedQueueId: number.selectedQueueId,
@@ -980,6 +994,106 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
             </select>
           </div>
 
+          {/* ── Audio Files ────────────────────────────────────────────── */}
+          {/*
+            All four audio slots map directly to columns the backend hands to
+            Twilio's <Play>:
+              - greetingAudioUrl   → played when an agent is rung
+              - noAnswerAudioUrl   → played if the agent doesn't pick up
+              - outOfHoursAudioUrl → played when call lands outside business hours
+              - voicemailAudioUrl  → played as the voicemail greeting prompt
+            The dropdown values are AudioFile DB IDs; the backend resolves them
+            to absolute /api/voice/audio-files/<id>/stream URLs on save.
+          */}
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Audio Files</h4>
+            {audioFiles.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">
+                No audio files uploaded yet. Upload audio files in the
+                <strong> Audio Files Manager</strong> tab to use them here. Without an
+                audio file configured, inbound calls will be hung up silently —
+                this system does not fall back to text-to-speech.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {/* Greeting Audio - REQUIRED for inbound calls to ring agents */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Greeting Audio <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      Played when an inbound call lands during business hours
+                    </span>
+                  </label>
+                  <select
+                    value={formData.greetingAudioFile || formData.businessHoursAudioFile || ''}
+                    onChange={(e) => {
+                      // Update both the legacy field and the canonical one so
+                      // either path through handleSave sends the right value.
+                      handleChange('greetingAudioFile', e.target.value);
+                      handleChange('businessHoursAudioFile', e.target.value);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  >
+                    <option value="">-- Select Audio File --</option>
+                    {audioFiles.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name}
+                        {file.duration ? ` (${Math.round(file.duration)}s)` : ''}
+                        {file.type ? ` · ${file.type}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* No-Answer Audio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    No-Answer Audio
+                    <span className="text-xs text-gray-500 ml-2">
+                      Played if no agent picks up
+                    </span>
+                  </label>
+                  <select
+                    value={formData.noAnswerAudioFile || ''}
+                    onChange={(e) => handleChange('noAnswerAudioFile', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  >
+                    <option value="">-- None --</option>
+                    {audioFiles.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name}
+                        {file.duration ? ` (${Math.round(file.duration)}s)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Out-of-Hours Audio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Out-of-Hours Audio
+                    <span className="text-xs text-gray-500 ml-2">
+                      Played when call lands outside business hours
+                    </span>
+                  </label>
+                  <select
+                    value={formData.outOfHoursAudioFile || ''}
+                    onChange={(e) => handleChange('outOfHoursAudioFile', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  >
+                    <option value="">-- None --</option>
+                    {audioFiles.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name}
+                        {file.duration ? ` (${Math.round(file.duration)}s)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Out of Hours Action */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1002,6 +1116,9 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Voicemail Greeting
+                <span className="text-xs text-gray-500 ml-2">
+                  Played before recording the caller's message
+                </span>
               </label>
               <select
                 value={formData.voicemailAudioFile || ''}

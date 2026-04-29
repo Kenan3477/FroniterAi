@@ -168,43 +168,34 @@ router.post('/twiml/outbound', async (req, res) => {
     console.log(`📞 Generating outbound TwiML for call ${CallSid} to ${To}`);
     
     const twiml = new twilio.twiml.VoiceResponse();
-    
-    // Add a brief greeting to establish connection
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Please hold while we connect you to an agent.');
-    
-    // Connect to WebRTC agent client
+
+    // 🚫 NO TTS — connect straight to the agent.
+    // Removing twiml.say(...) here means callers don't hear "Please hold..."
+    // in Twilio's robotic voice. If an audio greeting is needed, configure
+    // greetingAudioUrl on the inbound number; the inbound webhook in
+    // inboundCallController.ts plays it before the dial.
     const dial = twiml.dial({
       timeout: 30, // 30 second timeout for agent pickup
       record: 'record-from-answer-dual',
       answerOnBridge: true, // Only answer when agent picks up
-      callerId: From
+      callerId: From,
     });
-    
-    // Connect to the browser-based agent
     dial.client('agent-browser');
-    
-    // If agent doesn't answer, handle gracefully
-    twiml.say({
-      voice: 'alice',
-      language: 'en-US'
-    }, 'Sorry, all agents are currently busy. Please try again later.');
-    
+
+    // No agents picked up: just hang up. Configure noAnswerAudioUrl on the
+    // inbound number if you want a tailored "all agents busy" prompt.
     twiml.hangup();
-    
+
     res.type('text/xml');
     res.send(twiml.toString());
-    
+
   } catch (error) {
     console.error('❌ Error generating outbound TwiML:', error);
-    
-    // Fallback TwiML
+
+    // No-TTS fallback.
     const errorTwiml = new twilio.twiml.VoiceResponse();
-    errorTwiml.say('We apologize, but we are experiencing technical difficulties. Please try again later.');
     errorTwiml.hangup();
-    
+
     res.type('text/xml');
     res.send(errorTwiml.toString());
   }
@@ -221,40 +212,36 @@ router.post('/twiml/agent-connect', async (req, res) => {
     console.log(`👤 Connecting agent to call ${CallSid}`);
     
     const twiml = new twilio.twiml.VoiceResponse();
-    
+
     if (conference) {
-      // Conference-based connection
-      twiml.say('Connecting you to the customer.');
-      
+      // 🚫 NO TTS — straight into the conference.
       const dial = twiml.dial();
-      dial.conference({
-        startConferenceOnEnter: true,
-        endConferenceOnExit: true,
-        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical'
-      }, conference);
-      
+      dial.conference(
+        {
+          startConferenceOnEnter: true,
+          endConferenceOnExit: true,
+          waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
+        },
+        conference,
+      );
     } else {
-      // Direct connection
-      twiml.say('You are now connected.');
-      
+      // 🚫 NO TTS — direct dial.
       const dial = twiml.dial({
         callerId: process.env.TWILIO_PHONE_NUMBER,
-        timeout: 30
+        timeout: 30,
       });
-      
       dial.number(To);
     }
-    
+
     res.type('text/xml');
     res.send(twiml.toString());
-    
+
   } catch (error) {
     console.error('❌ Error generating agent connect TwiML:', error);
-    
+
     const errorTwiml = new twilio.twiml.VoiceResponse();
-    errorTwiml.say('Connection failed. Please try again.');
     errorTwiml.hangup();
-    
+
     res.type('text/xml');
     res.send(errorTwiml.toString());
   }
