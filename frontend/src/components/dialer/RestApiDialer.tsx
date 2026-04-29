@@ -467,21 +467,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               dispatch(endCall());
 
               console.log('✅ Call cancelled - agent call ended, disposition modal shown');
-                setCurrentCall(null);
-                currentCallRef.current = null;
-                setActiveRestApiCall(null);
-                activeRestApiCallRef.current = null;
-
-                dispatch(endCall());
-              } else {
-                setCurrentCall(null);
-                currentCallRef.current = null;
-                setActiveRestApiCall(null);
-                activeRestApiCallRef.current = null;
-                dispatch(endCall());
-              }
-
-              console.log('✅ Call cancelled - agent call ended, disposition modal shown');
             });
 
             call.on('error', async (error: any) => {
