@@ -6,10 +6,9 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '@/contexts/AuthContext';
-import { endCall, clearCall, holdCall } from '@/store/slices/activeCallSlice';
+import { holdCall } from '@/store/slices/activeCallSlice';
 import { RootState } from '@/store';
 import { CallTransferModal } from '@/components/ui/CallTransferModal';
-import { DispositionCard, DispositionData } from '@/components/dialer/DispositionCard';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
@@ -51,13 +50,17 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
-  const [showDispositionModal, setShowDispositionModal] = useState(false);
   const dispatch = useDispatch();
   const activeCallState = useSelector((state: RootState) => state.activeCall);
   
   // Get authenticated user for agent ID
   const { user } = useAuth();
   const agentId = user?.id?.toString() || user?.username || 'demo-agent';
+
+  const authBearer = () =>
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('omnivox_token') ||
+    '';
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -69,118 +72,22 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   const handleEndCall = async () => {
     if (confirm('Are you sure you want to end this call?')) {
       try {
-        // Terminate the actual WebRTC call first
+        // Terminate the WebRTC leg only. RestApiDialer registers omnivoxTerminateCall and
+        // its Device 'disconnect' handler opens the disposition modal (with dedupe + conferenceId).
+        // Do NOT open a second DispositionCard here — that caused two disposition popups.
         const callTerminated = (window as any).omnivoxTerminateCall?.() || false;
-        
+
         if (callTerminated) {
-          console.log('✅ WebRTC call terminated successfully');
+          console.log('✅ WebRTC call terminated — RestApiDialer will show disposition');
         } else {
-          console.warn('⚠️ No active WebRTC call found to terminate');
+          console.warn(
+            '⚠️ No active WebRTC call to terminate; if the call is still active, use Hang Up on the dialer',
+          );
         }
-        
-        // Show disposition modal instead of immediately ending call
-        console.log('📋 Showing disposition modal for call outcome...');
-        setShowDispositionModal(true);
-        
       } catch (error) {
         console.error('❌ Error terminating WebRTC call:', error);
         alert('❌ Error ending call. Please try again.');
       }
-    }
-  };
-
-  // Handle disposition submission
-  const handleDispositionSubmit = async (dispositionData: DispositionData) => {
-    try {
-      console.log('📋 Submitting call disposition:', dispositionData);
-      
-      // Get call information from Redux state  
-      const callSid = activeCallState?.callSid;
-      const conferenceId = activeCallState?.conferenceId; // CRITICAL: Needed to find preliminary record
-      const callStartTime = activeCallState?.callStartTime;
-      
-      // Calculate call duration
-      const callDuration = callStartTime 
-        ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
-        : customerData.callDuration || 0;
-      
-      console.log('📞 Ending call with backend API:', { callSid, conferenceId, duration: callDuration });
-      
-      // End the call through backend API if we have a callSid
-      if (callSid) {
-        const response = await fetch('/api/dialer/end', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          },
-          body: JSON.stringify({ 
-            callSid: callSid,
-            duration: callDuration,
-            status: 'completed',
-            disposition: dispositionData.outcome
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('✅ Call ended successfully via backend API');
-        } else {
-          console.error('❌ Backend call end failed:', result.error);
-        }
-      }
-      
-      // Save call data with disposition
-      const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
-        body: JSON.stringify({
-          callSid: callSid, // Twilio SID for recording
-          conferenceId: conferenceId, // CRITICAL: Conference ID to find preliminary record and prevent duplicates
-          phoneNumber: customerData.phoneNumber,
-          customerInfo: customerData,
-          disposition: dispositionData,
-          callDuration: callDuration,
-          agentId: String(agentId), // Convert to string for database compatibility
-          campaignId: 'manual-dial'
-        })
-      });
-
-      const saveResult = await saveResponse.json();
-      
-      if (saveResult.success) {
-        console.log('✅ Call data and disposition saved successfully');
-        
-        // Update Redux state
-        dispatch(endCall());
-        
-        // Close disposition modal
-        setShowDispositionModal(false);
-        
-        // Refresh work page data
-        if (onCallCompleted) {
-          console.log('🔄 Triggering data refresh after call completion...');
-          onCallCompleted();
-        }
-        
-        // Optionally clear call state after a delay
-        setTimeout(() => {
-          dispatch(clearCall());
-        }, 1000);
-        
-      } else {
-        console.error('❌ Failed to save call data:', saveResult.error);
-        alert('Failed to save call disposition. Please try again.');
-        return;
-      }
-      
-    } catch (error) {
-      console.error('❌ Error handling call disposition:', error);
-      alert('Error saving call disposition. Please try again.');
     }
   };
 
@@ -201,7 +108,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authBearer()}`
         },
         body: JSON.stringify({
           callId,
@@ -256,7 +163,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authBearer()}`
         },
         body: JSON.stringify({
           callId,
@@ -307,7 +214,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('omnivox_token') || ''}`
+            'Authorization': `Bearer ${authBearer()}`
           },
           body: JSON.stringify({
             firstName: customerData.firstName,
@@ -563,20 +470,6 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         callId={activeCallState?.callSid || customerData.id || ''}
         isTransferring={isTransferring}
       />
-      
-      {/* Disposition Modal */}
-      {showDispositionModal && (
-        <DispositionCard
-          isOpen={showDispositionModal}
-          onClose={() => setShowDispositionModal(false)}
-          onSave={handleDispositionSubmit}
-          customerInfo={{
-            name: `${customerData.firstName} ${customerData.lastName}`.trim() || 'Unknown',
-            phoneNumber: customerData.phoneNumber
-          }}
-          callDuration={customerData.callDuration}
-        />
-      )}
     </div>
   );
 };

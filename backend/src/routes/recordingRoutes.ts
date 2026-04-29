@@ -89,7 +89,10 @@ async function resolveTwilioRecordingSidForPlayback(
  * GET /api/recordings/:id/stream
  * Stream a recording file for playback
  */
-router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+router.get(
+  '/:id/stream',
+  requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'),
+  async (req: Request, res: Response) => {
   try {
     const recordingId = req.params.id;
     
@@ -210,7 +213,10 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
  * GET /api/recordings/:id/download
  * Download a recording file
  */
-router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+router.get(
+  '/:id/download',
+  requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'),
+  async (req: Request, res: Response) => {
   try {
     const recordingId = req.params.id;
     console.log(`📥 Download request for recording: ${recordingId}`);
