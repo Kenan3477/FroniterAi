@@ -104,7 +104,7 @@ export async function cleanStuckCalls(): Promise<{ cleaned: number; errors: numb
         let twilioStatus = 'unknown';
         let endedBy = 'cleanup-system';
         
-        if (call.recording) {
+        if (call.recording && twilioClient) {
           try {
             const twilioCall = await twilioClient.calls(call.recording).fetch();
             twilioStatus = twilioCall.status;
@@ -195,6 +195,11 @@ export async function syncWithTwilio(): Promise<{ synced: number; errors: number
     }
 
     console.log(`🔄 Syncing ${activeCalls.length} active calls with Twilio (checking if they actually ended)...`);
+
+    if (!twilioClient) {
+      console.warn('⚠️  Twilio client not configured — skipping Twilio sync for active calls');
+      return { synced: 0, errors: 0 };
+    }
 
     for (const call of activeCalls) {
       try {

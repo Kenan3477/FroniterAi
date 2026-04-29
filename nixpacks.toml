@@ -5,9 +5,9 @@ cmds = ['echo "Installing workspace dependencies..."']
 
 [phases.install] 
 cmds = [
-  'npm ci',
-  'cd frontend && npm ci',
-  'cd backend && npm ci'
+  # Monorepo: single lockfile at repo root — npm workspaces install all packages.
+  # Do not run npm ci in frontend/backend (no per-package lockfiles; breaks Railway).
+  'npm ci'
 ]
 
 [phases.build]

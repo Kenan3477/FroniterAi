@@ -20,6 +20,7 @@ const TERMINAL_CALLOUTCOMES = new Set([
   'canceled',
   'cancelled',
   'interrupted',
+  'abandoned',
 ]);
 
 /**
@@ -147,7 +148,7 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
         return null;
       }
 
-      const staleOpenMs = 45 * 60 * 1000;
+      const staleOpenMs = 10 * 60 * 1000;
       if (Date.now() - new Date(activeCall.startTime).getTime() > staleOpenMs) {
         const callAge = Date.now() - new Date(activeCall.startTime).getTime();
         console.log(

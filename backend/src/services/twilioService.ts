@@ -12,7 +12,9 @@ const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
 // Twilio configuration - require environment variables for production
 const TWILIO_SIP_DOMAIN = process.env.TWILIO_SIP_DOMAIN;
 if (!TWILIO_SIP_DOMAIN) {
-  throw new Error('TWILIO_SIP_DOMAIN environment variable is required for production');
+  console.warn(
+    '⚠️  TWILIO_SIP_DOMAIN is not set — SIP/WebRTC features may be limited. Set it in Railway for full voice.'
+  );
 }
 
 // Validate environment variables
@@ -29,6 +31,9 @@ if (!hasValidCredentials) {
 const twilioClient = hasValidCredentials 
   ? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
   : null;
+
+/** REST API client for call control; null when credentials missing */
+export { twilioClient };
 
 interface CallEndParams {
   callSid: string;
