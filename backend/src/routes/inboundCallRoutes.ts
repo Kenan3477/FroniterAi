@@ -15,6 +15,7 @@ import {
   transferInboundCall,
   getInboundCallStatus
 } from '../controllers/inboundCallController';
+import { getTwilioWebhookPublicUrl } from '../utils/twilioWebhookUrl';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ const validateTwilioWebhook = (req: any, res: any, next: any) => {
     return res.status(401).json({ error: 'Unauthorized - Missing signature' });
   }
 
-  const requestUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const requestUrl = getTwilioWebhookPublicUrl(req);
   const isValid = twilio.validateRequest(authToken, twilioSignature, requestUrl, req.body);
   
   if (!isValid) {
@@ -61,6 +62,17 @@ router.post('/webhook/inbound-call', validateTwilioWebhook, handleInboundWebhook
 router.post('/webhook/wait-music', validateTwilioWebhook, (_req, res) => {
   const twiml = new twilio.twiml.VoiceResponse();
   twiml.pause({ length: 3600 });
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+/**
+ * POST /api/calls/webhook/queue-result
+ * Twilio hits this after <Enqueue> exits; acknowledge without extra verbs.
+ */
+router.post('/webhook/queue-result', validateTwilioWebhook, (_req, res) => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.hangup();
   res.type('text/xml');
   res.send(twiml.toString());
 });

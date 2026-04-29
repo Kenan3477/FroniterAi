@@ -15,13 +15,14 @@ import { productionDialerService } from '../services/productionDialerService';
 import { CallOutcome } from '../services/callStateMachine';
 import { prisma } from '../database';
 import { callEvents } from '../utils/eventHelpers';
+import { getTwilioWebhookPublicUrl } from '../utils/twilioWebhookUrl';
 
 const router = Router();
 
 // Twilio webhook validation middleware
 const validateTwilioWebhook = (req: any, res: any, next: any) => {
   const twilioSignature = req.get('X-Twilio-Signature');
-  const url = `${process.env.BACKEND_URL}${req.originalUrl}`;
+  const url = getTwilioWebhookPublicUrl(req);
   
   // Only validate in production
   if (process.env.NODE_ENV === 'production' && process.env.TWILIO_AUTH_TOKEN) {

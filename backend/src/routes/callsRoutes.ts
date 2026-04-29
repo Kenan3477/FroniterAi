@@ -95,6 +95,27 @@ router.get('/token/:agentId', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/calls/token - Same as GET (Next.js proxy uses POST with JSON body)
+router.post('/token', authenticate, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req.body?.agentId as string) || 'agent-browser';
+    const accessToken = generateAccessToken(agentId);
+    res.json({
+      success: true,
+      data: {
+        token: accessToken,
+        agentId,
+      },
+    });
+  } catch (error) {
+    console.error('Error generating access token (POST):', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to generate access token' },
+    });
+  }
+});
+
 // POST /api/calls/twiml-outbound - TwiML for outbound calls from queue
 router.post('/twiml-outbound', async (req: Request, res: Response) => {
   try {

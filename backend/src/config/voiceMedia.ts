@@ -13,6 +13,14 @@ export function getBackendBaseUrl(): string | undefined {
   return u ? trimTrailingSlash(u) : undefined;
 }
 
+/** Absolute URL for Twilio callbacks (Play, webhooks) — Twilio requires https and cannot use relative paths */
+export function resolveAbsoluteBackendUrl(path: string): string | undefined {
+  const base = getBackendBaseUrl();
+  if (!base) return undefined;
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${p}`;
+}
+
 /** Default greeting <Play> URL when inbound_numbers.greetingAudioUrl is empty */
 export function resolveDefaultInboundGreetingUrl(): string | undefined {
   if (process.env.DEFAULT_INBOUND_GREETING_AUDIO_URL?.trim()) {
@@ -30,7 +38,15 @@ export function resolveDefaultInboundGreetingUrl(): string | undefined {
 export function resolveConferenceWaitUrl(): string | undefined {
   const custom = process.env.TWILIO_CONFERENCE_WAIT_URL?.trim();
   if (custom) return custom;
-  const base = getBackendBaseUrl();
-  if (!base) return undefined;
-  return `${base}/api/calls/webhook/wait-music`;
+  return resolveAbsoluteBackendUrl('/api/calls/webhook/wait-music');
+}
+
+/** Normalize dialed number for DB lookup (Twilio may send tel: URI or spacing variants). */
+export function normalizeInboundTo(raw: string | undefined): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  let s = raw.trim().replace(/^tel:/i, '').replace(/\s+/g, '');
+  if (!s) return null;
+  if (s.startsWith('+')) return s;
+  if (/^\d{10,15}$/.test(s)) return `+${s}`;
+  return s;
 }

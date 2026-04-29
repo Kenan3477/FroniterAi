@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import twilio from 'twilio';
 import { prisma } from '../database/index';
 import { onNewCallRecording } from '../services/transcriptionWorker';
+import { getTwilioWebhookPublicUrl } from '../utils/twilioWebhookUrl';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ const validateTwilioSignature = (req: Request, res: Response, next: any) => {
     return res.status(401).json({ error: 'Unauthorized - Missing signature' });
   }
 
-  const requestUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const requestUrl = getTwilioWebhookPublicUrl(req);
   const isValid = twilio.validateRequest(authToken, twilioSignature, requestUrl, req.body);
   
   if (!isValid) {

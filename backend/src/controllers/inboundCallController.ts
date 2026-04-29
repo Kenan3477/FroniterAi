@@ -19,7 +19,41 @@ import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
 import { FlowExecutionEngine } from '../services/flowExecutionEngine';
 import crypto from 'crypto';
-import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl } from '../config/voiceMedia';
+import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl, normalizeInboundTo, resolveAbsoluteBackendUrl } from '../config/voiceMedia';
+
+/**
+ * Find inbound_numbers row matching Twilio "To" (exact or last-10-digits fallback).
+ */
+async function findInboundNumberByTo(toRaw: string | undefined) {
+  const normalized = normalizeInboundTo(toRaw);
+  if (!normalized) return null;
+
+  const exact = await prisma.inboundNumber.findFirst({
+    where: { phoneNumber: normalized },
+  });
+  if (exact) return exact;
+
+  const digits = normalized.replace(/\D/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : null;
+  if (!last10) return null;
+
+  const candidates = await prisma.inboundNumber.findMany({
+    where: {
+      OR: [
+        { phoneNumber: { endsWith: last10 } },
+        { phoneNumber: { contains: last10 } },
+      ],
+    },
+    take: 5,
+  });
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
+    const plusMatch = candidates.find((n) => n.phoneNumber.replace(/\D/g, '').endsWith(last10));
+    return plusMatch || candidates[0];
+  }
+  return null;
+}
 
 // Inbound call interface
 export interface InboundCall {
@@ -137,8 +171,9 @@ function generateOutOfHoursTwiML(inboundNumber: any): string {
     // Voicemail option - play voicemail prompt audio
     console.log('🎵 Playing voicemail prompt audio:', inboundNumber.voicemailAudioUrl);
     twiml.play(inboundNumber.voicemailAudioUrl);
+    const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
     twiml.record({
-      action: '/api/calls/webhook/voicemail',
+      ...(vmAction ? { action: vmAction } : {}),
       method: 'POST',
       maxLength: 120,
       finishOnKey: '#',
@@ -178,12 +213,17 @@ function generateQueueTwiML(inboundNumber: any): string {
     twiml.play(inboundNumber.queueAudioUrl);
   }
   
-  // Enqueue the call
-  twiml.enqueue({
-    waitUrl: '/api/calls/webhook/wait-music',
-    action: '/api/calls/webhook/queue-result',
-    method: 'POST'
-  }, 'general-queue');
+  // Enqueue the call (Twilio requires absolute https URLs for waitUrl/action)
+  const waitMusic = resolveAbsoluteBackendUrl('/api/calls/webhook/wait-music');
+  const queueResult = resolveAbsoluteBackendUrl('/api/calls/webhook/queue-result');
+  twiml.enqueue(
+    {
+      ...(waitMusic ? { waitUrl: waitMusic } : {}),
+      ...(queueResult ? { action: queueResult } : {}),
+      method: 'POST',
+    },
+    'general-queue'
+  );
 
   return twiml.toString();
 }
@@ -205,12 +245,10 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     });
 
     // CRITICAL: Look up inbound number configuration first
-    const inboundNumber = await prisma.inboundNumber.findFirst({
-      where: { phoneNumber: To }
-    });
+    const inboundNumber = await findInboundNumberByTo(To);
 
     if (!inboundNumber) {
-      console.error(`❌ Inbound number ${To} not found in database!`);
+      console.error(`❌ Inbound number not found for To=${To} (normalized=${normalizeInboundTo(To)})`);
       console.error('❌ CRITICAL: Inbound number must be configured in database before receiving calls');
       console.error('❌ TTS is disabled. Hanging up silently.');
       // Send hangup TwiML (no TTS error message)
@@ -300,7 +338,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     // Priority 2: Check for assigned/selected flow
     else if (inboundNumber.routeTo === 'Flow' || inboundNumber.assignedFlowId || inboundNumber.selectedFlowId) {
       const flowId = inboundNumber.selectedFlowId || inboundNumber.assignedFlowId;
-      const assignedFlow = await checkForAssignedFlow(To);
+      const assignedFlow = await checkForAssignedFlow(inboundNumber.phoneNumber);
       
       if (assignedFlow || flowId) {
         console.log(`🌊 Routing to flow: ${assignedFlow?.name || flowId}`);
