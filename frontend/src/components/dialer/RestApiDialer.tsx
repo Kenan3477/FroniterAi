@@ -42,6 +42,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const activeRestApiCallRef = useRef<{ callSid: string; conferenceId?: string; startTime: Date } | null>(null);
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   const microphonePermissionGrantedRef = useRef<boolean>(false);
+
+  // 🛡️ Tracks the callSid of the call that has already triggered the disposition
+  // modal. The modal can be triggered from any of: agent's manual hangup,
+  // Twilio Device 'disconnect'/'cancel'/'error' events, the backend
+  // /api/calls/end success branch (legacy code), or the live-status poll when
+  // it sees a terminal state. Without dedup, a single call can show the modal
+  // 2-3 times — and submitting each one wrote a separate CallRecord, which is
+  // exactly the "two records for one call" symptom the user reported.
+  // showDispositionForCall(callSid) is the only allowed way to open the modal.
+  const dispositionShownForCallRef = useRef<string | null>(null);
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -394,18 +404,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               if (activeRestNow?.callSid) {
                 console.log('🔚 Ending call on agent side and showing disposition modal...');
 
-                await endCallViaBackend(
+                await endCallViaBackend(activeRestNow.callSid, 'customer-hangup');
+                showDispositionForCall(
                   activeRestNow.callSid,
-                  'customer-hangup',
+                  duration,
                   activeRestNow.conferenceId,
                 );
-
-                setPendingCallEnd({
-                  callSid: activeRestNow.callSid,
-                  duration,
-                  conferenceId: activeRestNow.conferenceId,
-                });
-                setShowDispositionModal(true);
 
                 // Clear local call state (agent's call is ended)
                 setCurrentCall(null);
@@ -446,18 +450,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               if (activeRestNow?.callSid) {
                 console.log('🔚 Ending cancelled call on agent side and showing disposition modal...');
 
-                await endCallViaBackend(
+                await endCallViaBackend(activeRestNow.callSid, 'customer-cancel');
+                showDispositionForCall(
                   activeRestNow.callSid,
-                  'customer-cancel',
+                  duration,
                   activeRestNow.conferenceId,
                 );
-
-                setPendingCallEnd({
-                  callSid: activeRestNow.callSid,
-                  duration,
-                  conferenceId: activeRestNow.conferenceId,
-                });
-                setShowDispositionModal(true);
               }
 
               setCurrentCall(null);
@@ -474,11 +472,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
               const activeRestNow = activeRestApiCallRef.current;
               if (activeRestNow?.callSid) {
-                await endCallViaBackend(
-                  activeRestNow.callSid,
-                  'call-error',
-                  activeRestNow.conferenceId,
-                );
+                await endCallViaBackend(activeRestNow.callSid, 'call-error');
               }
 
               setCurrentCall(null);
@@ -549,6 +543,42 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       }
     };
   }, [activeRestApiCall]);
+
+  /**
+   * The single-source way to show the disposition modal for an ended call.
+   * Returns true if the modal was shown (first call for this SID), false if
+   * it was a duplicate trigger and was suppressed.
+   *
+   * Resets when:
+   *   - The disposition is successfully submitted (handleDispositionSubmit).
+   *   - The user closes the modal without saving (DispositionCard onClose).
+   *   - A new outbound call starts (handleCall sets activeRestApiCall).
+   */
+  const showDispositionForCall = (
+    callSid: string | undefined | null,
+    duration: number,
+    conferenceId?: string | null,
+  ): boolean => {
+    if (!callSid) {
+      console.warn('🛡️ showDispositionForCall called without callSid — ignoring');
+      return false;
+    }
+    if (dispositionShownForCallRef.current === callSid) {
+      console.log(
+        `🛡️ Disposition already shown for ${callSid}; suppressing duplicate trigger`,
+      );
+      return false;
+    }
+    console.log(`📋 Showing disposition modal for ${callSid} (dedup gate)`);
+    dispositionShownForCallRef.current = callSid;
+    setPendingCallEnd({
+      callSid,
+      duration,
+      ...(conferenceId ? { conferenceId } : {}),
+    });
+    setShowDispositionModal(true);
+    return true;
+  };
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 16) { // +447714333569 = 13 chars, allow up to 16 for international
@@ -629,11 +659,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // Reads the live activeRestApiCall via the ref so it works correctly when
   // called from the long-lived 'incoming' listener (which captures the
   // initial render's closure).
-  const endCallViaBackend = async (
-    callSid: string,
-    autoDisposition?: string,
-    conferenceIdForDisposition?: string,
-  ) => {
+  const endCallViaBackend = async (callSid: string, autoDisposition?: string) => {
     const liveStart = activeRestApiCallRef.current?.startTime;
     const callDuration = liveStart
       ? Math.floor((new Date().getTime() - liveStart.getTime()) / 1000)
@@ -662,60 +688,17 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       });
       
       const result = await response.json();
-      
+
       if (result.success) {
         console.log('✅ Call ended successfully in backend');
-        
-        // ✅ Now show disposition modal for agent to provide additional details
-        // The call is already ended, this is just for collecting disposition data
-        if (autoDisposition) {
-          console.log('📋 Showing disposition modal for agent to provide call outcome details...');
-          setPendingCallEnd({
-            callSid,
-            duration: callDuration,
-            conferenceId:
-              conferenceIdForDisposition ||
-              activeRestApiCallRef.current?.conferenceId,
-          });
-          setShowDispositionModal(true);
-        }
-        
-        return true;
       } else {
         console.error('❌ Backend call end failed:', result.error);
-        
-        // Still show disposition modal even if backend call fails
-        // This allows agent to at least record what happened
-        if (autoDisposition) {
-          console.log('⚠️  Backend failed but showing disposition modal anyway...');
-          setPendingCallEnd({
-            callSid,
-            duration: callDuration,
-            conferenceId:
-              conferenceIdForDisposition ||
-              activeRestApiCallRef.current?.conferenceId,
-          });
-          setShowDispositionModal(true);
-        }
-        
-        return false;
       }
+
+      // Pure backend helper — do not open disposition here (callers use showDispositionForCall).
+      return !!result.success;
     } catch (error) {
       console.error('❌ Error ending call via backend:', error);
-      
-      // Still show disposition modal even if error occurs
-      if (autoDisposition) {
-        console.log('⚠️  Error occurred but showing disposition modal anyway...');
-        setPendingCallEnd({
-          callSid,
-          duration: callDuration,
-          conferenceId:
-            conferenceIdForDisposition ||
-            activeRestApiCallRef.current?.conferenceId,
-        });
-        setShowDispositionModal(true);
-      }
-      
       return false;
     }
   };
@@ -761,17 +744,19 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         console.log('✅ Call disposition saved successfully');
-        
+
         // ✅ CRITICAL: Clear ALL call-related state after disposition submission
         // This ensures no lingering state blocks future calls
-        
-        // Clear disposition modal state
         setShowDispositionModal(false);
         setPendingCallEnd(null);
-        
+
+        // Reset the dedup gate so the next call (with a new SID) can show
+        // its own disposition modal.
+        dispositionShownForCallRef.current = null;
+
         // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
         setActiveRestApiCall(null);
         activeRestApiCallRef.current = null;
@@ -899,6 +884,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // milliseconds after this state update is enqueued) reads the new
         // value rather than the previous-call/null value still in state.
         activeRestApiCallRef.current = newActive;
+        // 🛡️ Reset the disposition-dedup gate for the new call's SID. If
+        // the previous call's gate was somehow still set (e.g. agent
+        // dismissed but didn't disposition), the new SID is different so the
+        // gate would not match, but resetting here makes the intent explicit.
+        dispositionShownForCallRef.current = null;
 
         // Start polling Twilio call status so the UI updates in real-time
         // The Twilio Device incoming handler will handle the WebRTC audio automatically —
@@ -948,6 +938,42 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
           if (TERMINAL_STATES.includes(data.status)) {
             stopCallStatusPolling();
+
+            // 🛡️ The Twilio Device 'disconnect' event SHOULD fire when the
+            // customer hangs up, but it doesn't always — particularly when
+            // the agent's WebRTC audio track is dropped first by network
+            // conditions, or when the customer hangs up during the
+            // "ringing" phase before the agent leg connects. The previous
+            // code just stopped the poll and left the call "active" in the
+            // UI forever.
+            //
+            // Now: when the poll sees a terminal state and we still think
+            // we have an active call, force the disposition modal open and
+            // tear down state. The dispositionShownForCallRef gate will
+            // dedupe with any concurrent 'disconnect' handler.
+            const activeRestNow = activeRestApiCallRef.current;
+            if (activeRestNow?.callSid === callSid) {
+              const duration = Math.floor(
+                (Date.now() - activeRestNow.startTime.getTime()) / 1000,
+              );
+              console.log(
+                `📡 Poll detected terminal state '${data.status}' for ${callSid} — forcing disposition`,
+              );
+
+              // Tear down the WebRTC leg if it's still around.
+              if (currentCallRef.current) {
+                try { currentCallRef.current.disconnect(); } catch {}
+                setCurrentCall(null);
+                currentCallRef.current = null;
+              }
+
+              await endCallViaBackend(callSid, 'customer-hangup');
+              showDispositionForCall(callSid, duration, activeRestNow.conferenceId);
+
+              setActiveRestApiCall(null);
+              activeRestApiCallRef.current = null;
+              dispatch(endCall());
+            }
           }
         }
       } catch (err) {
@@ -1047,44 +1073,59 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const handleHangup = async () => {
     stopCallStatusPolling();
     setCallStatus('completed');
-    if (activeRestApiCall) {
+
+    const activeRestNow = activeRestApiCallRef.current || activeRestApiCall;
+
+    if (activeRestNow) {
       try {
         setIsLoading(true);
-        const callDuration = Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000);
-        
-        console.log('📞 Agent ending call, showing disposition modal...');
-        
-        // Show disposition modal instead of immediately ending with hardcoded disposition
-        setPendingCallEnd({ 
-          callSid: activeRestApiCall.callSid, 
-          duration: callDuration,
-          conferenceId: activeRestApiCall.conferenceId,
-        });
-        setShowDispositionModal(true);
-        
+        const callDuration = Math.floor(
+          (new Date().getTime() - activeRestNow.startTime.getTime()) / 1000,
+        );
+
+        console.log('📞 Agent ending call — disconnecting WebRTC + showing disposition modal');
+
+        if (currentCallRef.current) {
+          try {
+            currentCallRef.current.disconnect();
+          } catch {
+            // ignore — Twilio SDK may already be disconnecting
+          }
+          setCurrentCall(null);
+          currentCallRef.current = null;
+        }
+
+        await endCallViaBackend(activeRestNow.callSid, 'agent-hangup');
+        showDispositionForCall(
+          activeRestNow.callSid,
+          callDuration,
+          activeRestNow.conferenceId,
+        );
+
+        setActiveRestApiCall(null);
+        activeRestApiCallRef.current = null;
+        dispatch(endCall());
       } catch (error: any) {
         console.error('❌ Error preparing call end:', error);
         setLastCallResult({
           success: false,
-          message: 'Failed to prepare call end: ' + error.message
+          message: 'Failed to prepare call end: ' + error.message,
         });
       } finally {
         setIsLoading(false);
       }
     } else {
-      // For Twilio SDK calls or when no active call
       console.log('📞 No active REST API call to end');
       setLastCallResult({
         success: true,
-        message: 'No active call to end'
+        message: 'No active call to end',
       });
-    }
-
-    // End WebRTC call if active
-    if (currentCall) {
-      currentCall.disconnect();
-      setCurrentCall(null);
-      dispatch(endCall());
+      if (currentCallRef.current) {
+        try { currentCallRef.current.disconnect(); } catch {}
+        setCurrentCall(null);
+        currentCallRef.current = null;
+        dispatch(endCall());
+      }
     }
   };
 
@@ -1310,6 +1351,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             setPendingCallEnd(null);
             setActiveRestApiCall(null);
             activeRestApiCallRef.current = null;
+            // Allow the next call's disposition modal to show.
+            dispositionShownForCallRef.current = null;
           }}
           customerInfo={{
             name: phoneNumber || 'Unknown',
