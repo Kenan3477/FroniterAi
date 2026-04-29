@@ -28,6 +28,20 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const [microphoneStream, setMicrophoneStream] = useState<MediaStream | null>(null);
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
   const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, conferenceId?: string, startTime: Date} | null>(null);
+
+  // 🛡️ Refs that mirror the latest values of state used inside the Twilio Device
+  // 'incoming' listener. The listener is registered once when the Device is set up
+  // and captures `phoneNumber`, `currentCall` and `activeRestApiCall` via closure.
+  // Without these refs, by the time a second/third dial happens those closures
+  // are reading the *initial* render's state, which is what previously made the
+  // outbound-vs-inbound detection unreliable and produced ghost "+442046343130 /
+  // Inbound Caller" rows. We update each ref whenever the underlying state
+  // changes (cheap useEffects below) so the listener always sees fresh values.
+  const phoneNumberRef = useRef<string>('');
+  const currentCallRef = useRef<any>(null);
+  const activeRestApiCallRef = useRef<{ callSid: string; conferenceId?: string; startTime: Date } | null>(null);
+  const microphoneStreamRef = useRef<MediaStream | null>(null);
+  const microphonePermissionGrantedRef = useRef<boolean>(false);
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -48,6 +62,20 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // Get active call state from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
   const dispatch = useDispatch();
+
+  // 🛡️ Boolean derived from audioDevices used as the Device-init effect's dep.
+  // Flips false→true once, the moment audio device enumeration first returns
+  // any output devices, then stays true for the rest of the component's life.
+  const audioDevicesReady = audioDevices.output.length > 0;
+
+  // 🛡️ Keep refs in sync with the state values that the Twilio Device 'incoming'
+  // listener reads. The listener is registered once but fires on every call, so
+  // any state read via closure becomes stale after the first call.
+  useEffect(() => { phoneNumberRef.current = phoneNumber; }, [phoneNumber]);
+  useEffect(() => { currentCallRef.current = currentCall; }, [currentCall]);
+  useEffect(() => { activeRestApiCallRef.current = activeRestApiCall; }, [activeRestApiCall]);
+  useEffect(() => { microphoneStreamRef.current = microphoneStream; }, [microphoneStream]);
+  useEffect(() => { microphonePermissionGrantedRef.current = microphonePermissionGranted; }, [microphonePermissionGranted]);
 
   // Debug logging for device ready state
   useEffect(() => {
@@ -182,188 +210,263 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         });
 
         twilioDevice.on('incoming', async (call) => {
-          console.log('📞 Incoming call from REST API - checking microphone...');
-          
-          // If we already have an active call, reject this new one
-          if (currentCall) {
+          // 🛡️ Read latest values via refs — see comment on the ref declarations.
+          // `currentCallRef.current`, `activeRestApiCallRef.current` and
+          // `phoneNumberRef.current` are guaranteed to reflect the most recent
+          // render's state, even though this listener was registered once.
+          const activeRest = activeRestApiCallRef.current;
+          const dialedNumber = phoneNumberRef.current;
+
+          // 🛡️ DIRECTION DETECTION (deterministic).
+          //
+          // The agent-leg of an outbound REST-API call arrives at this Device as
+          // an 'incoming' event because we registered the Device as the
+          // `agent-browser` Twilio Client and our outbound TwiML does
+          // <Dial><Client>agent-browser</Client></Dial>.
+          //
+          // The previous heuristic compared `phoneNumber` (the dial-pad input
+          // state) against the empty string. That was unreliable for two
+          // reasons:
+          //   1. The user clears the input before the call connects, so by the
+          //      time the agent-leg arrives `phoneNumber === ''` and we
+          //      incorrectly classified it as INBOUND.
+          //   2. The `incoming` listener was created once and read state via
+          //      closure, so on the 2nd+ dial it saw the initial render's
+          //      empty string regardless.
+          //
+          // The deterministic signal: if we initiated an outbound REST call in
+          // the last 60 seconds (`activeRestApiCall` is set), this incoming
+          // event IS the agent leg of that call. There is no realistic race
+          // where a genuine inbound rings the agent-browser within 60s of an
+          // outbound being dialled by the same agent — the backend's
+          // active-call check (returns HTTP 409) prevents that.
+          const OUTBOUND_LEG_WINDOW_MS = 60_000;
+          const recentOutbound =
+            activeRest &&
+            Date.now() - activeRest.startTime.getTime() < OUTBOUND_LEG_WINDOW_MS;
+          const isOutboundCall = !!recentOutbound;
+
+          console.log('📞 Incoming call event:', {
+            classifiedAs: isOutboundCall ? 'OUTBOUND (agent leg)' : 'INBOUND',
+            activeRestCallSid: activeRest?.callSid,
+            activeRestConferenceId: activeRest?.conferenceId,
+            ageMs: activeRest ? Date.now() - activeRest.startTime.getTime() : null,
+            currentCallSet: !!currentCallRef.current,
+            dialedNumberInState: dialedNumber || null,
+            twilioParams: call.parameters || {},
+          });
+
+          // If we already have an active call, reject this new one.
+          if (currentCallRef.current) {
             console.log('⚠️ Already have an active call, rejecting new incoming call');
             call.reject();
             return;
           }
-          
+
           try {
-            let stream = microphoneStream;
-            
-            // If we don't have a stream yet, or permission wasn't granted, try to get one
-            if (!stream || !microphonePermissionGranted) {
+            let stream = microphoneStreamRef.current;
+
+            // If we don't have a stream yet, or permission wasn't granted, try to get one.
+            if (!stream || !microphonePermissionGrantedRef.current) {
               console.log('🎤 Requesting microphone access for incoming call...');
-              // Request microphone with enhanced audio settings for echo cancellation
-              stream = await navigator.mediaDevices.getUserMedia({ 
+              stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                   echoCancellation: true,
                   noiseSuppression: true,
                   autoGainControl: false, // Disable AGC to prevent feedback
-                  sampleRate: 16000, // Lower sample rate for better echo cancellation
-                  channelCount: 1    // Mono audio to prevent stereo echo issues
-                }
+                  sampleRate: 16000,      // Lower sample rate for better echo cancellation
+                  channelCount: 1,        // Mono audio to prevent stereo echo issues
+                },
               });
               setMicrophoneStream(stream);
               setMicrophonePermissionGranted(true);
             }
-            
+
             console.log('🎤 Microphone access confirmed - accepting call');
-            
-            // Set the current call immediately to prevent duplicates
+
+            // Set the current call immediately to prevent duplicates.
             setCurrentCall(call);
-            
-            // Accept the call
+            currentCallRef.current = call; // also set ref synchronously
+
             await call.accept();
-            
-            // Set up call event handlers
+
+            // Set up call event handlers.
             call.on('accept', () => {
               console.log('✅ Call accepted - two way audio should be working');
-              
-              // Extract call information for Redux state
+
               const callParameters = call.parameters || {};
-              
-              // FIXED: Determine call direction and use correct phone number
-              // If we have a phoneNumber set, this is an outbound call to that number
-              // For outbound calls: From = agent (Twilio number), To = customer
-              // For inbound calls: From = customer, To = agent (Twilio number)
-              const isOutboundCall = phoneNumber && phoneNumber.trim() !== '';
-              const customerNumber = isOutboundCall 
-                ? phoneNumber  // Use the number we dialed
-                : (callParameters.From || 'Unknown'); // Use the caller's number
-              
-              const callSid = call.parameters?.CallSid || call.sid || null;
-              
-              console.log(`📞 Call direction: ${isOutboundCall ? 'OUTBOUND' : 'INBOUND'}, Customer: ${customerNumber}`);
-              console.log('📞 Call parameters:', callParameters);
-              console.log('📞 Active REST API call:', activeRestApiCall);
-              
-              console.log('📞 Call details:', { 
-                customer: customerNumber, 
-                callSid: callSid,
+
+              // 🛡️ Customer number resolution.
+              //
+              // For OUTBOUND (agent-leg): the customer is the number we dialed.
+              // We trust `activeRestApiCall.callSid` (the customer-leg SID) and
+              // `phoneNumberRef.current` only as the display number. We DO NOT
+              // use callParameters.From here because for the agent-leg of an
+              // outbound bridge `From` is our Twilio caller-id number
+              // (e.g. +442046343130) — the source of the previous ghost row.
+              //
+              // For INBOUND: the customer is callParameters.From (caller's
+              // number), and there is no conferenceId in our state.
+              const customerNumber = isOutboundCall
+                ? (dialedNumber && dialedNumber.trim()) || activeRest?.conferenceId || 'Customer'
+                : callParameters.From || 'Unknown';
+
+              // 🛡️ Use the customer-leg SID (stored in activeRest) for OUTBOUND
+              // calls — that's the SID our backend has on the `conf-...` row.
+              // For INBOUND we use the agent-leg SID Twilio gave us, since
+              // that's the only SID we have.
+              const callSid = isOutboundCall
+                ? activeRest?.callSid || call.parameters?.CallSid || (call as any).sid || null
+                : call.parameters?.CallSid || (call as any).sid || null;
+
+              const conferenceId = isOutboundCall ? activeRest?.conferenceId : undefined;
+
+              console.log('📞 Call details (post-classification):', {
                 direction: isOutboundCall ? 'outbound' : 'inbound',
-                parameters: callParameters,
-                conferenceId: activeRestApiCall?.conferenceId // Debug: Check if we have conferenceId
+                customer: customerNumber,
+                callSid,
+                conferenceId,
+                twilioFrom: callParameters.From,
+                twilioTo: callParameters.To,
               });
-              
-              // CRITICAL: For REST API calls, get conferenceId from activeRestApiCall state
-              // This is needed to prevent duplicate call records in the database
-              const conferenceId = activeRestApiCall?.conferenceId || undefined;
-              console.log('🔍 DEBUG: conferenceId for Redux:', conferenceId);
-              
-              // Start call in Redux with proper metadata INCLUDING conferenceId
-              dispatch(startCall({
-                phoneNumber: customerNumber,
-                callSid: callSid,
-                conferenceId: conferenceId, // CRITICAL: Include conferenceId for duplicate prevention
-                callType: isOutboundCall ? 'outbound' : 'inbound',
-                customerInfo: {
-                  firstName: isOutboundCall ? 'Customer' : 'Inbound',
-                  lastName: isOutboundCall ? '' : 'Caller',
-                  phone: customerNumber,
-                  id: `${isOutboundCall ? 'outbound' : 'inbound'}-${callSid || Date.now()}`
-                }
-              }));
-              
-              // Update to connected status
+
+              // Sanity guard: if for an outbound call the customer number we
+              // would write into Redux equals the Twilio caller-id From (i.e.
+              // the previous bug pattern), refuse to use it and fall back to
+              // the conferenceId as a marker. This makes the ghost +442046343130
+              // pattern impossible at the source.
+              const looksLikeAgentLegLeak =
+                isOutboundCall &&
+                callParameters.From &&
+                customerNumber === callParameters.From;
+              if (looksLikeAgentLegLeak) {
+                console.warn(
+                  '🛡️ Suppressing agent-leg From leak into Redux phoneNumber:',
+                  callParameters.From,
+                );
+              }
+
+              const safeCustomerNumber = looksLikeAgentLegLeak
+                ? activeRest?.conferenceId || 'Customer'
+                : customerNumber;
+
+              dispatch(
+                startCall({
+                  phoneNumber: safeCustomerNumber,
+                  callSid,
+                  conferenceId,
+                  callType: isOutboundCall ? 'outbound' : 'inbound',
+                  customerInfo: {
+                    firstName: isOutboundCall ? 'Customer' : 'Inbound',
+                    lastName: isOutboundCall ? '' : 'Caller',
+                    phone: safeCustomerNumber,
+                    id: `${isOutboundCall ? 'outbound' : 'inbound'}-${callSid || Date.now()}`,
+                  },
+                }),
+              );
+
               dispatch(answerCall());
-              console.log(`📱 Redux state updated - ${isOutboundCall ? 'outbound' : 'inbound'} call started and answered`);
+              console.log(
+                `📱 Redux state updated - ${isOutboundCall ? 'outbound' : 'inbound'} call started and answered`,
+              );
             });
             
             call.on('disconnect', async () => {
               console.log('📱 Call disconnected - customer or network hangup detected');
-              
-              // Calculate call duration
-              const startTime = activeRestApiCall?.startTime || new Date();
+
+              // Always read the freshest activeRestApiCall via the ref.
+              const activeRestNow = activeRestApiCallRef.current;
+              const startTime = activeRestNow?.startTime || new Date();
               const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
-              
+
               stopCallStatusPolling();
               setCallStatus('completed');
 
-              // 🚨 CRITICAL: End call on agent's side immediately
-              if (activeRestApiCall?.callSid) {
+              if (activeRestNow?.callSid) {
                 console.log('🔚 Ending call on agent side and showing disposition modal...');
-                
-                // End the call in backend
-                await endCallViaBackend(activeRestApiCall.callSid, 'customer-hangup');
-                
-                // Show disposition modal for agent to record call outcome
+
+                await endCallViaBackend(activeRestNow.callSid, 'customer-hangup');
+
                 setPendingCallEnd({
-                  callSid: activeRestApiCall.callSid,
-                  duration: duration
+                  callSid: activeRestNow.callSid,
+                  duration,
                 });
                 setShowDispositionModal(true);
-                
-                // Clear local call state (agent's call is ended)
+
                 setCurrentCall(null);
+                currentCallRef.current = null;
                 setActiveRestApiCall(null);
-                
-                // Update Redux to show call ended on agent side
+                activeRestApiCallRef.current = null;
+
+                dispatch(endCall());
+              } else {
+                // Inbound or recovered-state call: still end Redux state.
+                setCurrentCall(null);
+                currentCallRef.current = null;
                 dispatch(endCall());
               }
-              
+
               console.log('✅ Customer disconnected - agent call ended, disposition modal shown');
             });
 
             call.on('reject', () => {
               console.log('📱 Call rejected by customer');
               setCurrentCall(null);
+              currentCallRef.current = null;
               setActiveRestApiCall(null);
+              activeRestApiCallRef.current = null;
               dispatch(endCall());
             });
-            
+
             call.on('cancel', async () => {
               console.log('📱 Call cancelled - customer or agent cancelled before answer');
-              
-              // Calculate call duration
-              const startTime = activeRestApiCall?.startTime || new Date();
+
+              const activeRestNow = activeRestApiCallRef.current;
+              const startTime = activeRestNow?.startTime || new Date();
               const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
-              
+
               stopCallStatusPolling();
               setCallStatus('canceled');
 
-              // End call via backend and show disposition
-              if (activeRestApiCall?.callSid) {
-                console.log('� Ending cancelled call on agent side and showing disposition modal...');
-                
-                await endCallViaBackend(activeRestApiCall.callSid, 'customer-cancel');
-                
-                // Show disposition modal
+              if (activeRestNow?.callSid) {
+                console.log('🔚 Ending cancelled call on agent side and showing disposition modal...');
+
+                await endCallViaBackend(activeRestNow.callSid, 'customer-cancel');
+
                 setPendingCallEnd({
-                  callSid: activeRestApiCall.callSid,
-                  duration: duration
+                  callSid: activeRestNow.callSid,
+                  duration,
                 });
                 setShowDispositionModal(true);
-                
-                // Clear local call state
+
                 setCurrentCall(null);
+                currentCallRef.current = null;
                 setActiveRestApiCall(null);
-                
-                // Update Redux to show call ended
+                activeRestApiCallRef.current = null;
+
                 dispatch(endCall());
               } else {
-                // No call SID, just clear state
                 setCurrentCall(null);
+                currentCallRef.current = null;
                 setActiveRestApiCall(null);
+                activeRestApiCallRef.current = null;
                 dispatch(endCall());
               }
-              
+
               console.log('✅ Call cancelled - agent call ended, disposition modal shown');
             });
-            
+
             call.on('error', async (error: any) => {
               console.error('❌ Call error:', error);
-              
-              // End call via backend API if we have call info
-              if (activeRestApiCall?.callSid) {
-                await endCallViaBackend(activeRestApiCall.callSid, 'call-error');
+
+              const activeRestNow = activeRestApiCallRef.current;
+              if (activeRestNow?.callSid) {
+                await endCallViaBackend(activeRestNow.callSid, 'call-error');
               }
-              
+
               setCurrentCall(null);
-              // Don't clear Redux state immediately - let disposition modal handle it
+              currentCallRef.current = null;
+              // Don't clear Redux state immediately - let disposition modal handle it.
               console.log('📱 Call error - disposition modal should appear');
             });
             
@@ -392,11 +495,33 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         deviceRef.current.destroy();
       }
       // Clean up microphone stream
-      if (microphoneStream) {
-        microphoneStream.getTracks().forEach(track => track.stop());
+      if (microphoneStreamRef.current) {
+        microphoneStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [audioDevices, selectedAudioOutput]); // Re-initialize when audio devices change
+    // 🛡️ Initialise the Twilio Device once, as soon as audio devices are
+    // available. We deliberately do NOT depend on `selectedAudioOutput` or the
+    // full `audioDevices` object here: changing the speaker mid-session — or
+    // having the OS hot-swap a USB headset — must NOT destroy & re-register
+    // the Device, because that would lose the registered 'incoming' listener
+    // and a fresh listener would capture stale state on the next call.
+    // The dep below only changes when audio enumeration first completes, so
+    // this effect runs exactly once per component mount.
+    // Speaker changes are applied to the existing Device by the speaker
+    // effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioDevicesReady]);
+
+  // Apply speaker selection to the live Device without re-registering it.
+  useEffect(() => {
+    const dev: any = deviceRef.current;
+    if (!dev || !selectedAudioOutput) return;
+    if (dev.audio?.speakerDevices?.set) {
+      dev.audio.speakerDevices.set([selectedAudioOutput]).catch((err: any) => {
+        console.warn('⚠️ Could not update audio output device on live Device:', err);
+      });
+    }
+  }, [selectedAudioOutput, isDeviceReady]);
 
   // Cleanup active REST API calls on unmount
   useEffect(() => {
@@ -483,10 +608,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     setPhoneNumber(prev => prev.slice(0, -1));
   };
 
-  // Helper function to end call via backend API
+  // Helper function to end call via backend API.
+  // Reads the live activeRestApiCall via the ref so it works correctly when
+  // called from the long-lived 'incoming' listener (which captures the
+  // initial render's closure).
   const endCallViaBackend = async (callSid: string, autoDisposition?: string) => {
-    const callDuration = activeRestApiCall?.startTime 
-      ? Math.floor((new Date().getTime() - activeRestApiCall.startTime.getTime()) / 1000)
+    const liveStart = activeRestApiCallRef.current?.startTime;
+    const callDuration = liveStart
+      ? Math.floor((new Date().getTime() - liveStart.getTime()) / 1000)
       : 0;
     
     console.log('📞 Ending call immediately via backend...', { callSid, duration: callDuration, trigger: autoDisposition || 'manual' });
@@ -601,7 +730,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         
         // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
         setActiveRestApiCall(null);
+        activeRestApiCallRef.current = null;
         setCurrentCall(null);
+        currentCallRef.current = null;
         setCallStatus('idle');
         
         // Clear Redux state
@@ -711,12 +842,18 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           conferenceId: result.conferenceId,
           startTime: new Date()
         });
-        
-        setActiveRestApiCall({
+
+        const newActive = {
           callSid: result.callSid,
           conferenceId: result.conferenceId,
-          startTime: new Date()
-        });
+          startTime: new Date(),
+        };
+        setActiveRestApiCall(newActive);
+        // 🛡️ Also update the ref synchronously, so the Twilio Device
+        // 'incoming' event for this same outbound call (which can fire
+        // milliseconds after this state update is enqueued) reads the new
+        // value rather than the previous-call/null value still in state.
+        activeRestApiCallRef.current = newActive;
 
         // Start polling Twilio call status so the UI updates in real-time
         // The Twilio Device incoming handler will handle the WebRTC audio automatically —
@@ -850,7 +987,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       call.on('disconnect', () => {
         console.log('📱 Agent disconnected from conference');
         setCurrentCall(null);
+        currentCallRef.current = null;
         setActiveRestApiCall(null);
+        activeRestApiCallRef.current = null;
         dispatch(endCall());
       });
       
@@ -1123,6 +1262,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             setShowDispositionModal(false);
             setPendingCallEnd(null);
             setActiveRestApiCall(null);
+            activeRestApiCallRef.current = null;
           }}
           customerInfo={{
             name: phoneNumber || 'Unknown',
