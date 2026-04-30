@@ -487,7 +487,7 @@ router.get('/daily-volume', [
  * Requires: ADMIN role
  */
 router.post('/sync-recordings', [
-  requireRole('ADMIN'),
+  requireRole('ADMIN', 'SUPER_ADMIN'),
   createRateLimiter
 ], async (req: Request, res: Response) => {
   try {

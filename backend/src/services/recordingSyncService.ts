@@ -5,18 +5,29 @@
 
 import { prisma } from '../database/index';
 import { getCallRecordings } from './twilioService';
-import fetch from 'node-fetch';
-import path from 'path';
-import fs from 'fs/promises';
+import { downloadAndStoreRecording } from './recordingService';
 
-const RECORDINGS_DIR = process.env.RECORDINGS_DIR || path.join(process.cwd(), 'recordings');
-const BASE_RECORDING_URL = process.env.BASE_RECORDING_URL || 'https://froniterai-production.up.railway.app/api/recordings';
+function extractCaSidsFromText(text: string | null | undefined): string[] {
+  if (!text) return [];
+  const matches = text.match(/CA[a-f0-9]{32}/gi) || [];
+  return [...new Set(matches.map((s) => s))];
+}
 
-interface TwilioRecording {
-  sid: string;
-  duration: string | number;
-  url: string;
-  dateCreated: Date;
+/** Twilio lists recordings by parent Call SID (CA…). Rows often store conf-… as callId. */
+function resolveLookupSids(row: {
+  callId: string;
+  recording: string | null;
+  notes: string | null;
+}): string[] {
+  const out: string[] = [];
+  const add = (s?: string | null) => {
+    const t = (s || '').trim();
+    if (/^CA[a-f0-9]{32}$/i.test(t) && !out.includes(t)) out.push(t);
+  };
+  add(row.callId);
+  for (const s of extractCaSidsFromText(row.recording)) add(s);
+  for (const s of extractCaSidsFromText(row.notes)) add(s);
+  return out;
 }
 
 /**
@@ -26,48 +37,47 @@ export async function syncAllRecordings(): Promise<{ synced: number; errors: num
   console.log('🔄 Starting recording sync for all call records...');
   
   try {
-    // Get all call records that don't have recordings yet
-    const callRecordsWithoutRecordings = await prisma.callRecord.findMany({
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const callRecordsNeedingSync = await prisma.callRecord.findMany({
       where: {
-        recordingFile: null, // No recording file linked
-        // Only sync calls from last 30 days to avoid too much processing
-        startTime: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        }
+        startTime: { gte: since },
+        OR: [
+          { recordingFile: null },
+          { recordingFile: { uploadStatus: { not: 'completed' } } },
+          { recordingFile: { filePath: '' } },
+        ],
       },
       select: {
         id: true,
         callId: true,
-        startTime: true
-      }
+        recording: true,
+        notes: true,
+        startTime: true,
+      },
     });
 
-    console.log(`📊 Found ${callRecordsWithoutRecordings.length} call records without recordings`);
+    console.log(`📊 Found ${callRecordsNeedingSync.length} call records needing recording sync`);
 
     let syncedCount = 0;
     let errorCount = 0;
 
-    // Process in batches to avoid overwhelming Twilio API
     const batchSize = 5;
-    for (let i = 0; i < callRecordsWithoutRecordings.length; i += batchSize) {
-      const batch = callRecordsWithoutRecordings.slice(i, i + batchSize);
+    for (let i = 0; i < callRecordsNeedingSync.length; i += batchSize) {
+      const batch = callRecordsNeedingSync.slice(i, i + batchSize);
       
       await Promise.all(batch.map(async (callRecord) => {
         try {
-          const success = await syncRecordingForCall(callRecord.callId, callRecord.id);
-          if (success) {
-            syncedCount++;
-          } else {
-            errorCount++;
-          }
+          const ok = await syncRecordingForCallRow(callRecord);
+          if (ok) syncedCount++;
+          else errorCount++;
         } catch (error) {
-          console.error(`❌ Error syncing recording for call ${callRecord.callId}:`, error);
+          console.error(`❌ Error syncing recording for row ${callRecord.id}:`, error);
           errorCount++;
         }
       }));
 
-      // Add delay between batches to respect rate limits
-      if (i + batchSize < callRecordsWithoutRecordings.length) {
+      if (i + batchSize < callRecordsNeedingSync.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -82,121 +92,59 @@ export async function syncAllRecordings(): Promise<{ synced: number; errors: num
 }
 
 /**
- * Sync recording for a specific call
+ * Sync recording for a specific call record (resolves CA… from conf rows / notes / recording field).
  */
 export async function syncRecordingForCall(callSid: string, callRecordId: string): Promise<boolean> {
-  try {
-    console.log(`🎵 Syncing recording for call ${callSid}...`);
-
-    // Check if recording already exists
-    const existingRecording = await prisma.recording.findFirst({
-      where: { callRecordId }
-    });
-
-    if (existingRecording) {
-      console.log(`⚠️ Recording already exists for call ${callSid}`);
-      return true;
-    }
-
-    // Get recordings from Twilio
-    const twilioRecordings = await getCallRecordings(callSid) as TwilioRecording[];
-    
-    if (!twilioRecordings || twilioRecordings.length === 0) {
-      console.log(`📭 No recordings found in Twilio for call ${callSid}`);
-      return false;
-    }
-
-    const recording = twilioRecordings[0]; // Use the first recording
-    
-    // Download and store the recording
-    const recordingFileId = await downloadAndStoreRecording(recording, callSid, callRecordId);
-    
-    if (recordingFileId) {
-      console.log(`✅ Successfully synced recording ${recordingFileId} for call ${callSid}`);
-      return true;
-    }
-
-    return false;
-
-  } catch (error: any) {
-    if (error.message?.includes('not initialized')) {
-      console.log(`⚠️ Twilio not configured - skipping recording sync for call ${callSid}`);
-      return false;
-    }
-    
-    console.error(`❌ Error syncing recording for call ${callSid}:`, error);
-    throw error;
-  }
+  const row = await prisma.callRecord.findUnique({
+    where: { id: callRecordId },
+    select: { id: true, callId: true, recording: true, notes: true },
+  });
+  if (!row) return false;
+  return syncRecordingForCallRow(row);
 }
 
-/**
- * Download recording from Twilio and store locally
- */
-async function downloadAndStoreRecording(
-  recording: TwilioRecording, 
-  callSid: string, 
-  callRecordId: string
-): Promise<string | null> {
+async function syncRecordingForCallRow(row: {
+  id: string;
+  callId: string;
+  recording: string | null;
+  notes: string | null;
+}): Promise<boolean> {
   try {
-    // Ensure recordings directory exists
-    await fs.mkdir(RECORDINGS_DIR, { recursive: true });
-    
-    // Generate filename: callId_timestamp.mp3
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `${callSid}_${timestamp}.mp3`;
-    const filePath = path.join(RECORDINGS_DIR, fileName);
-    
-    // Download the recording from Twilio
-    console.log(`📥 Downloading recording from Twilio: ${recording.url}`);
-    const response = await fetch(recording.url, {
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`
-      }
+    const existing = await prisma.recording.findFirst({
+      where: { callRecordId: row.id },
     });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to download recording: ${response.statusText}`);
+    if (existing?.uploadStatus === 'completed' && (existing.filePath || '').trim().length > 0) {
+      return true;
     }
-    
-    // Save to local file
-    const buffer = await response.buffer();
-    await fs.writeFile(filePath, buffer);
-    
-    // Get file size
-    const stats = await fs.stat(filePath);
-    const fileSizeBytes = stats.size;
-    
-    console.log(`💾 Recording saved: ${fileName} (${fileSizeBytes} bytes)`);
-    
-    // Create recording record in database
-    const recordingRecord = await prisma.recording.create({
-      data: {
-        callRecordId: callRecordId,
-        fileName: fileName,
-        filePath: filePath,
-        fileSize: fileSizeBytes,
-        duration: recording.duration ? parseInt(recording.duration.toString()) : null,
-        format: 'mp3',
-        quality: 'standard',
-        storageType: 'local',
-        uploadStatus: 'completed',
+
+    const lookupSids = resolveLookupSids(row);
+    if (!lookupSids.length) {
+      console.log(`📭 No Twilio CallSid (CA…) on call record ${row.id} — cannot sync recording`);
+      return false;
+    }
+
+    for (const sid of lookupSids) {
+      try {
+        const list = await getCallRecordings(sid);
+        if (!list?.length) continue;
+        console.log(`🔗 Trying Twilio CallSid ${sid} (${list.length} recording(s)) for row ${row.id}`);
+        const id = await downloadAndStoreRecording(sid, row.id);
+        if (id) return true;
+      } catch (e) {
+        console.warn(`⚠️ Recording sync attempt failed for ${sid}:`, e);
       }
-    });
-    
-    console.log(`✅ Recording record created: ${recordingRecord.id}`);
-    
-    // Update the call record with the recording reference
-    await prisma.callRecord.update({
-      where: { id: callRecordId },
-      data: {
-        recording: `${BASE_RECORDING_URL}/${recordingRecord.id}/download`
-      }
-    });
-    
-    return recordingRecord.id;
-    
-  } catch (error) {
-    console.error(`❌ Error downloading recording:`, error);
+    }
+
+    console.log(
+      `📭 No Twilio recordings linked for call record ${row.id} (tried: ${lookupSids.join(', ')})`,
+    );
+    return false;
+  } catch (error: any) {
+    if (error.message?.includes('not initialized')) {
+      console.log(`⚠️ Twilio not configured - skipping recording sync`);
+      return false;
+    }
+    console.error(`❌ Error syncing recording for call record ${row.id}:`, error);
     throw error;
   }
 }

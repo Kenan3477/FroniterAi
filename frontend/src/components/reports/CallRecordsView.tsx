@@ -206,6 +206,7 @@ export const CallRecordsView: React.FC = () => {
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [transcriptView, setTranscriptView] = useState<'full' | 'summary' | 'analytics'>('full');
   const [processingStates, setProcessingStates] = useState<{ [callId: string]: boolean }>({});
+  const [syncingRecordings, setSyncingRecordings] = useState(false);
 
   // Outcome color mapping
   const outcomeColors: { [key: string]: string } = {
@@ -309,6 +310,44 @@ export const CallRecordsView: React.FC = () => {
       setError(err.message || 'Failed to fetch call records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const syncRecordingsFromTwilio = async () => {
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('session_token');
+    if (!token) {
+      alert('You need to be logged in to sync recordings.');
+      return;
+    }
+    setSyncingRecordings(true);
+    try {
+      const response = await fetch('/api/call-records/sync-recordings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || response.statusText);
+      }
+      const synced = data.data?.synced ?? data.synced;
+      const errors = data.data?.errors ?? data.errors;
+      alert(
+        data.message ||
+          `Recording sync finished. Linked ${synced ?? 0} call(s); ${errors ?? 0} could not be matched (no Twilio audio or missing Call SID on the row).`,
+      );
+      await fetchCallRecords();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncingRecordings(false);
     }
   };
 
@@ -826,11 +865,21 @@ export const CallRecordsView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Call Records</h1>
           <p className="text-gray-600">Comprehensive call history with recordings and analytics</p>
         </div>
+        {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+          <button
+            type="button"
+            onClick={syncRecordingsFromTwilio}
+            disabled={syncingRecordings || loading}
+            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {syncingRecordings ? 'Syncing from Twilio…' : 'Link missing recordings'}
+          </button>
+        )}
       </div>
 
 

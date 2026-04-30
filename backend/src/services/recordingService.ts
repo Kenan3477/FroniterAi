@@ -36,7 +36,15 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
       return null;
     }
 
-    const recording = twilioRecordings[0]; // Use the first recording
+    const recording = (() => {
+      const dual = twilioRecordings.find((r: any) => Number((r as any).channels) === 2);
+      if (dual) return dual;
+      return [...twilioRecordings].sort((a, b) => {
+        const da = parseInt(String(a.duration || '0'), 10) || 0;
+        const db = parseInt(String(b.duration || '0'), 10) || 0;
+        return db - da;
+      })[0];
+    })();
     
     // Extract Twilio Recording SID from URL
     // URL format: https://api.twilio.com/2010-04-01/Accounts/AC.../Recordings/RExxxxx.mp3
