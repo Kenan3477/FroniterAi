@@ -5,6 +5,9 @@ export function isTwilioPlayCompatibleMime(mime: string | null | undefined): boo
   return (
     m === 'audio/mpeg' ||
     m === 'audio/mp3' ||
+    m === 'audio/mp4' || // M4A (AAC in MP4) — common for Omnivox uploads; Twilio <Play> supports
+    m === 'audio/x-m4a' ||
+    m === 'audio/m4a' ||
     m === 'audio/wav' ||
     m === 'audio/wave' ||
     m === 'audio/x-wav' ||

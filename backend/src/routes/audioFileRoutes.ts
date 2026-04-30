@@ -56,7 +56,7 @@ const upload = multer({
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type: ${file.mimetype}. For Twilio inbound/outbound <Play>, use MP3 or WAV (M4A/AAC/FLAC/OGG may be rejected by carriers).`));
+      cb(new Error(`Invalid file type: ${file.mimetype}. Use MP3, WAV, or M4A (AAC) for phone prompts.`));
     }
   }
 });
