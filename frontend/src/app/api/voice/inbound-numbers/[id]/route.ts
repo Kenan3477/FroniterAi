@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
+function getBearerForBackend(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  const session = request.cookies.get('session_token')?.value;
+  if (session) return session;
+  const legacy =
+    request.cookies.get('auth-token')?.value ||
+    request.cookies.get('authToken')?.value ||
+    request.cookies.get('omnivox_token')?.value;
+  if (legacy) return legacy;
+  return null;
+}
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -13,26 +28,12 @@ export async function PUT(
     console.log('🔧 Proxying inbound number update to backend...');
     console.log('🔧 Number ID:', params.id);
 
-    // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
-    let authToken = request.cookies.get('session_token')?.value;
-    
-    // Fallback to auth-token for backwards compatibility
-    if (!authToken) {
-      authToken = request.cookies.get('auth-token')?.value;
-    }
-    
-    // Also check Authorization header
-    if (!authToken) {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        authToken = authHeader.substring(7);
-      }
-    }
-    
+    const authToken = getBearerForBackend(request);
+
     console.log('🔒 Auth token found:', authToken ? `${authToken.substring(0, 10)}...` : 'NONE');
-    
+
     if (!authToken) {
-      console.log('🔒 No auth token found in cookies');
+      console.log('🔒 No auth token found (session_token / auth-token / omnivox_token / Authorization)');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -112,26 +113,11 @@ export async function DELETE(
     console.log('🗑️ Proxying inbound number deletion to backend...');
     console.log('🗑️ Number ID:', params.id);
 
-    // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
-    let authToken = request.cookies.get('session_token')?.value;
-    
-    // Fallback to auth-token for backwards compatibility
-    if (!authToken) {
-      authToken = request.cookies.get('auth-token')?.value;
-    }
-    
-    // Also check Authorization header
-    if (!authToken) {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        authToken = authHeader.substring(7);
-      }
-    }
-    
+    const authToken = getBearerForBackend(request);
+
     console.log('🔒 Auth token found:', authToken ? `${authToken.substring(0, 10)}...` : 'NONE');
-    
+
     if (!authToken) {
-      console.log('🔒 No auth token found in cookies');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }

@@ -77,7 +77,7 @@ export interface InboundNumber {
   };
   
   // Audio file configurations for different call conditions
-  audioFiles: {
+  audioFiles?: {
     greeting?: AudioFileConfig; // Main greeting when call is answered
     notAnswered?: AudioFileConfig; // Played when call is not answered
     outOfHours?: AudioFileConfig; // Played during out of hours
@@ -109,6 +109,65 @@ function extractAudioFileIdFromSavedUrl(url: string | null | undefined): string 
   if (!url || typeof url !== 'string') return '';
   const m = url.trim().match(/\/api\/voice\/audio-files\/([^/?#]+)\//i);
   return m?.[1] || '';
+}
+
+/** Map GET/PUT /api/voice/inbound-numbers row → InboundNumbersManager state shape */
+function mapVoiceInboundApiToInboundNumber(num: any): InboundNumber {
+  let description = `Inbound number ${num.phoneNumber}`;
+  if (num.assignedFlow) {
+    description = `Routed to Flow: "${num.assignedFlow.name}" (${num.assignedFlow.status})`;
+  } else if (num.assignedFlowId) {
+    description = `Assigned to Flow ID: ${num.assignedFlowId}`;
+  } else if (num.routeTo === 'Queue' && num.selectedQueueId) {
+    description = `Routed to queue: ${num.selectedQueueId}`;
+  } else if (num.routeTo === 'Agent') {
+    description = 'Routed to available agent (browser)';
+  } else {
+    description = `Route: ${num.routeTo || 'Hangup'}`;
+  }
+
+  return {
+    id: num.id,
+    number: num.phoneNumber,
+    name: num.displayName || num.phoneNumber,
+    description,
+    carrierInboundNumber: num.phoneNumber,
+    displayName: num.displayName || num.phoneNumber,
+    autoRejectAnonymous: num.autoRejectAnonymous ?? true,
+    createContactOnAnonymous: num.createContactOnAnonymous ?? true,
+    integration: num.integration || 'None',
+    countryCode: num.countryCode || 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
+    businessHours: num.businessHours || '24 Hours',
+    outOfHoursAction: num.outOfHoursAction || 'Hangup',
+    dayClosedAction: num.dayClosedAction || 'Hangup',
+    routeTo: num.routeTo || 'Hangup',
+    recordCalls: num.recordCalls ?? true,
+    lookupSearchFilter: num.lookupSearchFilter || 'All Lists',
+    assignedToDefaultList: num.assignedToDefaultList ?? true,
+    greetingAudioUrl: num.greetingAudioUrl,
+    outOfHoursAudioUrl: num.outOfHoursAudioUrl,
+    voicemailAudioUrl: num.voicemailAudioUrl,
+    busyAudioUrl: num.busyAudioUrl,
+    noAnswerAudioUrl: num.noAnswerAudioUrl,
+    queueAudioUrl: num.queueAudioUrl,
+    greetingAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
+    businessHoursAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
+    noAnswerAudioFile: extractAudioFileIdFromSavedUrl(num.noAnswerAudioUrl),
+    outOfHoursAudioFile: extractAudioFileIdFromSavedUrl(num.outOfHoursAudioUrl),
+    voicemailAudioFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
+    busyAudioFile: extractAudioFileIdFromSavedUrl(num.busyAudioUrl),
+    queueAudioFile: extractAudioFileIdFromSavedUrl(num.queueAudioUrl),
+    businessHoursVoicemailFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
+    outOfHoursTransferNumber: num.outOfHoursTransferNumber,
+    selectedFlowId: num.selectedFlowId,
+    selectedQueueId: num.selectedQueueId,
+    selectedRingGroupId: num.selectedRingGroupId,
+    selectedExtension: num.selectedExtension,
+    type: 'voice',
+    status: num.isActive !== false,
+    assignedFlowId: num.assignedFlowId,
+    assignedFlow: num.assignedFlow ?? num.flows ?? null,
+  };
 }
 
 export interface RingGroup {
@@ -197,6 +256,7 @@ export const InboundNumbersManager: React.FC<{
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingNumber, setEditingNumber] = useState<InboundNumber | null>(null);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
+  const [inboundQueues, setInboundQueues] = useState<Array<{ id: string; name: string; displayName?: string }>>([]);
   const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null);
   const [realAudioFiles, setRealAudioFiles] = useState<AudioFile[]>([]);
 
@@ -295,67 +355,9 @@ export const InboundNumbersManager: React.FC<{
         console.log('📞 Numbers array after extraction:', numbersArray);
         console.log('📞 Numbers array length:', numbersArray.length);
         
-        const transformedNumbers: InboundNumber[] = numbersArray.map((num: any) => {
-          console.log('📞 Processing number:', num);
-          
-          // Generate user-friendly description based on flow assignment
-          let description = `Inbound number ${num.phoneNumber}`;
-          if (num.assignedFlow) {
-            description = `Routed to Flow: "${num.assignedFlow.name}" (${num.assignedFlow.status})`;
-          } else if (num.assignedFlowId) {
-            description = `Assigned to Flow ID: ${num.assignedFlowId}`;
-          } else {
-            description = `No flow assigned - Default handling`;
-          }
-          
-          return {
-            id: num.id,
-            number: num.phoneNumber,
-            name: num.displayName || num.phoneNumber,
-            description: description,
-            carrierInboundNumber: num.phoneNumber,
-            displayName: num.displayName || num.phoneNumber,
-            autoRejectAnonymous: num.autoRejectAnonymous ?? true,
-            createContactOnAnonymous: num.createContactOnAnonymous ?? true,
-            integration: num.integration || 'None',
-            countryCode: num.countryCode || 'United Kingdom Of Great Britain And Northern Ireland (The) (GB)',
-            businessHours: num.businessHours || '24 Hours',
-            outOfHoursAction: num.outOfHoursAction || 'Hangup',
-            dayClosedAction: num.dayClosedAction || 'Hangup',
-            routeTo: num.routeTo || 'Hangup',
-            recordCalls: num.recordCalls ?? true,
-            lookupSearchFilter: num.lookupSearchFilter || 'All Lists',
-            assignedToDefaultList: num.assignedToDefaultList ?? true,
-            // Audio URLs from backend (what Twilio uses)
-            greetingAudioUrl: num.greetingAudioUrl,
-            outOfHoursAudioUrl: num.outOfHoursAudioUrl,
-            voicemailAudioUrl: num.voicemailAudioUrl,
-            busyAudioUrl: num.busyAudioUrl,
-            noAnswerAudioUrl: num.noAnswerAudioUrl,
-            queueAudioUrl: num.queueAudioUrl,
-            // Dropdown values = AudioFile row IDs (resolved from saved stream URLs)
-            greetingAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
-            businessHoursAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
-            noAnswerAudioFile: extractAudioFileIdFromSavedUrl(num.noAnswerAudioUrl),
-            outOfHoursAudioFile: extractAudioFileIdFromSavedUrl(num.outOfHoursAudioUrl),
-            voicemailAudioFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
-            busyAudioFile: extractAudioFileIdFromSavedUrl(num.busyAudioUrl),
-            queueAudioFile: extractAudioFileIdFromSavedUrl(num.queueAudioUrl),
-            // Legacy: do not put URLs into *File fields (breaks <select> matching)
-            businessHoursVoicemailFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
-            // Routing configuration
-            outOfHoursTransferNumber: num.outOfHoursTransferNumber,
-            selectedFlowId: num.selectedFlowId,
-            selectedQueueId: num.selectedQueueId,
-            selectedRingGroupId: num.selectedRingGroupId,
-            selectedExtension: num.selectedExtension,
-            type: 'voice',
-            status: num.isActive !== false, // Backend uses isActive, default to true
-            // Flow Assignment
-            assignedFlowId: num.assignedFlowId,
-            assignedFlow: num.assignedFlow,
-          };
-        });
+        const transformedNumbers: InboundNumber[] = numbersArray.map((num: any) =>
+          mapVoiceInboundApiToInboundNumber(num),
+        );
         
         console.log('📞 Transformed numbers:', transformedNumbers);
         console.log('📞 Transformed numbers length:', transformedNumbers.length);
@@ -403,6 +405,41 @@ export const InboundNumbersManager: React.FC<{
     };
 
     fetchFlows();
+  }, []);
+
+  useEffect(() => {
+    const fetchQueues = async () => {
+      try {
+        const token =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('omnivox_token') ||
+              localStorage.getItem('authToken') ||
+              localStorage.getItem('auth_token') ||
+              ''
+            : '';
+        const res = await fetch('/api/voice/inbound-queues', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const arr = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+        setInboundQueues(
+          arr.map((q: any) => ({
+            id: String(q.id),
+            name: q.name || q.displayName || String(q.id),
+            displayName: q.displayName,
+          })),
+        );
+      } catch {
+        setInboundQueues([]);
+      }
+    };
+    fetchQueues();
   }, []);
 
   const handleSave = async (number: InboundNumber) => {
@@ -469,10 +506,19 @@ export const InboundNumbersManager: React.FC<{
         description: updateData.description
       });
 
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('omnivox_token') ||
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('auth_token') ||
+            ''
+          : '';
+
       const response = await fetch(`/api/voice/inbound-numbers/${number.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(updateData)
@@ -490,24 +536,9 @@ export const InboundNumbersManager: React.FC<{
       // Update the local number with the backend response data
       const backendUpdatedNumber = result.data;
       
-      // Generate updated description based on flow assignment
-      let updatedDescription = `Inbound number ${number.number}`;
-      if (backendUpdatedNumber.assignedFlow) {
-        updatedDescription = `Routed to Flow: "${backendUpdatedNumber.assignedFlow.name}" (${backendUpdatedNumber.assignedFlow.status})`;
-      } else if (backendUpdatedNumber.assignedFlowId) {
-        updatedDescription = `Assigned to Flow ID: ${backendUpdatedNumber.assignedFlowId}`;
-      } else {
-        updatedDescription = `No flow assigned - Default handling`;
-      }
-      
       const mergedNumber = {
         ...number,
-        assignedFlowId: backendUpdatedNumber.assignedFlowId,
-        assignedFlow: backendUpdatedNumber.assignedFlow,
-        // Update fields from backend
-        displayName: backendUpdatedNumber.displayName,
-        description: updatedDescription, // Use our generated description instead of backend's
-        status: backendUpdatedNumber.isActive
+        ...mapVoiceInboundApiToInboundNumber(backendUpdatedNumber),
       };
 
       // Update local state with the merged data
@@ -805,6 +836,7 @@ export const InboundNumbersManager: React.FC<{
       {/* Add/Edit Inbound Number Form Modal */}
       {showAddForm && (
         <ConnexInboundNumberForm
+          key={editingNumber?.id || 'new-inbound'}
           number={editingNumber}
           onSave={handleSave}
           onCancel={() => {
@@ -812,6 +844,7 @@ export const InboundNumbersManager: React.FC<{
             setEditingNumber(null);
           }}
           flows={availableFlows}
+          inboundQueues={inboundQueues}
           audioFiles={getAvailableAudioFiles()}
         />
       )}
@@ -825,6 +858,7 @@ interface ConnexInboundNumberFormProps {
   onSave: (number: InboundNumber) => void;
   onCancel: () => void;
   flows?: any[];
+  inboundQueues?: Array<{ id: string; name: string; displayName?: string }>;
   audioFiles?: AudioFile[];
 }
 
@@ -833,6 +867,7 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
   onSave, 
   onCancel, 
   flows = [], 
+  inboundQueues = [],
   audioFiles = [] 
 }) => {
   const [formData, setFormData] = React.useState<Partial<InboundNumber>>({
@@ -840,7 +875,7 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
     description: number?.description || '',
     type: number?.type || 'voice',
     status: number?.status ?? true,
-    routeTo: number?.routeTo || 'Flow',
+    routeTo: number?.routeTo || 'Agent',
     recordCalls: number?.recordCalls ?? true,
     autoRejectAnonymous: number?.autoRejectAnonymous ?? false,
     createContactOnAnonymous: number?.createContactOnAnonymous ?? false,
@@ -966,12 +1001,14 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
               onChange={(e) => handleChange('routeTo', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
             >
+              <option value="Agent">Agent (browser)</option>
               <option value="Flow">Flow</option>
               <option value="Queue">Queue</option>
               <option value="RingGroup">Ring Group</option>
+              <option value="Announcement">Announcement (audio only)</option>
+              <option value="Voicemail">Voicemail</option>
               <option value="Extension">Extension</option>
               <option value="IVR">IVR</option>
-              <option value="Voicemail">Voicemail</option>
             </select>
           </div>
 
@@ -993,6 +1030,33 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Inbound queue (when Route To is Queue) */}
+          {formData.routeTo === 'Queue' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Inbound queue <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={formData.selectedQueueId || ''}
+                onChange={(e) => handleChange('selectedQueueId', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">-- Select queue --</option>
+                {inboundQueues.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.displayName || q.name}
+                  </option>
+                ))}
+              </select>
+              {inboundQueues.length === 0 && (
+                <p className="text-xs text-amber-700 mt-1">
+                  No queues loaded. Create inbound queues under Voice channels, or refresh after assigning queues in the backend.
+                </p>
+              )}
             </div>
           )}
 

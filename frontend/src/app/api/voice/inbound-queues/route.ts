@@ -2,13 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
+function getBearerForBackend(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  const session = request.cookies.get('session_token')?.value;
+  if (session) return session;
+  return (
+    request.cookies.get('auth-token')?.value ||
+    request.cookies.get('authToken')?.value ||
+    request.cookies.get('omnivox_token')?.value ||
+    null
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('📋 Proxying inbound queues GET request to backend...');
 
-    // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
-    
+    const authToken = getBearerForBackend(request);
+
     if (!authToken) {
       console.log('🔒 No auth token found in cookies');
       return NextResponse.json(
@@ -95,9 +109,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('➕ Proxying inbound queues POST request to backend...');
 
-    // Get auth token from cookies
-    const authToken = request.cookies.get('auth-token')?.value;
-    
+    const authToken = getBearerForBackend(request);
+
     if (!authToken) {
       console.log('🔒 No auth token found in cookies');
       return NextResponse.json(

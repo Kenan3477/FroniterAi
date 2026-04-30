@@ -323,8 +323,36 @@ function generateQueueTwiML(inboundNumber: any): string {
   return twiml.toString();
 }
 
-/**
- * POST /api/calls/webhook/inbound-call
+/** routeTo=Voicemail during business hours: prompt + record (no agent leg). */
+function generateVoicemailOnlyTwiML(inboundNumber: any): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+  const vm = toTwilioPlayableUrl(inboundNumber.voicemailAudioUrl);
+  if (vm) {
+    twiml.pause({ length: 1 });
+    twiml.play(vm);
+  }
+  const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
+  twiml.record({
+    ...(vmAction ? { action: vmAction } : {}),
+    method: 'POST',
+    maxLength: 120,
+    finishOnKey: '#',
+  });
+  twiml.hangup();
+  return twiml.toString();
+}
+
+/** routeTo=Announcement: play configured greeting then hang up (no agent). */
+function generateAnnouncementOnlyTwiML(inboundNumber: any): string {
+  const twiml = new twilio.twiml.VoiceResponse();
+  const greetingUrl = resolveInboundGreetingPlayUrl(inboundNumber);
+  if (greetingUrl) {
+    twiml.pause({ length: 1 });
+    twiml.play(greetingUrl);
+  }
+  twiml.hangup();
+  return twiml.toString();
+}
  * Main webhook handler for incoming calls from Twilio
  */
 export const handleInboundWebhook = async (req: Request, res: Response) => {
@@ -426,6 +454,14 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
       console.log(`📋 Routing to queue: ${inboundNumber.selectedQueueId}`);
       twiml = generateQueueTwiML(inboundNumber);
       shouldNotifyAgents = true;
+    } else if (inboundNumber.routeTo === 'Voicemail') {
+      console.log('📮 routeTo=Voicemail — voicemail prompt + record (business hours)');
+      twiml = generateVoicemailOnlyTwiML(inboundNumber);
+      shouldNotifyAgents = false;
+    } else if (inboundNumber.routeTo === 'Announcement') {
+      console.log('📢 routeTo=Announcement — greeting only then hangup');
+      twiml = generateAnnouncementOnlyTwiML(inboundNumber);
+      shouldNotifyAgents = false;
     } else if (
       inboundNumber.routeTo === 'Flow' &&
       (inboundNumber.assignedFlowId || inboundNumber.selectedFlowId)
@@ -443,6 +479,23 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
         twiml = direct.twiml;
         shouldNotifyAgents = direct.notifyAgents;
       }
+    } else if (inboundNumber.routeTo === 'Flow') {
+      console.warn(
+        "⚠️ routeTo=Flow but no assignedFlowId/selectedFlowId — falling back to agent ring (misconfiguration)",
+      );
+      const direct = await buildDirectAgentRouteTwiML(callerInfo, inboundCallId, inboundNumber);
+      twiml = direct.twiml;
+      shouldNotifyAgents = direct.notifyAgents;
+    } else if (
+      inboundNumber.routeTo === 'Agent' ||
+      inboundNumber.routeTo === 'RingGroup' ||
+      inboundNumber.routeTo === 'Extension' ||
+      inboundNumber.routeTo === 'IVR'
+    ) {
+      console.log(`📞 routeTo=${inboundNumber.routeTo} — ringing shared Voice client (agent)`);
+      const direct = await buildDirectAgentRouteTwiML(callerInfo, inboundCallId, inboundNumber);
+      twiml = direct.twiml;
+      shouldNotifyAgents = direct.notifyAgents;
     } else {
       if (inboundNumber.routeTo === 'Hangup') {
         console.log(
