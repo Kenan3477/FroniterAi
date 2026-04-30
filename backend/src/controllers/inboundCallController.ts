@@ -353,6 +353,9 @@ function generateAnnouncementOnlyTwiML(inboundNumber: any): string {
   twiml.hangup();
   return twiml.toString();
 }
+
+/**
+ * POST /api/calls/webhook/inbound-call
  * Main webhook handler for incoming calls from Twilio
  */
 export const handleInboundWebhook = async (req: Request, res: Response) => {
