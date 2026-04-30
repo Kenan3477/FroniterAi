@@ -99,13 +99,16 @@ router.get('/token/:agentId', async (req: Request, res: Response) => {
 // POST /api/calls/token - Same as GET (Next.js proxy uses POST with JSON body)
 router.post('/token', authenticate, async (req: Request, res: Response) => {
   try {
-    const agentId = (req.body?.agentId as string) || 'agent-browser';
-    const accessToken = generateAccessToken(agentId);
+    // Twilio Voice identity must match <Dial><Client>…</Client></Dial> in inbound/outbound TwiML.
+    // Request body `agentId` is ignored for identity to avoid mismatch (was hardcoded wrong in clients).
+    const voiceIdentity =
+      (process.env.TWILIO_VOICE_CLIENT_IDENTITY || 'agent-browser').trim() || 'agent-browser';
+    const accessToken = generateAccessToken(voiceIdentity);
     res.json({
       success: true,
       data: {
         token: accessToken,
-        agentId,
+        agentId: voiceIdentity,
       },
     });
   } catch (error) {

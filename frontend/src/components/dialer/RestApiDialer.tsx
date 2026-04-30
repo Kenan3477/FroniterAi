@@ -182,7 +182,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authBearer()}`
           },
-          body: JSON.stringify({ agentId: 'agent-browser' })
+          body: JSON.stringify({}),
         });
         
         if (!tokenResponse.ok) {

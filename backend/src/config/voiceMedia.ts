@@ -32,6 +32,23 @@ export function resolveDefaultInboundGreetingUrl(): string | undefined {
 }
 
 /**
+ * Twilio <Play> must receive an absolute https URL. Relative paths (e.g. "/audio/foo.mp3")
+ * fail or produce garbage audio depending on how the URL was stored.
+ */
+export function toTwilioPlayableUrl(url: string | null | undefined): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const u = url.trim();
+  if (!u) return undefined;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith('/')) {
+    const base = getBackendBaseUrl();
+    if (!base) return undefined;
+    return `${base}${u}`;
+  }
+  return u;
+}
+
+/**
  * Conference waitUrl: optional hosted hold loop.
  * If unset, callers wait in silence (no Twilio twimlets / demo music).
  */

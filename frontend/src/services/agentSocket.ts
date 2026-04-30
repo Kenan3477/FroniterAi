@@ -157,6 +157,8 @@ export class AgentSocketService {
     this.socket.on('inbound-call-ringing', (data) => {
       console.log('Inbound call ringing:', data);
       this.emit('inbound-call-ringing', data);
+      // Legacy listener name used on some pages (underscore)
+      this.emit('inbound_call_ringing', data);
     });
 
     this.socket.on('inbound-call-answered', (data) => {

@@ -218,6 +218,18 @@ export class WebSocketService {
     this.io.to(`agent:${agentId}`).emit(event, data);
   }
 
+  /** Emit on Socket.IO `/dialler` namespace (browser AgentSocketService). */
+  public emitToDiallerRoom(room: string, event: string, data: any): void {
+    try {
+      const dialler = (this as any).io?.of?.('/dialler');
+      if (dialler) {
+        dialler.to(room).emit(event, data);
+      }
+    } catch (e) {
+      console.warn('emitToDiallerRoom failed:', e);
+    }
+  }
+
   /**
    * Send message to campaign participants
    */

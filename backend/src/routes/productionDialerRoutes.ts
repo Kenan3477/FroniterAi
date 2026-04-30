@@ -178,7 +178,9 @@ router.post('/twiml/outbound', async (req, res) => {
       answerOnBridge: true, // Only answer when agent picks up
       callerId: From,
     });
-    dial.client('agent-browser');
+    const clientIdentity =
+      (process.env.TWILIO_VOICE_CLIENT_IDENTITY || 'agent-browser').trim() || 'agent-browser';
+    dial.client(clientIdentity);
     // No agents picked up: hang up (use noAnswerAudioUrl on inbound config for custom audio).
     twiml.hangup();
 
