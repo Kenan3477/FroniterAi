@@ -89,13 +89,15 @@ function DashboardContent() {
   const loadDashboardStats = useCallback(async () => {
     setLoading(true);
     try {
-      // Get the JWT token from localStorage for proper authentication
-      let token = localStorage.getItem('omnivox_token');
-      
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
+
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
-      
+
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -148,7 +150,8 @@ function DashboardContent() {
                 'Authorization': `Bearer ${refreshData.data.accessToken}`
               };
               
-              const retryResponse = await fetch('/api/dashboard/stats', {
+              const retryUrl = `/api/dashboard/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+              const retryResponse = await fetch(retryUrl, {
                 credentials: 'include',
                 headers: retryHeaders
               });
@@ -217,6 +220,16 @@ function DashboardContent() {
       loadDashboardStats();
       loadPerformanceSeries();
     }
+  }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
+
+  // Refresh KPIs periodically so "today" stays current while the tab is open
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const id = window.setInterval(() => {
+      loadDashboardStats();
+      loadPerformanceSeries();
+    }, 60_000);
+    return () => window.clearInterval(id);
   }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
 
   useEffect(() => {

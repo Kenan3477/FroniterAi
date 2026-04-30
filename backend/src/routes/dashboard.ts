@@ -1,33 +1,22 @@
 import express, { Request, Response } from 'express';
+import { addDays, endOfDay, startOfDay, subDays } from 'date-fns';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { authenticate, requireRole } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
 import { prisma } from '../lib/prisma';
+import {
+  getDashboardStatsTimezone,
+  getUtcRangeForZonedCalendarDay,
+  formatZonedDateKey,
+} from '../utils/dashboardDayBounds';
+import {
+  isConversionOutcome,
+  isLikelyConnectedCall,
+  isStatsConnectedCall,
+  isStatsSaleOrConversion,
+} from '../utils/dashboardCallMetrics';
+
 const router = express.Router();
-
-const TERMINAL_TWILIO_OUTCOMES = new Set([
-  'completed',
-  'busy',
-  'failed',
-  'no-answer',
-  'canceled',
-  'abandoned',
-]);
-
-function isLikelyConnectedCall(outcome: string | null | undefined, duration: number | null | undefined): boolean {
-  const o = (outcome || '').toLowerCase();
-  if (TERMINAL_TWILIO_OUTCOMES.has(o) && o !== 'completed') return false;
-  if (o === 'in-progress' || o === 'ringing' || o === 'queued') return true;
-  if ((duration ?? 0) > 0) return true;
-  if (['connected', 'answered', 'sale', 'interested', 'callback', 'appointment'].includes(o)) return true;
-  return false;
-}
-
-function isConversionOutcome(outcome: string | null | undefined, dispositionName: string | null | undefined): boolean {
-  const o = (outcome || '').toLowerCase();
-  const d = (dispositionName || '').toLowerCase();
-  const positives = ['sale', 'interested', 'callback', 'appointment', 'contact_made', 'converted'];
-  return positives.some((p) => o.includes(p) || d.includes(p));
-}
 /**
  * Dashboard Stats Endpoint
  * GET /api/dashboard/stats
@@ -39,7 +28,10 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     
     // Get campaign filter if provided
     const campaignId = req.query.campaignId as string | undefined;
-    
+    const tz = getDashboardStatsTimezone();
+    const { startUtc: dayStartUtc, endUtc: dayEndUtc } = getUtcRangeForZonedCalendarDay(new Date(), tz);
+    const campaignWhere = campaignId && campaignId !== 'all' ? { campaignId } : {};
+
     // Get overview KPIs (respect campaign filter when provided)
     const metrics = await overviewDashboardService.getOverviewKPIs(
       'today',
@@ -50,7 +42,10 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     
     // Get recent activities (calls, interactions)
     const recentActivities = await prisma.callRecord.findMany({
-      where: campaignId ? { campaignId } : {},
+      where: {
+        ...campaignWhere,
+        startTime: { gte: dayStartUtc, lte: dayEndUtc },
+      },
       take: 10,
       orderBy: { startTime: 'desc' },
       include: {
@@ -91,58 +86,47 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       } : undefined
     }));
 
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-
-    // Get performance overview (use same calendar day boundary for all counts)
+    // Same calendar day in DASHBOARD_STATS_TIMEZONE (default Europe/London)
     const callsToday = await prisma.callRecord.count({
       where: {
-        ...(campaignId ? { campaignId } : {}),
-        startTime: { gte: dayStart },
+        ...campaignWhere,
+        startTime: { gte: dayStartUtc, lte: dayEndUtc },
       },
     });
 
-    const connectedCalls = await prisma.callRecord.count({
+    const todaysRows = await prisma.callRecord.findMany({
       where: {
-        ...(campaignId ? { campaignId } : {}),
-        startTime: { gte: dayStart },
-        endTime: { not: null },
-        OR: [
-          { duration: { gt: 0 } },
-          { dispositionId: { not: null } },
-          {
-            outcome: {
-              in: [
-                'completed',
-                'CONNECTED',
-                'connected',
-                'answered',
-                'in-progress',
-                'sale',
-                'SALE',
-                'interested',
-                'INTERESTED',
-              ],
-            },
-          },
-        ],
+        ...campaignWhere,
+        startTime: { gte: dayStartUtc, lte: dayEndUtc },
+      },
+      select: {
+        endTime: true,
+        outcome: true,
+        duration: true,
+        dispositionId: true,
+        disposition: { select: { name: true } },
       },
     });
 
-    const salesToday = await prisma.callRecord.count({
-      where: {
-        ...(campaignId ? { campaignId } : {}),
-        startTime: { gte: dayStart },
-        OR: [
-          { outcome: { in: ['sale', 'SALE', 'Sale', 'SALE_MADE'] } },
-          { outcome: { contains: 'sale', mode: 'insensitive' } },
-        ],
-      },
-    });
+    const connectedCalls = todaysRows.filter((r) =>
+      isStatsConnectedCall({
+        endTime: r.endTime,
+        outcome: r.outcome,
+        duration: r.duration,
+        dispositionId: r.dispositionId,
+      }),
+    ).length;
+
+    const salesToday = todaysRows.filter((r) =>
+      isStatsSaleOrConversion({
+        outcome: r.outcome,
+        dispositionName: r.disposition?.name,
+      }),
+    ).length;
 
     const callsInProgress = await prisma.callRecord.count({
       where: {
-        ...(campaignId ? { campaignId } : {}),
+        ...campaignWhere,
         endTime: null,
         startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
@@ -409,15 +393,19 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
     const rawDays = parseInt(String(req.query.days || '7'), 10);
     const days = Number.isFinite(rawDays) ? Math.min(30, Math.max(1, rawDays)) : 7;
     const campaignId = req.query.campaignId as string | undefined;
+    const campaignWhere = campaignId && campaignId !== 'all' ? { campaignId } : {};
+    const tz = getDashboardStatsTimezone();
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - (days - 1));
+    const nowZoned = toZonedTime(new Date(), tz);
+    const todayStartZoned = startOfDay(nowZoned);
+    const oldestDayZoned = startOfDay(subDays(todayStartZoned, days - 1));
+    const rangeStartUtc = fromZonedTime(oldestDayZoned, tz);
+    const rangeEndUtc = fromZonedTime(endOfDay(todayStartZoned), tz);
 
     const records = await prisma.callRecord.findMany({
       where: {
-        startTime: { gte: start },
-        ...(campaignId ? { campaignId } : {}),
+        startTime: { gte: rangeStartUtc, lte: rangeEndUtc },
+        ...campaignWhere,
       },
       select: {
         startTime: true,
@@ -431,14 +419,13 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
     const buckets: Record<string, { date: string; totalCalls: number; connectedCalls: number; conversions: number }> =
       {};
     for (let i = 0; i < days; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
+      const calDay = addDays(oldestDayZoned, i);
+      const key = formatZonedDateKey(fromZonedTime(calDay, tz), tz);
       buckets[key] = { date: key, totalCalls: 0, connectedCalls: 0, conversions: 0 };
     }
 
     for (const r of records) {
-      const key = new Date(r.startTime).toISOString().slice(0, 10);
+      const key = formatZonedDateKey(new Date(r.startTime), tz);
       if (!buckets[key]) continue;
       buckets[key].totalCalls += 1;
       if (isLikelyConnectedCall(r.outcome, r.duration)) {

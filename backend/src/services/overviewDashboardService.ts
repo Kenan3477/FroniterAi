@@ -7,6 +7,8 @@ import { realKPIService } from './realKpiService';
 import { eventManager } from './eventManager';
 
 import { prisma } from '../lib/prisma';
+import { getDashboardStatsTimezone, getUtcRangeForZonedCalendarDay } from '../utils/dashboardDayBounds';
+import { isLikelyConnectedCall } from '../utils/dashboardCallMetrics';
 export interface TimeframeFilter {
   startDate: Date;
   endDate: Date;
@@ -102,9 +104,12 @@ export class OverviewDashboardService {
     let endDate = now;
 
     switch (filter) {
-      case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case 'today': {
+        const tz = getDashboardStatsTimezone();
+        const { startUtc } = getUtcRangeForZonedCalendarDay(now, tz);
+        startDate = startUtc;
         break;
+      }
       case 'last_24h':
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         break;
@@ -151,7 +156,8 @@ export class OverviewDashboardService {
               firstName: true,
               lastName: true
             }
-          }
+          },
+          disposition: { select: { name: true } },
         }
       });
 
@@ -168,8 +174,11 @@ export class OverviewDashboardService {
 
       // Calculate metrics
       const totalCalls = callRecords.length;
-      const connectedCalls = callRecords.filter(call => 
-        call.outcome && !['no_answer', 'busy', 'failed'].includes(call.outcome.toLowerCase())
+      const connectedCalls = callRecords.filter(
+        (call) =>
+          isLikelyConnectedCall(call.outcome, call.duration) ||
+          !!call.dispositionId ||
+          !!(call.disposition?.name && call.disposition.name.trim()),
       ).length;
       
       const completedCalls = callRecords.filter(call => call.endTime && call.duration).length;
