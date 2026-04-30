@@ -17,6 +17,22 @@ import { normalizePhoneNumber, generatePhoneVariations } from '../utils/phoneUti
 
 const router = express.Router();
 
+/** Map logged-in User.id to Agent.agentId (CallRecord.agentId stores agent table id). */
+async function resolveAgentIdForUserId(userIdStr: string): Promise<string | undefined> {
+  const uid = parseInt(userIdStr, 10);
+  if (!Number.isFinite(uid)) return undefined;
+  const dbUser = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { email: true },
+  });
+  if (!dbUser?.email) return undefined;
+  const agent = await prisma.agent.findFirst({
+    where: { email: { equals: dbUser.email, mode: 'insensitive' } },
+    select: { agentId: true },
+  });
+  return agent?.agentId;
+}
+
 /**
  * TEMP DEBUG ROUTE - NO AUTH REQUIRED - Must be before auth middleware
  */
@@ -117,20 +133,33 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   }
   if (filters.campaignId) baseWhere.campaignId = filters.campaignId;
   
-  // Add phone number and contact search functionality
   if (filters.phoneNumber) {
     const normalizedSearch = normalizePhoneNumber(filters.phoneNumber);
     if (normalizedSearch) {
       const phoneVariations = generatePhoneVariations(normalizedSearch);
-      baseWhere.phoneNumber = { in: phoneVariations };
-      console.log(`📞 Filtering by phone number variations: ${phoneVariations.join(', ')}`);
+      const phoneOr = [
+        { phoneNumber: { in: phoneVariations } },
+        { contact: { phone: { in: phoneVariations } } },
+      ];
+      if (!baseWhere.AND) baseWhere.AND = [];
+      (baseWhere.AND as any[]).push({ OR: phoneOr });
+      console.log(`📞 Filtering by phone (number or contact): ${phoneVariations.join(', ')}`);
     }
   }
-  
-  if (filters.contactName) {
-    // We'll handle contact name filtering after we get the records
-    // since it requires joining with contact table
-    console.log(`👤 Will filter by contact name: ${filters.contactName}`);
+
+  if (filters.contactName && filters.contactName.trim()) {
+    const q = filters.contactName.trim();
+    if (!baseWhere.AND) baseWhere.AND = [];
+    (baseWhere.AND as any[]).push({
+      contact: {
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' as const } },
+          { lastName: { contains: q, mode: 'insensitive' as const } },
+          { fullName: { contains: q, mode: 'insensitive' as const } },
+        ],
+      },
+    });
+    console.log(`👤 DB filter by contact name contains: ${q}`);
   }
   
   if (filters.outcome) {
@@ -179,7 +208,9 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
           campaignId: true,
           name: true
         }
-      }
+      },
+      disposition: { select: { name: true } },
+      agent: { select: { agentId: true, firstName: true, lastName: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: limit * 2 // Get more to categorize
@@ -260,9 +291,12 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
 
   // Transform and categorize with better contact resolution
   const transformedRecords = await Promise.all(callRecords.map(async record => {
-    // Resolve agent name - map known agent IDs to names
+    // Resolve agent name from linked agent row when available
     let agentName = 'Unknown Agent';
-    if (record.agentId === '509') {
+    if (record.agent) {
+      const fn = `${record.agent.firstName || ''} ${record.agent.lastName || ''}`.trim();
+      agentName = fn || `Agent ${record.agent.agentId}`;
+    } else if (record.agentId === '509') {
       agentName = 'Kenan';
     } else if (record.agentId) {
       agentName = `Agent ${record.agentId}`;
@@ -296,8 +330,14 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       }
     }
 
+    const displayOutcome =
+      (record.disposition?.name && record.disposition.name.trim()) ||
+      record.outcome ||
+      'pending';
+
     return {
       id: record.id || record.callId,
+      callId: record.callId,
       agentId: record.agentId || 'unknown',
       agentName: agentName,
       contactId: record.contactId || 'unknown',
@@ -308,16 +348,16 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
         'DAC' : // Default to DAC for deleted campaigns since user mentioned calls via DAC
         (record.campaign?.name || 'Unknown Campaign'),
       channel: 'call',
-      outcome: record.outcome || 'pending',
+      outcome: displayOutcome,
       status: record.outcome ? 'outcomed' : 'pending',
       isDmc: false,
       isCallback: false,
       callbackScheduledFor: null,
       startedAt: record.createdAt,
-      endedAt: null,
+      endedAt: record.endTime,
       notes: record.notes || '',
       dateTime: record.createdAt.toISOString(),
-      duration: '0', // CallRecord doesn't have duration
+      duration: record.duration ?? 0,
       customerName: customerName,
       telephone: bestContact?.phone || record.contact?.phone || 'Unknown'
     };
@@ -340,11 +380,12 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
     filteredRecords = filteredRecords.filter(record => 
       record.contactName?.toLowerCase().includes(searchTerm) ||
       record.customerName?.toLowerCase().includes(searchTerm) ||
-      record.telephone?.includes(searchTerm) ||
-      record.contactPhone?.includes(searchTerm) ||
+      record.telephone?.toLowerCase().includes(searchTerm) ||
+      record.contactPhone?.toLowerCase().includes(searchTerm) ||
       record.campaignName?.toLowerCase().includes(searchTerm) ||
       record.outcome?.toLowerCase().includes(searchTerm) ||
-      record.agentName?.toLowerCase().includes(searchTerm)
+      record.agentName?.toLowerCase().includes(searchTerm) ||
+      (record.notes && record.notes.toLowerCase().includes(searchTerm))
     );
     console.log(`🔍 Filtered by search term '${filters.searchTerm}': ${filteredRecords.length} records`);
   }
@@ -408,7 +449,10 @@ router.get('/counts', async (req, res) => {
     
     // Handle special case where frontend sends "current-agent"
     if (agentId === 'current-agent') {
-      agentId = (req as any).user?.userId?.toString() || '509'; // Default to 509 for Kenan
+      const uid = (req as any).user?.userId?.toString();
+      const resolved = uid ? await resolveAgentIdForUserId(uid) : undefined;
+      agentId = resolved || uid || '509';
+      console.log(`📊 Counts: resolved current-agent → agentId=${agentId}`);
     }
 
     // Get today's date for daily reset
@@ -512,10 +556,12 @@ router.get('/categorized', async (req, res) => {
     
     // Handle special case where frontend sends "current-agent"
     if (agentId === 'current-agent') {
-      console.log('⚠️ Frontend sent "current-agent" - resolving to authenticated user agentId');
-      // Get agentId from authenticated user (req.user should be set by auth middleware)
-      agentId = (req as any).user?.userId?.toString() || '509'; // Default to 509 for Kenan
-      console.log(`🔄 Resolved current-agent to agentId: ${agentId}`);
+      const uid = (req as any).user?.userId?.toString();
+      const resolved = uid ? await resolveAgentIdForUserId(uid) : undefined;
+      agentId = resolved || uid || '509';
+      console.log(
+        `🔄 Resolved current-agent: userId=${uid} → agentId=${agentId}${resolved ? '' : ' (fallback: user id or default)'}`
+      );
     }
 
     const filters: InteractionHistoryFilters = {
@@ -536,65 +582,13 @@ router.get('/categorized', async (req, res) => {
 
     console.log('🔍 Getting categorized interactions with filters:', filters);
     
-    try {
-      // TEMP FIX: Use CallRecord data instead of missing interaction table
-      const categorizedInteractions = await getCategorizedInteractionsFromCallRecords(filters);
-      
-      res.json({
-        success: true,
-        data: categorizedInteractions,  // Direct data, not nested under categories
-        message: 'Categorized interactions retrieved successfully'
-      });
-    } catch (serviceError: any) {
-      console.error('❌ Service error in getCategorizedInteractions:', serviceError);
+    const categorizedInteractions = await getCategorizedInteractionsFromCallRecords(filters);
 
-      // ENHANCED FALLBACK: Try CallRecord directly if interaction service fails
-      try {
-        console.log('🔄 Fallback to CallRecord table...');
-        const fallbackResult = await getCategorizedInteractionsFromCallRecords(filters);
-        
-        res.json({
-          success: true,
-          data: fallbackResult,  // Direct data, not nested under categories  
-          message: 'Interaction history retrieved using CallRecord fallback',
-          warning: 'Used CallRecord fallback due to interaction service error'
-        });
-      } catch (fallbackError: any) {
-        console.error('❌ CallRecord fallback also failed:', fallbackError);
-        
-        // Return empty categories instead of failing completely
-        res.json({
-          success: true,
-          data: { 
-            categories: {
-              queued: [],
-              allocated: [],
-              outcomed: [],
-              unallocated: [],
-              totals: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
-            }
-          },
-          message: 'Error retrieving interactions - returning empty results',
-          warning: 'Failed to get categorized interactions'
-        });
-      }
-      
-      // Return empty categories instead of failing completely
-      res.json({
-        success: true,
-        data: { 
-          categories: {
-            queued: [],
-            allocated: [],
-            outcomed: [],
-            unallocated: [],
-            totals: { queued: 0, allocated: 0, outcomed: 0, unallocated: 0 }
-          }
-        },
-        message: 'Error retrieving interactions - returning empty results',
-        warning: serviceError.message
-      });
-    }
+    res.json({
+      success: true,
+      data: categorizedInteractions,
+      message: 'Categorized interactions retrieved successfully',
+    });
   } catch (error) {
     console.error('Error getting categorized interactions:', error);
     res.status(500).json({

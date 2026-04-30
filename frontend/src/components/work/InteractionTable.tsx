@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { 
+import {
   PhoneIcon,
   ArrowUpRightIcon,
   ArrowDownLeftIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import CallbackScheduler from './CallbackScheduler';
 
@@ -35,6 +36,7 @@ interface InteractionTableProps {
 
 export default function InteractionTable({ data, section, searchTerm, onRefresh }: InteractionTableProps) {
   const [schedulingCallbackId, setSchedulingCallbackId] = useState<string | null>(null);
+  const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
   const getInteractionIcon = (type: string) => {
     switch (type) {
       case 'call':
@@ -77,7 +79,8 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
     item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.telephone.includes(searchTerm) ||
     item.campaignName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.outcome.toLowerCase().includes(searchTerm.toLowerCase())
+    item.outcome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (data.length === 0) {
@@ -98,7 +101,7 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
         {/* Table Header */}
         <div className="bg-gray-50 border-b border-gray-200 rounded-t-lg">
-          <div className="grid grid-cols-11 gap-4 px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <div className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
             <div className="col-span-1">Agent Name</div>
             <div className="col-span-1">Customer Name</div>
             <div className="col-span-1">Type</div>
@@ -108,6 +111,7 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
             <div className="col-span-2">Campaign Name</div>
             <div className="col-span-1">Outcome</div>
             <div className="col-span-1">Date/Time</div>
+            <div className="col-span-1">Notes</div>
             <div className="col-span-1">Actions</div>
           </div>
         </div>
@@ -152,7 +156,7 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
               {filteredData.map((item, index) => (
                 <div key={item.id}>
                   <div 
-                    className={`grid grid-cols-11 gap-4 px-6 py-4 text-sm hover:bg-gray-50 transition-colors ${
+                    className={`grid grid-cols-12 gap-4 px-6 py-4 text-sm hover:bg-gray-50 transition-colors ${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                     }`}
                   >
@@ -219,6 +223,24 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
                       </div>
                     </div>
 
+                    {/* Notes preview */}
+                    <div className="col-span-1 min-w-0">
+                      {item.notes?.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedNotesId(expandedNotesId === item.id ? null : item.id)
+                          }
+                          className="flex items-start text-left text-xs text-blue-700 hover:text-blue-900 w-full"
+                        >
+                          <DocumentTextIcon className="h-4 w-4 mr-1 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2 break-words">{item.notes}</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </div>
+
                     {/* Actions */}
                     <div className="col-span-1">
                       {section === 'Outcomed Interactions' && item.outcome !== 'CALLBACK_REQUESTED' && (
@@ -239,7 +261,12 @@ export default function InteractionTable({ data, section, searchTerm, onRefresh 
                     </div>
                   </div>
 
-                  {/* Callback Scheduler Modal */}
+                  {expandedNotesId === item.id && item.notes?.trim() && (
+                    <div className="px-6 py-3 bg-slate-50 border-b border-gray-100 text-sm text-gray-800">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Call notes</p>
+                      <pre className="whitespace-pre-wrap font-sans text-sm">{item.notes}</pre>
+                    </div>
+                  )}
                   {schedulingCallbackId === item.id && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">

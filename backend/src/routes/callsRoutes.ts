@@ -815,6 +815,24 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       const mergedRecording =
         recordingUrl || (callSid?.startsWith('CA') ? callSid : null) || existingRec;
 
+      const agentDispositionNote =
+        typeof disposition?.notes === 'string' ? disposition.notes.trim() : '';
+      const prevNotes = (existingRecordByTwilioSid?.notes || '').trim();
+      const defaultNotesMsg = recordingUrl
+        ? 'Call with recording saved via save-call-data API'
+        : 'Call saved via save-call-data API';
+      let mergedCallNotes = prevNotes;
+      if (agentDispositionNote) {
+        if (!mergedCallNotes.includes(agentDispositionNote)) {
+          mergedCallNotes = mergedCallNotes
+            ? `${mergedCallNotes}\n\n[Agent note] ${agentDispositionNote}`
+            : `[Agent note] ${agentDispositionNote}`;
+        }
+      }
+      if (!mergedCallNotes) {
+        mergedCallNotes = defaultNotesMsg;
+      }
+
       const callRecord = await prisma.callRecord.upsert({
         where: { callId: finalCallId },
         update: {
@@ -827,7 +845,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           outcome: mappedOutcome, // 🚨 CRITICAL: This changes from 'in-progress' to 'completed' (or other)
           dispositionId: validDispositionId,
           recording: mergedRecording,
-          notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API'),
+          notes: mergedCallNotes,
           endTime: new Date()
         },
         create: {
@@ -845,9 +863,31 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           outcome: mappedOutcome,
           dispositionId: validDispositionId,
           recording: recordingUrl || (callSid?.startsWith('CA') ? callSid : null),
-          notes: disposition?.notes || (recordingUrl ? 'Call with recording saved via save-call-data API' : 'Call saved via save-call-data API')
+          notes: agentDispositionNote
+            ? `[Agent note] ${agentDispositionNote}`
+            : defaultNotesMsg
         }
       });
+
+      if (agentDispositionNote && contact?.contactId) {
+        try {
+          const existingContact = await prisma.contact.findUnique({
+            where: { contactId: contact.contactId },
+            select: { notes: true },
+          });
+          const stamp = new Date().toISOString();
+          const dispositionLabel =
+            (disposition?.name || disposition?.outcome || mappedOutcome || 'Call').toString().trim();
+          const line = `\n[${stamp}] ${dispositionLabel} (${callRecord.callId}): ${agentDispositionNote}`;
+          const nextContactNotes = `${existingContact?.notes || ''}${line}`.trim();
+          await prisma.contact.update({
+            where: { contactId: contact.contactId },
+            data: { notes: nextContactNotes },
+          });
+        } catch (contactNoteErr: any) {
+          console.warn('⚠️ Could not append call note to contact:', contactNoteErr?.message);
+        }
+      }
 
       console.log('✅ Call record created/updated:', callRecord.callId, 'with dispositionId:', callRecord.dispositionId);
       console.log('🔥 CRITICAL VERIFICATION: Call outcome AFTER upsert:', callRecord.outcome);
@@ -875,7 +915,9 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             startedAt: new Date(Date.now() - (safeDuration * 1000)),
             endedAt: new Date(),
             durationSeconds: safeDuration,
-            result: mappedOutcome
+            result: agentDispositionNote
+              ? `${mappedOutcome} — ${agentDispositionNote}`
+              : mappedOutcome,
           }
         });
         console.log('✅ Interaction record created:', interaction.id, 'for outcomed interactions');

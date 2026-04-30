@@ -363,26 +363,53 @@ function getEmptyCategories(): CategorizedInteractions {
 }
 
 function transformInteractionData(interactions: any[]): InteractionData[] {
-  return interactions.map((interaction: any) => ({
-    id: interaction.id,
-    agentName: interaction.agentName || interaction.agent?.firstName + ' ' + interaction.agent?.lastName || 'Unknown Agent',
-    customerName: interaction.contactName || interaction.customerName || interaction.contact?.firstName + ' ' + interaction.contact?.lastName || 'Unknown Contact',
-    interactionType: interaction.type || interaction.channel || 'call',
-    telephone: interaction.telephone || interaction.contactPhone || interaction.phoneNumber || interaction.contact?.phoneNumber || '',
-    direction: interaction.direction || 'outbound',
-    subject: interaction.subject || interaction.telephone || interaction.contactPhone || '',
-    campaignName: interaction.campaignName || interaction.campaign?.name || 'Unknown Campaign',
-    outcome: interaction.outcome || (interaction.endedAt ? 'Completed' : 'In Progress'),
-    dateTime: formatDateTime(interaction.dateTime || interaction.endedAt || interaction.startedAt || interaction.createdAt),
-    duration: formatDuration(interaction.duration || 0),
-    callId: interaction.callId,
-    contactId: interaction.contactId,
-    agentId: interaction.agentId,
-    campaignId: interaction.campaignId,
-    dialType: interaction.dialType || 'manual',
-    callbackTime: interaction.callbackTime,
-    notes: interaction.notes || interaction.result
-  }));
+  return interactions.map((interaction: any) => {
+    const durSec =
+      typeof interaction.duration === 'number'
+        ? interaction.duration
+        : typeof interaction.durationSeconds === 'number'
+          ? interaction.durationSeconds
+          : 0;
+    const agentFromRel =
+      interaction.agent?.firstName != null || interaction.agent?.lastName != null
+        ? `${interaction.agent.firstName || ''} ${interaction.agent.lastName || ''}`.trim()
+        : '';
+    const contactFromRel =
+      interaction.contact?.firstName != null || interaction.contact?.lastName != null
+        ? `${interaction.contact.firstName || ''} ${interaction.contact.lastName || ''}`.trim()
+        : '';
+    return {
+      id: interaction.id,
+      agentName: interaction.agentName || agentFromRel || 'Unknown Agent',
+      customerName:
+        interaction.contactName ||
+        interaction.customerName ||
+        contactFromRel ||
+        'Unknown Contact',
+      interactionType: interaction.type || interaction.channel || 'call',
+      telephone:
+        interaction.telephone ||
+        interaction.contactPhone ||
+        interaction.phoneNumber ||
+        interaction.contact?.phone ||
+        '',
+      direction: interaction.direction || 'outbound',
+      subject: interaction.subject || interaction.telephone || interaction.contactPhone || '',
+      campaignName: interaction.campaignName || interaction.campaign?.name || 'Unknown Campaign',
+      outcome: interaction.outcome || (interaction.endedAt ? 'Completed' : 'In Progress'),
+      dateTime: formatDateTime(
+        interaction.dateTime || interaction.endedAt || interaction.startedAt || interaction.createdAt,
+      ),
+      duration: formatDuration(durSec),
+      callId: interaction.callId,
+      contactId: interaction.contactId,
+      agentId: interaction.agentId,
+      campaignId: interaction.campaignId,
+      dialType: interaction.dialType || 'manual',
+      callbackTime: interaction.callbackTime,
+      notes: interaction.notes || interaction.result,
+    };
+  });
 }
 
 /**
