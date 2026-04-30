@@ -100,6 +100,8 @@ export interface InboundCall {
   id: string;
   callSid: string;
   callerNumber: string;
+  /** Twilio "To" (our inbound DID) — used for fallback routing if flow fails */
+  toNumber?: string;
   callerName?: string;
   contactId?: string;
   status: 'ringing' | 'queued' | 'answered' | 'transferred' | 'ended';
@@ -412,14 +414,17 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
 
     // Lookup caller information
     const callerInfo = await lookupCallerInformation(callerNumber);
-    
+    const contactIdForCall =
+      callerInfo.contact?.contactId || (await ensureContactIdForInboundCaller(callerNumber));
+
     // Create inbound call object
     const inboundCall: InboundCall = {
       id: inboundCallId,
       callSid: CallSid,
       callerNumber,
+      toNumber: To,
       callerName: callerInfo.contact?.name,
-      contactId: callerInfo.contact?.contactId,
+      contactId: contactIdForCall,
       status: 'ringing',
       routingOptions: {
         canAnswer: true,
@@ -472,7 +477,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
       const flowId = inboundNumber.selectedFlowId || inboundNumber.assignedFlowId;
       console.log(`🌊 routeTo=Flow with flowId=${flowId} — attempting flow execution`);
       try {
-        twiml = await executeAssignedFlow(flowId as string, inboundCall, inboundCallId);
+        twiml = await executeAssignedFlow(flowId as string, inboundCall, inboundCallId, inboundNumber);
         shouldNotifyAgents = true;
       } catch (flowErr: any) {
         console.warn(
@@ -649,11 +654,39 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
  */
 export const answerInboundCall = async (req: Request, res: Response) => {
   try {
-    const { callId, agentId } = req.body;
-    
+    const { callId, agentId: bodyAgentId } = req.body;
+
+    let agentId = bodyAgentId as string | undefined;
+    const userIdFromAuth = (req as any).user?.userId?.toString();
+    if (userIdFromAuth && (!agentId || /^\d+$/.test(String(agentId)))) {
+      try {
+        const u = await prisma.user.findUnique({
+          where: { id: parseInt(userIdFromAuth, 10) },
+          select: { email: true },
+        });
+        if (u?.email) {
+          const ag = await prisma.agent.findFirst({
+            where: { email: { equals: u.email, mode: 'insensitive' } },
+            select: { agentId: true },
+          });
+          if (ag?.agentId) {
+            agentId = ag.agentId;
+            console.log(`🔄 Resolved User.id ${userIdFromAuth} → Agent.agentId ${agentId} for inbound-answer`);
+          }
+        }
+      } catch (e: any) {
+        console.warn('⚠️ Could not resolve User→Agent for inbound-answer:', e?.message);
+      }
+    }
+
     console.log(`📞 Agent ${agentId} answering inbound call ${callId}`);
 
-    // Try to get call details first
+    if (!callId || !agentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'callId and a valid agentId are required (link your user to an Agent row by email)',
+      });
+    }
     let callDetails = null;
     try {
       callDetails = await prisma.inbound_calls.findFirst({
@@ -825,6 +858,42 @@ export const getInboundCallStatus = async (req: Request, res: Response) => {
 /**
  * Helper Functions
  */
+
+/** Ensure a contact row exists for inbound call_record FK (unknown callers). */
+async function ensureContactIdForInboundCaller(phoneNumber: string): Promise<string> {
+  const raw = (phoneNumber || '').trim() || 'unknown';
+  const digits = raw.replace(/\D/g, '');
+  const variants = Array.from(
+    new Set(
+      [
+        raw,
+        raw.replace(/[\s-()]/g, ''),
+        digits ? `+${digits}` : '',
+        digits,
+      ].filter(Boolean),
+    ),
+  );
+
+  const existing = await prisma.contact.findFirst({
+    where: { OR: variants.map((v) => ({ phone: v })) },
+    select: { contactId: true },
+  });
+  if (existing?.contactId) return existing.contactId;
+
+  const contactId = `inb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  await prisma.contact.create({
+    data: {
+      contactId,
+      listId: 'manual-contacts',
+      firstName: 'Inbound',
+      lastName: 'Caller',
+      fullName: null,
+      phone: raw.startsWith('+') ? raw : digits.length >= 10 ? `+${digits}` : raw,
+      status: 'new',
+    },
+  });
+  return contactId;
+}
 
 // Lookup caller information in contact database
 async function lookupCallerInformation(phoneNumber: string): Promise<CallerLookupResponse> {
@@ -1093,7 +1162,12 @@ async function checkForAssignedFlow(phoneNumber: string): Promise<{ id: string; 
 /**
  * Execute assigned flow for inbound call and return TwiML
  */
-async function executeAssignedFlow(flowId: string, inboundCall: InboundCall, inboundCallId: string): Promise<string> {
+async function executeAssignedFlow(
+  flowId: string,
+  inboundCall: InboundCall,
+  inboundCallId: string,
+  inboundNumber: any,
+): Promise<string> {
   const startTime = Date.now();
   
   try {
@@ -1135,7 +1209,7 @@ async function executeAssignedFlow(flowId: string, inboundCall: InboundCall, inb
       await logFlowExecution(flowId, inboundCallId, 'failed', executionTime, result.error);
       
       // Try to get fallback flow or return basic greeting
-      return await getFallbackTwiML(inboundCall, 'flow_execution_failed');
+      return await getFallbackTwiML(inboundCall, 'flow_execution_failed', inboundNumber);
     }
   } catch (error: any) {
     const executionTime = Date.now() - startTime;
@@ -1143,19 +1217,18 @@ async function executeAssignedFlow(flowId: string, inboundCall: InboundCall, inb
     await logFlowExecution(flowId, inboundCallId, 'error', executionTime, error.message);
     
     // Return fallback TwiML
-    return await getFallbackTwiML(inboundCall, 'flow_execution_error');
+    return await getFallbackTwiML(inboundCall, 'flow_execution_error', inboundNumber);
   }
 }
 
 /**
  * Generate basic greeting TwiML as fallback
- * NO TTS ALLOWED - Silently queue or hangup
+ * @deprecated Use getFallbackTwiML — kept to avoid accidental imports; returns hangup only.
  */
 function generateBasicGreetingTwiML(): string {
   const twiml = new twilio.twiml.VoiceResponse();
-  console.warn('⚠️ generateBasicGreetingTwiML called - TTS is disabled. Queueing silently.');
-  // Queue without TTS greeting
-  twiml.dial().queue('default');
+  twiml.pause({ length: 1 });
+  twiml.hangup();
   return twiml.toString();
 }
 
@@ -1218,52 +1291,30 @@ async function logFlowExecution(
 }
 
 /**
- * Get fallback TwiML with multiple strategies
+ * Get fallback TwiML when flow execution fails — never use TTS or Twilio <Say>.
+ * Always route caller to the shared Voice client with Omnivox greeting audio.
  */
-async function getFallbackTwiML(inboundCall: InboundCall, reason: string): Promise<string> {
+async function getFallbackTwiML(
+  inboundCall: InboundCall,
+  reason: string,
+  inboundNumber?: any,
+): Promise<string> {
   try {
-    console.log(`🔄 Generating fallback TwiML for reason: ${reason}`);
-    
-    // Strategy 1: Check for system default flow
-    const defaultFlow = await prisma.flow.findFirst({
-      where: {
-        name: 'System Default Flow',
-        status: 'ACTIVE'
-      }
-    });
-    
-    if (defaultFlow) {
-      console.log('📋 Using system default flow as fallback');
-      // Try to execute default flow
-      try {
-        return await executeAssignedFlow(defaultFlow.id, inboundCall, inboundCall.id);
-      } catch (error) {
-        console.warn('⚠️ Default flow also failed, using basic greeting');
-      }
+    console.log(`🔄 Audio-only fallback TwiML (reason: ${reason})`);
+
+    let cfg = inboundNumber;
+    if (!cfg && inboundCall.toNumber) {
+      cfg = await findInboundNumberByTo(inboundCall.toNumber);
     }
-    
-    // Strategy 2: Generate context-aware greeting based on caller info
-    if (inboundCall.callerName && inboundCall.callerName !== 'Unknown') {
-      return generatePersonalizedGreetingTwiML(inboundCall.callerName);
-    }
-    
-    // Strategy 3: Basic greeting
-    return generateBasicGreetingTwiML();
-    
+    if (!cfg) cfg = {};
+
+    const callerInfo = await lookupCallerInformation(inboundCall.callerNumber);
+    return routeToAvailableAgents(callerInfo, inboundCall.id, cfg);
   } catch (error) {
     console.error('❌ Error generating fallback TwiML:', error);
-    return generateBasicGreetingTwiML();
+    const twiml = new twilio.twiml.VoiceResponse();
+    twiml.pause({ length: 2 });
+    twiml.hangup();
+    return twiml.toString();
   }
-}
-
-/**
- * Generate personalized greeting TwiML
- * NO TTS ALLOWED - Silently queue
- */
-function generatePersonalizedGreetingTwiML(callerName: string): string {
-  const twiml = new twilio.twiml.VoiceResponse();
-  console.warn(`⚠️ generatePersonalizedGreetingTwiML called for ${callerName} - TTS is disabled. Queueing silently.`);
-  // Queue without TTS greeting (personalized greetings should use pre-recorded audio files)
-  twiml.dial().queue('default');
-  return twiml.toString();
 }

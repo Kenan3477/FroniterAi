@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Extract auth token from cookies
 function getAuthToken(request: NextRequest): string | null {
-  const authCookie = request.cookies.get('auth-token');
-  return authCookie?.value || null;
+  const h = request.headers.get('authorization');
+  if (h?.startsWith('Bearer ')) {
+    const t = h.slice(7).trim();
+    if (t) return t;
+  }
+  return (
+    request.cookies.get('session_token')?.value ||
+    request.cookies.get('auth-token')?.value ||
+    request.cookies.get('auth_token')?.value ||
+    request.cookies.get('authToken')?.value ||
+    request.cookies.get('omnivox_token')?.value ||
+    null
+  );
 }
 
 // POST - Answer an inbound call

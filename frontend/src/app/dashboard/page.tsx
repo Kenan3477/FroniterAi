@@ -258,7 +258,8 @@ function DashboardContent() {
 
       setInboundCalls((prev) => [
         {
-          id: data.call?.id || data.callSid || `call-${Date.now()}`,
+          // Backend answer endpoint keys on inbound_calls.callId (UUID), not Twilio CallSid
+          id: data.call?.id || data.call?.callId || `call-${Date.now()}`,
           displayName,
           callerNumber,
           number: callerNumber,
@@ -317,15 +318,21 @@ function DashboardContent() {
     try {
       console.log('📞 Answering inbound call:', call.id);
       
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
+
       const response = await fetch('/api/calls/inbound-answer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
           callId: call.id,
-          agentId: user?.id?.toString()
+          agentId: user?.id?.toString(),
         }),
       });
 
