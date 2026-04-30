@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { AudioFileService } from '../services/audioFileService';
+import { isTwilioPlayCompatibleMime } from '../utils/twilioPlayMime';
 
 const router = Router();
 
@@ -48,15 +49,14 @@ const upload = multer({
       'audio/mp4',            // M4A (Apple audio)
       'audio/x-m4a',          // M4A (alternative)
       'audio/aac',            // AAC
-      'audio/ogg',            // OGG
-      'audio/webm',           // WebM audio
+      'audio/ogg',            // OGG (may not work on all Twilio paths — prefer MP3/WAV)
       'audio/flac',           // FLAC
       'audio/x-flac'          // FLAC (alternative)
     ];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type: ${file.mimetype}. Supported formats: MP3, WAV, M4A, AAC, OGG, FLAC, WebM`));
+      cb(new Error(`Invalid file type: ${file.mimetype}. For Twilio inbound/outbound <Play>, use MP3 or WAV (M4A/AAC/FLAC/OGG may be rejected by carriers).`));
     }
   }
 });
@@ -183,8 +183,18 @@ router.get('/audio-files/:id/stream', async (req: Request, res: Response) => {
       .replace(/[^\w.\-]+/g, '_')
       .slice(0, 80);
 
+    const mime = audioFile.mimeType || 'audio/mpeg';
+    if (!isTwilioPlayCompatibleMime(mime)) {
+      console.warn(
+        `⚠️ Audio file ${id} has mime "${mime}" — Twilio <Play> cannot reliably decode this (causes static). Re-upload as MP3 or WAV.`,
+      );
+      return res.status(415).type('text/plain').send(
+        'This audio format is not supported for phone playback. Re-upload as MP3 or WAV in Omnivox.',
+      );
+    }
+
     // Set appropriate headers for audio streaming (Twilio <Play> fetches as GET)
-    res.setHeader('Content-Type', audioFile.mimeType || 'audio/mpeg');
+    res.setHeader('Content-Type', mime);
     res.setHeader('Content-Length', String(buf.length));
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, max-age=86400');

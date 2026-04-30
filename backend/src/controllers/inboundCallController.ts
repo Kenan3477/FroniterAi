@@ -600,7 +600,8 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   const dialOpts: any = {
     timeout: 30, // 30 second timeout for agent to answer
     record: 'record-from-answer-dual',
-    answerOnBridge: true,
+    // Caller hears ringing until agent answers; true bridges early and often sounds like static/noise
+    answerOnBridge: false,
   };
   if (recordingStatusCallback) {
     dialOpts.recordingStatusCallback = recordingStatusCallback;
