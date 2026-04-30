@@ -21,14 +21,27 @@ export function resolveAbsoluteBackendUrl(path: string): string | undefined {
   return `${base}${p}`;
 }
 
-/** Default greeting <Play> URL when inbound_numbers.greetingAudioUrl is empty */
+/**
+ * Optional global greeting URL (e.g. point at your CDN). Inbound numbers should
+ * normally use `greetingAudioUrl` on the InboundNumber row in Omnivox.
+ */
 export function resolveDefaultInboundGreetingUrl(): string | undefined {
-  if (process.env.DEFAULT_INBOUND_GREETING_AUDIO_URL?.trim()) {
-    return process.env.DEFAULT_INBOUND_GREETING_AUDIO_URL.trim();
+  const env = process.env.DEFAULT_INBOUND_GREETING_AUDIO_URL?.trim();
+  return env || undefined;
+}
+
+/** Twilio <Play> needs absolute https; relative paths become BACKEND_URL + path. */
+export function toTwilioPlayableUrl(url: string | null | undefined): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const u = url.trim();
+  if (!u) return undefined;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith('/')) {
+    const base = getBackendBaseUrl();
+    if (!base) return undefined;
+    return `${base}${u}`;
   }
-  const base = getBackendBaseUrl();
-  if (!base) return undefined;
-  return `${base}/audio/inbound-greeting.mp3`;
+  return u;
 }
 
 /**

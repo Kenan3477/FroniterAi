@@ -19,7 +19,7 @@ import { webSocketService } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
 import { FlowExecutionEngine } from '../services/flowExecutionEngine';
 import crypto from 'crypto';
-import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl, normalizeInboundTo, resolveAbsoluteBackendUrl } from '../config/voiceMedia';
+import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl, normalizeInboundTo, resolveAbsoluteBackendUrl, toTwilioPlayableUrl } from '../config/voiceMedia';
 
 /**
  * Find inbound_numbers row matching Twilio "To" (exact or last-10-digits fallback).
@@ -53,6 +53,46 @@ async function findInboundNumberByTo(toRaw: string | undefined) {
     return plusMatch || candidates[0];
   }
   return null;
+}
+
+/** Greeting must come from Omnivox inbound number (or optional DEFAULT_INBOUND_GREETING_AUDIO_URL only). */
+function resolveInboundGreetingPlayUrl(inboundNumber: any): string | undefined {
+  const raw = inboundNumber?.greetingAudioUrl || resolveDefaultInboundGreetingUrl();
+  return toTwilioPlayableUrl(raw);
+}
+
+/** Agents who can take a live browser inbound (aligned with notifyAgentsOfInboundCall). */
+async function countAgentsAvailableForInbound(): Promise<number> {
+  try {
+    return await prisma.agent.count({
+      where: {
+        isLoggedIn: true,
+        status: { equals: 'Available', mode: 'insensitive' },
+      },
+    });
+  } catch (e: any) {
+    console.error('❌ countAgentsAvailableForInbound failed:', e?.message || e);
+    return 0;
+  }
+}
+
+/**
+ * During business hours: if nobody is Available+loggedIn, play the same Omnivox
+ * out-of-hours / unavailable prompt (outOfHoursAudioUrl) instead of ringing forever.
+ */
+async function buildDirectAgentRouteTwiML(
+  callerInfo: CallerLookupResponse,
+  callId: string,
+  inboundNumber: any,
+): Promise<{ twiml: string; notifyAgents: boolean }> {
+  const available = await countAgentsAvailableForInbound();
+  if (available === 0) {
+    console.log(
+      '📵 No agents Available+loggedIn during business hours — playing Omnivox out-of-hours/unavailable audio',
+    );
+    return { twiml: generateOutOfHoursTwiML(inboundNumber), notifyAgents: false };
+  }
+  return { twiml: routeToAvailableAgents(callerInfo, callId, inboundNumber), notifyAgents: true };
 }
 
 // Inbound call interface
@@ -205,26 +245,36 @@ function checkBusinessHours(inboundNumber: any): boolean {
 function generateOutOfHoursTwiML(inboundNumber: any): string {
   const twiml = new twilio.twiml.VoiceResponse();
 
-  // CRITICAL: Audio file is REQUIRED - no TTS fallback allowed
+  // Omnivox audio only — no TTS
   if (inboundNumber.outOfHoursAudioUrl) {
-    console.log('🎵 Playing out-of-hours audio:', inboundNumber.outOfHoursAudioUrl);
-    twiml.play(inboundNumber.outOfHoursAudioUrl);
+    const u = toTwilioPlayableUrl(inboundNumber.outOfHoursAudioUrl);
+    if (u) {
+      console.log('🎵 Playing out-of-hours audio:', u);
+      twiml.pause({ length: 1 });
+      twiml.play(u);
+    } else {
+      console.error('❌ outOfHoursAudioUrl is not a valid absolute URL:', inboundNumber.outOfHoursAudioUrl);
+    }
   } else if (inboundNumber.outOfHoursAction === 'voicemail' && inboundNumber.voicemailAudioUrl) {
-    // Voicemail option - play voicemail prompt audio
-    console.log('🎵 Playing voicemail prompt audio:', inboundNumber.voicemailAudioUrl);
-    twiml.play(inboundNumber.voicemailAudioUrl);
-    const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
-    twiml.record({
-      ...(vmAction ? { action: vmAction } : {}),
-      method: 'POST',
-      maxLength: 120,
-      finishOnKey: '#',
-      transcribe: true
-    });
+    const vm = toTwilioPlayableUrl(inboundNumber.voicemailAudioUrl);
+    if (vm) {
+      console.log('🎵 Playing voicemail prompt audio:', vm);
+      twiml.pause({ length: 1 });
+      twiml.play(vm);
+      const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
+      twiml.record({
+        ...(vmAction ? { action: vmAction } : {}),
+        method: 'POST',
+        maxLength: 120,
+        finishOnKey: '#',
+        transcribe: true
+      });
+    } else {
+      console.error('❌ voicemailAudioUrl is not a valid absolute URL:', inboundNumber.voicemailAudioUrl);
+    }
   } else {
-    // ERROR: No audio file configured - log error and hang up silently
-    console.error('❌ CRITICAL: No outOfHoursAudioUrl configured for inbound number:', inboundNumber.phoneNumber);
-    console.error('❌ TTS is disabled. Audio files are REQUIRED. Please configure outOfHoursAudioUrl in database.');
+    console.error('❌ No outOfHoursAudioUrl on inbound number:', inboundNumber.phoneNumber);
+    console.error('❌ Configure out-of-hours audio in Omnivox (Channels → inbound number).');
   }
 
   twiml.hangup();
@@ -238,21 +288,24 @@ function generateOutOfHoursTwiML(inboundNumber: any): string {
 function generateQueueTwiML(inboundNumber: any): string {
   const twiml = new twilio.twiml.VoiceResponse();
 
-  const greetingUrl = inboundNumber.greetingAudioUrl || resolveDefaultInboundGreetingUrl();
+  const greetingUrl = resolveInboundGreetingPlayUrl(inboundNumber);
   if (!greetingUrl) {
-    console.error('❌ CRITICAL: No greetingAudioUrl for queue and no default greeting URL');
-    console.error('❌ TTS is disabled. Configure greetingAudioUrl or DEFAULT_INBOUND_GREETING_AUDIO_URL.');
+    console.error('❌ No greetingAudioUrl on this inbound number (Omnivox Channels). Queue route needs it.');
     twiml.hangup();
     return twiml.toString();
   }
 
   console.log('🎵 Playing greeting audio:', greetingUrl);
+  twiml.pause({ length: 1 });
   twiml.play(greetingUrl);
   
-  // If queue audio is configured, play it, otherwise use hold music
   if (inboundNumber.queueAudioUrl) {
-    console.log('🎵 Playing queue audio:', inboundNumber.queueAudioUrl);
-    twiml.play(inboundNumber.queueAudioUrl);
+    const qUrl = toTwilioPlayableUrl(inboundNumber.queueAudioUrl);
+    if (qUrl) {
+      console.log('🎵 Playing queue audio:', qUrl);
+      twiml.pause({ length: 1 });
+      twiml.play(qUrl);
+    }
   }
   
   // Enqueue the call (Twilio requires absolute https URLs for waitUrl/action)
@@ -358,6 +411,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
 
     // ✅ Route based on inbound number configuration (never silent-hangup on routeTo=Hangup when agents expect calls)
     let twiml: string;
+    let shouldNotifyAgents = false;
 
     console.log('🔀 Routing decision:', {
       routeTo: inboundNumber.routeTo,
@@ -371,6 +425,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     if (inboundNumber.routeTo === 'Queue' && inboundNumber.selectedQueueId) {
       console.log(`📋 Routing to queue: ${inboundNumber.selectedQueueId}`);
       twiml = generateQueueTwiML(inboundNumber);
+      shouldNotifyAgents = true;
     } else if (
       inboundNumber.routeTo === 'Flow' &&
       (inboundNumber.assignedFlowId || inboundNumber.selectedFlowId)
@@ -379,21 +434,26 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
       console.log(`🌊 routeTo=Flow with flowId=${flowId} — attempting flow execution`);
       try {
         twiml = await executeAssignedFlow(flowId as string, inboundCall, inboundCallId);
+        shouldNotifyAgents = true;
       } catch (flowErr: any) {
         console.warn(
           `⚠️ Flow execution threw, falling back to agent ring: ${flowErr?.message}`,
         );
-        twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
+        const direct = await buildDirectAgentRouteTwiML(callerInfo, inboundCallId, inboundNumber);
+        twiml = direct.twiml;
+        shouldNotifyAgents = direct.notifyAgents;
       }
     } else {
       if (inboundNumber.routeTo === 'Hangup') {
         console.log(
-          "📞 routeTo='Hangup' — ringing agent-browser (explicit hangup is reserved for out-of-hours / misconfiguration)",
+          "📞 routeTo='Hangup' — ringing shared Voice client (explicit hangup reserved for closed hours / misconfiguration)",
         );
       } else {
         console.log('📞 Routing to available agents (default)');
       }
-      twiml = routeToAvailableAgents(callerInfo, inboundCallId, inboundNumber);
+      const direct = await buildDirectAgentRouteTwiML(callerInfo, inboundCallId, inboundNumber);
+      twiml = direct.twiml;
+      shouldNotifyAgents = direct.notifyAgents;
     }
     
     console.log('✅ Inbound call processed successfully:', inboundCallId);
@@ -402,10 +462,14 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     res.type('text/xml');
     res.send(twiml);
     
-    // Start notifications asynchronously (don't await)
-    notifyAgentsOfInboundCall(inboundCall, callerInfo).catch(error => {
-      console.error('❌ Notification error (non-blocking):', error);
-    });
+    // Start notifications asynchronously (don't await) — only when someone could answer
+    if (shouldNotifyAgents) {
+      notifyAgentsOfInboundCall(inboundCall, callerInfo).catch(error => {
+        console.error('❌ Notification error (non-blocking):', error);
+      });
+    } else {
+      console.log('ℹ️ Skipping agent inbound notifications (no live agent route for this call)');
+    }
     
   } catch (error: any) {
     console.error('❌ Error handling inbound call webhook:', error);
@@ -456,15 +520,17 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   
   const twiml = new twilio.twiml.VoiceResponse();
 
-  const greetingUrl = inboundNumber?.greetingAudioUrl || resolveDefaultInboundGreetingUrl();
+  const greetingUrl = resolveInboundGreetingPlayUrl(inboundNumber);
   if (!greetingUrl) {
-    console.error('❌ CRITICAL: No greetingAudioUrl and no DEFAULT_INBOUND_GREETING_AUDIO_URL / BACKEND_URL for /audio/inbound-greeting.mp3');
-    console.error('❌ TTS is disabled. Configure greeting on the inbound number or set DEFAULT_INBOUND_GREETING_AUDIO_URL.');
+    console.error(
+      '❌ No greetingAudioUrl on this inbound number. Set it in Omnivox (Channels) or DEFAULT_INBOUND_GREETING_AUDIO_URL.',
+    );
     twiml.hangup();
     return twiml.toString();
   }
 
   console.log('🎵 Playing greeting audio:', greetingUrl);
+  twiml.pause({ length: 1 });
   twiml.play(greetingUrl);
 
   // ROBUST APPROACH: Always dial the browser client
@@ -487,23 +553,31 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
 
   const dial = twiml.dial(dialOpts);
   
-  // Always dial the browser client - it's the only client we register
-  dial.client('agent-browser');
+  const clientIdentity =
+    (process.env.TWILIO_VOICE_CLIENT_IDENTITY || 'agent-browser').trim() || 'agent-browser';
+  dial.client(clientIdentity);
 
-  // If agent doesn't answer within 30s, play no-answer audio and hangup
   if (inboundNumber.noAnswerAudioUrl) {
-    console.log('🎵 Will play no-answer audio if agent unavailable:', inboundNumber.noAnswerAudioUrl);
-    twiml.play(inboundNumber.noAnswerAudioUrl);
+    const na = toTwilioPlayableUrl(inboundNumber.noAnswerAudioUrl);
+    if (na) {
+      console.log('🎵 Will play no-answer audio if agent unavailable:', na);
+      twiml.pause({ length: 1 });
+      twiml.play(na);
+    }
   } else if (inboundNumber.voicemailAudioUrl) {
-    console.log('ℹ️ Will play voicemailAudioUrl on no-answer:', inboundNumber.voicemailAudioUrl);
-    twiml.play(inboundNumber.voicemailAudioUrl);
-    const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
-    twiml.record({
-      ...(vmAction ? { action: vmAction } : {}),
-      method: 'POST',
-      maxLength: 120,
-      finishOnKey: '#',
-    });
+    const vm = toTwilioPlayableUrl(inboundNumber.voicemailAudioUrl);
+    if (vm) {
+      console.log('ℹ️ Will play voicemailAudioUrl on no-answer:', vm);
+      twiml.pause({ length: 1 });
+      twiml.play(vm);
+      const vmAction = resolveAbsoluteBackendUrl('/api/calls/webhook/voicemail');
+      twiml.record({
+        ...(vmAction ? { action: vmAction } : {}),
+        method: 'POST',
+        maxLength: 120,
+        finishOnKey: '#',
+      });
+    }
   }
   
   twiml.hangup();
