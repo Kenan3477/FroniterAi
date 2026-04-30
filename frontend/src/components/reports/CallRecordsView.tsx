@@ -67,7 +67,9 @@ interface CallRecord {
   contact?: {
     firstName: string;
     lastName: string;
-    email: string;
+    fullName?: string | null;
+    phone?: string;
+    email?: string;
   };
   campaign?: {
     name: string;
@@ -84,6 +86,27 @@ interface CallRecord {
     duration?: number;
     format: string;
   };
+}
+
+/** Strip soft-delete prefix from campaign names in UI */
+function formatCampaignDisplayName(name: string | null | undefined): string {
+  const n = (name || '').trim();
+  if (!n) return 'Manual dial';
+  return n.replace(/^\[DELETED\]\s*/i, '').trim() || 'Manual dial';
+}
+
+function formatContactDisplayName(contact: CallRecord['contact']): string {
+  if (!contact) return 'Unknown';
+  const full = (contact.fullName || '').trim();
+  if (full) return full;
+  const first = (contact.firstName || '').trim();
+  const last = (contact.lastName || '').trim();
+  const combined = `${first} ${last}`.trim();
+  if (combined && combined !== 'Unknown Contact' && combined !== 'Manual Contact') {
+    return combined;
+  }
+  if (contact.phone) return contact.phone;
+  return 'Unknown';
 }
 
 interface TranscriptData {
@@ -1110,10 +1133,10 @@ export const CallRecordsView: React.FC = () => {
                       Agent: {record.agent ? `${record.agent.firstName} ${record.agent.lastName}` : 'N/A'}
                     </div>
                     <div className="text-gray-500">
-                      Contact: {record.contact ? `${record.contact.firstName} ${record.contact.lastName}` : 'N/A'}
+                      Contact: {formatContactDisplayName(record.contact)}
                     </div>
                     <div className="text-xs text-gray-400">
-                      {record.campaign?.name || 'Manual Dial'}
+                      {formatCampaignDisplayName(record.campaign?.name)}
                     </div>
                   </div>
                 </td>

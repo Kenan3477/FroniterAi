@@ -277,6 +277,7 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
           contactId: true,
           firstName: true,
           lastName: true,
+          fullName: true,
           phone: true,
           email: true
         }

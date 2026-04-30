@@ -30,6 +30,64 @@ function resolveLookupSids(row: {
   return out;
 }
 
+function normalizePhoneDigits(phone: string | null | undefined): string {
+  return (phone || '').replace(/\D/g, '');
+}
+
+/**
+ * Orphan rows (e.g. duplicate save-call-data) may lack CA… while a sibling row
+ * for the same dial in the same time window has the Twilio SID.
+ */
+async function findTwilioCallSidFromSiblingRow(row: {
+  id: string;
+  phoneNumber: string;
+  startTime: Date;
+  agentId: string | null;
+}): Promise<string | null> {
+  const windowMs = 6 * 60 * 1000;
+  const from = new Date(row.startTime.getTime() - windowMs);
+  const to = new Date(row.startTime.getTime() + windowMs);
+  const targetDigits = normalizePhoneDigits(row.phoneNumber);
+  if (!targetDigits) return null;
+
+  const baseWhere = {
+    id: { not: row.id } as const,
+    startTime: { gte: from, lte: to },
+  };
+
+  const tryScope = async (agentFilter: 'same' | 'any') => {
+    const records = await prisma.callRecord.findMany({
+      where: {
+        ...baseWhere,
+        ...(agentFilter === 'same' ? { agentId: row.agentId } : {}),
+      },
+      select: {
+        callId: true,
+        recording: true,
+        notes: true,
+        phoneNumber: true,
+      },
+      take: 40,
+      orderBy: { startTime: 'desc' },
+    });
+
+    for (const c of records) {
+      if (normalizePhoneDigits(c.phoneNumber) !== targetDigits) continue;
+      const sids = resolveLookupSids({
+        callId: c.callId,
+        recording: c.recording,
+        notes: c.notes,
+      });
+      if (sids.length) return sids[0];
+    }
+    return null;
+  };
+
+  const sameAgent = await tryScope('same');
+  if (sameAgent) return sameAgent;
+  return tryScope('any');
+}
+
 /**
  * Sync recordings for all call records that don't have recordings yet
  */
@@ -54,6 +112,8 @@ export async function syncAllRecordings(): Promise<{ synced: number; errors: num
         recording: true,
         notes: true,
         startTime: true,
+        phoneNumber: true,
+        agentId: true,
       },
     });
 
@@ -97,7 +157,15 @@ export async function syncAllRecordings(): Promise<{ synced: number; errors: num
 export async function syncRecordingForCall(callSid: string, callRecordId: string): Promise<boolean> {
   const row = await prisma.callRecord.findUnique({
     where: { id: callRecordId },
-    select: { id: true, callId: true, recording: true, notes: true },
+    select: {
+      id: true,
+      callId: true,
+      recording: true,
+      notes: true,
+      phoneNumber: true,
+      agentId: true,
+      startTime: true,
+    },
   });
   if (!row) return false;
   return syncRecordingForCallRow(row);
@@ -108,6 +176,9 @@ async function syncRecordingForCallRow(row: {
   callId: string;
   recording: string | null;
   notes: string | null;
+  phoneNumber: string;
+  agentId: string | null;
+  startTime: Date;
 }): Promise<boolean> {
   try {
     const existing = await prisma.recording.findFirst({
@@ -117,9 +188,19 @@ async function syncRecordingForCallRow(row: {
       return true;
     }
 
-    const lookupSids = resolveLookupSids(row);
+    let lookupSids = resolveLookupSids(row);
     if (!lookupSids.length) {
-      console.log(`📭 No Twilio CallSid (CA…) on call record ${row.id} — cannot sync recording`);
+      const siblingSid = await findTwilioCallSidFromSiblingRow(row);
+      if (siblingSid) {
+        lookupSids = [siblingSid];
+        console.log(`🔗 Resolved Twilio SID from sibling call for row ${row.id}: ${siblingSid}`);
+      }
+    }
+
+    if (!lookupSids.length) {
+      console.log(
+        `📭 No Twilio CallSid (CA…) on call record ${row.id} and no sibling match — cannot sync recording`,
+      );
       return false;
     }
 

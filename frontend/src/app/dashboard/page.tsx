@@ -82,7 +82,7 @@ function DashboardContent() {
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   
   // Get authenticated user and current campaign - dashboard now requires authentication
-  const { user, isAuthenticated, loading: authLoading, currentCampaign } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   // Client-side hydration guard (reserved for future SSR-safe widgets)
 
@@ -105,17 +105,9 @@ function DashboardContent() {
       
       console.log('📊 Loading dashboard stats with auth token:', !!token);
       console.log('🔑 Using Bearer token authentication for dashboard stats');
-      
-      // Build query parameters - include current campaign ID for campaign-specific contact counts
-      const queryParams = new URLSearchParams();
-      if (currentCampaign?.campaignId) {
-        queryParams.append('campaignId', currentCampaign.campaignId);
-        console.log('🎯 Including campaign filter for stats:', currentCampaign.campaignId);
-      }
-      
-      const url = `/api/dashboard/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('📡 Dashboard stats URL:', url);
-      
+
+      const url = '/api/dashboard/stats';
+
       const response = await fetch(url, {
         credentials: 'include',
         headers
@@ -151,10 +143,7 @@ function DashboardContent() {
                 'Authorization': `Bearer ${refreshData.data.accessToken}`
               };
               
-              const retryQuery = currentCampaign?.campaignId
-                ? `?campaignId=${encodeURIComponent(currentCampaign.campaignId)}`
-                : '';
-              const retryResponse = await fetch(`/api/dashboard/stats${retryQuery}`, {
+              const retryResponse = await fetch('/api/dashboard/stats', {
                 credentials: 'include',
                 headers: retryHeaders
               });
@@ -184,7 +173,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentCampaign?.campaignId]);
+  }, []);
 
   const loadPerformanceSeries = useCallback(async () => {
     try {
@@ -195,9 +184,6 @@ function DashboardContent() {
       if (!token) return;
 
       const q = new URLSearchParams({ days: '7' });
-      if (currentCampaign?.campaignId) {
-        q.append('campaignId', currentCampaign.campaignId);
-      }
 
       const res = await fetch(`/api/dashboard/performance-series?${q.toString()}`, {
         credentials: 'include',
@@ -216,7 +202,7 @@ function DashboardContent() {
     } catch (e) {
       console.error('Failed to load performance series:', e);
     }
-  }, [currentCampaign?.campaignId]);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && user) {
