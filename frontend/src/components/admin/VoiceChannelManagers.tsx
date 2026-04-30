@@ -49,6 +49,8 @@ export interface InboundNumber {
   // New routing and audio configuration fields (Legacy file references)
   voicemailAudioFile?: string; // Audio file reference for voicemail greeting
   outOfHoursAudioFile?: string; // Audio file reference for out of hours announcement
+  noAnswerAudioFile?: string; // Audio file ID for agent no-answer prompt
+  queueAudioFile?: string; // Audio file ID for queue hold/wait when routeTo is Queue
   outOfHoursTransferNumber?: string; // Phone number for out of hours transfer
   businessHoursVoicemailFile?: string; // Audio file reference for business hours voicemail
   businessHoursAudioFile?: string; // Audio file reference for business hours greeting
@@ -63,6 +65,8 @@ export interface InboundNumber {
   voicemailAudioUrl?: string; // URL to voicemail greeting audio file
   busyAudioUrl?: string; // URL to busy/queue audio file
   noAnswerAudioUrl?: string; // URL to no-answer audio file
+  /** Queue hold / wait audio when routeTo is Queue (stored as URL; form uses queueAudioFile ID). */
+  queueAudioUrl?: string;
   
   // Flow Assignment Configuration
   assignedFlowId?: string | null; // ID of the assigned flow
@@ -98,6 +102,13 @@ export interface AudioFileConfig {
   description?: string;
   loop?: boolean; // Whether to loop the audio
   volume?: number; // Volume level 0-100
+}
+
+/** Parse Omnivox audio stream URL back to AudioFile id for admin dropdowns. */
+function extractAudioFileIdFromSavedUrl(url: string | null | undefined): string {
+  if (!url || typeof url !== 'string') return '';
+  const m = url.trim().match(/\/api\/voice\/audio-files\/([^/?#]+)\//i);
+  return m?.[1] || '';
 }
 
 export interface RingGroup {
@@ -321,11 +332,17 @@ export const InboundNumbersManager: React.FC<{
             voicemailAudioUrl: num.voicemailAudioUrl,
             busyAudioUrl: num.busyAudioUrl,
             noAnswerAudioUrl: num.noAnswerAudioUrl,
-            // Legacy file reference fields (for backward compatibility)
-            outOfHoursAudioFile: num.outOfHoursAudioUrl,
-            businessHoursVoicemailFile: num.voicemailAudioUrl,
-            voicemailAudioFile: num.voicemailAudioUrl,
-            businessHoursAudioFile: num.greetingAudioUrl,
+            queueAudioUrl: num.queueAudioUrl,
+            // Dropdown values = AudioFile row IDs (resolved from saved stream URLs)
+            greetingAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
+            businessHoursAudioFile: extractAudioFileIdFromSavedUrl(num.greetingAudioUrl),
+            noAnswerAudioFile: extractAudioFileIdFromSavedUrl(num.noAnswerAudioUrl),
+            outOfHoursAudioFile: extractAudioFileIdFromSavedUrl(num.outOfHoursAudioUrl),
+            voicemailAudioFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
+            busyAudioFile: extractAudioFileIdFromSavedUrl(num.busyAudioUrl),
+            queueAudioFile: extractAudioFileIdFromSavedUrl(num.queueAudioUrl),
+            // Legacy: do not put URLs into *File fields (breaks <select> matching)
+            businessHoursVoicemailFile: extractAudioFileIdFromSavedUrl(num.voicemailAudioUrl),
             // Routing configuration
             outOfHoursTransferNumber: num.outOfHoursTransferNumber,
             selectedFlowId: num.selectedFlowId,
@@ -418,6 +435,7 @@ export const InboundNumbersManager: React.FC<{
         greetingAudioFile: number.greetingAudioFile || number.businessHoursAudioFile || '',
         noAnswerAudioFile: number.noAnswerAudioFile || '',
         outOfHoursAudioFile: number.outOfHoursAudioFile || '',
+        queueAudioFile: number.queueAudioFile || '',
         voicemailAudioFile: number.voicemailAudioFile || number.businessHoursVoicemailFile || '',
         busyAudioFile: number.busyAudioFile || '',
 
@@ -996,14 +1014,12 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
 
           {/* ── Audio Files ────────────────────────────────────────────── */}
           {/*
-            All four audio slots map directly to columns the backend hands to
-            Twilio's <Play>:
-              - greetingAudioUrl   → played when an agent is rung
-              - noAnswerAudioUrl   → played if the agent doesn't pick up
-              - outOfHoursAudioUrl → played when call lands outside business hours
-              - voicemailAudioUrl  → played as the voicemail greeting prompt
-            The dropdown values are AudioFile DB IDs; the backend resolves them
-            to absolute /api/voice/audio-files/<id>/stream URLs on save.
+            Audio slots map to inbound_numbers columns (resolved to stream URLs on save):
+              greeting → greetingAudioUrl
+              noAnswer → noAnswerAudioUrl
+              outOfHours → outOfHoursAudioUrl
+              queue (Queue route) → queueAudioUrl
+              voicemail → voicemailAudioUrl (voicemail prompt)
           */}
           <div className="border-t pt-4">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Audio Files</h4>
@@ -1021,7 +1037,7 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Greeting Audio <span className="text-red-500">*</span>
                     <span className="text-xs text-gray-500 ml-2">
-                      Played when an inbound call lands during business hours
+                      Played when an inbound call lands during business hours (then connects to agent or queue)
                     </span>
                   </label>
                   <select
@@ -1073,7 +1089,7 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Out-of-Hours Audio
                     <span className="text-xs text-gray-500 ml-2">
-                      Played when call lands outside business hours
+                      Played outside business hours, or when no agents are available (same clip is fine)
                     </span>
                   </label>
                   <select
@@ -1090,6 +1106,31 @@ const ConnexInboundNumberForm: React.FC<ConnexInboundNumberFormProps> = ({
                     ))}
                   </select>
                 </div>
+
+                {/* Queue hold / wait audio (only when routing to Queue) */}
+                {formData.routeTo === 'Queue' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Queue wait / hold audio
+                      <span className="text-xs text-gray-500 ml-2">
+                        Played while the caller is in the queue after the greeting (optional)
+                      </span>
+                    </label>
+                    <select
+                      value={formData.queueAudioFile || ''}
+                      onChange={(e) => handleChange('queueAudioFile', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="">-- None (silence in queue) --</option>
+                      {audioFiles.map((file) => (
+                        <option key={file.id} value={file.id}>
+                          {file.name}
+                          {file.duration ? ` (${Math.round(file.duration)}s)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
           </div>

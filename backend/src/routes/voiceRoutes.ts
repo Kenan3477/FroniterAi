@@ -28,6 +28,13 @@ const router = express.Router();
  *     endpoint. If the ID doesn't resolve, we return null and log a warning so
  *     we never silently persist garbage.
  */
+/** Reverse of resolveAudioFileToUrl — for admin UI dropdowns that store AudioFile row IDs. */
+function extractAudioFileIdFromStreamUrl(url: string | null | undefined): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const m = url.trim().match(/\/api\/voice\/audio-files\/([^/?#]+)\//i);
+  return m?.[1];
+}
+
 async function resolveAudioFileToUrl(
   value: string | null | undefined,
 ): Promise<string | null> {
@@ -86,16 +93,18 @@ async function resolveInboundAudioUrls(input: {
   outOfHoursAudioUrl?: string | null;
   busyAudioUrl?: string | null;
   voicemailAudioUrl?: string | null;
+  queueAudioUrl?: string | null;
   // Legacy form field names that older versions of the React form sent.
   greetingAudioFile?: string | null;
   noAnswerAudioFile?: string | null;
   outOfHoursAudioFile?: string | null;
   busyAudioFile?: string | null;
   voicemailAudioFile?: string | null;
+  queueAudioFile?: string | null;
   businessHoursAudioFile?: string | null;
   businessHoursVoicemailFile?: string | null;
 }) {
-  const [greeting, noAnswer, outOfHours, busy, voicemail] = await Promise.all([
+  const [greeting, noAnswer, outOfHours, busy, voicemail, queue] = await Promise.all([
     resolveAudioFileToUrl(input.greetingAudioUrl ?? input.greetingAudioFile ?? input.businessHoursAudioFile),
     resolveAudioFileToUrl(input.noAnswerAudioUrl ?? input.noAnswerAudioFile),
     resolveAudioFileToUrl(input.outOfHoursAudioUrl ?? input.outOfHoursAudioFile),
@@ -103,6 +112,7 @@ async function resolveInboundAudioUrls(input: {
     resolveAudioFileToUrl(
       input.voicemailAudioUrl ?? input.voicemailAudioFile ?? input.businessHoursVoicemailFile,
     ),
+    resolveAudioFileToUrl(input.queueAudioUrl ?? input.queueAudioFile),
   ]);
   return {
     greetingAudioUrl: greeting,
@@ -110,6 +120,7 @@ async function resolveInboundAudioUrls(input: {
     outOfHoursAudioUrl: outOfHours,
     busyAudioUrl: busy,
     voicemailAudioUrl: voicemail,
+    queueAudioUrl: queue,
   };
 }
 
@@ -278,6 +289,7 @@ router.get('/inbound-numbers', authenticate, async (req: Request, res: Response)
       outOfHoursAudioUrl: number.outOfHoursAudioUrl,
       busyAudioUrl: number.busyAudioUrl,
       voicemailAudioUrl: number.voicemailAudioUrl,
+      queueAudioUrl: number.queueAudioUrl,
       businessHoursStart: number.businessHoursStart,
       businessHoursEnd: number.businessHoursEnd,
       businessDays: number.businessDays,
@@ -416,6 +428,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAudioUrl,
       busyAudioUrl,
       voicemailAudioUrl,
+      queueAudioUrl,
       businessHoursStart,
       businessHoursEnd,
       businessDays,
@@ -488,6 +501,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAudioUrl,
       busyAudioUrl,
       voicemailAudioUrl,
+      queueAudioUrl,
       // *AudioFile fields sent by the current admin form (these hold AudioFile
       // row IDs and are the primary source of truth post-fix). Each is read
       // from req.body in case TS strips fields not declared in the destructure.
@@ -496,6 +510,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAudioFile,
       busyAudioFile: (req.body as any).busyAudioFile,
       voicemailAudioFile,
+      queueAudioFile: (req.body as any).queueAudioFile,
       businessHoursAudioFile: (req.body as any).businessHoursAudioFile,
       businessHoursVoicemailFile,
     });
@@ -506,6 +521,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAudioUrl: resolvedAudio.outOfHoursAudioUrl,
       busyAudioUrl: resolvedAudio.busyAudioUrl,
       voicemailAudioUrl: resolvedAudio.voicemailAudioUrl,
+      queueAudioUrl: resolvedAudio.queueAudioUrl,
     });
 
     // Map fields to existing database columns. We only overwrite each audio
@@ -528,6 +544,8 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       voicemailAudioUrl !== undefined ||
       voicemailAudioFile !== undefined ||
       businessHoursVoicemailFile !== undefined;
+    const queueProvided =
+      queueAudioUrl !== undefined || (req.body as any).queueAudioFile !== undefined;
 
     const updateData: any = {
       displayName,
@@ -547,6 +565,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       voicemailAudioUrl: voicemailProvided
         ? resolvedAudio.voicemailAudioUrl
         : existingNumber.voicemailAudioUrl,
+      queueAudioUrl: queueProvided ? resolvedAudio.queueAudioUrl : existingNumber.queueAudioUrl,
       businessHoursStart,
       businessHoursEnd,
       businessDays,
@@ -612,6 +631,7 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAudioUrl: updatedNumber.outOfHoursAudioUrl,
       busyAudioUrl: updatedNumber.busyAudioUrl,
       voicemailAudioUrl: updatedNumber.voicemailAudioUrl,
+      queueAudioUrl: updatedNumber.queueAudioUrl,
       businessHoursStart: updatedNumber.businessHoursStart,
       businessHoursEnd: updatedNumber.businessHoursEnd,
       businessDays: updatedNumber.businessDays,
