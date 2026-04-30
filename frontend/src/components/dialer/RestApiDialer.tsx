@@ -55,6 +55,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [inCallKeypadOpen, setInCallKeypadOpen] = useState(false);
+  const [lastDtmfSent, setLastDtmfSent] = useState<string | null>(null);
   // Real-time call status polled from Twilio via backend
   const [callStatus, setCallStatus] = useState<'idle' | 'initiating' | 'queued' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'canceled' | 'failed'>('idle');
   const callStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,6 +94,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // any state read via closure becomes stale after the first call.
   useEffect(() => { phoneNumberRef.current = phoneNumber; }, [phoneNumber]);
   useEffect(() => { currentCallRef.current = currentCall; }, [currentCall]);
+  useEffect(() => {
+    if (!currentCall) {
+      setInCallKeypadOpen(false);
+      setLastDtmfSent(null);
+    }
+  }, [currentCall]);
   useEffect(() => { activeRestApiCallRef.current = activeRestApiCall; }, [activeRestApiCall]);
   useEffect(() => { microphoneStreamRef.current = microphoneStream; }, [microphoneStream]);
   useEffect(() => { microphonePermissionGrantedRef.current = microphonePermissionGranted; }, [microphonePermissionGranted]);
@@ -1136,17 +1144,119 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     ['*', '0', '#']
   ];
 
-  // Hide dialer UI when there's an active call, but keep Device running for incoming calls
+  const sendDtmfDigit = (digit: string) => {
+    const call = currentCallRef.current;
+    if (!call) {
+      console.warn('DTMF: no active WebRTC call');
+      return;
+    }
+    try {
+      if (typeof call.sendDigits === 'function') {
+        call.sendDigits(digit);
+        setLastDtmfSent(digit);
+        setTimeout(() => setLastDtmfSent(null), 600);
+      } else {
+        console.warn('DTMF: sendDigits not available on this call object');
+      }
+    } catch (e) {
+      console.error('DTMF send failed:', e);
+    }
+  };
+
+  const dispositionModal =
+    showDispositionModal && pendingCallEnd ? (
+      <DispositionCard
+        isOpen={showDispositionModal}
+        onSave={handleDispositionSubmit}
+        onClose={() => {
+          // Clear Redux state when modal is closed without saving
+          dispatch(endCall());
+          dispatch(clearCall());
+          setShowDispositionModal(false);
+          setPendingCallEnd(null);
+          setActiveRestApiCall(null);
+          activeRestApiCallRef.current = null;
+          // Allow the next call's disposition modal to show.
+          dispositionShownForCallRef.current = null;
+        }}
+        customerInfo={{
+          name: phoneNumber || 'Unknown',
+          phoneNumber: phoneNumber || 'Unknown',
+        }}
+        callDuration={pendingCallEnd.duration}
+      />
+    ) : null;
+
+  const inCallDtmfKeypad =
+    currentCall ? (
+      <>
+        {!inCallKeypadOpen && (
+          <button
+            type="button"
+            onClick={() => setInCallKeypadOpen(true)}
+            className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg ring-2 ring-white/20 hover:bg-slate-700 md:bottom-8 md:right-8"
+            title="Open keypad (DTMF)"
+            aria-label="Open in-call keypad"
+          >
+            <span className="text-lg font-mono font-semibold">#</span>
+          </button>
+        )}
+        {inCallKeypadOpen && (
+          <div
+            className="fixed inset-x-0 bottom-0 z-[110] flex justify-center p-4 pb-6 md:inset-auto md:bottom-8 md:right-8 md:left-auto md:p-0"
+            role="dialog"
+            aria-label="In-call keypad"
+          >
+            <div className="w-full max-w-sm rounded-t-2xl bg-white shadow-2xl ring-1 ring-gray-200 md:rounded-2xl">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <span className="text-sm font-semibold text-gray-900">Keypad</span>
+                <button
+                  type="button"
+                  onClick={() => setInCallKeypadOpen(false)}
+                  className="rounded-lg px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                >
+                  Close
+                </button>
+              </div>
+              <p className="px-4 pb-2 text-xs text-gray-500">
+                Sends DTMF tones on the active call (e.g. IVR menus). Use # and * as needed.
+              </p>
+              {lastDtmfSent && (
+                <p className="px-4 pb-1 text-center text-sm font-mono text-blue-600">Sent: {lastDtmfSent}</p>
+              )}
+              <div className="grid grid-cols-3 gap-2 p-4 pt-0">
+                {dialPadNumbers.flat().map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => sendDtmfDigit(d)}
+                    className="h-14 rounded-xl border border-gray-200 bg-gray-50 text-xl font-semibold text-gray-900 hover:bg-gray-100 active:bg-gray-200"
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    ) : null;
+
+  // Hide dialer chrome when Work page shows active call UI, but keep Device + DTMF + disposition
   if (activeCall.isActive) {
     return (
-      <div className="hidden">
-        {/* RestApiDialer Device is running in background for incoming calls */}
-        {/* UI hidden during active calls */}
-      </div>
+      <>
+        <div className="hidden">
+          {/* RestApiDialer Device is running in background for incoming calls */}
+        </div>
+        {inCallDtmfKeypad}
+        {dispositionModal}
+      </>
     );
   }
 
   return (
+    <>
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Device Connection Status Banner */}
       {!isDeviceReady && (
@@ -1338,29 +1448,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         </div>
       )}
 
-      {/* Disposition Modal */}
-      {showDispositionModal && pendingCallEnd && (
-        <DispositionCard
-          isOpen={showDispositionModal}
-          onSave={handleDispositionSubmit}
-          onClose={() => {
-            // Clear Redux state when modal is closed without saving
-            dispatch(endCall());
-            dispatch(clearCall());
-            setShowDispositionModal(false);
-            setPendingCallEnd(null);
-            setActiveRestApiCall(null);
-            activeRestApiCallRef.current = null;
-            // Allow the next call's disposition modal to show.
-            dispositionShownForCallRef.current = null;
-          }}
-          customerInfo={{
-            name: phoneNumber || 'Unknown',
-            phoneNumber: phoneNumber || 'Unknown'
-          }}
-          callDuration={pendingCallEnd.duration}
-        />
-      )}
     </div>
+    {inCallDtmfKeypad}
+    {dispositionModal}
+    </>
   );
 };
