@@ -45,6 +45,15 @@ interface IPActivity {
 }
 
 const IPWhitelistManager: React.FC = () => {
+  const authHeaders = (): HeadersInit => {
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token') ||
+      '';
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const [whitelist, setWhitelist] = useState<IPWhitelistEntry[]>([]);
   const [activities, setActivities] = useState<IPActivity[]>([]);
   const [currentIP, setCurrentIP] = useState<string>('');
@@ -68,7 +77,9 @@ const IPWhitelistManager: React.FC = () => {
   const fetchWhitelist = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/ip-whitelist');
+      const response = await fetch('/api/admin/ip-whitelist', {
+        headers: authHeaders(),
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -123,6 +134,7 @@ const IPWhitelistManager: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
         body: JSON.stringify(newIP),
       });
@@ -146,11 +158,15 @@ const IPWhitelistManager: React.FC = () => {
     }
   };
 
-  const removeIPFromWhitelist = async (id: string) => {
+  const removeIPFromWhitelist = async (ipAddress: string) => {
     try {
-      const response = await fetch(`/api/admin/ip-whitelist?id=${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/admin/ip-whitelist/${encodeURIComponent(ipAddress)}`,
+        {
+          method: 'DELETE',
+          headers: authHeaders(),
+        }
+      );
 
       const result = await response.json();
 
@@ -325,7 +341,7 @@ const IPWhitelistManager: React.FC = () => {
                       </button>
                       {entry.id !== 'default-localhost' && entry.id !== 'default-localhost-ipv6' && (
                         <button
-                          onClick={() => removeIPFromWhitelist(entry.id)}
+                          onClick={() => removeIPFromWhitelist(entry.ipAddress)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <TrashIcon className="h-4 w-4" />

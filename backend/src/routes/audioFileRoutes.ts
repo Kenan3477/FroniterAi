@@ -175,15 +175,22 @@ router.get('/audio-files/:id/stream', async (req: Request, res: Response) => {
         message: 'Audio file data not found'
       });
     }
-    
-    // Set appropriate headers for audio streaming
+
+    const buf = Buffer.isBuffer(audioFile.fileData as any)
+      ? (audioFile.fileData as Buffer)
+      : Buffer.from(audioFile.fileData as any);
+    const safeName = (audioFile.displayName || audioFile.filename || 'prompt')
+      .replace(/[^\w.\-]+/g, '_')
+      .slice(0, 80);
+
+    // Set appropriate headers for audio streaming (Twilio <Play> fetches as GET)
     res.setHeader('Content-Type', audioFile.mimeType || 'audio/mpeg');
-    res.setHeader('Content-Length', audioFile.size);
+    res.setHeader('Content-Length', String(buf.length));
     res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    
-    // Send the binary audio data
-    res.send(audioFile.fileData);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+
+    res.send(buf);
     
     console.log(`✅ Audio file streamed successfully: ${id} (${audioFile.displayName})`);
   } catch (error: any) {

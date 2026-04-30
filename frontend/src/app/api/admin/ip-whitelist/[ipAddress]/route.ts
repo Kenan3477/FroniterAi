@@ -11,19 +11,34 @@ export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
+function getBearerForBackend(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const t = authHeader.slice(7).trim();
+    if (t) return t;
+  }
+  const c = cookies();
+  return (
+    c.get('session_token')?.value ||
+    c.get('auth-token')?.value ||
+    c.get('auth_token')?.value ||
+    c.get('authToken')?.value ||
+    c.get('omnivox_token')?.value ||
+    null
+  );
+}
+
 // DELETE - Remove IP from whitelist (proxied to backend)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { ipAddress: string } }
+  context: { params: Promise<{ ipAddress: string }> }
 ) {
   try {
-    const { ipAddress } = params;
+    const { ipAddress } = await context.params;
     console.log(`🔒 IP Whitelist DELETE request for ${ipAddress} - proxying to backend database`);
-    
-    // Get session token from cookies
-    const cookieStore = cookies();
-    const sessionToken = cookieStore.get('session_token')?.value;
-    
+
+    const sessionToken = getBearerForBackend(request);
+
     if (!sessionToken) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -40,7 +55,16 @@ export async function DELETE(
       }
     });
 
-    const data = await backendResponse.json();
+    const raw = await backendResponse.text();
+    let data: any;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid response from backend', details: raw.slice(0, 200) },
+        { status: 502 }
+      );
+    }
 
     if (!backendResponse.ok) {
       console.error('❌ Backend IP delete failed:', data);

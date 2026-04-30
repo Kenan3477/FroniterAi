@@ -5,6 +5,11 @@ import { authenticate } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 const router = express.Router();
 
+/** Non-empty string from request body — empty string must NOT count as "user provided a value". */
+function meaningfulBodyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
 /**
  * Resolve an "audio file reference" coming from the inbound-number admin form
  * to an absolute, public URL that Twilio can fetch via <Play>.
@@ -533,19 +538,22 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
     // uploaded audio files). Both paths get resolved via
     // resolveInboundAudioUrls() above.
     const greetingProvided =
-      greetingAudioUrl !== undefined || (req.body as any).greetingAudioFile !== undefined;
+      meaningfulBodyString(greetingAudioUrl) ||
+      meaningfulBodyString((req.body as any).greetingAudioFile) ||
+      meaningfulBodyString((req.body as any).businessHoursAudioFile);
     const noAnswerProvided =
-      noAnswerAudioUrl !== undefined || (req.body as any).noAnswerAudioFile !== undefined;
+      meaningfulBodyString(noAnswerAudioUrl) ||
+      meaningfulBodyString((req.body as any).noAnswerAudioFile);
     const outOfHoursProvided =
-      outOfHoursAudioUrl !== undefined || outOfHoursAudioFile !== undefined;
+      meaningfulBodyString(outOfHoursAudioUrl) || meaningfulBodyString(outOfHoursAudioFile);
     const busyProvided =
-      busyAudioUrl !== undefined || (req.body as any).busyAudioFile !== undefined;
+      meaningfulBodyString(busyAudioUrl) || meaningfulBodyString((req.body as any).busyAudioFile);
     const voicemailProvided =
-      voicemailAudioUrl !== undefined ||
-      voicemailAudioFile !== undefined ||
-      businessHoursVoicemailFile !== undefined;
+      meaningfulBodyString(voicemailAudioUrl) ||
+      meaningfulBodyString(voicemailAudioFile) ||
+      meaningfulBodyString(businessHoursVoicemailFile);
     const queueProvided =
-      queueAudioUrl !== undefined || (req.body as any).queueAudioFile !== undefined;
+      meaningfulBodyString(queueAudioUrl) || meaningfulBodyString((req.body as any).queueAudioFile);
 
     const updateData: any = {
       displayName,
@@ -577,10 +585,30 @@ router.put('/inbound-numbers/:id', authenticate, async (req: Request, res: Respo
       outOfHoursAction: outOfHoursAction !== undefined ? outOfHoursAction : existingNumber.outOfHoursAction,
       routeTo: routeTo !== undefined ? routeTo : existingNumber.routeTo,
       outOfHoursTransferNumber: outOfHoursTransferNumber !== undefined ? outOfHoursTransferNumber : existingNumber.outOfHoursTransferNumber,
-      selectedFlowId: selectedFlowId !== undefined ? selectedFlowId : existingNumber.selectedFlowId,
-      selectedQueueId: selectedQueueId !== undefined ? selectedQueueId : existingNumber.selectedQueueId,
-      selectedRingGroupId: selectedRingGroupId !== undefined ? selectedRingGroupId : existingNumber.selectedRingGroupId,
-      selectedExtension: selectedExtension !== undefined ? selectedExtension : existingNumber.selectedExtension,
+      selectedFlowId:
+        selectedFlowId !== undefined
+          ? meaningfulBodyString(selectedFlowId)
+            ? selectedFlowId
+            : null
+          : existingNumber.selectedFlowId,
+      selectedQueueId:
+        selectedQueueId !== undefined
+          ? meaningfulBodyString(selectedQueueId)
+            ? selectedQueueId
+            : null
+          : existingNumber.selectedQueueId,
+      selectedRingGroupId:
+        selectedRingGroupId !== undefined
+          ? meaningfulBodyString(selectedRingGroupId)
+            ? selectedRingGroupId
+            : null
+          : existingNumber.selectedRingGroupId,
+      selectedExtension:
+        selectedExtension !== undefined
+          ? meaningfulBodyString(selectedExtension)
+            ? selectedExtension
+            : null
+          : existingNumber.selectedExtension,
       autoRejectAnonymous: autoRejectAnonymous !== undefined ? autoRejectAnonymous : existingNumber.autoRejectAnonymous,
       createContactOnAnonymous: createContactOnAnonymous !== undefined ? createContactOnAnonymous : existingNumber.createContactOnAnonymous,
       integration: integration !== undefined ? integration : existingNumber.integration,

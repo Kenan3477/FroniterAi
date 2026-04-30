@@ -10,7 +10,27 @@ import { cookies } from 'next/headers';
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://froniterai-production.up.railway.app';
+
+function getBearerForBackend(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const t = authHeader.slice(7).trim();
+    if (t) return t;
+  }
+  const c = cookies();
+  return (
+    c.get('session_token')?.value ||
+    c.get('auth-token')?.value ||
+    c.get('auth_token')?.value ||
+    c.get('authToken')?.value ||
+    c.get('omnivox_token')?.value ||
+    null
+  );
+}
 
 function getClientIP(request: NextRequest): string {
   // Check various headers for the real IP
@@ -40,10 +60,8 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔒 IP Whitelist GET request - proxying to backend database');
     
-    // Get session token from cookies
-    const cookieStore = cookies();
-    const sessionToken = cookieStore.get('session_token')?.value;
-    
+    const sessionToken = getBearerForBackend(request);
+
     if (!sessionToken) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -60,7 +78,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const data = await backendResponse.json();
+    const raw = await backendResponse.text();
+    let data: any;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid response from backend', details: raw.slice(0, 200) },
+        { status: 502 }
+      );
+    }
 
     if (!backendResponse.ok) {
       console.error('❌ Backend IP whitelist fetch failed:', data);
@@ -87,10 +114,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔒 IP Whitelist POST request - proxying to backend database');
     
-    // Get session token from cookies
-    const cookieStore = cookies();
-    const sessionToken = cookieStore.get('session_token')?.value;
-    
+    const sessionToken = getBearerForBackend(request);
+
     if (!sessionToken) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -110,7 +135,16 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body)
     });
 
-    const data = await backendResponse.json();
+    const raw = await backendResponse.text();
+    let data: any;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid response from backend', details: raw.slice(0, 200) },
+        { status: 502 }
+      );
+    }
 
     if (!backendResponse.ok) {
       console.error('❌ Backend IP add failed:', data);

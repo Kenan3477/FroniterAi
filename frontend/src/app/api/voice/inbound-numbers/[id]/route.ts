@@ -11,6 +11,7 @@ function getBearerForBackend(request: NextRequest): string | null {
   if (session) return session;
   const legacy =
     request.cookies.get('auth-token')?.value ||
+    request.cookies.get('auth_token')?.value ||
     request.cookies.get('authToken')?.value ||
     request.cookies.get('omnivox_token')?.value;
   if (legacy) return legacy;
