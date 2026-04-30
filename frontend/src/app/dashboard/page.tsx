@@ -90,7 +90,10 @@ function DashboardContent() {
     setLoading(true);
     try {
       // Get the JWT token from localStorage for proper authentication
-      let token = localStorage.getItem('omnivox_token');
+      let token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
@@ -148,7 +151,10 @@ function DashboardContent() {
                 'Authorization': `Bearer ${refreshData.data.accessToken}`
               };
               
-              const retryResponse = await fetch('/api/dashboard/stats', {
+              const retryQuery = currentCampaign?.campaignId
+                ? `?campaignId=${encodeURIComponent(currentCampaign.campaignId)}`
+                : '';
+              const retryResponse = await fetch(`/api/dashboard/stats${retryQuery}`, {
                 credentials: 'include',
                 headers: retryHeaders
               });
@@ -178,7 +184,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentCampaign]);
+  }, [currentCampaign?.campaignId]);
 
   const loadPerformanceSeries = useCallback(async () => {
     try {
@@ -210,13 +216,22 @@ function DashboardContent() {
     } catch (e) {
       console.error('Failed to load performance series:', e);
     }
-  }, [currentCampaign]);
+  }, [currentCampaign?.campaignId]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadDashboardStats();
       loadPerformanceSeries();
     }
+  }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const id = window.setInterval(() => {
+      loadDashboardStats();
+      loadPerformanceSeries();
+    }, 60_000);
+    return () => window.clearInterval(id);
   }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
 
   useEffect(() => {

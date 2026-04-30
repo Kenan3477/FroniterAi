@@ -4,7 +4,10 @@ export const dynamic = 'force-dynamic';
 
 function getBearer(request: NextRequest): string | null {
   const h = request.headers.get('authorization');
-  if (h?.startsWith('Bearer ')) return h.substring(7);
+  if (h?.startsWith('Bearer ')) {
+    const t = h.slice(7).trim();
+    if (t) return t;
+  }
   return (
     request.cookies.get('session_token')?.value ||
     request.cookies.get('auth-token')?.value ||
@@ -15,7 +18,7 @@ function getBearer(request: NextRequest): string | null {
   );
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const token = getBearer(request);
     if (!token) {
@@ -31,22 +34,36 @@ export async function GET(request: NextRequest) {
     if (!backendBase) {
       return NextResponse.json(
         { success: false, error: 'BACKEND_URL is not configured' },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
-    const res = await fetch(`${backendBase}/api/dashboard/active-calls`, {
+    const body = await request.json().catch(() => ({}));
+
+    const res = await fetch(`${backendBase}/api/live-analysis/listen-live`, {
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify(body),
       cache: 'no-store',
     });
 
-    const body = await res.json().catch(() => ({}));
-    return NextResponse.json(body, { status: res.status });
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid response from backend', details: text.slice(0, 200) },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json(data, { status: res.status });
   } catch (e) {
-    console.error('active-calls proxy error:', e);
+    console.error('listen-live proxy error:', e);
     return NextResponse.json({ success: false, error: 'Proxy failed' }, { status: 500 });
   }
 }

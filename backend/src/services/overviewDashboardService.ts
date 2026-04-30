@@ -7,6 +7,7 @@ import { realKPIService } from './realKpiService';
 import { eventManager } from './eventManager';
 
 import { prisma } from '../lib/prisma';
+import { getDashboardStatsTimezone, getUtcRangeForZonedCalendarDay } from '../utils/dashboardDayBounds';
 export interface TimeframeFilter {
   startDate: Date;
   endDate: Date;
@@ -102,9 +103,13 @@ export class OverviewDashboardService {
     let endDate = now;
 
     switch (filter) {
-      case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case 'today': {
+        const tz = getDashboardStatsTimezone();
+        const { startUtc, endUtc } = getUtcRangeForZonedCalendarDay(now, tz);
+        startDate = startUtc;
+        endDate = endUtc;
         break;
+      }
       case 'last_24h':
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         break;

@@ -88,34 +88,39 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
         localStorage.getItem('omnivox_token') ||
         localStorage.getItem('authToken') ||
         localStorage.getItem('auth_token');
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3004';
-      
-      const response = await fetch(`${backendUrl}/api/live-analysis/listen-live`, {
+      if (!token) {
+        alert('You need to be signed in to use live monitoring.');
+        return;
+      }
+
+      const response = await fetch('/api/live-analysis/listen-live', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ callId })
+        credentials: 'include',
+        body: JSON.stringify({ callId }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Set up live listening
+      const raw = await response.text();
+      let data: { success?: boolean; error?: string; data?: { instructions?: { description?: string } } };
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        alert(`Live monitoring failed (${response.status}). Try again or check your connection.`);
+        return;
+      }
+
+      if (response.ok && data.success) {
         setListeningCall(callId);
-        
-        // Connect to Twilio WebSocket for live audio (placeholder for now)
-        console.log('🎧 Live listening session started:', data.data);
-        
-        // TODO: Implement actual WebSocket connection to Twilio media stream
-        // For now, just show that listening is active
-        
-        alert(`Live monitoring started for call ${callId}. Audio stream will be available in production.`);
-        
+        console.log('🎧 Live monitoring session:', data.data);
+        const note =
+          data.data?.instructions?.description ||
+          'Session registered. Full browser listen-in still requires Twilio media stream wiring.';
+        alert(`Live monitoring: ${note}`);
       } else {
-        const errorData = await response.json();
-        alert(`Failed to start live monitoring: ${errorData.error}`);
+        alert(data.error || `Failed to start live monitoring (${response.status}).`);
       }
     } catch (err) {
       console.error('Error starting live monitoring:', err);

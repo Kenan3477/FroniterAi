@@ -10,6 +10,7 @@ import performanceMonitoringService from '../services/performanceMonitoringServi
 import advancedAMDService from '../services/advancedAMDService';
 import EnhancedTwiMLService from '../services/enhancedTwiMLService';
 import { authenticate, requireRole } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 
 const router = express.Router();
 
@@ -465,7 +466,7 @@ router.post('/amd/update-thresholds', authenticate, requireRole('admin'), async 
  * Enable live listening for a specific call (Admin/Super Admin only)
  * Required permission: calls.monitor
  */
-router.post('/listen-live', requireRole('ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.post('/listen-live', authenticate, requireRole('ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'), async (req: Request, res: Response) => {
   try {
     const { callId } = req.body;
     const user = (req as any).user;
@@ -477,16 +478,41 @@ router.post('/listen-live', requireRole('ADMIN', 'SUPER_ADMIN'), async (req: Req
       });
     }
 
-    // Verify call is active
-    const analysis = liveCallAnalyzer.getActiveAnalysis(callId);
+    let analysis = liveCallAnalyzer.getActiveAnalysis(callId);
+
     if (!analysis) {
-      return res.status(404).json({
-        success: false,
-        error: 'Call not found or not currently active'
+      const row = await prisma.callRecord.findFirst({
+        where: {
+          OR: [{ callId }, { id: callId }],
+          endTime: null,
+          startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+        include: {
+          agent: { select: { firstName: true, lastName: true, agentId: true } },
+          campaign: { select: { campaignId: true, name: true } },
+        },
       });
+
+      if (!row) {
+        return res.status(404).json({
+          success: false,
+          error:
+            'No active call session found for this ID. Live audio monitoring requires a Twilio media stream integration; this confirms the call is still open in the system.',
+        });
+      }
+
+      analysis = {
+        agentId: row.agentId || '',
+        agentName: row.agent
+          ? `${row.agent.firstName || ''} ${row.agent.lastName || ''}`.trim() || 'Agent'
+          : 'Unassigned',
+        phoneNumber: row.phoneNumber,
+        campaignId: row.campaignId,
+        startTime: new Date(row.startTime),
+      } as any;
     }
 
-    // Generate Twilio access token for live monitoring
+    // Generate Twilio access token for live monitoring (identity for browser client if wired up later)
     const twilioService = await import('../services/twilioService');
     const accessToken = await twilioService.generateAccessToken(
       `monitor_${user.userId}_${Date.now()}` // identity for monitoring access
@@ -511,7 +537,8 @@ router.post('/listen-live', requireRole('ADMIN', 'SUPER_ADMIN'), async (req: Req
         instructions: {
           webSocketUrl: `wss://${process.env.BACKEND_URL || 'localhost:8080'}/media-stream`,
           mediaStreamName: `monitor-${callId}`,
-          description: 'Connect to WebSocket to receive live audio stream'
+          description:
+            'Live listen-in from the browser is not fully wired yet. This endpoint validates the call and returns a monitor token for future Twilio client integration.',
         }
       }
     });
