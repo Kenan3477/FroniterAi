@@ -16,12 +16,12 @@ export async function GET(
     console.log('💾 Downloading recording:', recordingId);
 
     // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
-    let authToken = request.cookies.get('session_token')?.value;
-    
-    // Fallback to auth-token for backwards compatibility
-    if (!authToken) {
-      authToken = request.cookies.get('auth-token')?.value;
-    }
+    let authToken =
+      request.cookies.get('session_token')?.value ||
+      request.cookies.get('auth-token')?.value ||
+      request.cookies.get('auth_token')?.value ||
+      request.cookies.get('authToken')?.value ||
+      request.cookies.get('omnivox_token')?.value;
     
     // Also check Authorization header
     if (!authToken) {
@@ -54,9 +54,31 @@ export async function GET(
 
     if (!response.ok) {
       console.error(`❌ Backend download response not ok: ${response.status} ${response.statusText}`);
+      const errText = await response.text().catch(() => '');
+      let body: { error?: string; message?: string } = {};
+      try {
+        body = errText ? JSON.parse(errText) : {};
+      } catch {
+        /* ignore */
+      }
       return NextResponse.json(
-        { success: false, error: `Recording download not available` },
-        { status: response.status }
+        {
+          success: false,
+          error: body.error || body.message || `Recording download not available (${response.status})`,
+        },
+        { status: response.status },
+      );
+    }
+
+    const ct = (response.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('application/json')) {
+      const errJson = await response.json().catch(() => ({}));
+      return NextResponse.json(
+        {
+          success: false,
+          error: errJson.error || errJson.message || 'Recording download returned an error instead of audio',
+        },
+        { status: 502 },
       );
     }
 

@@ -31,6 +31,15 @@ interface Campaign {
   status?: string;
 }
 
+function getRecordingAuthBearer(): string | null {
+  return (
+    localStorage.getItem('omnivox_token') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('auth_token') ||
+    null
+  );
+}
+
 interface CallRecord {
   id: string;
   callId: string;
@@ -418,6 +427,9 @@ export const CallRecordsView: React.FC = () => {
     try {
       if (audio) {
         audio.pause();
+        if (audio.src?.startsWith('blob:')) {
+          URL.revokeObjectURL(audio.src);
+        }
         setIsPlaying(null);
       }
 
@@ -429,13 +441,33 @@ export const CallRecordsView: React.FC = () => {
       console.log('🎵 Starting recording playback for ID:', recordId);
       console.log('🎵 File path provided:', filePath);
 
-      // Use the recording streaming endpoint for playback
       const streamUrl = `/api/recordings/${recordId}/stream`;
-      
-      console.log('🔍 Testing recording availability at:', streamUrl);
-      
-      // Create audio element for playback
-      const audioElement = new Audio(streamUrl);
+      const token = getRecordingAuthBearer();
+      if (!token) {
+        alert('Please sign in again to play recordings.');
+        return;
+      }
+
+      const res = await fetch(streamUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        let msg = `Playback failed (${res.status})`;
+        try {
+          const j = await res.json();
+          if (j?.error || j?.message) msg = `${msg}: ${j.error || j.message}`;
+        } catch {
+          /* ignore */
+        }
+        alert(msg);
+        return;
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const audioElement = new Audio(objectUrl);
       
       audioElement.onloadstart = () => {
         console.log('🎵 Audio loading started...');
@@ -448,6 +480,7 @@ export const CallRecordsView: React.FC = () => {
       audioElement.onerror = (error) => {
         console.error('❌ Audio element error:', error);
         console.error('❌ Audio error details:', audioElement.error);
+        URL.revokeObjectURL(objectUrl);
         
         let errorMessage = 'Recording playback failed';
         if (audioElement.error) {
@@ -474,6 +507,7 @@ export const CallRecordsView: React.FC = () => {
       
       audioElement.onended = () => {
         console.log('🎵 Audio playback ended');
+        URL.revokeObjectURL(objectUrl);
         setIsPlaying(null);
         setAudio(null);
       };
@@ -487,6 +521,7 @@ export const CallRecordsView: React.FC = () => {
         console.log('✅ Audio playing successfully');
       } catch (playError) {
         console.error('❌ Play error:', playError);
+        URL.revokeObjectURL(objectUrl);
         alert(`❌ Failed to start audio playback\n\nError: ${playError instanceof Error ? playError.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
         setIsPlaying(null);
       }
@@ -495,6 +530,52 @@ export const CallRecordsView: React.FC = () => {
       console.error('❌ Error in playRecording function:', error);
       alert(`❌ Recording playback failed\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
       setIsPlaying(null);
+    }
+  };
+
+  const downloadRecording = async (recordingId: string, suggestedName?: string) => {
+    const token = getRecordingAuthBearer();
+    if (!token) {
+      alert('Please sign in again to download recordings.');
+      return;
+    }
+    try {
+      const url = `/api/recordings/${recordingId}/download`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        let msg = `Download failed (${res.status})`;
+        try {
+          const j = await res.json();
+          if (j?.error || j?.message) msg = `${msg}: ${j.error || j.message}`;
+        } catch {
+          /* ignore */
+        }
+        alert(msg);
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition');
+      let filename = suggestedName?.replace(/[^\w.\-]+/g, '_') || `recording-${recordingId}.mp3`;
+      const m = cd?.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"|filename=([^;\s]+)/i);
+      const raw = m ? (m[1] || m[2] || m[3]) : null;
+      if (raw) {
+        try {
+          filename = decodeURIComponent(raw.replace(/"/g, '').trim());
+        } catch {
+          filename = raw.replace(/"/g, '').trim();
+        }
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error('Download recording error:', e);
+      alert(e instanceof Error ? e.message : 'Download failed');
     }
   };
 
@@ -1028,14 +1109,19 @@ export const CallRecordsView: React.FC = () => {
                           {isPlaying === record.recordingFile.id ? 'Playing' : 'Play'}
                         </span>
                       </button>
-                      <a
-                        href={`/api/recordings/${record.recordingFile.id}/download`}
-                        download
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadRecording(
+                            record.recordingFile!.id,
+                            record.recordingFile?.fileName || undefined,
+                          )
+                        }
                         className="flex items-center text-gray-600 hover:text-gray-800"
                         title="Download recording"
                       >
                         <DocumentArrowDownIcon className="h-4 w-4" />
-                      </a>
+                      </button>
                       <button
                         onClick={() => fetchTranscript(record.id)}
                         className="flex items-center text-purple-600 hover:text-purple-800"
@@ -1221,14 +1307,19 @@ export const CallRecordsView: React.FC = () => {
                       )}
                       {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
                     </button>
-                    <a
-                      href={`/api/recordings/${selectedRecord.recordingFile.id}/download`}
-                      download
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadRecording(
+                          selectedRecord.recordingFile!.id,
+                          selectedRecord.recordingFile?.fileName || undefined,
+                        )
+                      }
                       className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                     >
                       <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
                       Download
-                    </a>
+                    </button>
                     <button
                       onClick={() => {
                         setSelectedRecord(null); // Close this modal first

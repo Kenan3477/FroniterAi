@@ -32,12 +32,12 @@ export async function GET(
     }
 
     // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
-    let authToken = request.cookies.get('session_token')?.value;
-    
-    // Fallback to auth-token for backwards compatibility
-    if (!authToken) {
-      authToken = request.cookies.get('auth-token')?.value;
-    }
+    let authToken =
+      request.cookies.get('session_token')?.value ||
+      request.cookies.get('auth-token')?.value ||
+      request.cookies.get('auth_token')?.value ||
+      request.cookies.get('authToken')?.value ||
+      request.cookies.get('omnivox_token')?.value;
     
     // If no cookie, try to get from Authorization header (for direct API calls)
     if (!authToken) {
