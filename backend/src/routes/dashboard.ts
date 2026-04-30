@@ -11,6 +11,21 @@ import {
 } from '../utils/dashboardDayBounds';
 import { isStatsConnectedCall, isStatsSaleOrConversion } from '../utils/dashboardCallMetrics';
 
+const TERMINAL_NOT_CONNECTED_OUTCOMES = [
+  'no-answer',
+  'NO_ANSWER',
+  'no_answer',
+  'busy',
+  'BUSY',
+  'failed',
+  'FAILED',
+  'canceled',
+  'cancelled',
+  'CANCELED',
+  'abandoned',
+  'ABANDONED',
+];
+
 const router = express.Router();
 /**
  * Dashboard Stats Endpoint
@@ -97,9 +112,9 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
         ...campaignWhere,
         startTime: { gte: startUtc, lte: endUtc },
         endTime: { not: null },
+        NOT: { outcome: { in: TERMINAL_NOT_CONNECTED_OUTCOMES } },
         OR: [
           { duration: { gt: 0 } },
-          { dispositionId: { not: null } },
           {
             outcome: {
               in: [
@@ -108,10 +123,16 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
                 'connected',
                 'answered',
                 'in-progress',
+                'in_progress',
+                'IN-PROGRESS',
                 'sale',
                 'SALE',
                 'interested',
                 'INTERESTED',
+                'callback',
+                'appointment',
+                'contact_made',
+                'CONTACT_MADE',
               ],
             },
           },

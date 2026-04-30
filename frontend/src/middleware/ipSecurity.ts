@@ -429,11 +429,15 @@ export async function validateIPAccess(request: NextRequest): Promise<NextRespon
     
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
-      const response = await fetch(`${backendUrl}/api/admin/ip-whitelist/check/${clientIP}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store' // Don't cache whitelist checks
-      });
+      const encoded = encodeURIComponent(clientIP);
+      const response = await fetch(
+        `${backendUrl}/api/admin/ip-whitelist/check/${encoded}?t=${Date.now()}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();

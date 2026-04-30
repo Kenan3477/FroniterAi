@@ -29,7 +29,17 @@ export function isConversionOutcome(
   return positives.some((p) => o.includes(p) || d.includes(p));
 }
 
-/** Connected for KPI cards: ended call with duration, disposition, or positive terminal outcome. */
+const TERMINAL_NOT_CONNECTED = new Set([
+  'no-answer',
+  'no_answer',
+  'busy',
+  'failed',
+  'canceled',
+  'cancelled',
+  'abandoned',
+]);
+
+/** Meaningful human connection: ended + (talk time or explicit positive outcome), not a hard no-connect. */
 export function isStatsConnectedCall(args: {
   endTime: Date | null;
   outcome: string | null | undefined;
@@ -38,19 +48,27 @@ export function isStatsConnectedCall(args: {
 }): boolean {
   if (!args.endTime) return false;
   const o = (args.outcome || '').toLowerCase();
+  if (TERMINAL_NOT_CONNECTED.has(o)) return false;
+
   if ((args.duration ?? 0) > 0) return true;
-  if (args.dispositionId) return true;
+
   const connectedOutcomes = [
     'completed',
     'connected',
     'answered',
     'in-progress',
+    'in_progress',
     'sale',
     'interested',
     'callback',
     'appointment',
+    'contact_made',
+    'contact-made',
   ];
-  return connectedOutcomes.some((x) => o === x.toLowerCase());
+  if (connectedOutcomes.some((x) => o === x.toLowerCase())) return true;
+
+  // Do not treat "any disposition" as connected — many dispositions are logged on no-answer / failed legs.
+  return false;
 }
 
 export function isStatsSaleOrConversion(args: {

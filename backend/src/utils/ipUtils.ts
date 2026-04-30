@@ -54,6 +54,22 @@ export const getClientIP = (req: Request): string => {
 };
 
 /**
+ * Normalize IP for whitelist matching (trim, IPv4-mapped IPv6 → dotted quad).
+ */
+export function normalizeClientIpForWhitelist(ipAddress: string): string {
+  let ip = (ipAddress || '').trim();
+  if (!ip) return ip;
+  const lower = ip.toLowerCase();
+  if (lower.startsWith('::ffff:')) {
+    ip = ip.slice(7);
+  }
+  if (ip.startsWith('[') && ip.endsWith(']')) {
+    ip = ip.slice(1, -1);
+  }
+  return ip.trim();
+}
+
+/**
  * Get all IP-related headers for debugging
  */
 export const getIPDebugInfo = (req: Request) => {

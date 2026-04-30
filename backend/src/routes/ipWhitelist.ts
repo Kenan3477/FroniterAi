@@ -133,7 +133,8 @@ router.delete('/:ipAddress', authenticate, requireRole('SUPER_ADMIN'), async (re
  */
 router.get('/check/:ipAddress', async (req: Request, res: Response) => {
   try {
-    const { ipAddress } = req.params;
+    const raw = req.params.ipAddress;
+    const ipAddress = raw ? decodeURIComponent(raw) : '';
 
     if (!ipAddress) {
       return res.status(400).json({
@@ -148,6 +149,7 @@ router.get('/check/:ipAddress', async (req: Request, res: Response) => {
     const isWhitelisted = await ipWhitelistManager.isWhitelisted(ipAddress);
     const entry = isWhitelisted ? ipWhitelistManager.getByIP(ipAddress) : null;
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({
       success: true,
       whitelisted: isWhitelisted,

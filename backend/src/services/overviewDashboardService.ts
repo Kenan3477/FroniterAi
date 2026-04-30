@@ -8,6 +8,7 @@ import { eventManager } from './eventManager';
 
 import { prisma } from '../lib/prisma';
 import { getDashboardStatsTimezone, getUtcRangeForZonedCalendarDay } from '../utils/dashboardDayBounds';
+import { isStatsConnectedCall } from '../utils/dashboardCallMetrics';
 export interface TimeframeFilter {
   startDate: Date;
   endDate: Date;
@@ -173,8 +174,13 @@ export class OverviewDashboardService {
 
       // Calculate metrics
       const totalCalls = callRecords.length;
-      const connectedCalls = callRecords.filter(call => 
-        call.outcome && !['no_answer', 'busy', 'failed'].includes(call.outcome.toLowerCase())
+      const connectedCalls = callRecords.filter((call) =>
+        isStatsConnectedCall({
+          endTime: call.endTime,
+          outcome: call.outcome,
+          duration: call.duration,
+          dispositionId: call.dispositionId,
+        }),
       ).length;
       
       const completedCalls = callRecords.filter(call => call.endTime && call.duration).length;
