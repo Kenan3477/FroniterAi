@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '../database/index';
-import { getCallRecordings } from './twilioService';
+import { getCallRecordingsForCallTree } from './twilioService';
 import { downloadAndStoreRecording } from './recordingService';
 
 function extractCaSidsFromText(text: string | null | undefined): string[] {
@@ -206,9 +206,11 @@ async function syncRecordingForCallRow(row: {
 
     for (const sid of lookupSids) {
       try {
-        const list = await getCallRecordings(sid);
+        const list = await getCallRecordingsForCallTree(sid);
         if (!list?.length) continue;
-        console.log(`🔗 Trying Twilio CallSid ${sid} (${list.length} recording(s)) for row ${row.id}`);
+        console.log(
+          `🔗 Trying Twilio call tree ${sid} (${list.length} recording(s) across leg(s)) for row ${row.id}`,
+        );
         const id = await downloadAndStoreRecording(sid, row.id);
         if (id) return true;
       } catch (e) {

@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '../database/index';
-import { getCallRecordings } from './twilioService';
+import { getCallRecordingsForCallTree } from './twilioService';
 import { onNewCallRecording } from './transcriptionWorker';
 import path from 'path';
 import fs from 'fs/promises';
@@ -29,7 +29,7 @@ export async function downloadAndStoreRecording(callSid: string, callRecordId: s
     console.log(`📼 Downloading recording for call ${callSid}...`);
     
     // Get recordings from Twilio
-    const twilioRecordings = await getCallRecordings(callSid) as TwilioRecording[];
+    const twilioRecordings = await getCallRecordingsForCallTree(callSid) as TwilioRecording[];
     
     if (!twilioRecordings || twilioRecordings.length === 0) {
       console.log(`⚠️ No recordings found for call ${callSid}`);

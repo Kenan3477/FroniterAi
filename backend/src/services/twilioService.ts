@@ -412,8 +412,17 @@ export const generateCallTwiML = (to: string, from: string): string => {
   return twiml.toString();
 };
 
+function mapRecordingResource(recording: { sid: string; duration: string | number; uri: string; dateCreated: Date }) {
+  return {
+    sid: recording.sid,
+    duration: recording.duration,
+    url: `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`,
+    dateCreated: recording.dateCreated,
+  };
+}
+
 /**
- * Get call recordings
+ * Get call recordings for a single Call SID (parent leg).
  */
 export const getCallRecordings = async (callSid: string) => {
   if (!twilioClient) {
@@ -426,16 +435,71 @@ export const getCallRecordings = async (callSid: string) => {
       limit: 20,
     });
 
-    return recordings.map(recording => ({
-      sid: recording.sid,
-      duration: recording.duration,
-      url: `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`,
-      dateCreated: recording.dateCreated,
-    }));
+    return recordings.map(mapRecordingResource);
   } catch (error) {
     console.error('Error fetching recordings:', error);
     throw error;
   }
+};
+
+/**
+ * List recordings for this call *and* related legs (child calls under this SID,
+ * or parent when we stored a child SID). Twilio often attaches `<Dial record>`
+ * media to the dialed child leg while Omnivox stores the inbound/parent CA…
+ */
+export const getCallRecordingsForCallTree = async (callSid: string) => {
+  if (!twilioClient) {
+    throw new Error('Twilio client not initialized');
+  }
+
+  const sidSet = new Set<string>();
+  const trimmed = (callSid || '').trim();
+  if (/^CA[a-f0-9]{32}$/i.test(trimmed)) {
+    sidSet.add(trimmed);
+  }
+
+  try {
+    const children = await twilioClient.calls.list({ parentCallSid: trimmed, limit: 50 });
+    for (const c of children) {
+      if (c.sid) sidSet.add(c.sid);
+    }
+  } catch (e) {
+    console.warn(`⚠️ Could not list child calls for ${trimmed}:`, e);
+  }
+
+  try {
+    const call = await twilioClient.calls(trimmed).fetch();
+    const parent = (call as { parentCallSid?: string }).parentCallSid;
+    if (parent && /^CA[a-f0-9]{32}$/i.test(parent)) {
+      sidSet.add(parent);
+    }
+  } catch (e) {
+    console.warn(`⚠️ Could not fetch call ${trimmed} for parentCallSid:`, e);
+  }
+
+  const byRecSid = new Map<
+    string,
+    { sid: string; duration: string | number; url: string; dateCreated: Date; channels?: number }
+  >();
+
+  for (const sid of sidSet) {
+    try {
+      const list = await twilioClient.recordings.list({ callSid: sid, limit: 30 });
+      for (const r of list) {
+        const mapped = {
+          ...mapRecordingResource(r),
+          channels: (r as { channels?: number }).channels,
+        };
+        if (!byRecSid.has(mapped.sid)) {
+          byRecSid.set(mapped.sid, mapped);
+        }
+      }
+    } catch (e) {
+      console.warn(`⚠️ Could not list recordings for leg ${sid}:`, e);
+    }
+  }
+
+  return [...byRecSid.values()];
 };
 
 /**
@@ -662,6 +726,7 @@ export default {
   generateCustomerTwiML,
   createRestApiCall,
   getCallRecordings,
+  getCallRecordingsForCallTree,
   getAllRecordings,
   updateCallMetadata,
   getTwilioRecordingUrl,

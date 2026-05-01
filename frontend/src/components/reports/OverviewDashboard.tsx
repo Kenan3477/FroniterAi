@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { socket } from '../../lib/socket';
+import { useAuth } from '@/contexts/AuthContext';
 
 ChartJS.register(
   CategoryScale,
@@ -172,6 +173,7 @@ const KPICard: React.FC<{
 };
 
 const OverviewDashboard: React.FC = () => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalCallsToday: 0,
     connectedCallsToday: 0,
@@ -209,6 +211,50 @@ const OverviewDashboard: React.FC = () => {
   const [selectedDataList, setSelectedDataList] = useState<string>('all');
   const [dataLists, setDataLists] = useState<Array<{id: string; name: string; listId: string}>>([]);
   const [loadingDataLists, setLoadingDataLists] = useState(false);
+  const [syncingRecordings, setSyncingRecordings] = useState(false);
+
+  const syncRecordingsFromTwilio = async () => {
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('session_token');
+    if (!token) {
+      alert('You need to be logged in to sync recordings.');
+      return;
+    }
+    setSyncingRecordings(true);
+    try {
+      const response = await fetch('/api/call-records/sync-recordings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          (data as { error?: string; message?: string }).error ||
+            (data as { message?: string }).message ||
+            response.statusText,
+        );
+      }
+      const synced = (data as { data?: { synced?: number }; synced?: number }).data?.synced ??
+        (data as { synced?: number }).synced;
+      const errors = (data as { data?: { errors?: number }; errors?: number }).data?.errors ??
+        (data as { errors?: number }).errors;
+      alert(
+        (data as { message?: string }).message ||
+          `Recording sync finished. Linked ${synced ?? 0} call(s); ${errors ?? 0} could not be matched.`,
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncingRecordings(false);
+    }
+  };
 
   // Fetch available campaigns for filtering
   const fetchCampaigns = async () => {
@@ -661,6 +707,21 @@ const OverviewDashboard: React.FC = () => {
         {/* Filtering Controls */}
         <div className="theme-card rounded-lg p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+              <div className="w-full sm:w-auto sm:order-last shrink-0">
+                <button
+                  type="button"
+                  onClick={syncRecordingsFromTwilio}
+                  disabled={syncingRecordings}
+                  className="w-full sm:w-auto inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {syncingRecordings ? 'Syncing from Twilio…' : 'Link missing recordings'}
+                </button>
+                <p className="mt-1 text-xs theme-text-secondary max-w-xs">
+                  Pulls Twilio audio onto rows that still show &quot;No recording&quot; (last 30 days).
+                </p>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Campaign Filter */}
               <div className="min-w-[200px]">

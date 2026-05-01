@@ -7,7 +7,7 @@ import express, { Request, Response } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { prisma } from '../database/index';
 import { syncAllRecordings, getRecordingSyncStatus } from '../services/recordingSyncService';
-import { twilioClient } from '../services/twilioService';
+import { twilioClient, getCallRecordingsForCallTree } from '../services/twilioService';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -68,7 +68,7 @@ async function resolveTwilioRecordingSidForPlayback(
     const ca = parseTwilioCallSid(c);
     if (ca && twilioClient) {
       try {
-        const list = await twilioClient.recordings.list({ callSid: ca, limit: 30 });
+        const list = await getCallRecordingsForCallTree(ca);
         if (!list.length) continue;
         const dual = list.find((r: { channels?: number }) => r.channels === 2);
         const sid = (dual || list[0])?.sid;
