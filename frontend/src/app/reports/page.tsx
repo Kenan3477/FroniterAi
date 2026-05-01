@@ -390,7 +390,11 @@ export default function ReportsPage() {
           
           console.log('🔍 Reports page - User role:', userRole);
           
-          if (userRole === 'ADMIN' || userRole === 'SUPERVISOR') {
+          if (
+            userRole === 'ADMIN' ||
+            userRole === 'SUPERVISOR' ||
+            userRole === 'SUPER_ADMIN'
+          ) {
             setIsAuthorized(true);
             console.log('✅ Reports page - Access granted for role:', userRole);
           } else {
