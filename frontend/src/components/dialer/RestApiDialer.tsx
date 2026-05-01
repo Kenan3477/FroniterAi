@@ -52,6 +52,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // exactly the "two records for one call" symptom the user reported.
   // showDispositionForCall(callSid) is the only allowed way to open the modal.
   const dispositionShownForCallRef = useRef<string | null>(null);
+  /** E.164 dialed for the current REST outbound — survives if the dial pad is cleared mid-call. */
+  const lastOutboundCustomerNumberRef = useRef<string>('');
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -261,17 +263,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           //      closure, so on the 2nd+ dial it saw the initial render's
           //      empty string regardless.
           //
-          // The deterministic signal: if we initiated an outbound REST call in
-          // the last 60 seconds (`activeRestApiCall` is set), this incoming
-          // event IS the agent leg of that call. There is no realistic race
-          // where a genuine inbound rings the agent-browser within 60s of an
-          // outbound being dialled by the same agent — the backend's
-          // active-call check (returns HTTP 409) prevents that.
-          const OUTBOUND_LEG_WINDOW_MS = 60_000;
-          const recentOutbound =
-            activeRest &&
-            Date.now() - activeRest.startTime.getTime() < OUTBOUND_LEG_WINDOW_MS;
-          const isOutboundCall = !!recentOutbound;
+          // If we have an active REST-API outbound (`activeRestApiCall` is set), this Twilio Client
+          // `incoming` is the agent audio leg (<Dial><Client>agent-browser</Client></Dial>) —
+          // no matter how long the customer rang before the agent answered. A short time window
+          // misclassified late answers as INBOUND and broke conference audio / dispositions.
+          const isOutboundCall = Boolean(activeRest?.callSid);
 
           console.log('📞 Incoming call event:', {
             classifiedAs: isOutboundCall ? 'OUTBOUND (agent leg)' : 'INBOUND',
@@ -335,7 +331,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               // For INBOUND: the customer is callParameters.From (caller's
               // number), and there is no conferenceId in our state.
               const customerNumber = isOutboundCall
-                ? (dialedNumber && dialedNumber.trim()) || activeRest?.conferenceId || 'Customer'
+                ? (dialedNumber && dialedNumber.trim()) ||
+                  lastOutboundCustomerNumberRef.current.trim() ||
+                  activeRest?.conferenceId ||
+                  'Customer'
                 : callParameters.From || 'Unknown';
 
               // 🛡️ Use the customer-leg SID (stored in activeRest) for OUTBOUND
@@ -424,6 +423,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                 currentCallRef.current = null;
                 setActiveRestApiCall(null);
                 activeRestApiCallRef.current = null;
+                lastOutboundCustomerNumberRef.current = '';
 
                 dispatch(endCall());
               } else {
@@ -442,6 +442,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               currentCallRef.current = null;
               setActiveRestApiCall(null);
               activeRestApiCallRef.current = null;
+              lastOutboundCustomerNumberRef.current = '';
               dispatch(endCall());
             });
 
@@ -470,6 +471,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               currentCallRef.current = null;
               setActiveRestApiCall(null);
               activeRestApiCallRef.current = null;
+              lastOutboundCustomerNumberRef.current = '';
               dispatch(endCall());
 
               console.log('✅ Call cancelled - agent call ended, disposition modal shown');
@@ -728,6 +730,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
       const phoneForSave =
         (activeCall.phoneNumber && activeCall.phoneNumber.trim()) ||
+        lastOutboundCustomerNumberRef.current.trim() ||
         phoneNumberRef.current.trim() ||
         phoneNumber;
 
@@ -785,6 +788,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
         setActiveRestApiCall(null);
         activeRestApiCallRef.current = null;
+        lastOutboundCustomerNumberRef.current = '';
         setCurrentCall(null);
         currentCallRef.current = null;
         setCallStatus('idle');
@@ -904,6 +908,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           startTime: new Date(),
         };
         setActiveRestApiCall(newActive);
+        lastOutboundCustomerNumberRef.current = normalisedNumber;
         // 🛡️ Also update the ref synchronously, so the Twilio Device
         // 'incoming' event for this same outbound call (which can fire
         // milliseconds after this state update is enqueued) reads the new
@@ -997,6 +1002,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
               setActiveRestApiCall(null);
               activeRestApiCallRef.current = null;
+              lastOutboundCustomerNumberRef.current = '';
               dispatch(endCall());
             }
           }
@@ -1046,13 +1052,27 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       // Capture callSid from state before setting up handlers (state might be cleared)
       const callSid = activeRestApiCall?.callSid || '';
       
-      // Make WebRTC call to join conference
-      const call = await device.connect({
-        params: {
-          conference: conferenceId,
-          agentId: agentId // Pass agent ID to associate call with correct agent
-        }
-      });
+      // Make WebRTC call to join conference (outbound Application URL must match backend TwiML)
+      let call: any;
+      try {
+        call = await device.connect({
+          params: {
+            conference: conferenceId,
+            agentId: agentId,
+          },
+        });
+      } catch (connectErr: any) {
+        const code = connectErr?.code ?? connectErr?.twilioError?.code;
+        const msg =
+          connectErr?.message ||
+          connectErr?.twilioError?.message ||
+          String(connectErr);
+        throw new Error(
+          msg +
+            (code != null ? ` (Twilio ${code})` : '') +
+            '. Check TWILIO_TWIML_APP_SID points to this backend and microphone permission is granted.',
+        );
+      }
 
       console.log('✅ Agent joined conference successfully');
       setCurrentCall(call);
@@ -1063,15 +1083,19 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         
         // Update Redux state with conferenceId for duplicate prevention
         // IMPORTANT: Use conferenceId from function parameter (closure), not state which might be null
+        const displayPhone =
+          phoneNumberRef.current.trim() ||
+          lastOutboundCustomerNumberRef.current.trim() ||
+          phoneNumber;
         dispatch(startCall({
-          phoneNumber: phoneNumber,
+          phoneNumber: displayPhone,
           callSid: callSid, // Captured before handler
           conferenceId: conferenceId, // CRITICAL: From parameter, not state - ensures it's never null
           callType: 'outbound',
           customerInfo: {
             firstName: 'Customer',
             lastName: '',
-            phone: phoneNumber,
+            phone: displayPhone,
             id: `customer-${Date.now()}`
           }
         }));
@@ -1086,12 +1110,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         currentCallRef.current = null;
         setActiveRestApiCall(null);
         activeRestApiCallRef.current = null;
+        lastOutboundCustomerNumberRef.current = '';
         dispatch(endCall());
       });
       
     } catch (error: any) {
       console.error('❌ Error joining conference:', error);
-      alert(`Failed to join conference: ${error?.message || 'Unknown error'}`);
+      const detail =
+        error?.message ||
+        (typeof error === 'string' ? error : JSON.stringify(error));
+      alert(`Failed to join conference call: ${detail || 'Unknown error'}`);
     }
   };
 
@@ -1129,6 +1157,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
         setActiveRestApiCall(null);
         activeRestApiCallRef.current = null;
+        lastOutboundCustomerNumberRef.current = '';
         dispatch(endCall());
       } catch (error: any) {
         console.error('❌ Error preparing call end:', error);
