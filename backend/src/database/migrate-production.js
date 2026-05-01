@@ -63,7 +63,7 @@ async function migrateProductionDatabase() {
         firstName: 'Ken',
         lastName: 'User',
         name: 'Ken User',
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
         organizationId: userOrgId,
         isActive: true,
         createdAt: new Date(),
@@ -71,7 +71,7 @@ async function migrateProductionDatabase() {
       },
       update: {
         organizationId: userOrgId,
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
         isActive: true,
         updatedAt: new Date()
       }

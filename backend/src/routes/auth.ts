@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { authRateLimiter } from '../middleware/rateLimiter';
 import { securityMonitor } from '../middleware/security'; // SECURITY: Monitor auth events
 import passwordSetupRoutes from './passwordSetup'; // Organization password setup
+import { resolveCreatorSuperAdminRole } from '../utils/creatorSuperAdmin';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -120,6 +121,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const sessionRole = await resolveCreatorSuperAdminRole(prisma, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+    (user as { role: string }).role = sessionRole;
+
     // Successful login - reset failed attempts and update last login
     await prisma.user.update({
       where: { id: user.id },
@@ -136,7 +144,7 @@ router.post('/login', async (req, res) => {
       { 
         userId: user.id, 
         username: user.username, 
-        role: user.role,
+        role: sessionRole,
         email: user.email
       }, 
       JWT_SECRET, 
@@ -234,7 +242,7 @@ router.post('/login', async (req, res) => {
           sessionId,
           loginMethod: 'password',
           deviceType,
-          userRole: user.role,
+          userRole: sessionRole,
           browserInfo: userAgent
         }),
         severity: 'INFO',
@@ -245,7 +253,7 @@ router.post('/login', async (req, res) => {
     console.log(`✅ Successful login for user: ${user.username} (${user.email}), Session: ${sessionId}`);
 
     // SECURITY: Log admin login specifically
-    if (user.role === 'ADMIN') {
+    if (sessionRole === 'ADMIN' || sessionRole === 'SUPER_ADMIN') {
       securityMonitor.logAdminLogin(
         user.email,
         req.ip || req.connection.remoteAddress || 'unknown',
@@ -263,7 +271,7 @@ router.post('/login', async (req, res) => {
           name: user.name,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role,
+          role: sessionRole,
           isActive: user.isActive,
           twoFactorEnabled: user.twoFactorEnabled,
           lastLogin: user.lastLogin,
@@ -335,12 +343,18 @@ router.post('/refresh', async (req, res) => {
       });
     }
 
+    const refreshSessionRole = await resolveCreatorSuperAdminRole(prisma, {
+      id: storedToken.user.id,
+      email: storedToken.user.email,
+      role: storedToken.user.role,
+    });
+
     // Generate new access token
     const newAccessToken = jwt.sign(
       {
         userId: storedToken.user.id,
         username: storedToken.user.username,
-        role: storedToken.user.role,
+        role: refreshSessionRole,
         email: storedToken.user.email
       },
       JWT_SECRET,
