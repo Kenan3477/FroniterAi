@@ -52,8 +52,11 @@ interface DashboardApiResponse {
     type: 'call';
     timestamp: string | Date;
     description: string;
+    displayContact?: string;
+    displaySummary?: string;
     outcome: string;
     duration: number;
+    callType?: string;
     agent?: string;
     contact?: {
       name: string;
@@ -365,6 +368,39 @@ function DashboardContent() {
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
+  const activityOutcomeToStatus = (
+    outcome: string | undefined,
+    durationSec: number,
+  ): 'success' | 'pending' | 'failed' => {
+    const o = (outcome || '').toLowerCase();
+    const d = durationSec || 0;
+    const failed = new Set([
+      'no-answer',
+      'no_answer',
+      'busy',
+      'failed',
+      'canceled',
+      'cancelled',
+      'abandoned',
+    ]);
+    if (failed.has(o)) return 'failed';
+    const positive = new Set([
+      'completed',
+      'connected',
+      'answered',
+      'in-progress',
+      'in_progress',
+      'sale',
+      'interested',
+      'callback',
+      'appointment',
+      'contact_made',
+    ]);
+    if (positive.has(o) || o.includes('sale')) return 'success';
+    if (d > 0) return 'success';
+    return 'pending';
+  };
+
   const formatTrend = (value: number | null) => {
     if (value === null) return undefined;
     return {
@@ -531,12 +567,18 @@ function DashboardContent() {
                   activities={dashboardStats?.recentActivities?.map((activity: any) => ({
                     id: activity.id,
                     type: 'call' as const,
-                    contact: activity.contact?.name || activity.agent || 'Unknown',
-                    description: activity.outcome ? `${activity.outcome} - ${formatDuration(activity.duration || 0)}` : activity.description || 'Call',
+                    contact:
+                      activity.displayContact ||
+                      activity.contact?.name ||
+                      activity.agent ||
+                      'Call',
+                    description:
+                      activity.displaySummary ||
+                      (activity.outcome
+                        ? `${activity.outcome} · ${formatDuration(activity.duration || 0)}`
+                        : activity.description || 'Call'),
                     time: activity.timestamp ? formatTimeAgo(new Date(activity.timestamp)) : 'Unknown',
-                    status: (activity.outcome === 'CONNECTED' || activity.outcome === 'completed' || activity.outcome === 'answered') ? 'success' as const : 
-                            (activity.outcome === 'no-answer' || activity.outcome === 'NO_ANSWER') ? 'failed' as const : 
-                            'pending' as const
+                    status: activityOutcomeToStatus(activity.outcome, activity.duration || 0),
                   })) || []} 
                 />
               </div>

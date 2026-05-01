@@ -12,6 +12,22 @@ import {
 import { isStatsConnectedCall, isStatsSaleOrConversion } from '../utils/dashboardCallMetrics';
 import { countAgentsOnlineForDashboard } from '../utils/dashboardAgentsOnline';
 
+/** Map User.id → Agent.agentId for call_record.agentId filter (same as interaction history). */
+async function resolveAgentIdForUserId(userIdStr: string): Promise<string | undefined> {
+  const uid = parseInt(userIdStr, 10);
+  if (!Number.isFinite(uid)) return undefined;
+  const dbUser = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { email: true },
+  });
+  if (!dbUser?.email) return undefined;
+  const agent = await prisma.agent.findFirst({
+    where: { email: { equals: dbUser.email, mode: 'insensitive' } },
+    select: { agentId: true },
+  });
+  return agent?.agentId;
+}
+
 const TERMINAL_NOT_CONNECTED_OUTCOMES = [
   'no-answer',
   'NO_ANSWER',
@@ -54,10 +70,18 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     const campaignWhere =
       campaignId && campaignId !== 'all' ? { campaignId } : {};
 
+    const agentIdForAgent =
+      req.user?.role === 'AGENT' && req.user?.userId
+        ? await resolveAgentIdForUserId(req.user.userId)
+        : undefined;
+    const agentFilter =
+      req.user?.role === 'AGENT' && agentIdForAgent ? { agentId: agentIdForAgent } : {};
+
     // Get recent activities (calls, interactions) for the configured calendar day
     const recentActivities = await prisma.callRecord.findMany({
       where: {
         ...campaignWhere,
+        ...agentFilter,
         startTime: { gte: startUtc, lte: endUtc },
       },
       take: 10,
@@ -73,6 +97,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
           select: {
             firstName: true,
             lastName: true,
+            fullName: true,
             phone: true
           }
         },
@@ -86,24 +111,53 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     });
 
     // Format recent activities
-    const formattedActivities = recentActivities.map(call => ({
-      id: call.id,
-      type: 'call' as const,
-      timestamp: call.startTime,
-      description: `${call.agent ? `${call.agent.firstName} ${call.agent.lastName}` : 'Unknown'} called ${call.contact ? `${call.contact.firstName} ${call.contact.lastName}` : call.phoneNumber}`,
-      outcome: call.disposition?.name || call.outcome || 'Unknown',
-      duration: call.duration || 0,
-      agent: call.agent ? `${call.agent.firstName} ${call.agent.lastName}` : undefined,
-      contact: call.contact ? {
-        name: `${call.contact.firstName} ${call.contact.lastName}`,
-        phone: call.contact.phone
-      } : undefined
-    }));
+    const formattedActivities = recentActivities.map((call) => {
+      const party =
+        (call.contact?.fullName && call.contact.fullName.trim()) ||
+        `${call.contact?.firstName || ''} ${call.contact?.lastName || ''}`.trim() ||
+        call.contact?.phone ||
+        call.phoneNumber;
+      const isInbound = (call.callType || '').toLowerCase() === 'inbound';
+      const directionLabel = isInbound ? 'Inbound' : 'Outbound';
+      const arrow = isInbound ? 'from' : 'to';
+      const agentLabel = call.agent
+        ? `${call.agent.firstName || ''} ${call.agent.lastName || ''}`.trim()
+        : 'Unassigned';
+      const outcomeLabel = (call.disposition?.name || call.outcome || 'Unknown').toString();
+      const dur = call.duration ?? 0;
+      const durMin = Math.floor(dur / 60);
+      const durSec = dur % 60;
+      const durationLabel = dur > 0 ? `${durMin}m ${durSec}s` : '0m';
+
+      return {
+        id: call.id,
+        type: 'call' as const,
+        timestamp: call.startTime,
+        /** One-line for agent dashboard list */
+        displayContact: `${directionLabel} ${arrow} ${party}`,
+        displaySummary: `${outcomeLabel} · ${durationLabel}`,
+        /** Legacy / admin tools */
+        description: `${agentLabel} — ${directionLabel.toLowerCase()} ${arrow} ${party}`,
+        outcome: outcomeLabel,
+        duration: dur,
+        callType: call.callType,
+        agent: agentLabel || undefined,
+        contact: call.contact
+          ? {
+              name:
+                (call.contact.fullName && call.contact.fullName.trim()) ||
+                `${call.contact.firstName} ${call.contact.lastName}`.trim(),
+              phone: call.contact.phone,
+            }
+          : undefined,
+      };
+    });
 
     // KPI counts use DASHBOARD_STATS_TIMEZONE calendar day (not server UTC midnight)
     const callsToday = await prisma.callRecord.count({
       where: {
         ...campaignWhere,
+        ...agentFilter,
         startTime: { gte: startUtc, lte: endUtc },
       },
     });
@@ -111,6 +165,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     const connectedCalls = await prisma.callRecord.count({
       where: {
         ...campaignWhere,
+        ...agentFilter,
         startTime: { gte: startUtc, lte: endUtc },
         endTime: { not: null },
         NOT: { outcome: { in: TERMINAL_NOT_CONNECTED_OUTCOMES } },
@@ -144,6 +199,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     const salesToday = await prisma.callRecord.count({
       where: {
         ...campaignWhere,
+        ...agentFilter,
         startTime: { gte: startUtc, lte: endUtc },
         OR: [
           { outcome: { in: ['sale', 'SALE', 'Sale', 'SALE_MADE'] } },
@@ -156,6 +212,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     const callsInProgress = await prisma.callRecord.count({
       where: {
         ...(campaignId ? { campaignId } : {}),
+        ...agentFilter,
         endTime: null,
         startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
