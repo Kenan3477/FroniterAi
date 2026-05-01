@@ -460,119 +460,112 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       return result;
     }
 
+    /**
+     * Map User.id (numeric string from JWT) → Agent.agentId for FK-safe call_record updates.
+     */
+    async function resolveAgentIdForSave(rawAgentId: string): Promise<string> {
+      const trimmed = (rawAgentId || '').trim();
+      if (!trimmed || trimmed === 'system-agent') return trimmed || 'system-agent';
+      if (!/^\d+$/.test(trimmed)) return trimmed;
+
+      try {
+        const u = await prisma.user.findUnique({
+          where: { id: parseInt(trimmed, 10) },
+          select: { email: true },
+        });
+        if (!u?.email) return trimmed;
+        const ag = await prisma.agent.findFirst({
+          where: { email: { equals: u.email, mode: 'insensitive' } },
+          select: { agentId: true },
+        });
+        if (ag?.agentId) {
+          console.log(`🔄 save-call-data: resolved User.id ${trimmed} → Agent.agentId ${ag.agentId}`);
+          return ag.agentId;
+        }
+      } catch (e: any) {
+        console.warn('⚠️ save-call-data: could not resolve User→Agent:', e?.message);
+      }
+      return trimmed;
+    }
+
+    safeAgentId = await resolveAgentIdForSave(safeAgentId);
+
     // Try to find or create contact with better phone number matching
     let contact = null;
     if (safePhoneNumber !== 'Unknown') {
       const phoneVariants = normalizePhoneNumber(safePhoneNumber);
-      
-      // First, try to find a real contact (not "Unknown Contact")
+
       contact = await prisma.contact.findFirst({
         where: {
-          OR: phoneVariants.map(variant => ({ phone: variant })),
+          OR: phoneVariants.map((variant) => ({ phone: variant })),
           NOT: {
-            AND: [
-              { firstName: 'Unknown' },
-              { lastName: 'Contact' }
-            ]
-          }
+            AND: [{ firstName: 'Unknown' }, { lastName: 'Contact' }],
+          },
         },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
-      
-      // If no real contact found, then search for any contact including unknown ones
+
       if (!contact) {
         contact = await prisma.contact.findFirst({
-          where: {
-            OR: phoneVariants.map(variant => ({ phone: variant }))
-          },
-          orderBy: { createdAt: 'asc' }
+          where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
+          orderBy: { createdAt: 'asc' },
         });
       }
-      
+
       if (contact) {
-        console.log(`✅ Found existing contact: ${contact.firstName} ${contact.lastName} (${contact.phone}) matching dialed ${safePhoneNumber}`);
+        console.log(
+          `✅ Found existing contact: ${contact.firstName} ${contact.lastName} (${contact.phone}) matching dialed ${safePhoneNumber}`,
+        );
       }
 
       if (!contact && customerInfo) {
-        // Use upsert to avoid contactId conflicts
         try {
           contact = await prisma.contact.create({
             data: {
               contactId: uniqueContactId,
               listId: 'manual-contacts',
               firstName: customerInfo.firstName || 'Unknown',
-                lastName: customerInfo.lastName || 'Contact',
-                phone: safePhoneNumber,
-                email: customerInfo.email || null,
-                status: 'contacted'
-              }
-            });
-            console.log('✅ Contact created:', contact.contactId);
-          } catch (contactError: any) {
-            console.log('⚠️ Contact creation failed, trying to find existing:', contactError.message);
-            // If contact creation fails due to unique constraint, try to find it again with improved matching
-            const phoneVariants = normalizePhoneNumber(safePhoneNumber);
-            contact = await prisma.contact.findFirst({
-              where: {
-                OR: phoneVariants.map(variant => ({ phone: variant }))
-              }
-            });
-            
-            if (!contact) {
-              throw new Error('Unable to create or find contact');
-            }
-          }
-        } else if (contact && customerInfo) {
-          // Update existing contact with better information if provided
-          const shouldUpdate = (
-            (customerInfo.firstName && customerInfo.firstName !== 'Unknown' && contact.firstName === 'Unknown') ||
-            (customerInfo.lastName && customerInfo.lastName !== 'Contact' && contact.lastName === 'Contact') ||
-            (customerInfo.email && !contact.email)
-          );
-
-          if (shouldUpdate) {
-            contact = await prisma.contact.update({
-              where: { id: contact.id },
-              data: {
-                firstName: customerInfo.firstName || contact.firstName,
-                lastName: customerInfo.lastName || contact.lastName,
-                email: customerInfo.email || contact.email,
-                status: 'contacted',
-                lastAttempt: new Date(),
-                attemptCount: { increment: 1 }
-              }
-            });
-            console.log('✅ Contact updated with better info:', contact.contactId);
-          }
-        } else if (!contact) {
-          // Create minimal contact for unknown callers with error handling
-          try {
-            contact = await prisma.contact.create({
-              data: {
-                contactId: uniqueContactId,
-                listId: 'manual-contacts',
-                firstName: 'Unknown',
-                lastName: 'Contact',
-                phone: safePhoneNumber,
-                status: 'contacted'
-              }
-            });
-          } catch (contactError: any) {
-            console.log('⚠️ Minimal contact creation failed, trying to find existing:', contactError.message);
-            const phoneVariants = normalizePhoneNumber(safePhoneNumber);
-            contact = await prisma.contact.findFirst({
-              where: {
-                OR: phoneVariants.map(variant => ({ phone: variant }))
-              }
-            });
-            
-            if (!contact) {
-              throw new Error('Unable to create or find minimal contact');
-            }
+              lastName: customerInfo.lastName || 'Contact',
+              phone: safePhoneNumber,
+              email: customerInfo.email || null,
+              status: 'contacted',
+            },
+          });
+          console.log('✅ Contact created:', contact.contactId);
+        } catch (contactError: any) {
+          console.log('⚠️ Contact creation failed, trying to find existing:', contactError.message);
+          contact = await prisma.contact.findFirst({
+            where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
+          });
+          if (!contact) {
+            throw new Error('Unable to create or find contact');
           }
         }
-      } else {
-        // Create placeholder contact for unknown numbers with error handling  
+      } else if (contact && customerInfo) {
+        const shouldUpdate =
+          (customerInfo.firstName &&
+            customerInfo.firstName !== 'Unknown' &&
+            contact.firstName === 'Unknown') ||
+          (customerInfo.lastName &&
+            customerInfo.lastName !== 'Contact' &&
+            contact.lastName === 'Contact') ||
+          (customerInfo.email && !contact.email);
+
+        if (shouldUpdate) {
+          contact = await prisma.contact.update({
+            where: { id: contact.id },
+            data: {
+              firstName: customerInfo.firstName || contact.firstName,
+              lastName: customerInfo.lastName || contact.lastName,
+              email: customerInfo.email || contact.email,
+              status: 'contacted',
+              lastAttempt: new Date(),
+              attemptCount: { increment: 1 },
+            },
+          });
+          console.log('✅ Contact updated with better info:', contact.contactId);
+        }
+      } else if (!contact) {
         try {
           contact = await prisma.contact.create({
             data: {
@@ -581,54 +574,77 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
               firstName: 'Unknown',
               lastName: 'Contact',
               phone: safePhoneNumber,
-              status: 'contacted'
-            }
+              status: 'contacted',
+            },
           });
         } catch (contactError: any) {
-          console.log('⚠️ Placeholder contact creation failed, using fallback:', contactError.message);
-          // Create a truly unique contactId for fallback
-          const fallbackContactId = `contact-fallback-${Date.now()}-${Math.random().toString(36).substr(2, 12)}`;
-          contact = await prisma.contact.create({
-            data: {
-              contactId: fallbackContactId,
-              listId: 'manual-contacts',
-              firstName: 'Unknown',
-              lastName: 'Contact',
-              phone: safePhoneNumber || 'Unknown',
-              status: 'contacted'
-            }
+          console.log('⚠️ Minimal contact creation failed, trying to find existing:', contactError.message);
+          contact = await prisma.contact.findFirst({
+            where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
           });
+          if (!contact) {
+            throw new Error('Unable to create or find minimal contact');
+          }
         }
       }
+    } else {
+      try {
+        contact = await prisma.contact.create({
+          data: {
+            contactId: uniqueContactId,
+            listId: 'manual-contacts',
+            firstName: 'Unknown',
+            lastName: 'Contact',
+            phone: safePhoneNumber,
+            status: 'contacted',
+          },
+        });
+      } catch (contactError: any) {
+        console.log('⚠️ Placeholder contact creation failed, using fallback:', contactError.message);
+        const fallbackContactId = `contact-fallback-${Date.now()}-${Math.random().toString(36).substr(2, 12)}`;
+        contact = await prisma.contact.create({
+          data: {
+            contactId: fallbackContactId,
+            listId: 'manual-contacts',
+            firstName: 'Unknown',
+            lastName: 'Contact',
+            phone: safePhoneNumber || 'Unknown',
+            status: 'contacted',
+          },
+        });
+      }
+    }
 
       // Validate disposition if provided
       let validDispositionId = null;
-      let debugInfo = {
+      const debugInfo = {
         dispositionFound: false,
         campaignLinkFound: false,
         autoFixAttempted: false,
         autoFixSuccess: false,
-        errors: [] as string[]
+        errors: [] as string[],
       };
-      
-      if (disposition?.id || req.body.dispositionId || (typeof disposition === 'string' && disposition)) {
+
+      if (
+        disposition?.id ||
+        req.body.dispositionId ||
+        (typeof disposition === 'string' && disposition)
+      ) {
         let dispositionIdToCheck = disposition?.id || req.body.dispositionId;
-        
-        // Handle case where frontend sends disposition name as string instead of ID
+
         if (!dispositionIdToCheck && typeof disposition === 'string') {
           console.log('🔄 Frontend sent disposition name:', disposition, 'attempting to map to ID...');
-          
+
           try {
-            // Try to find disposition by name
             const dispositionByName = await prisma.disposition.findFirst({
-              where: { 
+              where: {
                 name: {
                   equals: disposition,
-                  mode: 'insensitive'
-                }
-              }
+                  mode: 'insensitive',
+                },
+              },
             });
-            
+
             if (dispositionByName) {
               dispositionIdToCheck = dispositionByName.id;
               console.log('✅ Mapped disposition name to ID:', disposition, '->', dispositionIdToCheck);
@@ -641,67 +657,66 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             debugInfo.errors.push(`Disposition mapping error: ${mappingError.message}`);
           }
         }
-        
+
         if (dispositionIdToCheck) {
           console.log('🔍 Checking disposition ID:', dispositionIdToCheck);
-        console.log('🔍 For campaign:', safeCampaignId);
-        try {
-          // First check if disposition exists
-          const existingDisposition = await prisma.disposition.findUnique({
-            where: { id: dispositionIdToCheck }
-          });
-          if (existingDisposition) {
-            debugInfo.dispositionFound = true;
-            console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', dispositionIdToCheck);
-            
-            // Check if this disposition is linked to the campaign
-            const campaignDisposition = await prisma.campaignDisposition.findUnique({
-              where: {
-                campaignId_dispositionId: {
-                  campaignId: safeCampaignId,
-                  dispositionId: dispositionIdToCheck
-                }
-              }
+          console.log('🔍 For campaign:', safeCampaignId);
+          try {
+            const existingDisposition = await prisma.disposition.findUnique({
+              where: { id: dispositionIdToCheck },
             });
-            
-            if (campaignDisposition) {
-              debugInfo.campaignLinkFound = true;
-              validDispositionId = dispositionIdToCheck;
-              console.log('✅ Disposition is linked to campaign - APPROVED for save');
-            } else {
-              console.log('❌ Disposition NOT linked to campaign', safeCampaignId);
-              console.log('   🔧 AUTO-FIXING: Creating campaign disposition link...');
-              debugInfo.autoFixAttempted = true;
-              
-              // AUTO-FIX: Create the missing campaign disposition link
-              try {
-                await prisma.campaignDisposition.create({
-                  data: {
+            if (existingDisposition) {
+              debugInfo.dispositionFound = true;
+              console.log('✅ Valid disposition found:', existingDisposition.name, 'ID:', dispositionIdToCheck);
+
+              const campaignDisposition = await prisma.campaignDisposition.findUnique({
+                where: {
+                  campaignId_dispositionId: {
                     campaignId: safeCampaignId,
                     dispositionId: dispositionIdToCheck,
-                    isRequired: false,
-                    sortOrder: 99 // Put auto-created ones at end
-                  }
-                });
-                
-                debugInfo.autoFixSuccess = true;
+                  },
+                },
+              });
+
+              if (campaignDisposition) {
+                debugInfo.campaignLinkFound = true;
                 validDispositionId = dispositionIdToCheck;
-                console.log('✅ AUTO-FIX SUCCESS: Created campaign disposition link');
-                console.log('   Disposition can now be used for manual calls');
-                
-              } catch (autoFixError: any) {
-                debugInfo.errors.push(`Auto-fix failed: ${autoFixError.message}`);
-                console.log('❌ AUTO-FIX FAILED:', autoFixError.message);
-                console.log('   Proceeding without dispositionId');
+                console.log('✅ Disposition is linked to campaign - APPROVED for save');
+              } else {
+                console.log('❌ Disposition NOT linked to campaign', safeCampaignId);
+                console.log('   🔧 AUTO-FIXING: Creating campaign disposition link...');
+                debugInfo.autoFixAttempted = true;
+
+                try {
+                  await prisma.campaignDisposition.create({
+                    data: {
+                      campaignId: safeCampaignId,
+                      dispositionId: dispositionIdToCheck,
+                      isRequired: false,
+                      sortOrder: 99,
+                    },
+                  });
+
+                  debugInfo.autoFixSuccess = true;
+                  validDispositionId = dispositionIdToCheck;
+                  console.log('✅ AUTO-FIX SUCCESS: Created campaign disposition link');
+                } catch (autoFixError: any) {
+                  debugInfo.errors.push(`Auto-fix failed: ${autoFixError.message}`);
+                  console.log('❌ AUTO-FIX FAILED:', autoFixError.message);
+                  console.log('   Proceeding without dispositionId');
+                }
               }
+            } else {
+              debugInfo.errors.push('Disposition not found in database');
+              console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
             }
-          } else {
-            debugInfo.errors.push('Disposition not found in database');
-            console.log('⚠️ Disposition not found, proceeding without dispositionId:', dispositionIdToCheck);
+          } catch (dispositionError: any) {
+            debugInfo.errors.push(`Disposition validation error: ${dispositionError.message}`);
+            console.log('⚠️ Disposition validation failed:', dispositionError.message);
           }
-        } catch (dispositionError: any) {
-          debugInfo.errors.push(`Disposition validation error: ${dispositionError.message}`);
-          console.log('⚠️ Disposition validation failed:', dispositionError.message);
+        } else {
+          console.log('⚠️ No disposition ID to validate after mapping');
+          debugInfo.errors.push('No disposition ID to validate');
         }
       } else {
         console.log('⚠️ No disposition ID provided in request');
@@ -976,8 +991,6 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           contact
         }
       });
-
-    } // End of main try block
 
   } catch (error: any) {
     console.error('❌ Save call data error:', error);

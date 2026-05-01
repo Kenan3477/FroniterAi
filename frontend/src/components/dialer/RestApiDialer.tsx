@@ -726,6 +726,17 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         activeCall.conferenceId ||
         undefined;
 
+      const phoneForSave =
+        (activeCall.phoneNumber && activeCall.phoneNumber.trim()) ||
+        phoneNumberRef.current.trim() ||
+        phoneNumber;
+
+      const customerFirst =
+        (activeCall.customerInfo?.firstName || '').trim() || 'Customer';
+      const customerLast = (activeCall.customerInfo?.lastName || '').trim();
+      const customerPhone =
+        (activeCall.customerInfo?.phone && activeCall.customerInfo.phone.trim()) || phoneForSave;
+
       // Save disposition to backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
         method: 'POST',
@@ -737,6 +748,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           callSid: pendingCallEnd.callSid,
           conferenceId: conferenceIdForSave, // conf-xxx to merge with preliminary call record
           duration: pendingCallEnd.duration,
+          campaignId,
           disposition: {
             id: dispositionData.id,
             name: dispositionData.outcome,
@@ -746,7 +758,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           notes: dispositionData.notes,
           followUpRequired: dispositionData.followUpRequired,
           followUpDate: dispositionData.followUpDate,
-          phoneNumber: phoneNumber,
+          phoneNumber: phoneForSave,
+          customerInfo: {
+            firstName: customerFirst,
+            lastName: customerLast || 'Contact',
+            phone: customerPhone,
+          },
           agentId: String(agentId) // Convert to string for database compatibility
         })
       });
