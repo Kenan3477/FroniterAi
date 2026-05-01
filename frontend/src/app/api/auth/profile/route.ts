@@ -3,12 +3,27 @@ import { NextRequest, NextResponse } from 'next/server';
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
+function getBearerFromRequest(request: NextRequest): string | undefined {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return (
+    request.cookies.get('session_token')?.value ||
+    request.cookies.get('auth-token')?.value ||
+    request.cookies.get('omnivox_token')?.value ||
+    request.cookies.get('auth_token')?.value ||
+    request.cookies.get('access-token')?.value ||
+    request.cookies.get('token')?.value ||
+    undefined
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('👤 Profile request received');
     
-    // Check for auth cookie
-    const authToken = request.cookies.get('auth-token')?.value;
+    const authToken = getBearerFromRequest(request);
     
     if (!authToken) {
       console.log('🔒 No auth token found');

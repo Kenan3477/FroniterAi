@@ -21,9 +21,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <ThemeProvider>
       <ContactsProvider>
-        <div className="h-screen flex theme-bg-secondary">
-          {/* Sidebar */}
-          <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+        <div className="h-screen flex theme-bg-secondary min-h-0">
+          {/* Sidebar: shrink-0 so flex never collapses the nav column to zero width */}
+          <div className="shrink-0 flex min-h-0">
+            <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+          </div>
           
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">

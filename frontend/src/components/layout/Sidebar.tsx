@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeAppRole } from '@/lib/authRole';
 import { 
   HomeIcon, 
   BriefcaseIcon, 
@@ -42,13 +42,28 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  // Filter navigation items based on user role
-  const navigationItems = allNavigationItems.filter(item => {
-    if (!user?.role) return true; // Show all items if role is not available (fallback)
-    return item.roles.includes(user.role);
+  const normalizedRole = normalizeAppRole(user?.role);
+
+  // Filter navigation items based on user role (JWT/backend casing may vary)
+  let navigationItems = allNavigationItems.filter((item) => {
+    if (!normalizedRole) return true;
+    return item.roles.includes(normalizedRole);
   });
 
-  console.log('🔍 Sidebar - User role:', user?.role, 'Available items:', navigationItems.map(item => item.name));
+  // If role is missing or unknown, still show full nav so the app remains usable
+  if (user && navigationItems.length === 0) {
+    console.warn('⚠️ Sidebar: unknown role for nav filter:', user.role, '- showing all items');
+    navigationItems = allNavigationItems;
+  }
+
+  console.log(
+    '🔍 Sidebar - User role:',
+    user?.role,
+    'normalized:',
+    normalizedRole,
+    'items:',
+    navigationItems.map((item) => item.name),
+  );
   return (
     <div className={`theme-bg-primary theme-border border-r flex flex-col transition-all duration-300 backdrop-blur-xl ${
       collapsed ? 'w-16' : 'w-64'
