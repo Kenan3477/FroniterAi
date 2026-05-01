@@ -117,6 +117,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       select: {
         id: true,
         name: true,
+        email: true,
         role: true,
         isActive: true,  // Check the correct field for account activation
         organizationId: true  // Include organization membership
@@ -155,6 +156,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       role: user.role,
       permissions,
       id: user.id,
+      email: user.email,
       organizationId: user.organizationId || null,
       isActive: user.isActive
     };
@@ -364,6 +366,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
           select: {
             id: true,
             name: true,
+            email: true,
             role: true,
             isActive: true,  // Check the correct field for account activation
             organizationId: true  // Include organization membership
@@ -379,6 +382,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
             role: user.role,
             permissions,
             id: user.id,
+            email: user.email,
             organizationId: user.organizationId || null,
             isActive: user.isActive
           };

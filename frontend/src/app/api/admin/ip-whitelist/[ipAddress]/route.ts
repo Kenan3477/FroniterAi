@@ -9,7 +9,10 @@ import { cookies } from 'next/headers';
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://froniterai-production.up.railway.app';
 
 function getBearerForBackend(request: NextRequest): string | null {
   const authHeader = request.headers.get('authorization');

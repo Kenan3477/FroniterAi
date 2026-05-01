@@ -9,6 +9,8 @@ export interface BaseUser {
 
 export interface OrganizationUser extends BaseUser {
   id: number;
+  /** Set from DB after login; used by some routes (e.g. IP whitelist addedBy). */
+  email?: string;
   organizationId: string | null;
   organization?: {
     id: string;

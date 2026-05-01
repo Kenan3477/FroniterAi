@@ -79,11 +79,14 @@ const IPWhitelistManager: React.FC = () => {
       setLoading(true);
       const response = await fetch('/api/admin/ip-whitelist', {
         headers: authHeaders(),
+        credentials: 'include',
       });
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch whitelist');
+        throw new Error(
+          result.error || result.message || `Failed to fetch whitelist (${response.status})`,
+        );
       }
 
       if (result.success) {
@@ -136,13 +139,16 @@ const IPWhitelistManager: React.FC = () => {
           'Content-Type': 'application/json',
           ...authHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify(newIP),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to add IP to whitelist');
+        throw new Error(
+          result.error || result.message || `Failed to add IP to whitelist (${response.status})`,
+        );
       }
 
       if (result.success) {
@@ -165,13 +171,16 @@ const IPWhitelistManager: React.FC = () => {
         {
           method: 'DELETE',
           headers: authHeaders(),
+          credentials: 'include',
         }
       );
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to remove IP from whitelist');
+        throw new Error(
+          result.error || result.message || `Failed to remove IP from whitelist (${response.status})`,
+        );
       }
 
       if (result.success) {

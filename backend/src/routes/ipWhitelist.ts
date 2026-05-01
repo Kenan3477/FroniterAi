@@ -13,7 +13,7 @@ const router = Router();
  * GET /api/admin/ip-whitelist
  * Get all whitelisted IPs
  */
-router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.get('/', authenticate, requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const whitelist = await ipWhitelistManager.getAll();
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
@@ -40,7 +40,7 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, r
  * POST /api/admin/ip-whitelist
  * Add new IP to whitelist
  */
-router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.post('/', authenticate, requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const { ipAddress, name, description } = req.body;
 
@@ -60,11 +60,11 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, 
       });
     }
 
-    const user = (req as any).user;
+    const user = req.user;
     const newEntry = await ipWhitelistManager.addIP(
       ipAddress,
       name,
-      user.email || user.username || 'admin',
+      user?.email || user?.username || 'admin',
       description
     );
 
@@ -86,7 +86,7 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, 
  * DELETE /api/admin/ip-whitelist/:ipAddress
  * Remove IP from whitelist
  */
-router.delete('/:ipAddress', authenticate, requireRole('SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.delete('/:ipAddress', authenticate, requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const { ipAddress } = req.params;
 
