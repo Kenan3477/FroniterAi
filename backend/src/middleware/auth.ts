@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import '../types/auth'; // Import unified auth types
+import { resolveCreatorSuperAdminRole } from '../utils/creatorSuperAdmin';
 
 // Role-based permissions
 export const ROLE_PERMISSIONS = {
@@ -146,14 +147,20 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    const effectiveRole = await resolveCreatorSuperAdminRole(prisma, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     // Get user permissions based on role
-    const permissions = ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS] || [];
+    const permissions = ROLE_PERMISSIONS[effectiveRole as keyof typeof ROLE_PERMISSIONS] || [];
 
     // Attach user info to request
     req.user = {
       userId: user.id.toString(),
       username: user.name,
-      role: user.role,
+      role: effectiveRole,
       permissions,
       id: user.id,
       email: user.email,
@@ -207,7 +214,10 @@ export function requirePermission(permission: string) {
       return;
     }
 
-    const hasPermission = req.user.permissions.includes(permission) || req.user.role === 'ADMIN';
+    const hasPermission =
+      req.user.permissions.includes(permission) ||
+      req.user.role === 'ADMIN' ||
+      req.user.role === 'SUPER_ADMIN';
     
     if (!hasPermission) {
       res.status(403).json({
@@ -239,7 +249,9 @@ export function requireRole(...allowedRoles: string[]) {
       return;
     }
 
-    const hasRole = allowedRoles.includes(req.user.role);
+    const hasRole =
+      allowedRoles.includes(req.user.role) ||
+      (req.user.role === 'SUPER_ADMIN' && allowedRoles.includes('ADMIN'));
     
     if (!hasRole) {
       res.status(403).json({
@@ -280,8 +292,8 @@ export function requireCampaignAccess(campaignIdParam: string = 'campaignId') {
         return;
       }
 
-      // Admins have access to all campaigns
-      if (req.user.role === 'ADMIN') {
+      // Admins and platform super-admins have access to all campaigns
+      if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
         next();
         return;
       }
@@ -324,8 +336,8 @@ async function checkCampaignAccess(userId: string, campaignId: string): Promise<
 
     if (!user) return false;
 
-    // Admins have access to all campaigns
-    if (user.role === 'ADMIN') return true;
+    // Admins and platform super-admins have access to all campaigns
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return true;
 
     // TODO: Implement campaign-specific access control
     // This would require a CampaignUserAccess table
@@ -374,12 +386,17 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
         }) as any;
 
         if (user && user.isActive) {
-          const permissions = ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS] || [];
+          const effectiveRole = await resolveCreatorSuperAdminRole(prisma, {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+          });
+          const permissions = ROLE_PERMISSIONS[effectiveRole as keyof typeof ROLE_PERMISSIONS] || [];
           
           req.user = {
             userId: user.id.toString(),
             username: user.name,
-            role: user.role,
+            role: effectiveRole,
             permissions,
             id: user.id,
             email: user.email,
@@ -413,8 +430,8 @@ export function requireSelfAccess(userIdParam: string = 'id') {
 
     const targetUserId = req.params[userIdParam];
     
-    // Admins can access any user's data
-    if (req.user.role === 'ADMIN') {
+    // Admins and platform super-admins can access any user's data
+    if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
       next();
       return;
     }

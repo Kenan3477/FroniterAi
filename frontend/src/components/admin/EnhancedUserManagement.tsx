@@ -454,6 +454,7 @@ export default function EnhancedUserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mb-1 ${
+                        user.role === 'SUPER_ADMIN' ? 'bg-red-200 text-red-900' :
                         user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
                         user.role === 'MANAGER' ? 'bg-blue-100 text-blue-800' :
                         user.role === 'AGENT' ? 'bg-green-100 text-green-800' :

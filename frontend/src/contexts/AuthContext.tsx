@@ -120,9 +120,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔍 Fetching user-assigned campaigns...');
       
+      const isSystemAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+
       // Use different endpoints based on user role
       let apiUrl: string;
-      if (user.role === 'ADMIN') {
+      if (isSystemAdmin) {
         // Admin users get their assigned campaigns from the user endpoint for consistency
         apiUrl = `/api/admin/users/${user.id}/campaigns`;
       } else {
@@ -148,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           let activeCampaigns: any[] = [];
 
           // Handle different API response formats
-          if (user.role === 'ADMIN' && data.data?.assignments) {
+          if (isSystemAdmin && data.data?.assignments) {
             // Admin user endpoint format: { success: true, data: { assignments: [...] } }
             console.log('🔍 Processing admin user campaign assignments:', data.data.assignments.length, 'total assignments');
             activeCampaigns = data.data.assignments
