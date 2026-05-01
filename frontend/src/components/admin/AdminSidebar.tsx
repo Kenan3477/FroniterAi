@@ -20,7 +20,6 @@ import {
   EyeIcon,
   ListBulletIcon,
   ChartBarIcon,
-  PhoneIcon,
   PhoneXMarkIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
