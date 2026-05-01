@@ -10,6 +10,7 @@ import {
   formatZonedDateKey,
 } from '../utils/dashboardDayBounds';
 import { isStatsConnectedCall, isStatsSaleOrConversion } from '../utils/dashboardCallMetrics';
+import { countAgentsOnlineForDashboard } from '../utils/dashboardAgentsOnline';
 
 const TERMINAL_NOT_CONNECTED_OUTCOMES = [
   'no-answer',
@@ -160,10 +161,8 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       },
     });
 
-    const activeAgents = await prisma.agent.count({
-      where: {
-        status: { equals: 'AVAILABLE', mode: 'insensitive' },
-      },
+    const activeAgents = await countAgentsOnlineForDashboard(prisma, {
+      organizationId: req.user?.organizationId,
     });
 
     // Calculate stats
