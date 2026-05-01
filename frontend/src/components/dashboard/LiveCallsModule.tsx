@@ -31,6 +31,12 @@ interface LiveCallsModuleProps {
   className?: string;
 }
 
+function formatCampaignDisplayName(name: string | undefined, campaignId: string | undefined): string {
+  const raw = (name || campaignId || '').trim();
+  if (!raw) return '—';
+  return raw.replace(/^\[DELETED\]\s*/i, '').trim() || (campaignId || '—');
+}
+
 export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps) {
   const [liveCalls, setLiveCalls] = useState<LiveCall[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +96,13 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
 
       if (response.ok) {
         const data = await response.json();
-        setLiveCalls(data.data.activeCalls || []);
+        const raw = data.data.activeCalls || [];
+        setLiveCalls(
+          raw.map((c: LiveCall) => ({
+            ...c,
+            campaignName: formatCampaignDisplayName(c.campaignName, c.campaignId),
+          })),
+        );
         setError(null);
       } else {
         console.error('Failed to fetch live calls:', response.statusText);

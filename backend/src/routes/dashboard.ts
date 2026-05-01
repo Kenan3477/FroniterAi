@@ -9,7 +9,7 @@ import {
   getUtcRangeForZonedCalendarDay,
   formatZonedDateKey,
 } from '../utils/dashboardDayBounds';
-import { isStatsConnectedCall, isStatsSaleOrConversion } from '../utils/dashboardCallMetrics';
+import { isStatsConnectedCall, isStatsSaleOnly } from '../utils/dashboardCallMetrics';
 import { countAgentsOnlineForDashboard } from '../utils/dashboardAgentsOnline';
 
 /** Map User.id → Agent.agentId for call_record.agentId filter (same as interaction history). */
@@ -222,16 +222,22 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       organizationId: req.user?.organizationId,
     });
 
-    // Calculate stats
+    // Calculate stats — do not label "interested/callback" as conversion rate vs sales
     const connectionRate = callsToday > 0 ? (connectedCalls / callsToday) * 100 : 0;
-    const conversionFromSales =
-      connectedCalls > 0 ? Math.min(100, (salesToday / connectedCalls) * 100) : 0;
+    const saleCloseRate =
+      connectedCalls > 0 && salesToday > 0 ? (salesToday / connectedCalls) * 100 : null;
 
     const dashboardStats = {
       totalCallsToday: callsToday,
       connectedCallsToday: connectedCalls,
+      salesToday,
       totalRevenue: metrics.revenueConversions || 0,
-      conversionRate: conversionFromSales > 0 ? conversionFromSales : connectionRate,
+      /** % of calls that connected (meaningful) */
+      connectionRateToday: connectionRate,
+      /** % of connected calls that are sales (null if no sales) */
+      saleCloseRateToday: saleCloseRate,
+      /** Deprecated: same as connectionRateToday for old clients */
+      conversionRate: connectionRate,
       averageCallDuration: metrics.averageCallDuration || 0,
       agentsOnline: activeAgents,
       callsInProgress,
@@ -524,7 +530,7 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
       })) {
         buckets[key].connectedCalls += 1;
       }
-      if (isStatsSaleOrConversion({ outcome: r.outcome, dispositionName: r.disposition?.name })) {
+      if (isStatsSaleOnly({ outcome: r.outcome, dispositionName: r.disposition?.name })) {
         buckets[key].conversions += 1;
       }
     }

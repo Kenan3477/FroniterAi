@@ -69,6 +69,12 @@ interface DashboardApiResponse {
     avgDuration: number;
     conversions: number;
   };
+  /** Sales (strict) for today */
+  salesToday?: number;
+  /** % of today's calls that reached a connected state */
+  connectionRateToday?: number;
+  /** % of connected calls that closed as sale */
+  saleCloseRateToday?: number | null;
 }
 
 interface PerformanceDay {
@@ -522,7 +528,7 @@ function DashboardContent() {
             </div>
           </div>
         )}
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-12">
           <DashboardCard
             title="Today's Calls"
             value={loading ? "..." : (dashboardStats?.totalCallsToday?.toString() || "0")}
@@ -530,7 +536,8 @@ function DashboardContent() {
             color="bg-gradient-to-br from-blue-500 to-blue-600"
           />
           <DashboardCard
-            title="Successful Calls"
+            title="Connected Calls"
+            subtitle="Answered / meaningful talk time"
             value={loading ? "..." : (dashboardStats?.connectedCallsToday?.toString() || "0")}
             icon={<span className="text-white font-bold text-lg">✓</span>}
             color="bg-gradient-to-br from-green-500 to-green-600"
@@ -542,10 +549,29 @@ function DashboardContent() {
             color="bg-gradient-to-br from-purple-500 to-purple-600"
           />
           <DashboardCard
-            title="Conversion Rate"
-            value={loading ? "..." : `${dashboardStats?.conversionRate?.toFixed(1) || "0"}%`}
+            title="Sales Today"
+            subtitle="Disposition / outcome = sale"
+            value={loading ? "..." : String(dashboardStats?.salesToday ?? dashboardStats?.performance?.conversions ?? 0)}
+            icon={<span className="text-white font-bold text-lg">💰</span>}
+            color="bg-gradient-to-br from-amber-500 to-orange-600"
+          />
+          <DashboardCard
+            title="Connection Rate"
+            subtitle={
+              loading
+                ? undefined
+                : dashboardStats?.saleCloseRateToday != null &&
+                    dashboardStats.saleCloseRateToday > 0
+                  ? `${(dashboardStats.saleCloseRateToday as number).toFixed(1)}% of connected calls → sale`
+                  : 'Share of today’s calls that connected'
+            }
+            value={
+              loading
+                ? '...'
+                : `${(dashboardStats?.connectionRateToday ?? dashboardStats?.conversionRate ?? 0).toFixed(1)}%`
+            }
             icon={<span className="text-white font-bold text-lg">📊</span>}
-            color="bg-gradient-to-br from-orange-500 to-orange-600"
+            color="bg-gradient-to-br from-cyan-500 to-blue-600"
           />
         </div>
 

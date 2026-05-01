@@ -5,13 +5,14 @@ interface DashboardCardProps {
   value: string | number;
   icon: React.ReactNode;
   color: string;
+  subtitle?: string;
   trend?: {
     value: number;
     direction: 'up' | 'down';
   };
 }
 
-export default function DashboardCard({ title, value, icon, color, trend }: DashboardCardProps) {
+export default function DashboardCard({ title, value, icon, color, subtitle, trend }: DashboardCardProps) {
   return (
     <div className="theme-card rounded-lg p-6 group">
       <div className="flex items-center justify-between">
@@ -22,6 +23,9 @@ export default function DashboardCard({ title, value, icon, color, trend }: Dash
           <div>
             <p className="text-xs font-medium theme-text-secondary uppercase tracking-wider mb-1">{title}</p>
             <p className="text-2xl font-semibold theme-text-primary">{value}</p>
+            {subtitle ? (
+              <p className="text-xs theme-text-secondary mt-1 max-w-[14rem] leading-snug">{subtitle}</p>
+            ) : null}
           </div>
         </div>
         {trend && (

@@ -82,3 +82,16 @@ export function isStatsSaleOrConversion(args: {
   if (d.includes('sale')) return true;
   return isConversionOutcome(args.outcome, args.dispositionName);
 }
+
+/** True only for explicit sale outcomes / disposition (chart "Sales" line). */
+export function isStatsSaleOnly(args: {
+  outcome: string | null | undefined;
+  dispositionName: string | null | undefined;
+}): boolean {
+  const o = (args.outcome || '').toLowerCase();
+  const d = (args.dispositionName || '').toLowerCase();
+  if (['sale', 'sale_made'].includes(o)) return true;
+  if (o.includes('sale')) return true;
+  if (d.includes('sale')) return true;
+  return false;
+}
