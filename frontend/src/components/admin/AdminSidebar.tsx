@@ -79,28 +79,6 @@ export default function AdminSidebar({
     fetchCurrentUser();
   }, []);
 
-  const handleSectionClick = (sectionName: string) => {
-    const section = adminSections.find(s => s.name === sectionName);
-    
-    if (section?.collapsible) {
-      // Toggle expanded state for collapsible sections
-      setExpandedSections(prev => {
-        const newExpanded = new Set(prev);
-        if (newExpanded.has(sectionName)) {
-          newExpanded.delete(sectionName);
-        } else {
-          newExpanded.add(sectionName);
-        }
-        return newExpanded;
-      });
-      
-      // Always select the section when clicked
-      onSectionChange(sectionName);
-    } else {
-      onSectionChange(sectionName);
-    }
-  };
-
   const handleSubSectionClick = (parentSection: string, subSection: string) => {
     onSectionChange(`${parentSection} - ${subSection}`);
   };
@@ -200,20 +178,84 @@ export default function AdminSidebar({
     return baseSections;
   };
 
+  const handleSectionClick = (sectionName: string) => {
+    const sections = getAdminSections();
+    const section = sections.find((s) => s.name === sectionName);
+    if (!section) return;
+
+    const subCount = section.subSections?.length ?? 0;
+
+    // Collapsed rail: sub-items are hidden — navigate directly when there is only one,
+    // or expand the sidebar when a section has multiple children.
+    if (collapsed) {
+      if (section.collapsible && subCount === 1 && section.subSections) {
+        handleSubSectionClick(section.name, section.subSections[0].name);
+        setExpandedSections((prev) => new Set(prev).add(section.name));
+        return;
+      }
+      if (section.collapsible && subCount > 1) {
+        onToggle();
+        setExpandedSections((prev) => new Set(prev).add(section.name));
+        onSectionChange(sectionName);
+        return;
+      }
+      onSectionChange(sectionName);
+      return;
+    }
+
+    if (section.collapsible) {
+      setExpandedSections((prev) => {
+        const next = new Set(prev);
+        if (next.has(sectionName)) next.delete(sectionName);
+        else next.add(sectionName);
+        return next;
+      });
+      onSectionChange(sectionName);
+    } else {
+      onSectionChange(sectionName);
+    }
+  };
+
   const adminSections = getAdminSections();
 
   return (
-    <div className={`${collapsed ? 'w-16' : 'w-72'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+    <div
+      className={`${collapsed ? 'w-16' : 'w-72'} bg-white border-r border-gray-200 flex flex-col h-full min-h-0 transition-all duration-300`}
+    >
+      {/* Expand / collapse — sticky at top so it stays reachable when the nav scrolls */}
+      <div className="shrink-0 border-b border-gray-200 p-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand admin menu' : 'Collapse admin menu'}
+          title={collapsed ? 'Expand menu' : 'Collapse menu'}
+          className="w-full flex items-center justify-center gap-2 p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors duration-150"
+        >
+          {collapsed ? (
+            <>
+              <ChevronRightIcon className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="sr-only">Expand menu</span>
+            </>
+          ) : (
+            <>
+              <ChevronLeftIcon className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="text-sm">Collapse</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {!collapsed && (
         <>
           {/* Header */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="shrink-0 p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Administration</h2>
             <p className="text-sm text-gray-500 mt-1">System management and configuration</p>
           </div>
 
           {/* Navigation Sections */}
-          <div className="flex-1 overflow-y-auto py-2">
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
             <div className="space-y-1">
               {adminSections.map((section) => {
                 const IconComponent = section.icon;
@@ -296,22 +338,31 @@ export default function AdminSidebar({
 
       {/* Collapsed State */}
       {collapsed && (
-        <div className="flex-1 py-4">
-          <div className="space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto py-2">
+          <div className="space-y-2 px-1">
             {adminSections.map((section) => {
               const IconComponent = section.icon;
+              const isCollapsedSelected =
+                section.name === selectedSection ||
+                selectedSection.startsWith(`${section.name} - `);
+              const subs = section.subSections ?? [];
+              const title =
+                collapsed && section.collapsible && subs.length === 1
+                  ? `${section.name} — ${subs[0].name}`
+                  : section.name;
               return (
                 <button
                   key={section.name}
+                  type="button"
                   onClick={() => handleSectionClick(section.name)}
-                  className={`w-full flex items-center justify-center p-3 text-sm transition-colors relative group hover:bg-gray-50 ${
-                    section.name === selectedSection 
-                      ? 'bg-blue-50 text-blue-600 before:absolute before:right-0 before:top-0 before:bottom-0 before:w-1 before:bg-blue-600' 
+                  className={`w-full flex items-center justify-center p-3 text-sm transition-colors relative group rounded-md hover:bg-gray-50 ${
+                    isCollapsedSelected
+                      ? 'bg-blue-50 text-blue-600 before:absolute before:right-0 before:top-0 before:bottom-0 before:w-1 before:bg-blue-600'
                       : 'text-gray-400 hover:text-gray-600'
                   }`}
-                  title={section.name}
+                  title={title}
                 >
-                  <IconComponent className="h-5 w-5" />
+                  <IconComponent className="h-5 w-5" aria-hidden />
                 </button>
               );
             })}
@@ -319,22 +370,6 @@ export default function AdminSidebar({
         </div>
       )}
 
-      {/* Collapse Toggle */}
-      <div className="border-t border-gray-200 p-3">
-        <button
-          onClick={onToggle}
-          className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-150"
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="h-5 w-5" />
-          ) : (
-            <div className="flex items-center space-x-2">
-              <ChevronLeftIcon className="h-5 w-5" />
-              <span className="text-sm">Collapse</span>
-            </div>
-          )}
-        </button>
-      </div>
     </div>
   );
 }

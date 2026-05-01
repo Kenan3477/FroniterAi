@@ -161,7 +161,7 @@ export default function AdminPage() {
     >
       <NavigationTrackingWrapper />
       <MainLayout>
-      <div className="flex h-full">
+      <div className="flex h-full min-h-0">
         {/* Admin Sidebar */}
         <AdminSidebar
           selectedSection={selectedSection}
