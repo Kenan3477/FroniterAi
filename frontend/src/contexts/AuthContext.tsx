@@ -322,6 +322,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔍 checkAuth: Making profile request...');
       const response = await fetch('/api/auth/profile', {
         credentials: 'include',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (response.ok) {

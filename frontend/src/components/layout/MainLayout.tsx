@@ -26,21 +26,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <div className="shrink-0 flex min-h-0">
             <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           </div>
-          
+
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
-            {/* Header */}
             <Header onSidebarToggle={toggleSidebar} />
-            
-            {/* Content Area */}
-            <main className="flex-1 overflow-auto p-6 theme-bg-secondary">
-            {children}
-          </main>
+            <main className="flex-1 overflow-auto p-6 theme-bg-secondary">{children}</main>
+          </div>
+
+          {/* Global Inbound Call Popup - visible on all pages */}
+          <InboundCallPopup />
         </div>
-        
-        {/* Global Inbound Call Popup - visible on all pages */}
-        <InboundCallPopup />
-      </div>
       </ContactsProvider>
     </ThemeProvider>
   );

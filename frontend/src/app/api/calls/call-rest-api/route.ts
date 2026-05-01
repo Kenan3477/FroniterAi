@@ -12,18 +12,28 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
 const BACKEND_URL =
+  process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   'https://froniterai-production.up.railway.app';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const bearer =
+      getBearerFromNextRequest(request) ||
+      (typeof body?._clientBearer === 'string' ? body._clientBearer.trim() : undefined);
+    // Never forward internal helper field to Railway
+    if (body && typeof body === 'object' && '_clientBearer' in body) {
+      delete (body as { _clientBearer?: string })._clientBearer;
+    }
+
     console.log('📞 Proxying REST API call request to backend:', {
       to: body?.to,
       campaignId: body?.campaignId,
-      hasAuth: !!request.headers.get('authorization'),
+      hasAuth: Boolean(bearer || request.headers.get('authorization')),
     });
 
     // Backend route is /api/calls/rest-api
@@ -31,9 +41,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(request.headers.get('authorization') && {
-          authorization: request.headers.get('authorization')!,
-        }),
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
       body: JSON.stringify(body),
     });

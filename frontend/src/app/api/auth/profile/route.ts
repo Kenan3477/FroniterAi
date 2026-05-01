@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
-
-function getBearerFromRequest(request: NextRequest): string | undefined {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim();
-  }
-  return (
-    request.cookies.get('session_token')?.value ||
-    request.cookies.get('auth-token')?.value ||
-    request.cookies.get('omnivox_token')?.value ||
-    request.cookies.get('auth_token')?.value ||
-    request.cookies.get('access-token')?.value ||
-    request.cookies.get('token')?.value ||
-    undefined
-  );
-}
 
 export async function GET(request: NextRequest) {
   try {
     console.log('👤 Profile request received');
     
-    const authToken = getBearerFromRequest(request);
+    const authToken = getBearerFromNextRequest(request);
     
     if (!authToken) {
       console.log('🔒 No auth token found');
@@ -56,7 +41,11 @@ export async function GET(request: NextRequest) {
 
     console.log('🔑 Auth token found, validating with Railway backend...');
     
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3004';
+    const backendUrl =
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://froniterai-production.up.railway.app';
     
     // SECURITY FIX: Only use Railway backend for authentication - no fallbacks
     try {
