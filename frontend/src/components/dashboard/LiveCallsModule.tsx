@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Device, type Call } from '@twilio/voice-sdk';
 import { 
   PhoneIcon,
   EyeIcon,
@@ -8,7 +9,6 @@ import {
   UserIcon,
   BuildingOfficeIcon,
   SpeakerWaveIcon,
-  MicrophoneIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
@@ -36,7 +36,26 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listeningCall, setListeningCall] = useState<string | null>(null);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [monitorStatus, setMonitorStatus] = useState<string | null>(null);
+  const monitorDeviceRef = useRef<Device | null>(null);
+  const monitorCallRef = useRef<Call | null>(null);
+
+  const teardownMonitor = useCallback(async () => {
+    try {
+      monitorCallRef.current?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    monitorCallRef.current = null;
+    try {
+      monitorDeviceRef.current?.destroy();
+    } catch {
+      /* ignore */
+    }
+    monitorDeviceRef.current = null;
+    setListeningCall(null);
+    setMonitorStatus(null);
+  }, []);
 
   useEffect(() => {
     fetchLiveCalls();
@@ -44,8 +63,11 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
     // Refresh every 5 seconds for real-time updates
     const interval = setInterval(fetchLiveCalls, 5000);
     
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      void teardownMonitor();
+    };
+  }, [teardownMonitor]);
 
   const fetchLiveCalls = async () => {
     try {
@@ -89,9 +111,11 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
         localStorage.getItem('authToken') ||
         localStorage.getItem('auth_token');
       if (!token) {
-        alert('You need to be signed in to use live monitoring.');
+        setMonitorStatus('Sign in to use live monitoring.');
         return;
       }
+
+      await teardownMonitor();
 
       const response = await fetch('/api/live-analysis/listen-live', {
         method: 'POST',
@@ -104,36 +128,77 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
       });
 
       const raw = await response.text();
-      let data: { success?: boolean; error?: string; data?: { instructions?: { description?: string } } };
+      let data: {
+        success?: boolean;
+        error?: string;
+        data?: {
+          accessToken?: string;
+          instructions?: { description?: string };
+        };
+      };
       try {
         data = raw ? JSON.parse(raw) : {};
       } catch {
-        alert(`Live monitoring failed (${response.status}). Try again or check your connection.`);
+        setMonitorStatus(`Live monitoring failed (${response.status}).`);
         return;
       }
 
-      if (response.ok && data.success) {
-        setListeningCall(callId);
-        console.log('🎧 Live monitoring session:', data.data);
-        const note =
-          data.data?.instructions?.description ||
-          'Session registered. Full browser listen-in still requires Twilio media stream wiring.';
-        alert(`Live monitoring: ${note}`);
-      } else {
-        alert(data.error || `Failed to start live monitoring (${response.status}).`);
+      if (!response.ok || !data.success) {
+        setMonitorStatus(data.error || `Failed to start live monitoring (${response.status}).`);
+        return;
       }
+
+      const accessToken = data.data?.accessToken;
+      if (!accessToken || typeof accessToken !== 'string') {
+        setMonitorStatus('Server did not return a Twilio token for live listen.');
+        return;
+      }
+
+      const device = new Device(accessToken, {
+        logLevel: 'warn',
+        allowIncomingWhileBusy: true,
+      });
+
+      device.on('error', (e) => {
+        console.error('Live monitor Device error:', e);
+        setMonitorStatus(e?.message || 'Twilio Device error');
+      });
+
+      device.on('incoming', (call) => {
+        try {
+          monitorCallRef.current = call;
+          call.accept();
+          setMonitorStatus(
+            data.data?.instructions?.description ||
+              'Connected — you are listening muted on the agent conference.',
+          );
+          call.on('disconnect', () => {
+            monitorCallRef.current = null;
+            setListeningCall(null);
+            setMonitorStatus('Listen session ended.');
+          });
+        } catch (e) {
+          console.error('Failed to accept monitor call:', e);
+          setMonitorStatus('Could not accept the monitor call in the browser.');
+        }
+      });
+
+      await device.register();
+      monitorDeviceRef.current = device;
+      setListeningCall(callId);
+      setMonitorStatus(
+        data.data?.instructions?.description ||
+          'Ringing your browser — accept the call to hear the live conference (listen-only).',
+      );
     } catch (err) {
       console.error('Error starting live monitoring:', err);
-      alert('Error starting live monitoring');
+      setMonitorStatus(err instanceof Error ? err.message : 'Error starting live monitoring');
+      await teardownMonitor();
     }
   };
 
   const stopListening = () => {
-    setListeningCall(null);
-    if (audioContext) {
-      audioContext.close();
-      setAudioContext(null);
-    }
+    void teardownMonitor();
   };
 
   const formatDuration = (seconds: number): string => {
@@ -212,6 +277,12 @@ export default function LiveCallsModule({ className = '' }: LiveCallsModuleProps
             </button>
           )}
         </div>
+
+        {monitorStatus && (
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+            {monitorStatus}
+          </div>
+        )}
 
         {liveCalls.length === 0 ? (
           <div className="text-center py-8">

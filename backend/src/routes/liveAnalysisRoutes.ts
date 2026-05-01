@@ -11,6 +11,8 @@ import advancedAMDService from '../services/advancedAMDService';
 import EnhancedTwiMLService from '../services/enhancedTwiMLService';
 import { authenticate, requireRole } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { generateAccessToken, dialClientForLiveMonitor } from '../services/twilioService';
+import { extractConferenceNameFromCallRecord } from '../utils/conferenceFromCallRecord';
 
 const router = express.Router();
 
@@ -469,38 +471,53 @@ router.post('/amd/update-thresholds', authenticate, requireRole('admin'), async 
 router.post('/listen-live', authenticate, requireRole('ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'), async (req: Request, res: Response) => {
   try {
     const { callId } = req.body;
-    const user = (req as any).user;
-    
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
     if (!callId) {
       return res.status(400).json({
         success: false,
-        error: 'Call ID is required'
+        error: 'Call ID is required',
+      });
+    }
+
+    const row = await prisma.callRecord.findFirst({
+      where: {
+        OR: [{ callId }, { id: callId }],
+        endTime: null,
+        startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+      include: {
+        agent: { select: { firstName: true, lastName: true, agentId: true } },
+        campaign: { select: { campaignId: true, name: true } },
+      },
+    });
+
+    if (!row) {
+      return res.status(404).json({
+        success: false,
+        error:
+          'No active call found for this ID. Live listen only works while the call is open in Omnivox.',
+      });
+    }
+
+    const conferenceName = extractConferenceNameFromCallRecord({
+      callId: row.callId,
+      notes: row.notes,
+    });
+
+    if (!conferenceName) {
+      return res.status(422).json({
+        success: false,
+        error:
+          'This call is not on a Twilio conference we can join (no conf-* room on the record). Live listen works for active REST/WebRTC conference calls.',
       });
     }
 
     let analysis = liveCallAnalyzer.getActiveAnalysis(callId);
-
     if (!analysis) {
-      const row = await prisma.callRecord.findFirst({
-        where: {
-          OR: [{ callId }, { id: callId }],
-          endTime: null,
-          startTime: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-        },
-        include: {
-          agent: { select: { firstName: true, lastName: true, agentId: true } },
-          campaign: { select: { campaignId: true, name: true } },
-        },
-      });
-
-      if (!row) {
-        return res.status(404).json({
-          success: false,
-          error:
-            'No active call session found for this ID. Live audio monitoring requires a Twilio media stream integration; this confirms the call is still open in the system.',
-        });
-      }
-
       analysis = {
         agentId: row.agentId || '',
         agentName: row.agent
@@ -512,42 +529,56 @@ router.post('/listen-live', authenticate, requireRole('ADMIN', 'SUPER_ADMIN', 'S
       } as any;
     }
 
-    // Generate Twilio access token for live monitoring (identity for browser client if wired up later)
-    const twilioService = await import('../services/twilioService');
-    const accessToken = await twilioService.generateAccessToken(
-      `monitor_${user.userId}_${Date.now()}` // identity for monitoring access
+    const clientIdentity = `monitor_${user.userId}`;
+    let twilioMonitorCallSid: string;
+    try {
+      const dial = await dialClientForLiveMonitor({
+        clientIdentity,
+        conferenceName,
+      });
+      twilioMonitorCallSid = dial.callSid;
+    } catch (dialErr: any) {
+      console.error('❌ Live monitor Twilio dial failed:', dialErr);
+      return res.status(502).json({
+        success: false,
+        error: dialErr?.message || 'Twilio could not start the monitor leg. Check TWILIO_PHONE_NUMBER and BACKEND_URL.',
+      });
+    }
+
+    const accessToken = generateAccessToken(clientIdentity);
+
+    console.log(
+      `🎧 Live monitoring: user ${user.username} (${user.role}) → conference ${conferenceName}, leg ${twilioMonitorCallSid}`,
     );
 
-    // Log monitoring action for audit trail
-    console.log(`🎧 Live monitoring initiated by ${user.username} (${user.role}) for call ${callId}`);
-    
     res.json({
       success: true,
       data: {
-        callId,
+        callId: row.callId,
+        recordId: row.id,
         accessToken,
-        monitoringSessionId: `monitor_${user.userId}_${Date.now()}`,
+        clientIdentity,
+        conferenceName,
+        twilioMonitorCallSid,
+        monitoringSessionId: `monitor_${user.userId}_${twilioMonitorCallSid}`,
         callInfo: {
           agentId: analysis.agentId,
           agentName: analysis.agentName,
           phoneNumber: analysis.phoneNumber,
           campaignId: analysis.campaignId,
-          callDuration: Math.floor((Date.now() - analysis.startTime.getTime()) / 1000)
+          callDuration: Math.floor((Date.now() - analysis.startTime.getTime()) / 1000),
         },
         instructions: {
-          webSocketUrl: `wss://${process.env.BACKEND_URL || 'localhost:8080'}/media-stream`,
-          mediaStreamName: `monitor-${callId}`,
           description:
-            'Live listen-in from the browser is not fully wired yet. This endpoint validates the call and returns a monitor token for future Twilio client integration.',
-        }
-      }
+            'Accept the incoming browser call from Twilio to hear the conference (listen-only). Use Stop listening to hang up.',
+        },
+      },
     });
-
   } catch (error) {
     console.error('❌ Error setting up live monitoring:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to setup live monitoring session'
+      error: 'Failed to setup live monitoring session',
     });
   }
 });

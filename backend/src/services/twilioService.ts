@@ -606,6 +606,50 @@ export const streamTwilioRecording = async (recordingSid: string): Promise<Twili
   }
 };
 
+/**
+ * Outbound REST call to a browser Client identity (WebRTC) with TwiML that joins a conference muted.
+ * Used for admin live listen-in.
+ */
+export const dialClientForLiveMonitor = async (args: {
+  clientIdentity: string;
+  conferenceName: string;
+  statusCallback?: string;
+}): Promise<{ callSid: string }> => {
+  if (!twilioClient) {
+    throw new Error('Twilio client not initialized');
+  }
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  if (!fromNumber) {
+    throw new Error('TWILIO_PHONE_NUMBER is not configured');
+  }
+  const base = process.env.BACKEND_URL?.replace(/\/+$/, '');
+  if (!base) {
+    throw new Error('BACKEND_URL is not configured (required for live monitor TwiML URL)');
+  }
+
+  const url = `${base}/api/calls/twiml-live-monitor?conference=${encodeURIComponent(args.conferenceName)}`;
+
+  const call = await twilioClient.calls.create({
+    to: `client:${args.clientIdentity}`,
+    from: fromNumber,
+    url,
+    method: 'POST',
+    ...(args.statusCallback
+      ? {
+          statusCallback: args.statusCallback,
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+          statusCallbackMethod: 'POST',
+        }
+      : {}),
+  });
+
+  if (!call.sid) {
+    throw new Error('Twilio did not return a Call SID for live monitor leg');
+  }
+
+  return { callSid: call.sid };
+};
+
 export default {
   generateAccessToken,
   endCall,
@@ -622,4 +666,5 @@ export default {
   updateCallMetadata,
   getTwilioRecordingUrl,
   streamTwilioRecording,
+  dialClientForLiveMonitor,
 };

@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 import { authenticate, requireRole } from '../middleware/auth';
 import { getBackendBaseUrl } from '../config/voiceMedia';
+import { buildLiveMonitorConferenceTwiml } from '../utils/liveMonitorTwiml';
 
 const router = express.Router();
 
@@ -230,6 +231,28 @@ router.post('/twiml-customer', async (req: Request, res: Response) => {
     res.send(twiml);
   } catch (error) {
     console.error('Error in TwiML customer:', error);
+    res.status(500).set('Content-Type', 'text/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+    );
+  }
+});
+
+// POST /api/calls/twiml-live-monitor - TwiML for supervisor listen-in (muted conference join)
+router.post('/twiml-live-monitor', async (req: Request, res: Response) => {
+  try {
+    const raw = (req.query.conference as string) || '';
+    const conference = decodeURIComponent(raw).trim();
+    if (!conference || !/^conf-[a-zA-Z0-9._-]+$/i.test(conference)) {
+      res.status(400).set('Content-Type', 'text/xml').send(
+        `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
+      );
+      return;
+    }
+    const twiml = buildLiveMonitorConferenceTwiml(conference);
+    res.set('Content-Type', 'text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('Error in TwiML live-monitor:', error);
     res.status(500).set('Content-Type', 'text/xml').send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
     );
