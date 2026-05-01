@@ -777,7 +777,66 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
         }
       }
 
-      // 🚨 PRIORITY 3: Anti-duplicate fallback.
+      // 🚨 PRIORITY 3: Agent-leg / missing conferenceId fallback.
+      //
+      // If the browser misclassified the agent WebRTC leg as "inbound", it may send
+      // save-call-data with the *agent-leg* CA… and the Twilio CLI as phoneNumber,
+      // with no conferenceId — while the real row is still `callId = conf-…` with the
+      // customer on `phoneNumber`. Tie back to the most recent `conf-` outbound for
+      // this agent (and same dialed number when we have it).
+      if (!existingRecordByTwilioSid && callSid && callSid.startsWith('CA') && safeAgentId && safeAgentId !== 'system-agent') {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const digits = (s: string) => (s || '').replace(/\D/g, '');
+        const reqDigits = digits(safePhoneNumber);
+
+        const recentConfRows = await prisma.callRecord.findMany({
+          where: {
+            agentId: safeAgentId,
+            callType: 'outbound',
+            callId: { startsWith: 'conf-' },
+            createdAt: { gte: fifteenMinutesAgo },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+          select: {
+            id: true,
+            callId: true,
+            phoneNumber: true,
+            recording: true,
+            notes: true,
+            outcome: true,
+            endTime: true,
+            createdAt: true,
+          },
+        });
+
+        const pick =
+          reqDigits.length >= 8
+            ? recentConfRows.find((r) => digits(r.phoneNumber) === reqDigits)
+            : recentConfRows[0];
+
+        if (pick) {
+          const stampLine = `[SAVE-CALL-DATA] agent-leg Twilio SID: ${callSid}`;
+          const mergedNotesForRow =
+            pick.notes && pick.notes.includes(callSid)
+              ? pick.notes
+              : `${pick.notes || ''}\n${stampLine}`.trim();
+          try {
+            await prisma.callRecord.update({
+              where: { id: pick.id },
+              data: { notes: mergedNotesForRow },
+            });
+          } catch (linkErr: any) {
+            console.warn('⚠️  Could not stamp agent-leg SID into notes:', linkErr?.message);
+          }
+          existingRecordByTwilioSid = { ...pick, notes: mergedNotesForRow } as any;
+          console.log(
+            `🛡️  SAVE-CALL-DATA: Linked to recent conf row ${pick.callId} (agent-leg / missing conferenceId fallback)`,
+          );
+        }
+      }
+
+      // 🚨 PRIORITY 4: Anti-duplicate fallback (open row only).
       //
       // Manual dial via the WebRTC bridge produces TWO Twilio CallSids: the
       // customer-leg (which is what makeRestApiCall stores in `recording`) and
