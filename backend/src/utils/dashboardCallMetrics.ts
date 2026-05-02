@@ -39,18 +39,25 @@ const TERMINAL_NOT_CONNECTED = new Set([
   'abandoned',
 ]);
 
-/** Meaningful human connection: ended + (talk time or explicit positive outcome), not a hard no-connect. */
+/** Meaningful human connection: talk time, disposition wrap-up, or ended + positive outcome — not a hard no-connect. */
 export function isStatsConnectedCall(args: {
   endTime: Date | null;
   outcome: string | null | undefined;
   duration: number | null | undefined;
   dispositionId: string | null | undefined;
 }): boolean {
-  if (!args.endTime) return false;
   const o = (args.outcome || '').toLowerCase();
   if (TERMINAL_NOT_CONNECTED.has(o)) return false;
 
+  // Recorded talk time almost always means a live leg existed (even if endTime was not backfilled).
   if ((args.duration ?? 0) > 0) return true;
+
+  // Agent chose a disposition: treat as a handled call for dashboard stats unless outcome is a hard no-connect.
+  if (args.dispositionId && !TERMINAL_NOT_CONNECTED.has(o)) {
+    return true;
+  }
+
+  if (!args.endTime) return false;
 
   const connectedOutcomes = [
     'completed',
@@ -67,7 +74,6 @@ export function isStatsConnectedCall(args: {
   ];
   if (connectedOutcomes.some((x) => o === x.toLowerCase())) return true;
 
-  // Do not treat "any disposition" as connected — many dispositions are logged on no-answer / failed legs.
   return false;
 }
 

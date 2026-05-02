@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { addDays, addHours, startOfDay, startOfHour } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { utcToZonedTime, zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
 import { authenticate, requireRole } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
 import { prisma } from '../lib/prisma';
@@ -582,12 +582,14 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
       },
     });
 
+    let rowsPlacedInBuckets = 0;
     for (const r of records) {
       const key =
         bucketMode === 'hour'
           ? zonedTimeToUtc(startOfHour(utcToZonedTime(new Date(r.startTime), tz)), tz).toISOString()
-          : formatZonedDateKey(new Date(r.startTime), tz);
+          : formatInTimeZone(new Date(r.startTime), tz, 'yyyy-MM-dd');
       if (!buckets[key]) continue;
+      rowsPlacedInBuckets += 1;
       buckets[key].totalCalls += 1;
       if (
         isStatsConnectedCall({
@@ -619,6 +621,9 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
             : requestedAgentId && canFilterPerformanceSeriesByAgent(req.user?.role)
               ? requestedAgentId
               : null,
+        callRecordsMatched: records.length,
+        callRecordsPlacedInChart: rowsPlacedInBuckets,
+        rangeStartUtc: rangeStartUtc.toISOString(),
       },
     });
   } catch (error) {

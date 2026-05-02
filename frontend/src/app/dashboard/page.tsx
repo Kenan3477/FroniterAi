@@ -106,9 +106,13 @@ function DashboardContent() {
     timezone: string;
     campaignId: string | null;
     agentId: string | null;
+    callRecordsMatched?: number;
+    callRecordsPlacedInChart?: number;
+    rangeStartUtc?: string;
   } | null>(null);
   const [perfPreset, setPerfPreset] = useState<PerformancePreset>('1W');
-  const [perfCampaignFilter, setPerfCampaignFilter] = useState<string>('');
+  /** Default all campaigns so totals include DAC, Manual Dialing, inbound-calls, etc. */
+  const [perfCampaignFilter, setPerfCampaignFilter] = useState<string>('all');
   const [perfAgentFilter, setPerfAgentFilter] = useState<string>('');
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
@@ -218,7 +222,12 @@ function DashboardContent() {
     try {
       const q = new URLSearchParams();
       q.set('preset', perfPreset);
-      const campaignForQuery = perfCampaignFilter || currentCampaign?.campaignId;
+      const campaignForQuery =
+        perfCampaignFilter === 'all' || perfCampaignFilter === ''
+          ? 'all'
+          : perfCampaignFilter === '__header__'
+            ? currentCampaign?.campaignId
+            : perfCampaignFilter;
       if (campaignForQuery && campaignForQuery !== 'all') {
         q.set('campaignId', campaignForQuery);
       }
@@ -716,6 +725,15 @@ function DashboardContent() {
                   <p className="text-sm theme-text-secondary mt-1">
                     Calls, connected calls, and sales (conversions) over the selected window.
                     {perfMeta?.timezone ? ` Time zone: ${perfMeta.timezone}.` : ''}
+                    {perfMeta &&
+                    typeof perfMeta.callRecordsMatched === 'number' &&
+                    typeof perfMeta.callRecordsPlacedInChart === 'number' ? (
+                      <span className="block mt-1 text-xs opacity-80">
+                        Loaded {perfMeta.callRecordsMatched} call record
+                        {perfMeta.callRecordsMatched === 1 ? '' : 's'} in range; charted{' '}
+                        {perfMeta.callRecordsPlacedInChart}.
+                      </span>
+                    ) : null}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -747,8 +765,10 @@ function DashboardContent() {
                     onChange={(e) => setPerfCampaignFilter(e.target.value)}
                     className="rounded-md border theme-border theme-bg-primary theme-text-primary px-3 py-2 text-sm"
                   >
-                    <option value="">Use header campaign ({currentCampaign?.name || 'all'})</option>
-                    <option value="all">All campaigns</option>
+                    <option value="all">All campaigns (recommended)</option>
+                    <option value="__header__">
+                      Header campaign only ({currentCampaign?.name || currentCampaign?.campaignId || 'none'})
+                    </option>
                     {availableCampaigns.map((c) => (
                       <option key={c.campaignId} value={c.campaignId}>
                         {c.name || c.displayName || c.campaignId}
