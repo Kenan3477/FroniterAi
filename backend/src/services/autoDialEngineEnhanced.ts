@@ -564,7 +564,11 @@ export class AutoDialEngine {
       const callResult = await twilioService.createRestApiCall({
         to: customerPhone,
         from: cliNumber,
-        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?agentId=${agentId}&contactId=${contactId}&campaignId=${campaignId}`
+        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
+          clientIdentity: agentId,
+          contactId,
+          campaignId,
+        }).toString()}`
       });
 
       if (callResult && callResult.sid) {

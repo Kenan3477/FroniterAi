@@ -7,6 +7,7 @@ import { z } from 'zod';
 import twilioService, { twilioClient } from '../services/twilioService';
 import { prisma } from '../lib/prisma';
 import { getBackendBaseUrl } from '../config/voiceMedia';
+import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
 
 // twilioClient from twilioService (null-safe when credentials missing)
 
@@ -936,9 +937,19 @@ export const generateCustomerToAgentTwiML = async (req: Request, res: Response) 
   try {
     // Extract phone number from request for landline detection
     const phoneNumber = req.query.To || req.body.To || req.query.to || req.body.to;
-    console.log('📞 Customer-to-Agent TwiML request - Phone:', phoneNumber);
+    const clientIdentityRaw =
+      (req.query.clientIdentity as string) ||
+      (req.query.agentId as string) ||
+      (req.body?.clientIdentity as string) ||
+      (req.body?.agentId as string) ||
+      '';
+    const clientIdentity =
+      typeof clientIdentityRaw === 'string' && clientIdentityRaw.trim()
+        ? clientIdentityRaw.trim()
+        : 'agent-browser';
+    console.log('📞 Customer-to-Agent TwiML request - Phone:', phoneNumber, 'Client:', clientIdentity);
 
-    const twiml = twilioService.generateCustomerToAgentTwiML(phoneNumber);
+    const twiml = twilioService.generateCustomerToAgentTwiML(phoneNumber as string | undefined, clientIdentity);
     
     console.log('✅ Customer-to-Agent TwiML generated with landline optimization');
     res.type('text/xml');
@@ -1345,7 +1356,9 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     console.log(`🔍 Number type detection: ${formattedTo} is ${isLandline ? 'LANDLINE 🏠' : 'MOBILE 📱'}`);
 
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent`;
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
+      clientIdentity: await resolveTwilioVoiceIdentityForUserId(userId),
+    }).toString()}`;
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
     // All calls MUST be recorded for compliance and quality assurance.

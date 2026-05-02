@@ -255,7 +255,10 @@ export const generateAgentDialTwiML = (customerNumber: string): string => {
  * Generate TwiML for customer to connect directly to WebRTC agent
  * Enhanced for landline compatibility
  */
-export const generateCustomerToAgentTwiML = (phoneNumber?: string): string => {
+export const generateCustomerToAgentTwiML = (
+  phoneNumber?: string,
+  clientIdentity: string = 'agent-browser',
+): string => {
   const twiml = new twilio.twiml.VoiceResponse();
   
   // Detect if this is a landline call for optimized settings
@@ -286,9 +289,9 @@ export const generateCustomerToAgentTwiML = (phoneNumber?: string): string => {
     twiml.pause({ length: 1 });
   }
   
-  // Connect customer directly to the WebRTC agent browser client
+  // Connect customer directly to the WebRTC agent browser client (identity must match Voice token)
   const dial = twiml.dial(dialSettings);
-  dial.client('agent-browser');
+  dial.client(clientIdentity.trim() || 'agent-browser');
   
   // Add landline-specific fallback handling (no TTS - just hangup)
   if (isLandline) {

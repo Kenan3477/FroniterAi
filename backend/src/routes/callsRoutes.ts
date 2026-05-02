@@ -8,6 +8,7 @@ import { createRestApiCall, generateAccessToken } from '../services/twilioServic
 import { authenticate, requireRole } from '../middleware/auth';
 import { getBackendBaseUrl } from '../config/voiceMedia';
 import { buildLiveMonitorConferenceTwiml } from '../utils/liveMonitorTwiml';
+import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
 
 const router = express.Router();
 
@@ -100,13 +101,19 @@ router.get('/token/:agentId', async (req: Request, res: Response) => {
 // POST /api/calls/token - Same as GET (Next.js proxy uses POST with JSON body)
 router.post('/token', authenticate, async (req: Request, res: Response) => {
   try {
-    const agentId = (req.body?.agentId as string) || 'agent-browser';
-    const accessToken = generateAccessToken(agentId);
+    const bodyAgent = typeof req.body?.agentId === 'string' ? req.body.agentId.trim() : '';
+    const defaultShared = 'agent-browser';
+    const identity =
+      !bodyAgent || bodyAgent === defaultShared
+        ? await resolveTwilioVoiceIdentityForUserId(req.user?.userId)
+        : bodyAgent;
+    const accessToken = generateAccessToken(identity);
     res.json({
       success: true,
       data: {
         token: accessToken,
-        agentId,
+        agentId: identity,
+        identity,
       },
     });
   } catch (error) {
