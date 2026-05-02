@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
 import { agentService, CreateAgentRequest } from '../services/agentService';
+import { authenticate, requireRole } from '../middleware/auth';
 
 import { prisma } from '../lib/prisma';
 const router = Router();
@@ -43,8 +44,8 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/agents - Get all agents
-router.get('/', async (req: Request, res: Response) => {
+// GET /api/agents - List agents (supervisors and above; used for dashboard filters)
+router.get('/', authenticate, requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'), async (req: Request, res: Response) => {
   try {
     const agents = await prisma.agent.findMany({
       select: {

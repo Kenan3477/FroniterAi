@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { addDays, startOfDay } from 'date-fns';
+import { addDays, addHours, startOfDay, startOfHour } from 'date-fns';
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import { authenticate, requireRole } from '../middleware/auth';
 import { overviewDashboardService } from '../services/overviewDashboardService';
@@ -44,6 +44,11 @@ const TERMINAL_NOT_CONNECTED_OUTCOMES = [
 ];
 
 const router = express.Router();
+
+function canFilterPerformanceSeriesByAgent(role: string | undefined): boolean {
+  const r = (role || '').toUpperCase();
+  return ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(r);
+}
 /**
  * Dashboard Stats Endpoint
  * GET /api/dashboard/stats
@@ -475,38 +480,97 @@ router.get(
 );
 
 /**
- * GET /api/dashboard/performance-series?days=7&campaignId=
- * Daily buckets for charts: total calls, connected-ish, conversions (positive dispositions).
+ * GET /api/dashboard/performance-series
+ *
+ * Query:
+ * - preset: 1D | 1W | 1M | 1Y (optional; overrides days when set)
+ * - days: 1–90 daily buckets (legacy; capped at 90)
+ * - campaignId: filter by campaign (omit or "all" for org-wide)
+ * - agentId: filter by Agent.agentId (SUPER_ADMIN, ADMIN, SUPERVISOR, MANAGER only)
+ *
+ * 1D → hourly buckets for the last 24 hours in dashboard TZ.
+ * 1W / 1M / 1Y → daily buckets (7 / 30 / 365 calendar days in TZ).
  */
 router.get('/performance-series', authenticate, async (req: Request, res: Response) => {
   try {
+    const presetRaw = String(req.query.preset || '').trim().toUpperCase();
+    const preset = ['1D', '1W', '1M', '1Y'].includes(presetRaw) ? presetRaw : '';
+
     const rawDays = parseInt(String(req.query.days || '7'), 10);
-    const days = Number.isFinite(rawDays) ? Math.min(30, Math.max(1, rawDays)) : 7;
+    const daysFallback = Number.isFinite(rawDays) ? Math.min(90, Math.max(1, rawDays)) : 7;
+
     const campaignId = req.query.campaignId as string | undefined;
+    const requestedAgentId = (req.query.agentId as string | undefined)?.trim();
+
     const tz = getDashboardStatsTimezone();
     const now = new Date();
-
     const zonedNow = utcToZonedTime(now, tz);
-    const bucketKeys: string[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const dayStartZoned = startOfDay(addDays(startOfDay(zonedNow), -i));
-      const dayStartUtc = zonedTimeToUtc(dayStartZoned, tz);
-      bucketKeys.push(formatZonedDateKey(dayStartUtc, tz));
+
+    let bucketMode: 'hour' | 'day' = 'day';
+    let bucketKeys: string[] = [];
+    let rangeStartUtc: Date;
+
+    const campaignWhere =
+      campaignId && campaignId !== 'all' ? { campaignId } : {};
+
+    const agentIdForAgent =
+      req.user?.role === 'AGENT' && req.user?.userId
+        ? await resolveAgentIdForUserId(req.user.userId)
+        : undefined;
+
+    let agentWhere: { agentId: string } | Record<string, never> = {};
+    if (req.user?.role === 'AGENT' && agentIdForAgent) {
+      agentWhere = { agentId: agentIdForAgent };
+    } else if (requestedAgentId && canFilterPerformanceSeriesByAgent(req.user?.role)) {
+      agentWhere = { agentId: requestedAgentId };
     }
 
-    const oldestDayStartZoned = startOfDay(addDays(startOfDay(zonedNow), -(days - 1)));
-    const rangeStartUtc = zonedTimeToUtc(oldestDayStartZoned, tz);
+    if (preset === '1D') {
+      bucketMode = 'hour';
+      for (let h = 23; h >= 0; h--) {
+        const hourStartZoned = startOfHour(addHours(zonedNow, -h));
+        const hourStartUtc = zonedTimeToUtc(hourStartZoned, tz);
+        bucketKeys.push(hourStartUtc.toISOString());
+      }
+      rangeStartUtc = zonedTimeToUtc(startOfHour(addHours(zonedNow, -23)), tz);
+    } else {
+      bucketMode = 'day';
+      const dayCount =
+        preset === '1Y' ? 365 : preset === '1M' ? 30 : preset === '1W' ? 7 : daysFallback;
 
-    const buckets: Record<string, { date: string; totalCalls: number; connectedCalls: number; conversions: number }> =
-      {};
+      for (let i = dayCount - 1; i >= 0; i--) {
+        const dayStartZoned = startOfDay(addDays(startOfDay(zonedNow), -i));
+        const dayStartUtc = zonedTimeToUtc(dayStartZoned, tz);
+        bucketKeys.push(formatZonedDateKey(dayStartUtc, tz));
+      }
+
+      const oldestDayStartZoned = startOfDay(addDays(startOfDay(zonedNow), -(dayCount - 1)));
+      rangeStartUtc = zonedTimeToUtc(oldestDayStartZoned, tz);
+    }
+
+    const buckets: Record<
+      string,
+      { date: string; label: string; totalCalls: number; connectedCalls: number; conversions: number }
+    > = {};
     for (const key of bucketKeys) {
-      buckets[key] = { date: key, totalCalls: 0, connectedCalls: 0, conversions: 0 };
+      const label =
+        bucketMode === 'hour'
+          ? new Intl.DateTimeFormat('en-GB', {
+              timeZone: tz,
+              month: 'short',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).format(new Date(key))
+          : key.slice(5);
+      buckets[key] = { date: key, label, totalCalls: 0, connectedCalls: 0, conversions: 0 };
     }
 
     const records = await prisma.callRecord.findMany({
       where: {
         startTime: { gte: rangeStartUtc },
-        ...(campaignId && campaignId !== 'all' ? { campaignId } : {}),
+        ...campaignWhere,
+        ...agentWhere,
       },
       select: {
         startTime: true,
@@ -519,15 +583,20 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
     });
 
     for (const r of records) {
-      const key = formatZonedDateKey(new Date(r.startTime), tz);
+      const key =
+        bucketMode === 'hour'
+          ? zonedTimeToUtc(startOfHour(utcToZonedTime(new Date(r.startTime), tz)), tz).toISOString()
+          : formatZonedDateKey(new Date(r.startTime), tz);
       if (!buckets[key]) continue;
       buckets[key].totalCalls += 1;
-      if (isStatsConnectedCall({
-        endTime: r.endTime,
-        outcome: r.outcome,
-        duration: r.duration,
-        dispositionId: r.dispositionId,
-      })) {
+      if (
+        isStatsConnectedCall({
+          endTime: r.endTime,
+          outcome: r.outcome,
+          duration: r.duration,
+          dispositionId: r.dispositionId,
+        })
+      ) {
         buckets[key].connectedCalls += 1;
       }
       if (isStatsSaleOnly({ outcome: r.outcome, dispositionName: r.disposition?.name })) {
@@ -536,7 +605,22 @@ router.get('/performance-series', authenticate, async (req: Request, res: Respon
     }
 
     const series = bucketKeys.map((k) => buckets[k]);
-    res.json({ success: true, data: series });
+    res.json({
+      success: true,
+      data: series,
+      meta: {
+        preset: preset || null,
+        bucket: bucketMode,
+        timezone: tz,
+        campaignId: campaignId && campaignId !== 'all' ? campaignId : null,
+        agentId:
+          req.user?.role === 'AGENT'
+            ? agentIdForAgent || null
+            : requestedAgentId && canFilterPerformanceSeriesByAgent(req.user?.role)
+              ? requestedAgentId
+              : null,
+      },
+    });
   } catch (error) {
     console.error('❌ Dashboard performance-series error:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch performance series' });

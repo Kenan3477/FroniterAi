@@ -17,14 +17,10 @@ export async function GET(request: NextRequest) {
     ).replace(/\/$/, '');
 
     if (!backendBase) {
-      return NextResponse.json(
-        { success: false, error: 'BACKEND_URL is not configured' },
-        { status: 503 }
-      );
+      return NextResponse.json({ success: false, error: 'BACKEND_URL is not configured' }, { status: 503 });
     }
 
-    const q = request.nextUrl.searchParams.toString();
-    const res = await fetch(`${backendBase}/api/dashboard/performance-series${q ? `?${q}` : ''}`, {
+    const res = await fetch(`${backendBase}/api/agents`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -35,7 +31,7 @@ export async function GET(request: NextRequest) {
     const body = await res.json().catch(() => ({}));
     return NextResponse.json(body, { status: res.status });
   } catch (e) {
-    console.error('performance-series proxy error:', e);
+    console.error('agents list proxy error:', e);
     return NextResponse.json({ success: false, error: 'Proxy failed' }, { status: 500 });
   }
 }

@@ -1,33 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
 
-// Helper function to get authentication token
-function getAuthToken(request: NextRequest): string | null {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  
-  const cookieHeader = request.headers.get('cookie');
-  if (cookieHeader) {
-    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
-    if (authTokenMatch?.[1]) {
-      return authTokenMatch[1];
-    }
-  }
-  
-  return null;
-}
-
 export async function GET(request: NextRequest) {
   try {
     console.log('🎯 Fetching live agents for coaching...');
 
-    const authToken = getAuthToken(request);
+    const authToken = getBearerFromNextRequest(request);
     
     if (!authToken) {
       console.log('🔒 No auth token - using demo coaching data');

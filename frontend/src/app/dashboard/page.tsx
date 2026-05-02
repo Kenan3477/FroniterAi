@@ -3,7 +3,7 @@
 // Dashboard with enhanced authentication and interaction history fixes - v27.02.2026-FORCE-DEPLOY
 // Force deployment: Authentication fixes ready for production
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { MainLayout } from '@/components/layout';
 import DashboardCard from '@/components/ui/DashboardCard';
 import RecentActivity from '@/components/ui/RecentActivity';
@@ -11,6 +11,7 @@ import LiveCallsModule from '@/components/dashboard/LiveCallsModule';
 import AdaptiveDashboardQuickActions from '@/components/dashboard/AdaptiveDashboardQuickActions';
 import { UniversalNavigationTrackingWrapper } from '@/components/dashboard/UniversalNavigationTrackingWrapper';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeAppRole } from '@/lib/authRole';
 import { agentSocket } from '@/services/agentSocket';
 import {
   Chart as ChartJS,
@@ -79,19 +80,41 @@ interface DashboardApiResponse {
 
 interface PerformanceDay {
   date: string;
+  label?: string;
   totalCalls: number;
   connectedCalls: number;
   conversions: number;
+}
+
+type PerformancePreset = '1D' | '1W' | '1M' | '1Y';
+
+interface AgentOption {
+  agentId: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
 }
 
 function DashboardContent() {
   const [dashboardStats, setDashboardStats] = useState<DashboardApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [performanceSeries, setPerformanceSeries] = useState<PerformanceDay[]>([]);
+  const [performanceLoading, setPerformanceLoading] = useState(false);
+  const [perfMeta, setPerfMeta] = useState<{
+    preset: string | null;
+    bucket: string;
+    timezone: string;
+    campaignId: string | null;
+    agentId: string | null;
+  } | null>(null);
+  const [perfPreset, setPerfPreset] = useState<PerformancePreset>('1W');
+  const [perfCampaignFilter, setPerfCampaignFilter] = useState<string>('');
+  const [perfAgentFilter, setPerfAgentFilter] = useState<string>('');
+  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [inboundCalls, setInboundCalls] = useState<any[]>([]);
   
   // Get authenticated user and current campaign - dashboard now requires authentication
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, currentCampaign, availableCampaigns, isAuthenticated, loading: authLoading } = useAuth();
 
   // Client-side hydration guard (reserved for future SSR-safe widgets)
 
@@ -185,14 +208,23 @@ function DashboardContent() {
   }, []);
 
   const loadPerformanceSeries = useCallback(async () => {
-    try {
-      const token =
-        localStorage.getItem('omnivox_token') ||
-        localStorage.getItem('authToken') ||
-        localStorage.getItem('auth_token');
-      if (!token) return;
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token');
+    if (!token) return;
 
-      const q = new URLSearchParams({ days: '7' });
+    setPerformanceLoading(true);
+    try {
+      const q = new URLSearchParams();
+      q.set('preset', perfPreset);
+      const campaignForQuery = perfCampaignFilter || currentCampaign?.campaignId;
+      if (campaignForQuery && campaignForQuery !== 'all') {
+        q.set('campaignId', campaignForQuery);
+      }
+      if (perfAgentFilter.trim()) {
+        q.set('agentId', perfAgentFilter.trim());
+      }
 
       const res = await fetch(`/api/dashboard/performance-series?${q.toString()}`, {
         credentials: 'include',
@@ -206,12 +238,15 @@ function DashboardContent() {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setPerformanceSeries(json.data);
+          setPerfMeta(json.meta || null);
         }
       }
     } catch (e) {
       console.error('Failed to load performance series:', e);
+    } finally {
+      setPerformanceLoading(false);
     }
-  }, []);
+  }, [perfPreset, perfCampaignFilter, perfAgentFilter, currentCampaign?.campaignId]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -228,6 +263,36 @@ function DashboardContent() {
     }, 60_000);
     return () => window.clearInterval(id);
   }, [isAuthenticated, user, loadDashboardStats, loadPerformanceSeries]);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+    const r = normalizeAppRole(user.role);
+    if (!r || !['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(r)) return;
+
+    const token =
+      localStorage.getItem('omnivox_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token');
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/agents/list', {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setAgentOptions(json.data);
+        }
+      } catch (e) {
+        console.warn('Could not load agent list for performance filters:', e);
+      }
+    })();
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     if (!user || !isAuthenticated) return;
@@ -351,6 +416,29 @@ function DashboardContent() {
   // Dashboard now requires authentication
   const currentUser = user;
   const showPreviewBanner = false; // Preview mode removed - always require authentication
+  const normalizedRole = normalizeAppRole(user?.role);
+  const canFilterPerformanceByAgent =
+    normalizedRole &&
+    ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(normalizedRole);
+
+  const perfTotals = useMemo(
+    () =>
+      performanceSeries.reduce(
+        (acc, d) => ({
+          totalCalls: acc.totalCalls + d.totalCalls,
+          connectedCalls: acc.connectedCalls + d.connectedCalls,
+          conversions: acc.conversions + d.conversions,
+        }),
+        { totalCalls: 0, connectedCalls: 0, conversions: 0 }
+      ),
+    [performanceSeries]
+  );
+  const perfConnectionRatePct =
+    perfTotals.totalCalls > 0 ? Math.round((perfTotals.connectedCalls / perfTotals.totalCalls) * 100) : 0;
+  const perfConversionOnCallsPct =
+    perfTotals.totalCalls > 0 ? Math.round((perfTotals.conversions / perfTotals.totalCalls) * 100) : 0;
+  const perfConversionOnConnectedPct =
+    perfTotals.connectedCalls > 0 ? Math.round((perfTotals.conversions / perfTotals.connectedCalls) * 100) : 0;
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -578,7 +666,7 @@ function DashboardContent() {
         {/* Recent Activity & Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Role-based Activity Module */}
-          {user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? (
+          {normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN' ? (
             // Show Live Calls Module for Admins and Super Admins
             <LiveCallsModule />
           ) : (
@@ -619,20 +707,139 @@ function DashboardContent() {
         <div className="mt-8">
           <div className="theme-card shadow-sm rounded-lg">
             <div className="p-6">
-              <h3 className="text-lg font-semibold theme-text-primary mb-4">
-                Performance Overview
-                {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
-              </h3>
-              <div className="h-72 theme-bg-secondary rounded-lg border theme-border p-4">
-                {performanceSeries.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <p className="theme-text-secondary">No call data in the last 7 days yet.</p>
-                    <p className="text-sm theme-text-secondary mt-2">Complete a few calls to see volume, connections, and conversions here.</p>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold theme-text-primary">
+                    Performance Overview
+                    {showPreviewBanner && <span className="text-sm theme-text-secondary ml-2">(Demo Data)</span>}
+                  </h3>
+                  <p className="text-sm theme-text-secondary mt-1">
+                    Calls, connected calls, and sales (conversions) over the selected window.
+                    {perfMeta?.timezone ? ` Time zone: ${perfMeta.timezone}.` : ''}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(['1D', '1W', '1M', '1Y'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPerfPreset(p)}
+                      className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                        perfPreset === p
+                          ? 'bg-blue-600 text-white shadow'
+                          : 'theme-bg-secondary theme-text-primary border theme-border hover:opacity-90'
+                      }`}
+                    >
+                      {p === '1D' ? '1D' : p === '1W' ? '1W' : p === '1M' ? '1M' : '1Y'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="flex flex-col gap-1 min-w-[180px]">
+                  <label htmlFor="perf-campaign" className="text-xs font-medium theme-text-secondary">
+                    Campaign
+                  </label>
+                  <select
+                    id="perf-campaign"
+                    value={perfCampaignFilter}
+                    onChange={(e) => setPerfCampaignFilter(e.target.value)}
+                    className="rounded-md border theme-border theme-bg-primary theme-text-primary px-3 py-2 text-sm"
+                  >
+                    <option value="">Use header campaign ({currentCampaign?.name || 'all'})</option>
+                    <option value="all">All campaigns</option>
+                    {availableCampaigns.map((c) => (
+                      <option key={c.campaignId} value={c.campaignId}>
+                        {c.name || c.displayName || c.campaignId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {canFilterPerformanceByAgent && (
+                  <div className="flex flex-col gap-1 min-w-[200px] flex-1 sm:max-w-xs">
+                    <label htmlFor="perf-agent" className="text-xs font-medium theme-text-secondary">
+                      Agent
+                    </label>
+                    <select
+                      id="perf-agent"
+                      value={perfAgentFilter}
+                      onChange={(e) => setPerfAgentFilter(e.target.value)}
+                      className="rounded-md border theme-border theme-bg-primary theme-text-primary px-3 py-2 text-sm"
+                    >
+                      <option value="">All agents</option>
+                      {agentOptions.map((a) => (
+                        <option key={a.agentId} value={a.agentId}>
+                          {[a.firstName, a.lastName].filter(Boolean).join(' ').trim() || a.email || a.agentId}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ) : (
+                )}
+                <button
+                  type="button"
+                  onClick={() => loadPerformanceSeries()}
+                  disabled={performanceLoading}
+                  className="rounded-md border theme-border theme-bg-secondary px-4 py-2 text-sm font-medium theme-text-primary hover:opacity-90 disabled:opacity-50"
+                >
+                  {performanceLoading ? 'Refreshing…' : 'Refresh chart'}
+                </button>
+              </div>
+
+              {!performanceLoading && performanceSeries.length > 0 && (
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  <div className="rounded-lg border theme-border bg-blue-50/40 dark:bg-blue-950/30 px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Total calls</p>
+                    <p className="text-lg font-semibold theme-text-primary">{perfTotals.totalCalls}</p>
+                  </div>
+                  <div className="rounded-lg border theme-border bg-emerald-50/40 dark:bg-emerald-950/30 px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Connected</p>
+                    <p className="text-lg font-semibold theme-text-primary">{perfTotals.connectedCalls}</p>
+                  </div>
+                  <div className="rounded-lg border theme-border bg-orange-50/40 dark:bg-orange-950/30 px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Sales (conversions)</p>
+                    <p className="text-lg font-semibold theme-text-primary">{perfTotals.conversions}</p>
+                  </div>
+                  <div className="rounded-lg border theme-border theme-bg-secondary px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Connect rate</p>
+                    <p className="text-lg font-semibold theme-text-primary">{perfConnectionRatePct}%</p>
+                  </div>
+                  <div className="rounded-lg border theme-border theme-bg-secondary px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Sale / connected</p>
+                    <p className="text-lg font-semibold theme-text-primary">
+                      {perfTotals.connectedCalls > 0 ? `${perfConversionOnConnectedPct}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border theme-border theme-bg-secondary px-3 py-2">
+                    <p className="text-xs theme-text-secondary">Sale / all calls</p>
+                    <p className="text-lg font-semibold theme-text-primary">
+                      {perfTotals.totalCalls > 0 ? `${perfConversionOnCallsPct}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="relative h-72 theme-bg-secondary rounded-lg border theme-border p-4">
+                {performanceLoading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                  </div>
+                )}
+                {performanceSeries.length === 0 && !performanceLoading ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                    <p className="theme-text-secondary">
+                      No call data for this selection yet.
+                    </p>
+                    <p className="text-sm theme-text-secondary mt-2">
+                      Try a longer period (1M / 1Y), set campaign to &quot;All campaigns&quot;, or clear the agent filter.
+                    </p>
+                  </div>
+                ) : performanceSeries.length > 0 ? (
                   <Line
                     data={{
-                      labels: performanceSeries.map((d) => d.date.slice(5)),
+                      labels: performanceSeries.map((d) =>
+                        d.label != null && d.label !== '' ? d.label : d.date.slice(5)
+                      ),
                       datasets: [
                         {
                           label: 'Total calls',
@@ -643,7 +850,7 @@ function DashboardContent() {
                           fill: true,
                         },
                         {
-                          label: 'Connected / meaningful',
+                          label: 'Connected calls',
                           data: performanceSeries.map((d) => d.connectedCalls),
                           borderColor: 'rgb(34, 197, 94)',
                           backgroundColor: 'rgba(34, 197, 94, 0.08)',
@@ -651,7 +858,7 @@ function DashboardContent() {
                           fill: true,
                         },
                         {
-                          label: 'Conversions (positive outcomes)',
+                          label: 'Conversions (sales)',
                           data: performanceSeries.map((d) => d.conversions),
                           borderColor: 'rgb(249, 115, 22)',
                           backgroundColor: 'rgba(249, 115, 22, 0.08)',
@@ -665,13 +872,24 @@ function DashboardContent() {
                       maintainAspectRatio: false,
                       plugins: {
                         legend: { position: 'bottom' },
+                        tooltip: {
+                          mode: 'index',
+                          intersect: false,
+                        },
                       },
                       scales: {
                         y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: {
+                          ticks: {
+                            maxRotation: perfPreset === '1D' ? 45 : 0,
+                            autoSkip: true,
+                            maxTicksLimit: perfPreset === '1Y' ? 14 : perfPreset === '1M' ? 16 : 12,
+                          },
+                        },
                       },
                     }}
                   />
-                )}
+                ) : null}
               </div>
             </div>
           </div>
