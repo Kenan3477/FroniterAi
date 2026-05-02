@@ -574,7 +574,11 @@ export class AutoDialEngine {
       const call = await twilioClient.calls.create({
         to: customerPhone,
         from: cliNumber,
-        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?agentId=${agentId}&contactId=${contactId}&campaignId=${campaignId}`,
+        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
+          clientIdentity: agentId,
+          contactId,
+          campaignId,
+        }).toString()}`,
         // Enable AMD for intelligent call handling
         machineDetection: 'Enable',
         machineDetectionTimeout: 8000, // 8 seconds for AMD analysis

@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { FlowExecutionEngine } from '../services/flowExecutionEngine';
 import crypto from 'crypto';
 import { resolveConferenceWaitUrl, resolveDefaultInboundGreetingUrl, normalizeInboundTo, resolveAbsoluteBackendUrl, toTwilioPlayableUrl } from '../config/voiceMedia';
+import { resolveAvailableAgentVoiceIdentities } from '../utils/twilioVoiceClientIdentity';
 
 /**
  * Find inbound_numbers row matching Twilio "To" (exact or last-10-digits fallback).
@@ -92,7 +93,7 @@ async function buildDirectAgentRouteTwiML(
     );
     return { twiml: generateOutOfHoursTwiML(inboundNumber), notifyAgents: false };
   }
-  return { twiml: routeToAvailableAgents(callerInfo, callId, inboundNumber), notifyAgents: true };
+  return { twiml: await routeToAvailableAgents(callerInfo, callId, inboundNumber), notifyAgents: true };
 }
 
 // Inbound call interface
@@ -574,10 +575,14 @@ export const generateInboundWelcomeTwiML = (conferenceRoom: string): string => {
 
 /**
  * Helper function to route calls to available agents
- * 🚨 ROBUST FIX: Always dial browser client, let Twilio timeout handle offline agents
+ * Dials every logged-in Available agent's Twilio Client identity (must match Voice token identity).
  */
-function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string, inboundNumber: any): string {
-  console.log('📞 Routing call to browser agent (robust approach)');
+async function routeToAvailableAgents(
+  callerInfo: CallerLookupResponse,
+  callId: string,
+  inboundNumber: any,
+): Promise<string> {
+  console.log('📞 Routing call to browser agent(s) (Voice client identities)');
   
   const twiml = new twilio.twiml.VoiceResponse();
 
@@ -594,9 +599,6 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   twiml.pause({ length: 1 });
   twiml.play(greetingUrl);
 
-  // ROBUST APPROACH: Always dial the browser client
-  // If agent is online → call connects immediately
-  // If agent is offline → Twilio 30s timeout → noAnswerAudio → hangup
   const backendUrl = process.env.BACKEND_URL || '';
   const recordingStatusCallback = backendUrl
     ? `${backendUrl}/api/calls/webhook/inbound-recording?callId=${callId}`
@@ -614,10 +616,16 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   }
 
   const dial = twiml.dial(dialOpts);
-  
-  const clientIdentity =
+
+  const identities = await resolveAvailableAgentVoiceIdentities(40);
+  const fallback =
     (process.env.TWILIO_VOICE_CLIENT_IDENTITY || 'agent-browser').trim() || 'agent-browser';
-  dial.client(clientIdentity);
+  const toRing = identities.length > 0 ? identities : [fallback];
+
+  console.log('📞 Inbound <Dial><Client> identities:', toRing.join(', '));
+  for (const id of toRing) {
+    if (id) dial.client(id);
+  }
 
   if (inboundNumber.noAnswerAudioUrl) {
     const na = toTwilioPlayableUrl(inboundNumber.noAnswerAudioUrl);
@@ -644,7 +652,7 @@ function routeToAvailableAgents(callerInfo: CallerLookupResponse, callId: string
   
   twiml.hangup();
 
-  console.log('✅ TwiML generated - will dial browser agent with 30s timeout');
+  console.log('✅ TwiML generated - will dial Voice client(s) with 30s timeout');
   return twiml.toString();
 }
 
@@ -1038,7 +1046,7 @@ async function notifyAgentsOfInboundCall(inboundCall: InboundCall, callerInfo: C
         const availableAgents = await prisma.$queryRaw`
           SELECT DISTINCT a."agentId", a."firstName", a."lastName", a.status, a."isLoggedIn"
           FROM agents a
-          WHERE a.status = 'Available'
+          WHERE LOWER(a.status) = 'available'
             AND a."isLoggedIn" = true
           LIMIT 50
         ` as any[];
@@ -1309,7 +1317,7 @@ async function getFallbackTwiML(
     if (!cfg) cfg = {};
 
     const callerInfo = await lookupCallerInformation(inboundCall.callerNumber);
-    return routeToAvailableAgents(callerInfo, inboundCall.id, cfg);
+    return await routeToAvailableAgents(callerInfo, inboundCall.id, cfg);
   } catch (error) {
     console.error('❌ Error generating fallback TwiML:', error);
     const twiml = new twilio.twiml.VoiceResponse();
