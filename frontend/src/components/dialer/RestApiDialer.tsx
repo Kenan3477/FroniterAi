@@ -169,6 +169,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
   // Initialize Twilio Device for browser audio (to receive calls from REST API)
   useEffect(() => {
+    if (!user) return;
+
     const initializeDevice = async () => {
       // Prevent duplicate device initialization
       if (deviceRef.current) {
@@ -183,7 +185,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       }
 
       try {
-        console.log('🔄 Initializing WebRTC device for incoming calls...');
+        const voiceId = user.voiceClientIdentity || user.id.toString();
+        console.log('🔄 Initializing WebRTC device for incoming calls (identity:', voiceId, ')...');
         
         // Get access token from backend
         const tokenResponse = await fetch('/api/calls/token', {
@@ -249,9 +252,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           // 🛡️ DIRECTION DETECTION (deterministic).
           //
           // The agent-leg of an outbound REST-API call arrives at this Device as
-          // an 'incoming' event because we registered the Device as the
-          // `agent-browser` Twilio Client and our outbound TwiML does
-          // <Dial><Client>agent-browser</Client></Dial>.
+          // an 'incoming' event because we use a shared Voice Client identity
+          // (resolved server-side to match <Dial><Client>…</Client>).
           //
           // The previous heuristic compared `phoneNumber` (the dial-pad input
           // state) against the empty string. That was unreliable for two
@@ -264,7 +266,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           //      empty string regardless.
           //
           // If we have an active REST-API outbound (`activeRestApiCall` is set), this Twilio Client
-          // `incoming` is the agent audio leg (<Dial><Client>agent-browser</Client></Dial>) —
+          // `incoming` is the agent audio leg (<Dial><Client>…</Client></Dial>) —
           // no matter how long the customer rang before the agent answered. A short time window
           // misclassified late answers as INBOUND and broke conference audio / dispositions.
           const isOutboundCall = Boolean(activeRest?.callSid);
@@ -513,25 +515,22 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
     return () => {
       if (deviceRef.current) {
-        deviceRef.current.destroy();
+        try {
+          deviceRef.current.destroy();
+        } catch (e) {
+          console.warn('Twilio Device destroy:', e);
+        }
+        deviceRef.current = null;
+        setDevice(null);
+        setIsDeviceReady(false);
       }
-      // Clean up microphone stream
       if (microphoneStreamRef.current) {
-        microphoneStreamRef.current.getTracks().forEach(track => track.stop());
+        microphoneStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-    // 🛡️ Initialise the Twilio Device once, as soon as audio devices are
-    // available. We deliberately do NOT depend on `selectedAudioOutput` or the
-    // full `audioDevices` object here: changing the speaker mid-session — or
-    // having the OS hot-swap a USB headset — must NOT destroy & re-register
-    // the Device, because that would lose the registered 'incoming' listener
-    // and a fresh listener would capture stale state on the next call.
-    // The dep below only changes when audio enumeration first completes, so
-    // this effect runs exactly once per component mount.
-    // Speaker changes are applied to the existing Device by the speaker
-    // effect below.
+    // Re-register when profile exposes voiceClientIdentity (fixes inbound ring + token mismatch).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioDevicesReady]);
+  }, [audioDevicesReady, user?.id, user?.voiceClientIdentity]);
 
   // Apply speaker selection to the live Device without re-registering it.
   useEffect(() => {

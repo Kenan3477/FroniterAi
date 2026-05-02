@@ -30,27 +30,39 @@ export const initializeSocket = (io: Server): WebSocketService => {
     socket.on('authenticate-agent', async (data: { agentId: string; token?: string }) => {
       try {
         console.log(`🔐 Authenticating agent: ${data.agentId}`);
-        
-        // Join agent-specific room
-        socket.join(`agent:${data.agentId}`);
-        
-        // Join any assigned campaigns
-        // Query agent's campaigns
+
+        const { resolveTwilioVoiceIdentityForUserId } = await import('../utils/twilioVoiceClientIdentity');
+        const voiceClientIdentity = await resolveTwilioVoiceIdentityForUserId(data.agentId);
+
+        // Must match inbound/outbound Twilio <Dial><Client>identity</Client> and Voice token identity
+        socket.join(`agent:${voiceClientIdentity}`);
+        if (voiceClientIdentity !== data.agentId) {
+          socket.join(`agent:${data.agentId}`);
+        }
+
+        // Join campaigns for this agent via User.email ↔ Agent.email (userId on assignments is User.id)
         const agentCampaigns = await (await import('../database')).prisma.$queryRaw`
-          SELECT uca."campaignId"
-          FROM user_campaign_assignments uca
-          INNER JOIN agents a ON a."agentId" = uca."userId"::text
-          WHERE a."agentId" = ${data.agentId}
+          SELECT DISTINCT uca."campaignId"
+          FROM agents a
+          INNER JOIN users u ON LOWER(u.email) = LOWER(a.email)
+          INNER JOIN user_campaign_assignments uca ON uca."userId" = u.id
+          WHERE a."agentId" = ${voiceClientIdentity}
             AND uca."isActive" = true
         ` as any[];
-        
+
         for (const campaign of agentCampaigns) {
           socket.join(`campaign:${campaign.campaignId}`);
-          console.log(`👥 Agent ${data.agentId} joined campaign: ${campaign.campaignId}`);
+          console.log(`👥 Agent ${voiceClientIdentity} joined campaign: ${campaign.campaignId}`);
         }
-        
-        socket.emit('authenticated', { success: true, agent: { agentId: data.agentId } });
-        console.log(`✅ Agent authenticated in dialler namespace: ${data.agentId}`);
+
+        socket.emit('authenticated', {
+          success: true,
+          agent: { agentId: voiceClientIdentity, requestedAs: data.agentId },
+        });
+        console.log(
+          `✅ Agent authenticated in dialler namespace: room agent:${voiceClientIdentity}` +
+            (voiceClientIdentity !== data.agentId ? ` (requested as ${data.agentId})` : ''),
+        );
         
       } catch (error) {
         console.error('❌ Agent authentication failed:', error);

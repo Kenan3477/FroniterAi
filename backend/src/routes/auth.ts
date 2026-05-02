@@ -435,12 +435,16 @@ router.get('/profile', async (req, res) => {
       });
     }
 
+    const { resolveTwilioVoiceIdentityForUserId } = await import('../utils/twilioVoiceClientIdentity');
+    const voiceClientIdentity = await resolveTwilioVoiceIdentityForUserId(String(user.id));
+
     res.json({
       success: true,
       data: {
         user: {
           ...user,
-          preferences: user.preferences ? JSON.parse(user.preferences) : null
+          preferences: user.preferences ? JSON.parse(user.preferences) : null,
+          voiceClientIdentity,
         }
       }
     });

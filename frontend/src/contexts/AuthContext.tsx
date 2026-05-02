@@ -10,6 +10,8 @@ interface User {
   lastName: string;
   role: string;
   username?: string;
+  /** Twilio Voice Client identity — must match socket room agent:${id} for inbound notifications */
+  voiceClientIdentity?: string;
 }
 
 interface Campaign {

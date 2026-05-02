@@ -597,7 +597,8 @@ async function routeToAvailableAgents(
 
   console.log('🎵 Playing greeting audio:', greetingUrl);
   twiml.pause({ length: 1 });
-  twiml.play(greetingUrl);
+  // loop=2: some carriers decode the first chunk poorly (sounds like static); replay improves reliability
+  twiml.play({ loop: 2 }, greetingUrl);
 
   const backendUrl = process.env.BACKEND_URL || '';
   const recordingStatusCallback = backendUrl

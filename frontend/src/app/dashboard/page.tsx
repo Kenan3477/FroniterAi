@@ -311,8 +311,9 @@ function DashboardContent() {
       localStorage.getItem('authToken') ||
       localStorage.getItem('auth_token');
 
-    agentSocket.connect(user.id.toString());
-    agentSocket.authenticateAgent(user.id.toString(), token || undefined);
+    const socketAgentId = user.voiceClientIdentity || user.id.toString();
+    agentSocket.connect(socketAgentId);
+    agentSocket.authenticateAgent(socketAgentId, token || undefined);
 
     const handleInboundCallRinging = (data: any) => {
       const callerNumber =
@@ -346,14 +347,14 @@ function DashboardContent() {
       }
     };
 
-    agentSocket.on('inbound_call_ringing', handleInboundCallRinging);
+    agentSocket.on('inbound-call-ringing', handleInboundCallRinging);
 
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
     return () => {
-      agentSocket.off('inbound_call_ringing', handleInboundCallRinging);
+      agentSocket.off('inbound-call-ringing', handleInboundCallRinging);
       agentSocket.disconnect();
     };
   }, [user, isAuthenticated]);
