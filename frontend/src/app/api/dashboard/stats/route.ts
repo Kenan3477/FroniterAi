@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/middleware/auth';
 import { PrismaClient } from '@prisma/client';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
-// Use Railway database URL - external proxy for Vercel deployment
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL || "postgresql://postgres:EJhlgyhMsYUhNhaBRyHAjNSoCfTmlUPm@interchange.proxy.rlwy.net:42798/railway"
-    }
-  }
-});
+const databaseUrl = process.env.DATABASE_URL;
+const prisma = databaseUrl
+  ? new PrismaClient({
+      datasources: {
+        db: { url: databaseUrl },
+      },
+    })
+  : null;
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -21,16 +22,14 @@ export const GET = requireAuth(async (request, user) => {
     const period = searchParams.get('period') || 'today'; // today, week, month, year
     const agentId = searchParams.get('agentId');
 
-    // Prefer backend API (same source of truth as production) when we have a real JWT
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const token = getBearerFromNextRequest(request);
     const backendBase = (
       process.env.BACKEND_URL ||
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       ''
     ).replace(/\/$/, '');
 
-    if (token && !token.startsWith('temp_local_token_') && backendBase) {
+    if (token && backendBase) {
       const query = new URL(request.url).search;
       try {
         const br = await fetch(`${backendBase}/api/dashboard/stats${query}`, {
@@ -51,72 +50,15 @@ export const GET = requireAuth(async (request, user) => {
       }
     }
 
-    // Check if we're using local bypass authentication
-    
-    if (token && token.startsWith('temp_local_token_')) {
-      console.log('✅ Using mock dashboard stats for local bypass');
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          period,
-          contactStats: {
-            total: 1250,
-            new: 45,
-            updated: 23,
-            previousPeriod: 1180,
-            growth: 5.9
-          },
-          callStats: {
-            totalCalls: 89,
-            answeredCalls: 67,
-            connectedCalls: 62,
-            completedCalls: 58,
-            answerRate: 75.3,
-            connectionRate: 92.5,
-            completionRate: 93.5,
-            avgDuration: 245,
-            totalDuration: 14210,
-            previousPeriod: 78,
-            growth: 14.1
-          },
-          agentStats: {
-            totalAgents: 3,
-            activeAgents: 2,
-            availableAgents: 1,
-            busyAgents: 1,
-            pausedAgents: 0,
-            avgTalkTime: 185,
-            avgWrapTime: 45
-          },
-          dispositionStats: {
-            sale: 12,
-            interested: 18,
-            callback: 8,
-            notInterested: 15,
-            noAnswer: 22,
-            other: 14
-          },
-          pauseStats: {
-            totalEvents: 5,
-            totalDuration: 3600,
-            avgDuration: 720,
-            byReason: {
-              'Break': { count: 2, totalDuration: 1200 },
-              'Lunch': { count: 1, totalDuration: 1800 },
-              'Meeting': { count: 2, totalDuration: 600 }
-            }
-          },
-          campaignStats: {
-            totalCampaigns: 3,
-            activeCampaigns: 2,
-            pausedCampaigns: 1,
-            totalContacts: 2500,
-            contactsProcessed: 450,
-            contactsRemaining: 2050
-          }
-        }
-      });
+    if (!prisma) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Dashboard stats require BACKEND_URL (preferred) or DATABASE_URL for direct DB access.',
+        },
+        { status: 503 }
+      );
     }
 
     // Define date ranges
@@ -411,6 +353,8 @@ export const GET = requireAuth(async (request, user) => {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect();
+    }
   }
 });

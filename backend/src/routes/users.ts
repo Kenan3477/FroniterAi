@@ -6,6 +6,7 @@
 import express, { Request, Response } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { organizationAwareAuth, getOrganizationFilter } from '../middleware/enhancedAuth';
+import { allowPublicDebugRoutes } from '../utils/routeSecurity';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma';
@@ -1208,34 +1209,31 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
   }
 });
 
+if (allowPublicDebugRoutes()) {
 /**
  * @route   GET /api/users/debug-auth
- * @desc    Debug endpoint to check auth middleware
- * @access  Private (requires authentication)
+ * @desc    Debug endpoint to check auth middleware (dev only: OMNIVOX_ALLOW_PUBLIC_DEBUG_ROUTES=true)
  */
 router.get('/debug-auth', authenticate, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
-    
-    // Test the profile update logic here
+
     if (req.query.testProfile === 'true') {
       console.log(`📝 DEBUG PROFILE TEST: User ${userId} testing profile logic`);
-      
-      // Convert to integer for database lookup (same as profile route)
+
       const userIdInt = parseInt(userId.toString(), 10);
-      
+
       if (isNaN(userIdInt)) {
         return res.json({
           success: false,
           debug: true,
           message: 'Profile test - Invalid user ID format',
-          data: { userId, userIdInt, isNaN: isNaN(userIdInt) }
+          data: { userId, userIdInt, isNaN: isNaN(userIdInt) },
         });
       }
 
-      // Try to get current user (same as profile route)
       const currentUser = await prisma.user.findUnique({
-        where: { id: userIdInt }
+        where: { id: userIdInt },
       });
 
       return res.json({
@@ -1246,11 +1244,11 @@ router.get('/debug-auth', authenticate, async (req: Request, res: Response) => {
           originalUserId: userId,
           convertedUserId: userIdInt,
           userFound: !!currentUser,
-          userName: currentUser?.name
-        }
+          userName: currentUser?.name,
+        },
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Debug auth endpoint',
@@ -1258,16 +1256,17 @@ router.get('/debug-auth', authenticate, async (req: Request, res: Response) => {
         hasUser: !!(req as any).user,
         userId: userId,
         userIdType: typeof userId,
-        fullUser: (req as any).user
-      }
+        fullUser: (req as any).user,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Debug endpoint error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
+}
 
 export default router;

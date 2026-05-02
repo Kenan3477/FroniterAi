@@ -1,24 +1,15 @@
 /**
- * WORKING Transcript Route - Bypasses all problematic middleware
- * Enhanced with Advanced AI Transcription capabilities
+ * Transcript and batch transcription routes (authenticated).
  */
 
 import { Router } from 'express';
 import { prisma } from '../database/index';
-import { PrismaClient } from '@prisma/client';
+import { authenticate, requireRole } from '../middleware/auth';
+import { allowPublicDebugRoutes } from '../utils/routeSecurity';
+import { assertUserCanReadCallTranscript } from '../utils/transcriptAccess';
 
 const router = Router();
 
-// Use Railway's PostgreSQL in production for AI transcription
-const railwayPrisma = new PrismaClient({
-  datasources: { 
-    db: { 
-      url: process.env.DATABASE_URL || 'postgresql://postgres:EJhlgyhMsYUhNhaBRyHAjNSoCfTmlUPm@interchange.proxy.rlwy.net:42798/railway'
-    }
-  }
-});
-
-// Global batch processing state
 let batchProcessingState = {
   isRunning: false,
   progress: 0,
@@ -26,19 +17,26 @@ let batchProcessingState = {
   processed: 0,
   failed: 0,
   estimatedCost: 0,
-  total: 0
+  total: 0,
 };
 
+router.use(authenticate);
+
 /**
- * GET /transcript/:id - Working transcript route without complex auth
+ * GET /api/transcript/:id
  */
-router.get('/transcript/:id', async (req: any, res: any) => {
+router.get('/transcript/:id', async (req, res) => {
   try {
     const { id: callId } = req.params;
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
-    console.log(`🔥 WORKING TRANSCRIPT REQUEST: ${callId}`);
+    const access = await assertUserCanReadCallTranscript(req.user, callId);
+    if (access.ok === false) {
+      return res.status(access.status).json({ error: access.message });
+    }
 
-    // Get call record - simple query
     const callRecord = await prisma.callRecord.findUnique({
       where: { id: callId },
       select: {
@@ -47,22 +45,14 @@ router.get('/transcript/:id', async (req: any, res: any) => {
         phoneNumber: true,
         startTime: true,
         duration: true,
-        outcome: true
-        // transcriptionStatus: true // TEMPORARILY DISABLED - field not in schema
-      }
+        outcome: true,
+      },
     });
 
     if (!callRecord) {
-      console.log(`❌ Call not found: ${callId}`);
-      return res.status(404).json({
-        error: 'Call record not found'
-      });
+      return res.status(404).json({ error: 'Call record not found' });
     }
 
-    // console.log(`✅ Call found: ${callRecord.id}, status: ${callRecord.transcriptionStatus}`); // TEMPORARILY DISABLED
-    console.log(`✅ Call found: ${callRecord.id}`);
-
-    // Get transcript - simple query
     const transcript = await (prisma as any).callTranscript.findFirst({
       where: { callId: callId },
       select: {
@@ -79,22 +69,18 @@ router.get('/transcript/:id', async (req: any, res: any) => {
         interruptionsCount: true,
         processingTimeMs: true,
         processingCost: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     if (!transcript) {
-      console.log(`❌ No transcript found for call: ${callId}`);
       return res.json({
         callId,
         status: 'not_started',
-        message: 'Transcript not available'
+        message: 'Transcript not available',
       });
     }
 
-    console.log(`🎉 SUCCESS: Found transcript with ${transcript.wordCount} words`);
-
-    // Return clean transcript data
     return res.json({
       callId,
       status: 'completed',
@@ -103,84 +89,78 @@ router.get('/transcript/:id', async (req: any, res: any) => {
         phoneNumber: callRecord.phoneNumber,
         startTime: callRecord.startTime,
         duration: callRecord.duration,
-        outcome: callRecord.outcome
+        outcome: callRecord.outcome,
       },
       transcript: {
         text: transcript.transcriptText || 'No text available',
         confidence: transcript.confidenceScore || 0.9,
-        wordCount: transcript.wordCount || 0
+        wordCount: transcript.wordCount || 0,
       },
       analysis: {
         summary: transcript.summary || 'No summary available',
         sentimentScore: transcript.sentimentScore || 0.5,
-        callOutcome: transcript.callOutcomeClassification || 'unknown'
+        callOutcome: transcript.callOutcomeClassification || 'unknown',
       },
       analytics: {
         agentTalkRatio: transcript.agentTalkRatio || 0.5,
         customerTalkRatio: transcript.customerTalkRatio || 0.5,
         longestMonologue: transcript.longestMonologueSeconds || 0,
         silenceDuration: transcript.silenceDurationSeconds || 0,
-        interruptions: transcript.interruptionsCount || 0
+        interruptions: transcript.interruptionsCount || 0,
       },
       metadata: {
         processingTime: transcript.processingTimeMs || 2000,
         processingCost: transcript.processingCost || 0.01,
-        processingDate: transcript.createdAt
-      }
+        processingDate: transcript.createdAt,
+      },
     });
-
   } catch (error) {
-    console.error('🚨 WORKING TRANSCRIPT ERROR:', error);
+    console.error('Transcript fetch error:', error);
     res.status(500).json({
       error: 'Failed to fetch transcript',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
 
-// Test route to verify deployment
-router.get('/transcript-test', async (req: any, res: any) => {
-  res.json({ 
-    message: 'Working transcript routes are deployed!', 
-    timestamp: new Date().toISOString(),
-    version: 'v2.0'
+if (allowPublicDebugRoutes()) {
+  router.get('/transcript-test', (_req, res) => {
+    res.json({
+      message: 'Working transcript routes (debug)',
+      timestamp: new Date().toISOString(),
+    });
   });
-});
-
-// Test POST route 
-router.post('/transcript-test', async (req: any, res: any) => {
-  res.json({ 
-    success: true,
-    message: 'POST route works!', 
-    timestamp: new Date().toISOString(),
-    body: req.body
+  router.post('/transcript-test', (req, res) => {
+    res.json({
+      success: true,
+      message: 'POST route (debug)',
+      timestamp: new Date().toISOString(),
+      body: req.body,
+    });
   });
-});
+}
 
 /**
- * Get transcript statistics and batch processing status
+ * GET /api/batch-status — admin / supervisor only (aggregate stats).
  */
-router.get('/batch-status', async (req, res) => {
+router.get('/batch-status', requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'), async (_req, res) => {
   try {
-    // Get comprehensive statistics
-    const totalCalls = await railwayPrisma.callRecord.count();
-    const withRecordings = await railwayPrisma.callRecord.count({
+    const totalCalls = await prisma.callRecord.count();
+    const withRecordings = await prisma.callRecord.count({
       where: {
-        recording: {
-          not: null,
-        },
-        NOT: {
-          recording: ''
-        }
-      }
+        recording: { not: null },
+        NOT: { recording: '' },
+      },
     });
 
-    const transcriptStats = await railwayPrisma.$queryRaw<Array<{
-      total_transcripts: bigint;
-      ai_processed: bigint;
-      ai_failed: bigint;
-      total_cost: number | null;
-    }>>`
+    const transcriptStats = await prisma.$queryRaw<
+      Array<{
+        total_transcripts: bigint;
+        ai_processed: bigint;
+        ai_failed: bigint;
+        total_cost: number | null;
+      }>
+    >`
       SELECT 
         COUNT(*) as total_transcripts,
         COUNT(*) FILTER (WHERE "processingProvider" = 'openai_whisper_gpt') as ai_processed,
@@ -191,51 +171,44 @@ router.get('/batch-status', async (req, res) => {
     `;
 
     const stats = transcriptStats[0];
-    
+
     res.json({
       success: true,
       stats: {
         total: totalCalls,
         processed: Number(stats.total_transcripts),
-        withRecordings: withRecordings,
+        withRecordings,
         aiProcessed: Number(stats.ai_processed),
         failed: Number(stats.ai_failed),
-        estimatedCost: Number(stats.total_cost)
+        estimatedCost: Number(stats.total_cost),
       },
-      batchStatus: batchProcessingState.isRunning ? batchProcessingState : null
+      batchStatus: batchProcessingState.isRunning ? batchProcessingState : null,
     });
-  } catch (error: any) {
-    console.error('Error getting batch status:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error getting batch status:', message);
+    res.status(500).json({ success: false, error: message });
   }
 });
 
-/**
- * Start batch processing of historical calls
- */
-router.post('/batch-process', async (req, res) => {
+router.post('/batch-process', requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
     if (batchProcessingState.isRunning) {
       return res.status(400).json({
         success: false,
-        error: 'Batch processing is already running'
+        error: 'Batch processing is already running',
       });
     }
 
     const { limit = 5, onlyWithRecordings = true } = req.body;
 
-    // Validate OpenAI credentials
     if (!process.env.OPENAI_API_KEY) {
       return res.status(400).json({
         success: false,
-        error: 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.'
+        error: 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.',
       });
     }
 
-    // Reset and start batch processing
     batchProcessingState = {
       isRunning: true,
       progress: 0,
@@ -243,11 +216,10 @@ router.post('/batch-process', async (req, res) => {
       processed: 0,
       failed: 0,
       estimatedCost: 0,
-      total: limit
+      total: limit,
     };
 
-    // Start async processing (don't await)
-    processBatchInBackground(limit, onlyWithRecordings).catch(error => {
+    processBatchInBackground(limit, onlyWithRecordings).catch((error) => {
       console.error('Batch processing error:', error);
       batchProcessingState.isRunning = false;
     });
@@ -255,23 +227,17 @@ router.post('/batch-process', async (req, res) => {
     res.json({
       success: true,
       message: `Started batch processing of up to ${limit} calls`,
-      batchStatus: batchProcessingState
+      batchStatus: batchProcessingState,
     });
-
-  } catch (error: any) {
-    console.error('Error starting batch processing:', error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error starting batch processing:', message);
     batchProcessingState.isRunning = false;
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, error: message });
   }
 });
 
-/**
- * Stop batch processing
- */
-router.post('/batch-stop', async (req, res) => {
+router.post('/batch-stop', requireRole('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
   try {
     batchProcessingState.isRunning = false;
     batchProcessingState.currentCall = '';
@@ -282,76 +248,39 @@ router.post('/batch-stop', async (req, res) => {
       finalStats: {
         processed: batchProcessingState.processed,
         failed: batchProcessingState.failed,
-        estimatedCost: batchProcessingState.estimatedCost
-      }
+        estimatedCost: batchProcessingState.estimatedCost,
+      },
     });
-  } catch (error: any) {
-    console.error('Error stopping batch processing:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, error: message });
   }
 });
 
-/**
- * Process single call with advanced AI transcription
- */
-router.post('/advanced/:callId', async (req, res) => {
+router.post('/advanced/:callId', requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
     const { callId } = req.params;
 
-    // Validate OpenAI credentials
     if (!process.env.OPENAI_API_KEY) {
       return res.status(400).json({
         success: false,
-        error: 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.'
+        error: 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.',
       });
     }
 
-    // Check if call exists
-    const call = await railwayPrisma.callRecord.findUnique({
+    const call = await prisma.callRecord.findUnique({
       where: { id: callId },
-      select: { id: true, callId: true, recording: true, phoneNumber: true }
+      select: { id: true, callId: true, recording: true, phoneNumber: true },
     });
 
     if (!call) {
-      return res.status(404).json({
-        success: false,
-        error: 'Call not found'
-      });
+      return res.status(404).json({ success: false, error: 'Call not found' });
     }
 
     if (!call.recording) {
-      return res.status(400).json({
-        success: false,
-        error: 'No recording available for this call'
-      });
+      return res.status(400).json({ success: false, error: 'No recording available for this call' });
     }
 
-    // TEMPORARILY DISABLED - callTranscript table not in schema
-    /*
-    // Check if already processed
-    const existingTranscript = await railwayPrisma.callTranscript.findFirst({
-      where: {
-        callId: call.id,
-        processingProvider: 'openai_whisper_gpt'
-      }
-    });
-
-    if (existingTranscript && existingTranscript.transcriptText !== '[AI transcription failed]') {
-    */
-    
-    // Use empty check for now
-    const existingTranscript = null;
-    if (false) {
-      return res.status(400).json({
-        success: false,
-        error: 'Call already has advanced AI transcription'
-      });
-    }
-
-    // Import and run transcription (dynamic import to handle missing dependencies)
     try {
       const { processAdvancedTranscription } = require('../../../whisper-ai-transcription-secure.js');
       const result = await processAdvancedTranscription(callId);
@@ -364,79 +293,64 @@ router.post('/advanced/:callId', async (req, res) => {
             transcriptText: result.transcriptText,
             sentimentAnalysis: result.sentimentAnalysis,
             processingTimeMs: result.processingTimeMs,
-            estimatedCost: result.estimatedCost
-          }
+            estimatedCost: result.estimatedCost,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
-          error: result.error || 'Transcription processing failed'
+          error: result.error || 'Transcription processing failed',
         });
       }
     } catch (importError) {
       console.error('Failed to import transcription module:', importError);
       res.status(500).json({
         success: false,
-        error: 'Advanced transcription module not available. Check OpenAI dependencies.'
+        error: 'Advanced transcription module not available. Check OpenAI dependencies.',
       });
     }
-
-  } catch (error: any) {
-    console.error('Error processing advanced transcription:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, error: message });
   }
 });
 
-/**
- * Background batch processing function
- */
 async function processBatchInBackground(limit: number, onlyWithRecordings: boolean) {
-  console.log(`🚀 Starting background batch processing (limit: ${limit})`);
+  console.log(`Starting background batch processing (limit: ${limit})`);
 
   try {
-    // Import transcription module
     const { batchProcessHistoricalCalls } = require('../../../whisper-ai-transcription-secure.js');
-    
-    // Update status
+
     batchProcessingState.currentCall = 'Initializing batch process...';
-    
-    // Run batch processing
+
     const result = await batchProcessHistoricalCalls(limit, onlyWithRecordings);
-    
-    // Update final state
+
     batchProcessingState.processed = result.processed;
     batchProcessingState.failed = result.failed;
     batchProcessingState.estimatedCost = result.totalCost;
     batchProcessingState.progress = 100;
     batchProcessingState.currentCall = 'Complete';
-    
-    console.log(`✅ Batch processing complete: ${result.processed} processed, ${result.failed} failed`);
-    
-    // Auto-stop after 30 seconds
+
+    console.log(
+      `Batch processing complete: ${result.processed} processed, ${result.failed} failed`
+    );
+
     setTimeout(() => {
       batchProcessingState.isRunning = false;
     }, 30000);
-    
-  } catch (error: any) {
-    console.error('❌ Batch processing failed:', error);
-    batchProcessingState.currentCall = `Error: ${error.message}`;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Batch processing failed:', message);
+    batchProcessingState.currentCall = `Error: ${message}`;
     batchProcessingState.isRunning = false;
   }
 }
 
-/**
- * POST /transcript/direct-ai/:callId
- * Enhanced AI Transcription with OpenAI Whisper + GPT-4 Speaker Diarization
- */
-router.post('/transcript/direct-ai/:callId', async (req: any, res: any) => {
-  console.log(`🎯 Enhanced AI Transcription request for call: ${req.params.callId}`);
+router.post('/transcript/direct-ai/:callId', requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'), async (req, res) => {
   res.status(202).json({
     success: true,
-    message: 'Enhanced AI Transcription test endpoint',
-    callId: req.params.callId
+    message: 'Enhanced AI transcription request accepted',
+    callId: req.params.callId,
   });
 });
 

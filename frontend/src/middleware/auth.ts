@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 import { verifyAccessToken, JWTPayload } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
 const prisma = new PrismaClient();
 
@@ -8,107 +10,72 @@ export interface AuthenticatedRequest extends NextRequest {
   user?: JWTPayload;
 }
 
+function isBackendJwtShape(token: string): boolean {
+  return token.includes('eyJ') && token.length > 100;
+}
+
 export async function authenticateToken(
   request: NextRequest
 ): Promise<{ user: JWTPayload } | { error: string; status: number }> {
   try {
-    // Try Authorization header first
-    let token = null;
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-      console.log('🔑 Using Authorization header token');
-    } else {
-      // Fallback to cookies (for frontend API routes)
-      const authToken = request.cookies.get('auth-token')?.value;
-      const accessToken = request.cookies.get('access-token')?.value;
-      const cookieToken = request.cookies.get('token')?.value;
-      
-      token = authToken || accessToken || cookieToken;
-      if (token) {
-        console.log('🍪 Using cookie token for authentication');
-      }
-    }
+    const token = getBearerFromNextRequest(request);
 
     if (!token) {
       return { error: 'Access token required', status: 401 };
     }
 
-    // Check if it's our temporary local token
+    // Local dev-only bypass (never accepted in production)
     if (token.startsWith('temp_local_token_')) {
-      console.log('✅ Using local bypass for middleware authentication');
-      
-      return { 
+      if (process.env.NODE_ENV === 'production') {
+        return { error: 'Invalid token', status: 401 };
+      }
+      return {
         user: {
           userId: 1,
           email: 'admin@omnivox.ai',
           username: 'admin',
           role: 'ADMIN',
-          isActive: true,
-          tokenVersion: 1
-        } as JWTPayload
+          tokenVersion: 1,
+        } as JWTPayload,
       };
     }
 
-    // ENHANCED: For backend-generated JWT tokens, use temporary bypass while we fix JWT secret sync
-    if (token.includes('eyJ') && token.length > 100) {
-      console.log('⚡ Using enhanced bypass for backend-generated JWT tokens');
-      
-      // Try to decode the token to get user info without verification
+    // Same secret as backend login (set JWT_SECRET on Next.js for API routes)
+    const secret = process.env.JWT_SECRET;
+    if (secret && isBackendJwtShape(token)) {
       try {
-        // Basic JWT decode without verification to extract user info
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          console.log('📋 Decoded JWT payload:', payload);
-          
-          // Verify token is not expired (temporarily bypass expiry for JWT tokens while fixing auth)
-          if (payload.exp && payload.exp * 1000 < Date.now()) {
-            console.log('⚠️ Token is expired but allowing for JWT bypass during auth fix');
-          }
-          
-          // Return user data based on decoded payload - use actual data from token
-          return { 
-            user: {
-              userId: payload.userId || payload.sub || 509,
-              email: payload.email || 'ken@simpleemails.co.uk',
-              username: payload.username || payload.name || 'ken',
-              role: payload.role || 'ADMIN',
-              isActive: true,
-              tokenVersion: payload.tokenVersion || 1
-            } as JWTPayload
-          };
+        const payload = jwt.verify(token, secret) as Record<string, unknown>;
+        const userId = Number(payload.userId ?? payload.sub);
+        if (!Number.isFinite(userId)) {
+          return { error: 'Invalid token', status: 401 };
         }
-      } catch (decodeError) {
-        console.log('⚠️ Could not decode JWT payload:', decodeError instanceof Error ? decodeError.message : 'Unknown error');
+        return {
+          user: {
+            userId,
+            email: String(payload.email ?? ''),
+            username: String(payload.username ?? ''),
+            role: String(payload.role ?? 'AGENT'),
+            tokenVersion:
+              typeof payload.tokenVersion === 'number'
+                ? payload.tokenVersion
+                : undefined,
+          } as JWTPayload,
+        };
+      } catch {
+        return { error: 'Invalid or expired token', status: 401 };
       }
-      
-      // Fallback to default user for Kenan if decode fails
-      console.log('🔄 Using fallback user for JWT token that cannot be decoded');
-      return { 
-        user: {
-          userId: 509,
-          email: 'ken@simpleemails.co.uk',
-          username: 'ken',
-          role: 'ADMIN',
-          isActive: true,
-          tokenVersion: 1
-        } as JWTPayload
-      };
     }
 
-    // Try to verify with frontend JWT secret (for locally generated tokens)
+    // Frontend-issued access tokens
     try {
       const payload = verifyAccessToken(token);
-      console.log('✅ Token verified with frontend JWT secret');
 
-      // Use raw query to avoid type issues during development
-      const userQuery = await prisma.$queryRaw`
+      const userQuery = (await prisma.$queryRaw`
         SELECT id, isActive, refreshTokenVersion, role 
         FROM users 
         WHERE id = ${payload.userId} AND isActive = true
         LIMIT 1
-      ` as any[];
+      `) as { id: number; refreshTokenVersion: number; role: string }[];
 
       if (!userQuery || userQuery.length === 0) {
         return { error: 'Invalid token or user not found', status: 401 };
@@ -116,101 +83,119 @@ export async function authenticateToken(
 
       const user = userQuery[0];
 
-      // Check if token version matches (for token revocation)
-      if (payload.tokenVersion !== undefined && user.refreshTokenVersion !== payload.tokenVersion) {
+      if (
+        payload.tokenVersion !== undefined &&
+        user.refreshTokenVersion !== payload.tokenVersion
+      ) {
         return { error: 'Token has been revoked', status: 401 };
       }
 
       return { user: payload };
-    } catch (frontendVerifyError) {
-      console.log('⚠️ Frontend JWT verification failed - falling back to bypass mode');
-      
-      // If we get here, it's likely a backend token that we can't verify locally
-      // Use bypass for now
-      return { 
-        user: {
-          userId: 509,
-          email: 'ken@simpleemails.co.uk', 
-          username: 'ken',
-          role: 'ADMIN',
-          isActive: true,
-          tokenVersion: 1
-        } as JWTPayload
-      };
+    } catch {
+      return { error: 'Invalid or expired token', status: 401 };
     }
-
   } catch (error) {
     console.error('Token verification error:', error);
     return { error: 'Invalid token', status: 401 };
   }
 }
 
-export function requireAuth(handler: (req: AuthenticatedRequest, user: JWTPayload) => Promise<NextResponse>) {
+export function requireAuth(
+  handler: (req: AuthenticatedRequest, user: JWTPayload) => Promise<NextResponse>
+) {
   return async (request: NextRequest) => {
     const authResult = await authenticateToken(request);
-    
+
     if ('error' in authResult) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
-      );
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const authReq = request as AuthenticatedRequest;
     authReq.user = authResult.user;
-    
+
     return handler(authReq, authResult.user);
   };
 }
 
+function roleAllowed(userRole: string, roles: string[]): boolean {
+  if (roles.includes(userRole)) return true;
+  if (userRole === 'SUPER_ADMIN' && roles.includes('ADMIN')) return true;
+  return false;
+}
+
 export function requireRole(roles: string[]) {
-  return function (handler: (req: AuthenticatedRequest, user: JWTPayload) => Promise<NextResponse>) {
+  return function (
+    handler: (req: AuthenticatedRequest, user: JWTPayload) => Promise<NextResponse>
+  ) {
     return async (request: NextRequest) => {
       const authResult = await authenticateToken(request);
-      
+
       if ('error' in authResult) {
-        return NextResponse.json(
-          { error: authResult.error },
-          { status: authResult.status }
-        );
+        return NextResponse.json({ error: authResult.error }, { status: authResult.status });
       }
 
-      if (!roles.includes(authResult.user.role)) {
-        return NextResponse.json(
-          { error: 'Insufficient permissions' },
-          { status: 403 }
-        );
+      if (!roleAllowed(authResult.user.role, roles)) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
       }
 
       const authReq = request as AuthenticatedRequest;
       authReq.user = authResult.user;
-      
+
       return handler(authReq, authResult.user);
     };
   };
 }
 
-// Permission checking utility
 export function hasPermission(userRole: string, permission: string): boolean {
   const permissions: { [key: string]: string[] } = {
-    'ADMIN': [
-      'users:create', 'users:read', 'users:update', 'users:delete',
-      'campaigns:create', 'campaigns:read', 'campaigns:update', 'campaigns:delete',
-      'reports:read', 'reports:export',
-      'system:admin', 'system:config'
-    ],
-    'SUPERVISOR': [
-      'users:read', 'users:update',
-      'campaigns:create', 'campaigns:read', 'campaigns:update',
-      'reports:read', 'reports:export',
-      'agents:manage'
-    ],
-    'AGENT': [
+    SUPER_ADMIN: [
+      'users:create',
+      'users:read',
+      'users:update',
+      'users:delete',
+      'campaigns:create',
       'campaigns:read',
-      'contacts:read', 'contacts:update',
-      'calls:make', 'calls:receive'
-    ]
+      'campaigns:update',
+      'campaigns:delete',
+      'reports:read',
+      'reports:export',
+      'system:admin',
+      'system:config',
+    ],
+    ADMIN: [
+      'users:create',
+      'users:read',
+      'users:update',
+      'users:delete',
+      'campaigns:create',
+      'campaigns:read',
+      'campaigns:update',
+      'campaigns:delete',
+      'reports:read',
+      'reports:export',
+      'system:admin',
+      'system:config',
+    ],
+    SUPERVISOR: [
+      'users:read',
+      'users:update',
+      'campaigns:create',
+      'campaigns:read',
+      'campaigns:update',
+      'reports:read',
+      'reports:export',
+      'agents:manage',
+    ],
+    AGENT: [
+      'campaigns:read',
+      'contacts:read',
+      'contacts:update',
+      'calls:make',
+      'calls:receive',
+    ],
   };
 
-  return permissions[userRole]?.includes(permission) || false;
+  const elevated =
+    userRole === 'SUPER_ADMIN' ? permissions.ADMIN : permissions[userRole];
+  return elevated?.includes(permission) || false;
 }

@@ -2,119 +2,114 @@ import express from 'express';
 import { prisma } from '../database';
 import { ensureBasicAgents } from '../utils/ensureBasicAgents';
 import jwt from 'jsonwebtoken';
+import { authenticate, requireRole } from '../middleware/auth';
+import { allowPublicDebugRoutes } from '../utils/routeSecurity';
 
 const router = express.Router();
 
+router.use(authenticate);
+
 /**
  * POST /api/test/create-agents
- * Create system agents for testing
  */
-router.post('/create-agents', async (req, res) => {
+router.post('/create-agents', requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
-    console.log('🔧 Manual trigger: Creating system agents...');
+    console.log('Manual trigger: Creating system agents...');
     await ensureBasicAgents();
-    
+
     const agentCount = await prisma.agent.count();
-    console.log(`📊 Total agents after creation: ${agentCount}`);
-    
     const agents = await prisma.agent.findMany({
-      select: { agentId: true, firstName: true, lastName: true, status: true }
+      select: { agentId: true, firstName: true, lastName: true, status: true },
     });
-    
+
     res.json({
       success: true,
       message: 'System agents created successfully',
-      agentCount: agentCount,
-      agents: agents
+      agentCount,
+      agents,
     });
-  } catch (error: any) {
-    console.error('❌ Error creating system agents:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error creating system agents:', error);
+    res.status(500).json({ success: false, error: message });
   }
 });
 
 /**
  * GET /api/test/check-database
- * Check database contents for debugging
  */
-router.get('/check-database', async (req, res) => {
+router.get('/check-database', requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'), async (req, res) => {
   try {
     const stats = {
       agents: await prisma.agent.count(),
       campaigns: await prisma.campaign.count(),
       contacts: await prisma.contact.count(),
       callRecords: await prisma.callRecord.count(),
-      recordings: await prisma.recording.count()
+      recordings: await prisma.recording.count(),
     };
-    
+
     const recentCallRecords = await prisma.callRecord.findMany({
       take: 5,
       orderBy: { startTime: 'desc' },
       include: {
         contact: { select: { firstName: true, lastName: true, phone: true } },
-        campaign: { select: { name: true } }
-      }
+        campaign: { select: { name: true } },
+      },
     });
-    
+
     res.json({
       success: true,
       stats,
-      recentCallRecords
+      recentCallRecords,
     });
-  } catch (error: any) {
-    console.error('❌ Error checking database:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error checking database:', error);
+    res.status(500).json({ success: false, error: message });
   }
 });
 
 /**
- * POST /api/test/get-token
- * Generate a test JWT token for diagnostic purposes
- * SECURITY: This should be removed in production or require admin auth
+ * POST /api/test/get-token — only when OMNIVOX_ALLOW_PUBLIC_DEBUG_ROUTES=true (non-production).
+ * Prefer normal login; this exists only for local diagnostics.
  */
-router.post('/get-token', async (req, res) => {
-  try {
-    const { userId = 509, username = 'test', role = 'ADMIN' } = req.body;
-    
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return res.status(500).json({
-        success: false,
-        error: 'JWT_SECRET not configured'
+if (allowPublicDebugRoutes()) {
+  router.post('/get-token', requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+    try {
+      const { userId = 509, username = 'test', role = 'ADMIN' } = req.body;
+
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        return res.status(500).json({
+          success: false,
+          error: 'JWT_SECRET not configured',
+        });
+      }
+
+      const token = jwt.sign(
+        {
+          userId,
+          username,
+          role,
+          email: `${username}@test.omnivox.ai`,
+        },
+        secret,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        success: true,
+        token,
+        decoded: jwt.decode(token),
+        expiresIn: '24h',
+        warning: 'Debug-only token minting; never enable OMNIVOX_ALLOW_PUBLIC_DEBUG_ROUTES in production',
       });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Error generating test token:', error);
+      res.status(500).json({ success: false, error: message });
     }
-    
-    const token = jwt.sign(
-      {
-        userId,
-        username,
-        role,
-        email: `${username}@test.omnivox.ai`
-      },
-      secret,
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      success: true,
-      token,
-      decoded: jwt.decode(token),
-      expiresIn: '24h',
-      warning: '⚠️  This is a test endpoint - remove in production'
-    });
-  } catch (error: any) {
-    console.error('❌ Error generating test token:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  });
+}
 
 export default router;

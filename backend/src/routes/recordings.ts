@@ -62,22 +62,20 @@ function extractTwilioSid(filePath: string | null, fileName: string | null): str
   return ca || null;
 }
 
+router.use(authenticate);
+
 /**
- * GET /api/recordings/test
- * Test endpoint to verify route registration - NO AUTH for testing
+ * GET /api/recordings/test — smoke check (authenticated staff only).
  */
-router.get('/test', async (req: Request, res: Response) => {
+router.get('/test', requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'), async (req: Request, res: Response) => {
   res.json({ success: true, message: 'Recordings route is working!' });
 });
-
-// Apply authentication to all other routes  
-router.use(authenticate);
 
 /**
  * GET /api/recordings/:id/stream
  * Stream recording audio from Twilio
  */
-router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -218,7 +216,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (re
  * GET /api/recordings/:id
  * Get recording metadata
  */
-router.get('/:id', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request, res: Response) => {
+router.get('/:id', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     

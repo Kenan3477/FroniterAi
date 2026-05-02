@@ -277,7 +277,7 @@ class App {
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     this.app.use('/api/call-deduplication', callDeduplicationRoutes); // NEW: Call record deduplication management
     this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
-    this.app.use('/api', workingTranscriptRoutes); // WORKING: No-auth transcript routes
+    this.app.use('/api', workingTranscriptRoutes); // Transcript + batch transcription (authenticated)
     // this.app.use('/api/admin/transcripts', transcriptManagementRoutes); // Transcription system management API
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     this.app.use('/api/integrations', integrationRoutes); // NEW: Apps & Integrations management
