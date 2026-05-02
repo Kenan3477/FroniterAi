@@ -11,13 +11,15 @@ function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
-  // Get token from localStorage
-  const token = localStorage.getItem('omnivox_token');
+
+  const token =
+    localStorage.getItem('omnivox_token') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('auth_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return headers;
 }
 
@@ -30,6 +32,8 @@ export interface InteractionFilters {
   searchTerm?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Supervisors/admins: scope to entire org (backend enforces role). */
+  allAgents?: boolean;
   limit?: number;
 }
 
@@ -169,6 +173,7 @@ export async function getFilteredInteractions(filters: InteractionFilters = {}):
     if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters.allAgents) params.append('allAgents', 'true');
     if (filters.limit) params.append('limit', filters.limit.toString());
     
     console.log('🔍 Fetching filtered interactions with params:', Object.fromEntries(params));

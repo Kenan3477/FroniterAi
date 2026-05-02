@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeAppRole } from '@/lib/authRole';
 import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
 import InteractionTable from '@/components/work/InteractionTable';
@@ -33,7 +34,9 @@ export default function WorkPage() {
   const [contactNameFilter, setContactNameFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
-  
+  /** Supervisors: show every agent's calls (backend enforces role). */
+  const [historyAgentScope, setHistoryAgentScope] = useState<'mine' | 'all'>('mine');
+
   // Real-time sidebar counts
   const [sidebarCounts, setSidebarCounts] = useState({
     outcomed: 0,
@@ -44,6 +47,10 @@ export default function WorkPage() {
   
   // Get auth context data
   const { user, currentCampaign, agentStatus, updateAgentStatus } = useAuth();
+
+  const roleForHistory = normalizeAppRole(user?.role);
+  const canViewAllAgentHistory =
+    !!roleForHistory && ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(roleForHistory);
   
   // Set agentId based on authenticated user
   const [agentId, setAgentId] = useState(user?.id?.toString() || user?.username || 'demo-agent');
@@ -181,15 +188,23 @@ export default function WorkPage() {
     console.log('🔍 Loading filtered interactions...');
     setIsLoadingInteractions(true);
     try {
-      const filters: InteractionFilters = {};
-      
+      const filters: InteractionFilters = {
+        limit: 800,
+      };
+
       if (searchTerm) filters.searchTerm = searchTerm;
       if (outcomeFilter) filters.outcome = outcomeFilter;
       if (phoneFilter) filters.phoneNumber = phoneFilter;
       if (contactNameFilter) filters.contactName = contactNameFilter;
       if (dateFromFilter) filters.dateFrom = dateFromFilter;
       if (dateToFilter) filters.dateTo = dateToFilter;
-      
+      if (currentCampaign?.campaignId) filters.campaignId = currentCampaign.campaignId;
+
+      const r = normalizeAppRole(user?.role);
+      if (historyAgentScope === 'all' && r && ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(r)) {
+        filters.allAgents = true;
+      }
+
       const categorized = await getFilteredInteractions(filters);
       setCategorizedInteractions(categorized);
       console.log('🔄 Loaded filtered interactions:', categorized);
@@ -198,7 +213,17 @@ export default function WorkPage() {
     } finally {
       setIsLoadingInteractions(false);
     }
-  }, [agentId, searchTerm, outcomeFilter, phoneFilter, contactNameFilter, dateFromFilter, dateToFilter]);
+  }, [
+    user?.role,
+    currentCampaign?.campaignId,
+    historyAgentScope,
+    searchTerm,
+    outcomeFilter,
+    phoneFilter,
+    contactNameFilter,
+    dateFromFilter,
+    dateToFilter,
+  ]);
 
   // Function to refresh data after call completion
   const refreshAfterCall = useCallback(async () => {
@@ -209,29 +234,32 @@ export default function WorkPage() {
     ]);
   }, [updateSidebarCounts, loadFilteredData]);
 
-  // Load interaction data when view changes or component mounts
   useEffect(() => {
-    loadFilteredData();
-  }, [selectedView, loadFilteredData]);
+    const delay = selectedView === 'My Interactions' ? 0 : 400;
+    const debounceTimer = setTimeout(() => {
+      void loadFilteredData();
+    }, delay);
+    return () => clearTimeout(debounceTimer);
+  }, [
+    loadFilteredData,
+    selectedView,
+    searchTerm,
+    outcomeFilter,
+    phoneFilter,
+    contactNameFilter,
+    dateFromFilter,
+    dateToFilter,
+    historyAgentScope,
+    currentCampaign?.campaignId,
+  ]);
 
-  // Update sidebar counts on mount and periodically
   useEffect(() => {
-    updateSidebarCounts();
-    
-    // Update counts every 30 seconds for real-time feel
-    const interval = setInterval(updateSidebarCounts, 30000);
-    
+    void updateSidebarCounts();
+    const interval = setInterval(() => {
+      void updateSidebarCounts();
+    }, 30000);
     return () => clearInterval(interval);
   }, [updateSidebarCounts]);
-
-  // Update filtered data when filters change
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      loadFilteredData();
-    }, 500); // Debounce filter changes
-    
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, outcomeFilter, phoneFilter, contactNameFilter, dateFromFilter, dateToFilter]);
 
   // Preview Dialing Functions - define before useEffect that uses it
   const fetchNextPreviewContact = useCallback(async () => {
@@ -930,12 +958,31 @@ export default function WorkPage() {
                             setDateFromFilter('');
                             setDateToFilter('');
                             setSearchTerm('');
+                            setHistoryAgentScope('mine');
                           }}
                           className="btn-secondary px-4 py-2 rounded-md text-sm font-medium"
                         >
                           Clear Filters
                         </button>
                       </div>
+                      {canViewAllAgentHistory && (
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Agents
+                          </label>
+                          <select
+                            value={historyAgentScope}
+                            onChange={(e) => setHistoryAgentScope(e.target.value as 'mine' | 'all')}
+                            className="w-full max-w-md rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm"
+                          >
+                            <option value="mine">My calls only</option>
+                            <option value="all">All agents (supervisor view)</option>
+                          </select>
+                          <p className="text-xs theme-text-secondary mt-1">
+                            Uses header campaign when set. Search includes notes and phone.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

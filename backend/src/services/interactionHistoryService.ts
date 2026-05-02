@@ -15,9 +15,11 @@ export interface InteractionHistoryFilters {
   outcome?: string;
   dateFrom?: Date;
   dateTo?: Date;
-  phoneNumber?: string;  // NEW: For phone number search
-  contactName?: string;  // NEW: For contact name search
-  searchTerm?: string;   // NEW: General search term
+  phoneNumber?: string; // For phone number search
+  contactName?: string; // For contact name search
+  searchTerm?: string; // General search term
+  /** When true, do not restrict by agent (SUPER_ADMIN / ADMIN / SUPERVISOR). */
+  allAgents?: boolean;
   limit?: number;
   offset?: number;
 }

@@ -53,8 +53,9 @@ export function isStatsConnectedCall(args: {
   if ((args.duration ?? 0) > 0) return true;
 
   // Agent chose a disposition: treat as a handled call for dashboard stats unless outcome is a hard no-connect.
+  // Require talk time OR a terminal wrap-up so "connected rate" is not inflated by zero-duration disposition saves.
   if (args.dispositionId && !TERMINAL_NOT_CONNECTED.has(o)) {
-    return true;
+    if ((args.duration ?? 0) > 0 || args.endTime) return true;
   }
 
   if (!args.endTime) return false;

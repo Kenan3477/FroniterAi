@@ -124,12 +124,14 @@ router.use(authenticate);
 async function getCategorizedInteractionsFromCallRecords(filters: InteractionHistoryFilters) {
   console.log('📞 Using CallRecord table for interaction history');
   console.log('📋 Input filters:', JSON.stringify(filters, null, 2));
-  
+
   const baseWhere: any = {};
-  
-  if (filters.agentId) {
+
+  if (filters.agentId && !filters.allAgents) {
     baseWhere.agentId = filters.agentId;
     console.log(`🔍 Filtering by agentId: ${filters.agentId}`);
+  } else if (filters.allAgents) {
+    console.log('🔍 allAgents=true — no agentId filter (org-wide call history)');
   }
   if (filters.campaignId) baseWhere.campaignId = filters.campaignId;
   
@@ -163,33 +165,45 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
   }
   
   if (filters.outcome) {
-    baseWhere.outcome = filters.outcome;
-    console.log(`🎯 Filtering by outcome: ${filters.outcome}`);
+    const raw = String(filters.outcome).trim();
+    const o = raw.toLowerCase();
+    if (!baseWhere.AND) baseWhere.AND = [];
+    (baseWhere.AND as any[]).push({
+      OR: [
+        { outcome: { equals: raw, mode: 'insensitive' as const } },
+        { disposition: { name: { equals: raw, mode: 'insensitive' as const } } },
+        ...(o === 'completed'
+          ? [
+              {
+                outcome: {
+                  in: ['completed', 'COMPLETED', 'completed-success', 'answered', 'connected'],
+                },
+              },
+            ]
+          : []),
+      ],
+    });
+    console.log(`🎯 Filtering by outcome/disposition: ${raw}`);
   }
-  
+
+  // Use call start time for date range (matches when the call happened; createdAt can differ)
   if (filters.dateFrom || filters.dateTo) {
-    baseWhere.createdAt = {};
-    if (filters.dateFrom) baseWhere.createdAt.gte = filters.dateFrom;
-    if (filters.dateTo) baseWhere.createdAt.lte = filters.dateTo;
+    baseWhere.startTime = {};
+    if (filters.dateFrom) {
+      const d = new Date(filters.dateFrom);
+      d.setHours(0, 0, 0, 0);
+      baseWhere.startTime.gte = d;
+    }
+    if (filters.dateTo) {
+      const d = new Date(filters.dateTo);
+      d.setHours(23, 59, 59, 999);
+      baseWhere.startTime.lte = d;
+    }
   }
 
-  // Default to today's records only for interaction counts and sidebar
-  if (!filters.dateFrom && !filters.dateTo) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    baseWhere.createdAt = {
-      gte: today,
-      lt: tomorrow
-    };
-    console.log(`📅 No date filter provided - defaulting to today: ${today.toISOString()} to ${tomorrow.toISOString()}`);
-  }
+  const limit = Math.min(Math.max(filters.limit || 500, 1), 2000);
 
-  const limit = filters.limit || 50;
-  
-  console.log('📋 CallRecord query filters:', baseWhere);
+  console.log('📋 CallRecord query filters:', JSON.stringify(baseWhere), 'limit:', limit);
 
   const callRecords = await prisma.callRecord.findMany({
     where: baseWhere,
@@ -212,8 +226,8 @@ async function getCategorizedInteractionsFromCallRecords(filters: InteractionHis
       disposition: { select: { name: true } },
       agent: { select: { agentId: true, firstName: true, lastName: true } },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit * 2 // Get more to categorize
+    orderBy: { startTime: 'desc' },
+    take: Math.min(limit * 2, 4000),
   });
 
   console.log(`📊 Found ${callRecords.length} call records to categorize`);
@@ -552,20 +566,27 @@ router.get('/counts', async (req, res) => {
  */
 router.get('/categorized', async (req, res) => {
   try {
-    let agentId = req.query.agentId as string;
-    
-    // Handle special case where frontend sends "current-agent"
-    if (agentId === 'current-agent') {
+    let agentId = (req.query.agentId as string) || 'current-agent';
+    const allAgentsParam = String(req.query.allAgents || '').toLowerCase();
+    const wantAllAgents = ['1', 'true', 'yes'].includes(allAgentsParam);
+    const role = String((req as any).user?.role || '').toUpperCase();
+    const canViewAllAgents = ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'MANAGER'].includes(role);
+    const useAllAgents = wantAllAgents && canViewAllAgents;
+
+    if (wantAllAgents && !canViewAllAgents) {
+      console.warn('⚠️ allAgents requested but role lacks permission — scoping to current agent');
+    }
+
+    if (!useAllAgents && (agentId === 'current-agent' || !agentId.trim())) {
       const uid = (req as any).user?.userId?.toString();
       const resolved = uid ? await resolveAgentIdForUserId(uid) : undefined;
       agentId = resolved || uid || '509';
       console.log(
-        `🔄 Resolved current-agent: userId=${uid} → agentId=${agentId}${resolved ? '' : ' (fallback: user id or default)'}`
+        `🔄 Resolved current-agent: userId=${uid} → agentId=${agentId}${resolved ? '' : ' (fallback: user id or default)'}`,
       );
     }
 
     const filters: InteractionHistoryFilters = {
-      agentId: agentId,
       campaignId: req.query.campaignId as string,
       contactId: req.query.contactId as string,
       channel: req.query.channel as string,
@@ -576,8 +597,10 @@ router.get('/categorized', async (req, res) => {
       searchTerm: req.query.searchTerm as string,
       dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-      offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
+      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+      offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined,
+      allAgents: useAllAgents,
+      agentId: useAllAgents ? undefined : agentId,
     };
 
     console.log('🔍 Getting categorized interactions with filters:', filters);
