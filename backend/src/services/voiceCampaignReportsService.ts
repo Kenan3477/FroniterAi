@@ -1,9 +1,11 @@
 /**
- * Voice Campaign Reports Service
- * Production-ready campaign analytics with real data from call records
+ * Voice campaign analytics from call_records (aligned with dashboard sale/connection logic).
  */
 
+import { formatInTimeZone } from 'date-fns-tz';
 import { prisma } from '../database/index';
+import { getDashboardStatsTimezone } from '../utils/dashboardDayBounds';
+import { isStatsConnectedCall, isStatsSaleOnly } from '../utils/dashboardCallMetrics';
 
 export interface VoiceCampaignFilters {
   campaignId?: string;
@@ -16,9 +18,9 @@ export interface VoiceCampaignFilters {
 export interface VoiceCampaignKPIs {
   totalCalls: number;
   connectedCalls: number;
-  answerRate: number; // Connected / Total
-  conversionRate: number; // Conversions / Connected
-  averageCallDuration: number; // In seconds
+  answerRate: number;
+  conversionRate: number;
+  averageCallDuration: number;
   revenuePerCampaign: number;
   costPerConversion: number;
 }
@@ -51,394 +53,271 @@ export interface CallOutcomeData {
   percentage: number;
 }
 
-/**
- * Get comprehensive voice campaign analytics
- */
+const MAX_ROWS = 80_000;
+
+function buildWhere(filters: VoiceCampaignFilters): Record<string, unknown> {
+  const { campaignId, dateFrom, dateTo, agentIds, leadListIds } = filters;
+  const where: Record<string, unknown> = {};
+
+  if (campaignId) {
+    where.campaignId = campaignId;
+  }
+
+  if (dateFrom || dateTo) {
+    where.startTime = {};
+    if (dateFrom) (where.startTime as any).gte = dateFrom;
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      (where.startTime as any).lte = end;
+    }
+  }
+
+  if (agentIds && agentIds.length > 0) {
+    where.agentId = { in: agentIds };
+  }
+
+  if (leadListIds && leadListIds.length > 0) {
+    where.contact = { listId: { in: leadListIds } };
+  }
+
+  return where;
+}
+
 export async function getVoiceCampaignAnalytics(filters: VoiceCampaignFilters = {}) {
   try {
-    const { campaignId, dateFrom, dateTo, agentIds, leadListIds } = filters;
+    const whereClause = buildWhere(filters);
+    const tz = getDashboardStatsTimezone();
 
-    // Build where clause for filtering
-    const whereClause: any = {};
-    
-    if (campaignId) {
-      whereClause.campaignId = campaignId;
-    }
-    
-    if (dateFrom || dateTo) {
-      whereClause.startTime = {};
-      if (dateFrom) whereClause.startTime.gte = dateFrom;
-      if (dateTo) whereClause.startTime.lte = dateTo;
-    }
-    
-    if (agentIds && agentIds.length > 0) {
-      whereClause.agentId = { in: agentIds };
+    const rows = await prisma.callRecord.findMany({
+      where: whereClause as any,
+      take: MAX_ROWS,
+      orderBy: { startTime: 'desc' },
+      select: {
+        startTime: true,
+        endTime: true,
+        duration: true,
+        outcome: true,
+        dispositionId: true,
+        agentId: true,
+        disposition: { select: { name: true } },
+      },
+    });
+
+    let totalCalls = 0;
+    let connectedCalls = 0;
+    let conversions = 0;
+    let durationSum = 0;
+    let durationCount = 0;
+
+    const hourBuckets: CallsByHourData[] = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      totalCalls: 0,
+      connectedCalls: 0,
+      conversions: 0,
+    }));
+
+    const agentMap = new Map<
+      string,
+      { total: number; connected: number; conversions: number }
+    >();
+
+    const outcomeMap = new Map<string, number>();
+
+    for (const r of rows) {
+      totalCalls += 1;
+
+      const dispName = r.disposition?.name ?? null;
+      const connected = isStatsConnectedCall({
+        endTime: r.endTime,
+        outcome: r.outcome,
+        duration: r.duration,
+        dispositionId: r.dispositionId,
+      });
+      const sale = isStatsSaleOnly({ outcome: r.outcome, dispositionName: dispName });
+
+      if (connected) connectedCalls += 1;
+      if (sale) conversions += 1;
+
+      if (r.duration != null && r.duration > 0 && r.endTime) {
+        durationSum += r.duration;
+        durationCount += 1;
+      }
+
+      const hourStr = formatInTimeZone(new Date(r.startTime), tz, 'H');
+      const hour = Math.min(23, Math.max(0, parseInt(hourStr, 10) || 0));
+      hourBuckets[hour].totalCalls += 1;
+      if (connected) hourBuckets[hour].connectedCalls += 1;
+      if (sale) hourBuckets[hour].conversions += 1;
+
+      const aid = r.agentId || 'unassigned';
+      if (!agentMap.has(aid)) {
+        agentMap.set(aid, { total: 0, connected: 0, conversions: 0 });
+      }
+      const ag = agentMap.get(aid)!;
+      ag.total += 1;
+      if (connected) ag.connected += 1;
+      if (sale) ag.conversions += 1;
+
+      const oc = (r.outcome || 'unknown').trim() || 'unknown';
+      outcomeMap.set(oc, (outcomeMap.get(oc) || 0) + 1);
     }
 
-    // If lead lists specified, filter by contact's listId
-    if (leadListIds && leadListIds.length > 0) {
-      whereClause.contact = {
-        listId: { in: leadListIds }
-      };
+    const answerRate = totalCalls > 0 ? (connectedCalls / totalCalls) * 100 : 0;
+    const conversionRate = connectedCalls > 0 ? (conversions / connectedCalls) * 100 : 0;
+    const averageCallDuration = durationCount > 0 ? Math.round(durationSum / durationCount) : 0;
+
+    // Qualified leads: connected + at least 30s talk time
+    let qualifiedLeads = 0;
+    for (const r of rows) {
+      const connected = isStatsConnectedCall({
+        endTime: r.endTime,
+        outcome: r.outcome,
+        duration: r.duration,
+        dispositionId: r.dispositionId,
+      });
+      if (connected && (r.duration ?? 0) >= 30) qualifiedLeads += 1;
     }
 
-    // Get KPIs
-    const kpis = await getVoiceCampaignKPIs(whereClause);
-    
-    // Get charts data
-    const callsByHour = await getCallsByHour(whereClause);
-    const callsByAgent = await getCallsByAgent(whereClause);
-    const conversionFunnel = await getConversionFunnel(whereClause);
-    const callOutcomes = await getCallOutcomes(whereClause);
+    const agentIdsList = [...agentMap.keys()].filter((id) => id !== 'unassigned');
+    const agents =
+      agentIdsList.length > 0
+        ? await prisma.agent.findMany({
+            where: { agentId: { in: agentIdsList } },
+            select: { agentId: true, firstName: true, lastName: true },
+          })
+        : [];
+    const agentNameById = new Map(
+      agents.map((a) => [a.agentId, `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.agentId]),
+    );
+
+    const callsByAgent: CallsByAgentData[] = [...agentMap.entries()]
+      .map(([agentId, v]) => ({
+        agentId,
+        agentName: agentNameById.get(agentId) || (agentId === 'unassigned' ? 'Unassigned' : agentId),
+        totalCalls: v.total,
+        connectedCalls: v.connected,
+        conversions: v.conversions,
+      }))
+      .sort((a, b) => b.totalCalls - a.totalCalls);
+
+    const totalForPct = rows.length;
+    const callOutcomes: CallOutcomeData[] = [...outcomeMap.entries()]
+      .map(([outcome, count]) => ({
+        outcome,
+        count,
+        percentage: totalForPct > 0 ? Math.round((count / totalForPct) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const kpis: VoiceCampaignKPIs = {
+      totalCalls,
+      connectedCalls,
+      answerRate: Math.round(answerRate * 100) / 100,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+      averageCallDuration,
+      revenuePerCampaign: 0,
+      costPerConversion: 0,
+    };
 
     return {
       success: true,
       data: {
         kpis,
         charts: {
-          callsByHour,
+          callsByHour: hourBuckets,
           callsByAgent,
-          conversionFunnel,
-          callOutcomes
-        }
-      }
+          conversionFunnel: {
+            totalCalls,
+            connectedCalls,
+            qualifiedLeads,
+            conversions,
+          },
+          callOutcomes,
+        },
+        meta: {
+          rowCap: MAX_ROWS,
+          rowsUsed: rows.length,
+          timezone: tz,
+          truncated: rows.length >= MAX_ROWS,
+        },
+      },
     };
-
   } catch (error) {
     console.error('Error getting voice campaign analytics:', error);
     return {
       success: false,
-      error: 'Failed to retrieve campaign analytics'
+      error: 'Failed to retrieve campaign analytics',
     };
   }
 }
 
-/**
- * Calculate KPIs for voice campaigns
- */
-async function getVoiceCampaignKPIs(whereClause: any): Promise<VoiceCampaignKPIs> {
-  // Total calls
-  const totalCalls = await prisma.callRecord.count({ where: whereClause });
-
-  // Connected calls (calls with outcome indicating connection)
-  const connectedCalls = await prisma.callRecord.count({
-    where: {
-      ...whereClause,
-      outcome: { in: ['answered', 'connected', 'completed', 'transfer'] }
-    }
-  });
-
-  // Conversions (calls with successful outcome or associated sales)
-  const conversions = await prisma.callRecord.count({
-    where: {
-      ...whereClause,
-      OR: [
-        { outcome: { in: ['converted', 'sale', 'success', 'qualified'] } },
-        { 
-          contact: {
-            sales: {
-              some: {
-                createdAt: whereClause.startTime ? {
-                  gte: whereClause.startTime.gte,
-                  lte: whereClause.startTime.lte
-                } : undefined
-              }
-            }
-          }
-        }
-      ]
-    }
-  });
-
-  // Average call duration (only for completed calls)
-  const durationStats = await prisma.callRecord.aggregate({
-    where: {
-      ...whereClause,
-      duration: { not: null },
-      endTime: { not: null }
-    },
-    _avg: {
-      duration: true
-    }
-  });
-
-  // Revenue calculation from sales associated with filtered call records
-  const revenueStats = await prisma.sale.aggregate({
-    where: {
-      contact: {
-        callRecords: {
-          some: whereClause
-        }
-      },
-      createdAt: whereClause.startTime ? {
-        gte: whereClause.startTime?.gte,
-        lte: whereClause.startTime?.lte
-      } : undefined
-    },
-    _sum: {
-      amount: true
-    }
-  });
-
-  // Calculate rates
-  const answerRate = totalCalls > 0 ? (connectedCalls / totalCalls) * 100 : 0;
-  const conversionRate = connectedCalls > 0 ? (conversions / connectedCalls) * 100 : 0;
-  const averageCallDuration = durationStats._avg.duration || 0;
-  const revenuePerCampaign = revenueStats._sum.amount || 0;
-  const costPerConversion = conversions > 0 && revenuePerCampaign > 0 ? 
-    revenuePerCampaign / conversions : 0;
-
-  return {
-    totalCalls,
-    connectedCalls,
-    answerRate: parseFloat(answerRate.toFixed(2)),
-    conversionRate: parseFloat(conversionRate.toFixed(2)),
-    averageCallDuration: Math.round(averageCallDuration),
-    revenuePerCampaign: parseFloat(revenuePerCampaign.toFixed(2)),
-    costPerConversion: parseFloat(costPerConversion.toFixed(2))
-  };
-}
-
-/**
- * Get calls by hour breakdown
- */
-async function getCallsByHour(whereClause: any): Promise<CallsByHourData[]> {
-  const callsByHour = await prisma.$queryRaw<any[]>`
-    SELECT 
-      EXTRACT(HOUR FROM start_time) as hour,
-      COUNT(*) as total_calls,
-      COUNT(CASE WHEN outcome IN ('answered', 'connected', 'completed', 'transfer') THEN 1 END) as connected_calls,
-      COUNT(CASE WHEN outcome IN ('converted', 'sale', 'success', 'qualified') THEN 1 END) as conversions
-    FROM call_records 
-    WHERE ${Object.keys(whereClause).length > 0 ? 'TRUE' : 'TRUE'}
-    ${whereClause.campaignId ? `AND campaign_id = '${whereClause.campaignId}'` : ''}
-    ${whereClause.startTime?.gte ? `AND start_time >= '${whereClause.startTime.gte.toISOString()}'` : ''}
-    ${whereClause.startTime?.lte ? `AND start_time <= '${whereClause.startTime.lte.toISOString()}'` : ''}
-    GROUP BY EXTRACT(HOUR FROM start_time)
-    ORDER BY hour
-  `;
-
-  // Fill in missing hours with 0 values
-  const result: CallsByHourData[] = [];
-  for (let hour = 0; hour < 24; hour++) {
-    const hourData = callsByHour.find(d => parseInt(d.hour) === hour);
-    result.push({
-      hour,
-      totalCalls: hourData ? parseInt(hourData.total_calls) : 0,
-      connectedCalls: hourData ? parseInt(hourData.connected_calls) : 0,
-      conversions: hourData ? parseInt(hourData.conversions) : 0
-    });
-  }
-
-  return result;
-}
-
-/**
- * Get calls by agent breakdown
- */
-async function getCallsByAgent(whereClause: any): Promise<CallsByAgentData[]> {
-  const callsByAgent = await prisma.callRecord.groupBy({
-    by: ['agentId'],
-    where: {
-      ...whereClause,
-      agentId: { not: null }
-    },
-    _count: {
-      id: true
-    }
-  });
-
-  const agentData: CallsByAgentData[] = [];
-  
-  for (const agentCalls of callsByAgent) {
-    if (!agentCalls.agentId) continue;
-
-    // Get agent info
-    const agent = await prisma.agent.findUnique({
-      where: { agentId: agentCalls.agentId },
-      select: { firstName: true, lastName: true }
-    });
-
-    // Get connected calls for this agent
-    const connectedCalls = await prisma.callRecord.count({
-      where: {
-        ...whereClause,
-        agentId: agentCalls.agentId,
-        outcome: { in: ['answered', 'connected', 'completed', 'transfer'] }
-      }
-    });
-
-    // Get conversions for this agent
-    const conversions = await prisma.callRecord.count({
-      where: {
-        ...whereClause,
-        agentId: agentCalls.agentId,
-        outcome: { in: ['converted', 'sale', 'success', 'qualified'] }
-      }
-    });
-
-    agentData.push({
-      agentId: agentCalls.agentId,
-      agentName: agent ? `${agent.firstName} ${agent.lastName}` : agentCalls.agentId,
-      totalCalls: agentCalls._count.id,
-      connectedCalls,
-      conversions
-    });
-  }
-
-  return agentData.sort((a, b) => b.totalCalls - a.totalCalls);
-}
-
-/**
- * Get conversion funnel data
- */
-async function getConversionFunnel(whereClause: any): Promise<ConversionFunnelData> {
-  const totalCalls = await prisma.callRecord.count({ where: whereClause });
-
-  const connectedCalls = await prisma.callRecord.count({
-    where: {
-      ...whereClause,
-      outcome: { in: ['answered', 'connected', 'completed', 'transfer'] }
-    }
-  });
-
-  // Qualified leads - calls that had meaningful interaction
-  const qualifiedLeads = await prisma.callRecord.count({
-    where: {
-      ...whereClause,
-      outcome: { in: ['answered', 'connected', 'completed', 'transfer', 'interested', 'callback', 'qualified'] },
-      duration: { gte: 30 } // At least 30 seconds
-    }
-  });
-
-  const conversions = await prisma.callRecord.count({
-    where: {
-      ...whereClause,
-      outcome: { in: ['converted', 'sale', 'success', 'qualified'] }
-    }
-  });
-
-  return {
-    totalCalls,
-    connectedCalls,
-    qualifiedLeads,
-    conversions
-  };
-}
-
-/**
- * Get call outcome distribution
- */
-async function getCallOutcomes(whereClause: any): Promise<CallOutcomeData[]> {
-  const outcomes = await prisma.callRecord.groupBy({
-    by: ['outcome'],
-    where: whereClause,
-    _count: {
-      id: true
-    },
-    orderBy: {
-      _count: {
-        id: 'desc'
-      }
-    }
-  });
-
-  const totalCalls = outcomes.reduce((sum, outcome) => sum + outcome._count.id, 0);
-
-  return outcomes.map(outcome => ({
-    outcome: outcome.outcome || 'unknown',
-    count: outcome._count.id,
-    percentage: totalCalls > 0 ? parseFloat(((outcome._count.id / totalCalls) * 100).toFixed(1)) : 0
-  }));
-}
-
-/**
- * Get available filters data
- */
 export async function getVoiceCampaignFiltersData() {
   try {
-    // Get campaigns with call records
     const campaigns = await prisma.campaign.findMany({
       where: {
-        callRecords: {
-          some: {}
-        }
+        callRecords: { some: {} },
       },
       select: {
         campaignId: true,
         name: true,
-        _count: {
-          select: {
-            callRecords: true
-          }
-        }
+        _count: { select: { callRecords: true } },
       },
-      orderBy: {
-        name: 'asc'
-      }
+      orderBy: { name: 'asc' },
     });
 
-    // Get agents with call records
     const agents = await prisma.agent.findMany({
       where: {
-        callRecords: {
-          some: {}
-        }
+        callRecords: { some: {} },
       },
       select: {
         agentId: true,
         firstName: true,
         lastName: true,
-        _count: {
-          select: {
-            callRecords: true
-          }
-        }
+        _count: { select: { callRecords: true } },
       },
-      orderBy: [
-        { firstName: 'asc' },
-        { lastName: 'asc' }
-      ]
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     });
 
-    // Get lead lists with call records
     const leadLists = await prisma.dataList.findMany({
       where: {
         contacts: {
           some: {
-            callRecords: {
-              some: {}
-            }
-          }
-        }
+            callRecords: { some: {} },
+          },
+        },
       },
       select: {
         listId: true,
-        name: true
+        name: true,
       },
-      orderBy: {
-        name: 'asc'
-      }
+      orderBy: { name: 'asc' },
     });
 
     return {
       success: true,
       data: {
-        campaigns,
-        agents: agents.map(agent => ({
-          agentId: agent.agentId,
-          name: `${agent.firstName} ${agent.lastName}`,
-          callCount: agent._count.callRecords
+        campaigns: campaigns.map((c) => ({
+          campaignId: c.campaignId,
+          name: c.name,
+          callCount: c._count.callRecords,
         })),
-        leadLists
-      }
+        agents: agents.map((agent) => ({
+          agentId: agent.agentId,
+          name: `${agent.firstName} ${agent.lastName}`.trim() || agent.agentId,
+          callCount: agent._count.callRecords,
+        })),
+        leadLists: leadLists.map((l) => ({
+          listId: l.listId,
+          name: l.name,
+        })),
+      },
     };
-
   } catch (error) {
     console.error('Error getting filter data:', error);
     return {
       success: false,
-      error: 'Failed to retrieve filter data'
+      error: 'Failed to retrieve filter data',
     };
   }
 }

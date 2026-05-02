@@ -83,7 +83,7 @@ interface CallOutcomeData {
 }
 
 interface FilterData {
-  campaigns: Array<{ campaignId: string; name: string }>;
+  campaigns: Array<{ campaignId: string; name: string; callCount?: number }>;
   agents: Array<{ agentId: string; name: string; callCount: number }>;
   leadLists: Array<{ listId: string; name: string }>;
 }
@@ -127,51 +127,63 @@ export default function VoiceCampaignReports() {
     leadLists: []
   });
 
-  const [filters, setFilters] = useState<VoiceCampaignFilters>({});
+  const [filters, setFilters] = useState<VoiceCampaignFilters>(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    return {
+      dateFrom: start.toISOString().split('T')[0],
+      dateTo: end.toISOString().split('T')[0],
+    };
+  });
+
+  const authHeaders = (): Record<string, string> => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('omnivox_token') ||
+          localStorage.getItem('authToken') ||
+          localStorage.getItem('auth_token')
+        : null;
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
 
   useEffect(() => {
     console.log('🚀 VoiceCampaignReports - Component mounted, loading data...');
-    loadFilterData();
-    loadAnalytics();
-    
-    // Fallback timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      console.log('⏰ VoiceCampaignReports - Loading timeout reached, forcing loading to false');
-      setLoading(false);
-      if (kpis.totalCalls === 0) {
-        setError('Loading timeout - please refresh the page');
-      }
-    }, 30000); // 30 second timeout
-    
-    return () => clearTimeout(loadingTimeout);
+    void loadFilterData();
+    void loadAnalytics();
   }, []);
 
   useEffect(() => {
-    loadAnalytics();
+    void loadAnalytics();
   }, [filters]);
 
   const loadFilterData = async () => {
     console.log('🔄 VoiceCampaignReports - loadFilterData starting...');
     try {
-      const response = await fetch('/api/reports/voice/campaign/filters');
+      const response = await fetch('/api/reports/voice/campaign/filters', {
+        credentials: 'include',
+        headers: authHeaders(),
+      });
       console.log('📋 VoiceCampaignReports - Filter data response status:', response.status);
-      
+
       if (!response.ok) {
         throw new Error(`Filter API call failed with status: ${response.status}`);
       }
-      
+
       const result = await response.json();
-      console.log('✅ VoiceCampaignReports - Filter data received:', { 
-        success: result.success, 
+      console.log('✅ VoiceCampaignReports - Filter data received:', {
+        success: result.success,
         campaignCount: result.data?.campaigns?.length,
-        agentCount: result.data?.agents?.length 
+        agentCount: result.data?.agents?.length,
       });
-      
+
       if (result.success) {
         setFilterData(result.data);
       } else {
         console.log('❌ VoiceCampaignReports - Filter API returned error:', result.error);
-        setError('Failed to load filter data');
+        setError(result.error || 'Failed to load filter data');
       }
     } catch (err) {
       console.error('❌ VoiceCampaignReports - Error loading filter data:', err);
@@ -199,10 +211,13 @@ export default function VoiceCampaignReports() {
         filters.leadListIds.forEach(id => queryParams.append('leadListIds', id));
       }
 
-      const url = `/api/reports/voice/campaign-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `/api/reports/voice/campaign${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log('🌐 VoiceCampaignReports - Fetching analytics from:', url);
-      
-      const response = await fetch(url);
+
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: authHeaders(),
+      });
       console.log('📊 VoiceCampaignReports - Analytics response status:', response.status);
       
       if (!response.ok) {
@@ -414,7 +429,8 @@ export default function VoiceCampaignReports() {
           <button 
             onClick={() => {
               setError(null);
-              loadAnalytics();
+              void loadFilterData();
+              void loadAnalytics();
             }}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
           >

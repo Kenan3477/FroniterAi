@@ -77,8 +77,8 @@ async function testLoginFlow() {
                             console.log('   Filters error:', filtersError);
                         }
                         
-                        console.log('\n6. Testing campaign simple API...');
-                        const campaignResponse = await fetch(`${frontendUrl}/api/reports/voice/campaign-simple?startDate=2024-12-01&endDate=2024-12-24&campaignId=campaign_1&agentId=agent_demo&leadListId=cold_leads`, {
+                        console.log('\n6. Testing voice campaign analytics API...');
+                        const campaignResponse = await fetch(`${frontendUrl}/api/reports/voice/campaign?dateFrom=2024-12-01&dateTo=2024-12-24`, {
                             headers: {
                                 'Cookie': `auth-token=${authToken}`
                             }
@@ -90,9 +90,8 @@ async function testLoginFlow() {
                             console.log('   Campaign data sample:', JSON.stringify({
                                 success: campaignData.success,
                                 totalCalls: campaignData.data?.kpis?.totalCalls,
-                                avgTalkTime: campaignData.data?.kpis?.avgTalkTime,
-                                contactRate: campaignData.data?.kpis?.contactRate,
-                                dataPointsCount: campaignData.data?.chartData?.length
+                                connectedCalls: campaignData.data?.kpis?.connectedCalls,
+                                conversionRate: campaignData.data?.kpis?.conversionRate,
                             }, null, 2));
                         } else {
                             const campaignError = await campaignResponse.text();

@@ -68,8 +68,8 @@ async function testVercelDeployment() {
                             console.log('   Filters error:', filtersError.substring(0, 200));
                         }
                         
-                        console.log('\n5. Testing campaign simple API...');
-                        const campaignResponse = await fetch(`${vercelUrl}/api/reports/voice/campaign-simple?startDate=2024-12-01&endDate=2024-12-24&campaignId=campaign_1&agentId=agent_demo&leadListId=cold_leads`, {
+                        console.log('\n5. Testing voice campaign analytics API...');
+                        const campaignResponse = await fetch(`${vercelUrl}/api/reports/voice/campaign?dateFrom=2024-12-01&dateTo=2024-12-24`, {
                             headers: {
                                 'Cookie': `auth-token=${authToken}`
                             }
