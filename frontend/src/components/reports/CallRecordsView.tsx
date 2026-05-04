@@ -31,11 +31,21 @@ interface Campaign {
   status?: string;
 }
 
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = document.cookie.match(new RegExp(`(?:^|;\\s*)${escaped}=([^;]*)`));
+  return m ? decodeURIComponent(m[1].trim()) : null;
+}
+
 function getRecordingAuthBearer(): string | null {
   return (
     localStorage.getItem('omnivox_token') ||
     localStorage.getItem('authToken') ||
     localStorage.getItem('auth_token') ||
+    readCookie('session_token') ||
+    readCookie('omnivox_token') ||
+    readCookie('auth-token') ||
     null
   );
 }
@@ -213,6 +223,7 @@ export const CallRecordsView: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedRecord, setSelectedRecord] = useState<CallRecord | null>(null);
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const [playbackPaused, setPlaybackPaused] = useState(false);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   
   // Campaign filter data
@@ -487,17 +498,29 @@ export const CallRecordsView: React.FC = () => {
 
   const playRecording = async (recordId: string, filePath?: string) => {
     try {
+      // Same clip: pause or resume
+      if (isPlaying === recordId && audio) {
+        if (audio.paused) {
+          try {
+            await audio.play();
+            setPlaybackPaused(false);
+          } catch (e) {
+            console.error('Resume failed:', e);
+          }
+          return;
+        }
+        audio.pause();
+        setPlaybackPaused(true);
+        return;
+      }
+
       if (audio) {
         audio.pause();
         if (audio.src?.startsWith('blob:')) {
           URL.revokeObjectURL(audio.src);
         }
         setIsPlaying(null);
-      }
-
-      if (isPlaying === recordId) {
-        setIsPlaying(null);
-        return;
+        setPlaybackPaused(false);
       }
 
       console.log('🎵 Starting recording playback for ID:', recordId);
@@ -564,6 +587,7 @@ export const CallRecordsView: React.FC = () => {
         
         alert(`❌ ${errorMessage}\n\nRecording ID: ${recordId}\nStream URL: ${streamUrl}\nFile Path: ${filePath}\n\nThis may be because:\n• The recording hasn't been synced from Twilio\n• The recording file has been deleted\n• The backend service is unavailable`);
         setIsPlaying(null);
+        setPlaybackPaused(false);
         setAudio(null);
       };
       
@@ -571,10 +595,12 @@ export const CallRecordsView: React.FC = () => {
         console.log('🎵 Audio playback ended');
         URL.revokeObjectURL(objectUrl);
         setIsPlaying(null);
+        setPlaybackPaused(false);
         setAudio(null);
       };
 
       setIsPlaying(recordId);
+      setPlaybackPaused(false);
       console.log('🎵 Starting audio playback...');
       
       try {
@@ -586,12 +612,16 @@ export const CallRecordsView: React.FC = () => {
         URL.revokeObjectURL(objectUrl);
         alert(`❌ Failed to start audio playback\n\nError: ${playError instanceof Error ? playError.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
         setIsPlaying(null);
+        setPlaybackPaused(false);
+        setAudio(null);
       }
       
     } catch (error) {
       console.error('❌ Error in playRecording function:', error);
       alert(`❌ Recording playback failed\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nRecording ID: ${recordId}`);
       setIsPlaying(null);
+      setPlaybackPaused(false);
+      setAudio(null);
     }
   };
 
@@ -1173,12 +1203,20 @@ export const CallRecordsView: React.FC = () => {
                         className="flex items-center text-blue-600 hover:text-blue-800"
                       >
                         {isPlaying === record.recordingFile.id ? (
-                          <PauseIcon className="h-4 w-4 mr-1" />
+                          playbackPaused ? (
+                            <PlayIcon className="h-4 w-4 mr-1" />
+                          ) : (
+                            <PauseIcon className="h-4 w-4 mr-1" />
+                          )
                         ) : (
                           <PlayIcon className="h-4 w-4 mr-1" />
                         )}
                         <span className="text-sm">
-                          {isPlaying === record.recordingFile.id ? 'Playing' : 'Play'}
+                          {isPlaying === record.recordingFile.id
+                            ? playbackPaused
+                              ? 'Play'
+                              : 'Pause'
+                            : 'Play'}
                         </span>
                       </button>
                       <button
@@ -1373,11 +1411,19 @@ export const CallRecordsView: React.FC = () => {
                       className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                       {isPlaying === selectedRecord.recordingFile.id ? (
-                        <PauseIcon className="h-4 w-4 mr-1" />
+                        playbackPaused ? (
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                        ) : (
+                          <PauseIcon className="h-4 w-4 mr-1" />
+                        )
                       ) : (
                         <PlayIcon className="h-4 w-4 mr-1" />
                       )}
-                      {isPlaying === selectedRecord.recordingFile.id ? 'Pause' : 'Play Recording'}
+                      {isPlaying === selectedRecord.recordingFile.id
+                        ? playbackPaused
+                          ? 'Resume'
+                          : 'Pause'
+                        : 'Play Recording'}
                     </button>
                     <button
                       type="button"

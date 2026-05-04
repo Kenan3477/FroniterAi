@@ -34,10 +34,12 @@ export async function GET(
     // Get auth token from cookies - CRITICAL: Use session_token (what the app actually uses!)
     let authToken =
       request.cookies.get('session_token')?.value ||
+      request.cookies.get('omnivox_token')?.value ||
       request.cookies.get('auth-token')?.value ||
+      request.cookies.get('access-token')?.value ||
+      request.cookies.get('token')?.value ||
       request.cookies.get('auth_token')?.value ||
-      request.cookies.get('authToken')?.value ||
-      request.cookies.get('omnivox_token')?.value;
+      request.cookies.get('authToken')?.value;
     
     // If no cookie, try to get from Authorization header (for direct API calls)
     if (!authToken) {
@@ -83,6 +85,7 @@ export async function GET(
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: backendHeaders,
+      signal: AbortSignal.timeout(120_000),
     });
 
     console.log(`📡 Backend response status: ${response.status} ${response.statusText}`);

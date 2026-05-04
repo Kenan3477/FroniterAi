@@ -14,9 +14,25 @@
 import express, { Request, Response } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { prisma } from '../database/index';
-import twilio from 'twilio';
+import { streamTwilioRecording } from '../services/twilioService';
 
 const router = express.Router();
+
+/** callRecord.agentId is Agent.agentId; JWT userId is User.id — match via Agent.email ↔ User */
+async function userOwnsCallRecording(userIdStr: string, callAgentId: string | null): Promise<boolean> {
+  if (!callAgentId) return false;
+  if (callAgentId === userIdStr) return true;
+  const agent = await prisma.agent.findUnique({
+    where: { agentId: callAgentId },
+    select: { email: true },
+  });
+  if (!agent?.email) return false;
+  const user = await prisma.user.findUnique({
+    where: { email: agent.email },
+    select: { id: true },
+  });
+  return user?.id != null && String(user.id) === userIdStr;
+}
 
 /**
  * Extract a Twilio SID (RE... for a Recording, CA... for a Call) from the
@@ -62,6 +78,39 @@ function extractTwilioSid(filePath: string | null, fileName: string | null): str
   return ca || null;
 }
 
+/** Resolve Twilio Recording SID (RE…) for a row; may fall back to CallRecord.recording / callId (CA…). */
+async function resolveToRecordingSid(
+  recording: { filePath: string | null; fileName: string | null },
+  callRecord: { recording: string | null; callId: string } | null
+): Promise<string | null> {
+  let sid =
+    extractTwilioSid(recording.filePath, recording.fileName) ||
+    extractTwilioSid(callRecord?.recording ?? null, null) ||
+    extractTwilioSid(callRecord?.callId ?? null, null);
+  if (!sid) return null;
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !authToken) return null;
+
+  if (sid.startsWith('RE')) return sid;
+
+  if (sid.startsWith('CA')) {
+    const auth = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
+    const fetch = (await import('node-fetch')).default;
+    const recordingsListUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${sid}/Recordings.json`;
+    const listResponse = await fetch(recordingsListUrl, { headers: { Authorization: auth } });
+    if (!listResponse.ok) return null;
+    const recordingsList: any = await listResponse.json();
+    const recs = recordingsList?.recordings;
+    if (!recs?.length) return null;
+    const dual = recs.find((r: { channels?: number }) => r.channels === 2);
+    return (dual || recs[0])?.sid || null;
+  }
+
+  return null;
+}
+
 router.use(authenticate);
 
 /**
@@ -73,44 +122,42 @@ router.get('/test', requireRole('SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'), async (re
 
 /**
  * GET /api/recordings/:id/stream
- * Stream recording audio from Twilio
+ * Stream recording audio from Twilio (buffered for reliable Range/pause in browsers)
  */
-router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    console.log(`🎵 Streaming request for recording ID: ${id}`);
 
-    // Find the recording in our database
     const recording = await prisma.recording.findUnique({
       where: { id },
-      include: { callRecord: true }
+      include: {
+        callRecord: {
+          select: { agentId: true, recording: true, callId: true },
+        },
+      },
     });
 
     if (!recording) {
-      console.log(`❌ Recording not found: ${id}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Recording not found' 
+      return res.status(404).json({
+        success: false,
+        error: 'Recording not found',
       });
     }
 
-    console.log(`✅ Recording found: ${recording.fileName} (storageType=${recording.storageType})`);
-    console.log(`📁 File path: ${recording.filePath}`);
+    if (req.user?.role === 'AGENT') {
+      const allowed = await userOwnsCallRecording(req.user.userId, recording.callRecord?.agentId ?? null);
+      if (!allowed) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
 
-    // Try to extract a Twilio SID from filePath / fileName. In our schema:
-    //   - filePath holds either a full Twilio URL or just the SID (e.g. "REe1fb...")
-    //   - fileName looks like "<CallSid>_<timestamp>.mp3" or "RE...wav"
-    const recordingSid = extractTwilioSid(recording.filePath, recording.fileName);
+    const sid = await resolveToRecordingSid(
+      { filePath: recording.filePath, fileName: recording.fileName },
+      recording.callRecord
+    );
 
-    // We can stream from Twilio whenever:
-    //   (a) storageType is 'twilio', or
-    //   (b) we successfully extracted an RE/CA SID — older code paths set
-    //       storageType='local' even though the file lives on Twilio.
-    const isTwilioHosted = recording.storageType === 'twilio' || !!recordingSid;
-
+    const isTwilioHosted = recording.storageType === 'twilio' || !!sid;
     if (!isTwilioHosted) {
-      console.warn(`⚠️ Recording ${id} is not Twilio-hosted and no local-file streaming is implemented`);
       return res.status(501).json({
         success: false,
         error: 'Recording storage not supported',
@@ -118,96 +165,106 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADM
       });
     }
 
-    if (!recordingSid) {
-      console.error(`❌ Could not extract Twilio SID from recording ${id}`, {
-        fileName: recording.fileName,
-        filePath: recording.filePath,
-      });
+    if (!sid) {
       return res.status(500).json({
         success: false,
-        error: 'Could not extract Twilio recording SID',
+        error: 'Could not resolve Twilio recording SID',
         details: `fileName=${recording.fileName}, filePath=${recording.filePath}`,
       });
     }
 
-    try {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-      if (!accountSid || !authToken) {
-        throw new Error('Twilio credentials not configured');
-      }
-
-      const auth = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
-      const fetch = (await import('node-fetch')).default;
-
-      let mediaUrl: string;
-
-      if (recordingSid.startsWith('CA')) {
-        // Call SID → look up recordings for that call, then stream the first one.
-        const recordingsListUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${recordingSid}/Recordings.json`;
-        console.log(`📡 Fetching call recordings list: ${recordingsListUrl}`);
-
-        const listResponse = await fetch(recordingsListUrl, { headers: { Authorization: auth } });
-        if (!listResponse.ok) {
-          throw new Error(`Twilio Calls API error: ${listResponse.status} ${listResponse.statusText}`);
-        }
-
-        const recordingsList: any = await listResponse.json();
-        if (!recordingsList?.recordings?.length) {
-          return res.status(404).json({
-            success: false,
-            error: 'No Twilio recordings found for this call',
-            callSid: recordingSid,
-          });
-        }
-
-        const actualRecordingSid = recordingsList.recordings[0].sid;
-        mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${actualRecordingSid}.mp3`;
-        console.log(`📡 Resolved Call SID ${recordingSid} → Recording SID ${actualRecordingSid}`);
-      } else {
-        // Recording SID (RE...) → direct access. Use .mp3 (smaller, also what we stored).
-        mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.mp3`;
-      }
-
-      console.log(`📡 Streaming from Twilio: ${mediaUrl}`);
-      const twilioResponse = await fetch(mediaUrl, { headers: { Authorization: auth } });
-
-      if (!twilioResponse.ok) {
-        // Recording probably hasn't finished uploading yet on Twilio's side.
-        console.error(`❌ Twilio media error: ${twilioResponse.status} ${twilioResponse.statusText}`);
-        return res.status(twilioResponse.status === 404 ? 404 : 502).json({
-          success: false,
-          error: 'Recording not yet available on Twilio',
-          details: `${twilioResponse.status} ${twilioResponse.statusText}`,
-          recordingSid,
-        });
-      }
-
-      const contentType = twilioResponse.headers.get('content-type') || 'audio/mpeg';
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${recording.fileName}"`,
-        'Cache-Control': 'public, max-age=3600',
-        'Accept-Ranges': 'bytes',
-      });
-
-      console.log(`🎵 Streaming audio: ${recording.fileName} (${contentType})`);
-      twilioResponse.body.pipe(res);
-    } catch (twilioError: any) {
-      console.error('❌ Twilio streaming error:', twilioError);
+    const media = await streamTwilioRecording(sid);
+    if (!media) {
       return res.status(502).json({
         success: false,
-        error: 'Failed to stream recording from Twilio',
-        details: twilioError?.message || String(twilioError),
+        error: 'Recording not yet available on Twilio',
+        recordingSid: sid,
       });
     }
 
+    res.set({
+      'Content-Type': media.contentType,
+      'Content-Disposition': `inline; filename="${recording.fileName || 'recording'}"`,
+      'Content-Length': String(media.buffer.length),
+      'Cache-Control': 'public, max-age=3600',
+      'Accept-Ranges': 'bytes',
+    });
+
+    return res.send(media.buffer);
   } catch (error) {
     console.error('❌ Recording streaming error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to stream recording',
-      details: process.env.NODE_ENV === 'development' ? error : undefined
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+    });
+  }
+});
+
+/**
+ * GET /api/recordings/:id/download
+ * Download full recording bytes (same Twilio resolution as stream)
+ */
+router.get('/:id/download', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const recording = await prisma.recording.findUnique({
+      where: { id },
+      include: {
+        callRecord: {
+          select: { agentId: true, recording: true, callId: true },
+        },
+      },
+    });
+
+    if (!recording) {
+      return res.status(404).json({ success: false, error: 'Recording not found' });
+    }
+
+    if (req.user?.role === 'AGENT') {
+      const allowed = await userOwnsCallRecording(req.user.userId, recording.callRecord?.agentId ?? null);
+      if (!allowed) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
+
+    const sid = await resolveToRecordingSid(
+      { filePath: recording.filePath, fileName: recording.fileName },
+      recording.callRecord
+    );
+
+    if (!sid) {
+      return res.status(500).json({
+        success: false,
+        error: 'Could not resolve Twilio recording SID',
+      });
+    }
+
+    const media = await streamTwilioRecording(sid);
+    if (!media) {
+      return res.status(502).json({
+        success: false,
+        error: 'Recording not yet available on Twilio',
+      });
+    }
+
+    const baseName = (recording.fileName || `recording-${id}`).replace(/[^\w.\-]+/g, '_');
+    const hasExt = /\.(mp3|wav)$/i.test(baseName);
+    const downloadName = hasExt ? baseName : baseName + (media.contentType.includes('wav') ? '.wav' : '.mp3');
+
+    res.set({
+      'Content-Type': media.contentType,
+      'Content-Disposition': `attachment; filename="${downloadName}"`,
+      'Content-Length': String(media.buffer.length),
+    });
+
+    return res.send(media.buffer);
+  } catch (error) {
+    console.error('❌ Recording download error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to download recording',
     });
   }
 });
@@ -216,7 +273,7 @@ router.get('/:id/stream', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADM
  * GET /api/recordings/:id
  * Get recording metadata
  */
-router.get('/:id', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'), async (req: Request, res: Response) => {
+router.get('/:id', requireRole('AGENT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
