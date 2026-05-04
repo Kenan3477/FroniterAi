@@ -252,7 +252,7 @@ export function requireRole(...allowedRoles: string[]) {
     const hasRole =
       allowedRoles.includes(req.user.role) ||
       (req.user.role === 'SUPER_ADMIN' && allowedRoles.includes('ADMIN'));
-    
+
     if (!hasRole) {
       res.status(403).json({
         success: false,

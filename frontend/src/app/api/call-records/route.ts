@@ -17,11 +17,20 @@ export async function GET(request: NextRequest) {
       finalToken = authHeader.substring(7); // Remove 'Bearer ' prefix
       console.log('🔑 Found token in Authorization header');
     } else {
-      // Fallback to cookies
+      // Fallback to cookies (match login route and other API proxies)
+      const sessionToken = request.cookies.get('session_token')?.value;
+      const omnivoxToken = request.cookies.get('omnivox_token')?.value;
       const authToken = request.cookies.get('auth-token')?.value;
       const accessToken = request.cookies.get('access-token')?.value;
       const token = request.cookies.get('token')?.value;
-      finalToken = authToken || accessToken || token;
+      const authTokenSnake = request.cookies.get('auth_token')?.value;
+      finalToken =
+        sessionToken ||
+        omnivoxToken ||
+        authToken ||
+        accessToken ||
+        authTokenSnake ||
+        token;
       console.log('🔑 Looking for token in cookies:', finalToken ? 'FOUND' : 'NONE');
     }
     

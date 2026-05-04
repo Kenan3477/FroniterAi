@@ -247,18 +247,21 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
     where.dispositionId = filters.dispositionId;
   }
 
-  // 🆕 DEDUPLICATION: Exclude consolidated duplicate records by default
-  // Only show canonical records in UI/reports
-  // If outcome filter is specified, use AND logic; otherwise just exclude duplicates
-  if (filters.outcome) {
-    where.outcome = {
-      AND: [
-        { equals: filters.outcome },
-        { not: 'consolidated-duplicate' }
-      ]
-    };
+  // Exclude consolidated duplicate records (invalid Prisma: do not nest AND under outcome)
+  const notConsolidatedDuplicate = { not: 'consolidated-duplicate' as const };
+  if (filters.outcome && String(filters.outcome).trim()) {
+    const raw = String(filters.outcome).trim();
+    const andClause: any[] = Array.isArray(where.AND) ? [...where.AND] : [];
+    andClause.push({
+      OR: [
+        { outcome: { equals: raw, mode: 'insensitive' } },
+        { disposition: { name: { equals: raw, mode: 'insensitive' } } },
+      ],
+    });
+    andClause.push({ outcome: notConsolidatedDuplicate });
+    where.AND = andClause;
   } else {
-    where.outcome = { not: 'consolidated-duplicate' };
+    where.outcome = notConsolidatedDuplicate;
   }
 
   const callRecords = await prisma.callRecord.findMany({

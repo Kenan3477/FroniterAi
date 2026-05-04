@@ -23,6 +23,22 @@ import { syncAllRecordings, getRecordingSyncStatus } from '../services/recording
 import { getAllRecordings } from '../services/twilioService';
 import { prisma } from '../database/index';
 
+/** CallRecord.agentId stores Agent.agentId, not User.id — map logged-in user to agent row. */
+async function resolveCallRecordAgentIdForUser(userIdStr: string | undefined): Promise<string | undefined> {
+  const uid = parseInt(String(userIdStr || ''), 10);
+  if (!Number.isFinite(uid)) return undefined;
+  const dbUser = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { email: true },
+  });
+  if (!dbUser?.email) return undefined;
+  const agent = await prisma.agent.findFirst({
+    where: { email: { equals: dbUser.email, mode: 'insensitive' } },
+    select: { agentId: true },
+  });
+  return agent?.agentId;
+}
+
 const router = express.Router();
 
 // Apply authentication to all call record routes
@@ -51,9 +67,22 @@ router.get('/', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
     };
 
-    // Security: Agents can only see their own call records
+    // Security: Agents can only see their own call records (CallRecord.agentId = Agent.agentId)
     if (req.user?.role === 'AGENT') {
-      filters.agentId = req.user.userId;
+      const agentTableId = await resolveCallRecordAgentIdForUser(req.user.userId);
+      if (!agentTableId) {
+        return res.json({
+          success: true,
+          records: [],
+          pagination: {
+            total: 0,
+            limit,
+            currentPage: page,
+            totalPages: 0,
+          },
+        });
+      }
+      filters.agentId = agentTableId;
     }
 
     // Handle duration filter
@@ -387,20 +416,20 @@ router.get('/search', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: R
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
     };
 
-    // Security: Agents can only see their own call records
+    // Security: Agents can only see their own call records (CallRecord.agentId = Agent.agentId)
     if (req.user?.role === 'AGENT') {
-      filters.agentId = req.user.userId;
+      const agentTableId = await resolveCallRecordAgentIdForUser(req.user.userId);
+      if (!agentTableId) {
+        return res.json({
+          success: true,
+          data: [],
+          count: 0,
+        });
+      }
+      filters.agentId = agentTableId;
     }
 
     // Handle duration filter
-    if (req.query.durationMin || req.query.durationMax) {
-      filters.duration = {
-        min: req.query.durationMin ? parseInt(req.query.durationMin as string) : undefined,
-        max: req.query.durationMax ? parseInt(req.query.durationMax as string) : undefined
-      };
-    }
-
-    const callRecords = await searchCallRecords(filters);
     
     res.json({
       success: true,
