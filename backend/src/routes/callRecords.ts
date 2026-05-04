@@ -93,9 +93,16 @@ router.get('/', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: Request
       };
     }
 
-    // Handle search term
+    // Handle search term: mobile/phone → strict phone match; otherwise notes/names
     if (req.query.search) {
-      filters.phoneNumber = req.query.search as string;
+      const q = String(req.query.search).trim();
+      const digits = q.replace(/\D/g, '');
+      const looksLikePhone = digits.length >= 6;
+      if (looksLikePhone) {
+        filters.phoneNumber = q;
+      } else {
+        filters.generalSearch = q;
+      }
     }
 
     const callRecords = await searchCallRecords(filters);
@@ -412,6 +419,7 @@ router.get('/search', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: R
       campaignId: req.query.campaignId as string,
       outcome: req.query.outcome as string,
       phoneNumber: req.query.phoneNumber as string,
+      dispositionId: req.query.dispositionId as string,
       dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
       dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
     };
@@ -429,8 +437,26 @@ router.get('/search', requireRole('AGENT', 'SUPERVISOR', 'ADMIN'), async (req: R
       filters.agentId = agentTableId;
     }
 
-    // Handle duration filter
-    
+    if (req.query.durationMin || req.query.durationMax) {
+      filters.duration = {
+        min: req.query.durationMin ? parseInt(req.query.durationMin as string, 10) : undefined,
+        max: req.query.durationMax ? parseInt(req.query.durationMax as string, 10) : undefined,
+      };
+    }
+
+    if (req.query.search) {
+      const q = String(req.query.search).trim();
+      const digits = q.replace(/\D/g, '');
+      const looksLikePhone = digits.length >= 6;
+      if (looksLikePhone) {
+        filters.phoneNumber = q;
+      } else {
+        filters.generalSearch = q;
+      }
+    }
+
+    const callRecords = await searchCallRecords(filters);
+
     res.json({
       success: true,
       data: callRecords,

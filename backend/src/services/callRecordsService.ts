@@ -6,6 +6,7 @@
 import { prisma } from '../database/index';
 import { processCallRecordings } from './recordingService';
 import { deduplicateRecentCall } from './callDeduplicationService';
+import { generatePhoneVariations, normalizePhoneNumber } from '../utils/phoneUtils';
 
 export interface CreateCallRecordRequest {
   callId: string;
@@ -33,6 +34,8 @@ export interface CallSearchFilters {
   dateFrom?: Date;
   dateTo?: Date;
   phoneNumber?: string;
+  /** Free text: notes, agent name, contact name (not used when phoneNumber is set from mobile search) */
+  generalSearch?: string;
   duration?: { min?: number; max?: number };
   dispositionId?: string;
 }
@@ -224,8 +227,43 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
 
   if (filters.agentId) where.agentId = filters.agentId;
   if (filters.campaignId) where.campaignId = filters.campaignId;
-  if (filters.phoneNumber) where.phoneNumber = { contains: filters.phoneNumber };
-  
+
+  const phoneRaw = filters.phoneNumber?.trim();
+  if (phoneRaw) {
+    const variantSet = new Set<string>();
+    variantSet.add(phoneRaw);
+    for (const v of generatePhoneVariations(phoneRaw)) {
+      if (v) variantSet.add(v);
+    }
+    const normalized = normalizePhoneNumber(phoneRaw);
+    if (normalized) {
+      variantSet.add(normalized);
+      for (const v of generatePhoneVariations(normalized)) {
+        if (v) variantSet.add(v);
+      }
+    }
+    const variants = Array.from(variantSet).filter((s) => s.length > 0);
+
+    const phoneOr: any[] = [];
+    if (variants.length) {
+      phoneOr.push({ phoneNumber: { in: variants } });
+      phoneOr.push({ dialedNumber: { in: variants } });
+      phoneOr.push({ contact: { phone: { in: variants } } });
+    }
+
+    const digitsOnly = phoneRaw.replace(/\D/g, '');
+    if (digitsOnly.length >= 6) {
+      phoneOr.push({ phoneNumber: { contains: digitsOnly } });
+      phoneOr.push({ dialedNumber: { contains: digitsOnly } });
+      phoneOr.push({ contact: { phone: { contains: digitsOnly } } });
+    }
+
+    if (phoneOr.length) {
+      if (!where.AND) where.AND = [];
+      (where.AND as any[]).push({ OR: phoneOr });
+    }
+  }
+
   if (filters.dateFrom || filters.dateTo) {
     where.startTime = {};
     if (filters.dateFrom) where.startTime.gte = filters.dateFrom;
@@ -262,6 +300,33 @@ export async function searchCallRecords(filters: CallSearchFilters = {}) {
     where.AND = andClause;
   } else {
     where.outcome = notConsolidatedDuplicate;
+  }
+
+  const gs = filters.generalSearch?.trim();
+  if (gs) {
+    if (!where.AND) where.AND = [];
+    (where.AND as any[]).push({
+      OR: [
+        { notes: { contains: gs, mode: 'insensitive' } },
+        {
+          agent: {
+            OR: [
+              { firstName: { contains: gs, mode: 'insensitive' } },
+              { lastName: { contains: gs, mode: 'insensitive' } },
+            ],
+          },
+        },
+        {
+          contact: {
+            OR: [
+              { firstName: { contains: gs, mode: 'insensitive' } },
+              { lastName: { contains: gs, mode: 'insensitive' } },
+              { fullName: { contains: gs, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ],
+    });
   }
 
   const callRecords = await prisma.callRecord.findMany({
