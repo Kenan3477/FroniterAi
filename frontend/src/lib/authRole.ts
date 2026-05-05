@@ -7,5 +7,6 @@ export function normalizeAppRole(role: string | null | undefined): string | null
   if (!t) return null;
   const u = t.toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
   if (u === 'SUPERADMIN' || u === 'SUPER_ADMIN') return 'SUPER_ADMIN';
+  if (u === 'MANAGER') return 'MANAGER';
   return u;
 }

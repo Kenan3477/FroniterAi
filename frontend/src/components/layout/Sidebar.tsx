@@ -30,11 +30,11 @@ interface SidebarProps {
 }
 
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
-  { name: 'Work', href: '/work', icon: BriefcaseIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
-  { name: 'Contacts', href: '/contacts', icon: UsersIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN'] },
-  { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN'] },
-  { name: 'Reports', href: '/reports', icon: ChartBarIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN'] },
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN', 'MANAGER'] },
+  { name: 'Work', href: '/work', icon: BriefcaseIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN', 'MANAGER'] },
+  { name: 'Contacts', href: '/contacts', icon: UsersIcon, roles: ['ADMIN', 'SUPERVISOR', 'AGENT', 'SUPER_ADMIN', 'MANAGER'] },
+  { name: 'Agent Coaching', href: '/agent-coaching', icon: EyeIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN', 'MANAGER'] },
+  { name: 'Reports', href: '/reports', icon: ChartBarIcon, roles: ['ADMIN', 'SUPERVISOR', 'SUPER_ADMIN', 'MANAGER'] },
   { name: 'Admin', href: '/admin', icon: CogIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
 ];
 
@@ -111,36 +111,40 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <Link
               key={item.name}
               href={item.href}
-              className={`${
-                isActive
-                  ? 'bg-slate-100 text-slate-900 border-r-2 border-slate-600'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
+              title={collapsed ? item.name : undefined}
+              className={`sidebar-item group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
+                isActive ? 'active border-r-2' : ''
+              } ${isActive ? 'border-[var(--theme-accent)]' : ''}`}
             >
               <item.icon
                 className={`${
-                  isActive ? 'text-omnivox-500' : 'text-gray-400 group-hover:text-gray-500'
+                  isActive
+                    ? 'text-[inherit]'
+                    : 'text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)]'
                 } mr-3 flex-shrink-0 h-6 w-6`}
                 aria-hidden="true"
               />
-              {!collapsed && item.name}
+              {!collapsed && <span className="theme-text-primary">{item.name}</span>}
             </Link>
           );
         })}
       </nav>
 
       {/* Collapse Toggle */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="theme-border border-t p-4">
         <button
+          type="button"
           onClick={onToggle}
-          className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 transition-colors duration-150"
+          className="w-full flex items-center justify-center p-2 theme-text-secondary hover:opacity-90 transition-colors duration-150 rounded-md hover:bg-[var(--theme-primary-hover)]"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
             <ChevronRightIcon className="h-5 w-5" />
           ) : (
             <div className="flex items-center space-x-2">
               <ChevronLeftIcon className="h-5 w-5" />
-              <span className="text-sm">Collapse</span>
+              <span className="text-sm theme-text-primary">Collapse</span>
             </div>
           )}
         </button>

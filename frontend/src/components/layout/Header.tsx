@@ -395,9 +395,17 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   return (
     <header className="theme-header border-b h-16 flex items-center justify-between px-4">
       {/* Left Section */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3 min-w-0 flex-1 lg:flex-none">
+        <button
+          type="button"
+          onClick={onSidebarToggle}
+          className="shrink-0 p-2 rounded-md theme-text-secondary hover:bg-[var(--theme-primary-hover)] focus:outline-none focus:ring-2 focus:ring-slate-500"
+          aria-label="Toggle main navigation sidebar"
+        >
+          <Bars3Icon className="h-6 w-6" aria-hidden />
+        </button>
         {/* Search Bar */}
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 min-w-0 max-w-xs">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
           </div>

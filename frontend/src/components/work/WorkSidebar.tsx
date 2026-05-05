@@ -42,6 +42,41 @@ export default function WorkSidebar({
 
   return (
     <div className={`${collapsed ? 'w-16' : 'w-72'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+      {collapsed && (
+        <nav
+          className="flex-1 flex flex-col gap-1 py-2 px-1 overflow-y-auto border-b border-gray-200"
+          aria-label="Work views"
+        >
+          {[
+            ...myInteractions.map((v) => ({ ...v, short: 'My' })),
+            ...views.map((v) => {
+              const short: Record<string, string> = {
+                'Queued Interactions': 'Queue',
+                'Unallocated Interactions': 'Unalloc',
+                'Outcomed Interactions': 'Done',
+                'Sent Interactions': 'Sent',
+                Tasks: 'Tasks',
+              };
+              return { ...v, short: short[v.name] || v.name.slice(0, 4) };
+            }),
+          ].map((view) => (
+            <button
+              key={view.name}
+              type="button"
+              title={view.name}
+              onClick={() => onViewChange(view.name)}
+              className={`w-full rounded-md px-1 py-2 text-[11px] font-medium leading-snug ${
+                view.name === selectedView
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {view.short}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {!collapsed && (
         <>
           {/* Main Views Dropdown - This should show "My Interactions" or "Views" as top level */}
