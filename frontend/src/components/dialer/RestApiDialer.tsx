@@ -100,6 +100,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const deviceRef = useRef<Device | null>(null);
   /** Mirrors isDeviceReady for code that polls deviceRef (incoming handler / conference join). */
   const deviceReadyRef = useRef(false);
+  /** Resolves when Twilio Device.register() completes (used before REST dial so agent leg can connect). */
+  const pendingVoiceRegisterRef = useRef<Promise<void> | null>(null);
+  const deviceInitErrorRef = useRef<string | null>(null);
 
   // Get active call state from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
@@ -217,17 +220,32 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         console.log('🔄 Initializing WebRTC device for incoming calls (profile identity:', voiceId, ')...');
         
         // Get access token from backend — omit agentId so server resolves the same identity as TwiML <Dial><Client>
+        const tokenBearer = getClientAuthBearer() || authBearer();
         const tokenResponse = await fetch('/api/calls/token', {
           method: 'POST',
-          headers: { 
+          credentials: 'include',
+          headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authBearer()}`
+            ...(tokenBearer ? { Authorization: `Bearer ${tokenBearer}` } : {}),
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify(
+            tokenBearer ? { _clientBearer: tokenBearer } : {},
+          ),
         });
         
         if (!tokenResponse.ok) {
-          throw new Error('Failed to get access token');
+          let errDetail = `HTTP ${tokenResponse.status}`;
+          try {
+            const errBody = await tokenResponse.clone().json();
+            errDetail =
+              (errBody as any)?.error ||
+              (errBody as any)?.message ||
+              errDetail;
+          } catch {
+            const t = await tokenResponse.text();
+            if (t) errDetail = t.slice(0, 200);
+          }
+          throw new Error(`Voice token failed: ${errDetail}`);
         }
 
         const { data } = await tokenResponse.json();
@@ -560,24 +578,36 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           }
         });
 
-        console.log('🔧 About to register Twilio device...');
-        await twilioDevice.register();
-        setDevice(twilioDevice);
-        deviceRef.current = twilioDevice;
-        // Voice JS SDK 2.x may not emit legacy `ready` after register(); the
-        // Promise from register() is the authoritative success signal.
-        setIsDeviceReady(true);
-        deviceReadyRef.current = true;
-        console.log('✅ WebRTC Device registered (ready for connect / incoming)');
-        
+        const registerPromise = (async () => {
+          console.log('🔧 About to register Twilio device...');
+          await twilioDevice.register();
+          setDevice(twilioDevice);
+          deviceRef.current = twilioDevice;
+          // Voice JS SDK 2.x may not emit legacy `ready` after register(); the
+          // Promise from register() is the authoritative success signal.
+          setIsDeviceReady(true);
+          deviceReadyRef.current = true;
+          deviceInitErrorRef.current = null;
+          console.log('✅ WebRTC Device registered (ready for connect / incoming)');
+        })();
+        pendingVoiceRegisterRef.current = registerPromise;
+        await registerPromise;
+        pendingVoiceRegisterRef.current = null;
       } catch (error) {
         console.error('❌ Failed to initialize WebRTC Device:', error);
+        pendingVoiceRegisterRef.current = null;
+        const msg =
+          error instanceof Error ? error.message : String(error);
+        deviceInitErrorRef.current = msg;
+        setIsDeviceReady(false);
+        deviceReadyRef.current = false;
       }
     };
 
     initializeDevice();
 
     return () => {
+      pendingVoiceRegisterRef.current = null;
       if (deviceRef.current) {
         try {
           deviceRef.current.destroy();
@@ -743,6 +773,39 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     setLastCallResult(null);
     setCallStatus('idle');
     stopCallStatusPolling();
+  };
+
+  /**
+   * REST outbound still needs the browser Twilio Device registered before Twilio can
+   * connect the <Dial><Client> agent leg. Older bundles also called joinAgentToConference;
+   * this wait prevents "WebRTC device not ready" when the PSTN leg starts before register().
+   */
+  const waitForWebRtcDeviceReady = async (timeoutMs = 35_000): Promise<void> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (deviceInitErrorRef.current && !deviceRef.current) {
+        throw new Error(
+          deviceInitErrorRef.current ||
+            'Twilio browser phone failed to initialize. Refresh the page and allow microphone access.',
+        );
+      }
+      const pending = pendingVoiceRegisterRef.current;
+      if (pending) {
+        try {
+          await pending;
+        } catch {
+          /* initializeDevice catch sets deviceInitErrorRef */
+        }
+        continue;
+      }
+      if (deviceRef.current && deviceReadyRef.current) {
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    throw new Error(
+      'WebRTC device not ready — wait for "Ready to make calls" (or refresh), then allow microphone access.',
+    );
   };
 
   const handleBackspace = () => {
@@ -946,18 +1009,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       return;
     }
 
-    // 🚀 SPEED OPTIMIZATION: WebRTC Device NOT required for REST API calls
-    // Device only needed for incoming calls (agent receives call in browser)
-    // For outbound REST API calls, Twilio handles everything server-side
-    // This removes the 60-second wait that was blocking users
-    
-    console.log('📞 REST API Call - WebRTC Device check skipped (not required)');
-
+    // REST outbound still needs the browser Twilio Device registered for the agent <Client> leg.
     setIsLoading(true);
     setCallStatus('initiating');
     setLastCallResult(null);
 
     try {
+      await waitForWebRtcDeviceReady();
+
       console.log('📞 Making REST API call to:', phoneNumber);
       console.log('✅ Device status:', { device: !!device, isDeviceReady });
       
@@ -971,6 +1030,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const dialBearer = getClientAuthBearer() || authBearer();
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           ...(dialBearer ? { Authorization: `Bearer ${dialBearer}` } : {}),

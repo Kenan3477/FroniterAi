@@ -18,10 +18,19 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔗 Proxying token request to backend...');
 
-    const body = await request.json();
-    const bearer = getBearerFromNextRequest(request);
+    let body: Record<string, unknown> = {};
+    try {
+      const raw = await request.text();
+      if (raw?.trim()) body = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      body = {};
+    }
+    const bearer =
+      getBearerFromNextRequest(request) ||
+      (typeof body._clientBearer === 'string' ? body._clientBearer.trim() : undefined);
+    if ('_clientBearer' in body) delete body._clientBearer;
 
-    const response = await fetch(`${BACKEND_URL}/api/calls/token`, {
+    const response = await fetch(`${BACKEND_URL.replace(/\/+$/, '')}/api/calls/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
