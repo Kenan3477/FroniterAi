@@ -6,6 +6,13 @@ import { RootState } from '@/store';
 import { startCall, answerCall, endCall, clearCall } from '@/store/slices/activeCallSlice';
 import { DispositionCard, DispositionData } from './DispositionCard';
 
+type ActiveRestApiCallState = {
+  callSid: string;
+  conferenceId?: string;
+  dialCorrelationId?: string;
+  startTime: Date;
+};
+
 interface RestApiDialerProps {
   onCallInitiated?: (result: any) => void;
   onCallCompleted?: () => void; // NEW: Callback to refresh data after call completion
@@ -27,7 +34,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const [currentCall, setCurrentCall] = useState<any>(null);
   const [microphoneStream, setMicrophoneStream] = useState<MediaStream | null>(null);
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
-  const [activeRestApiCall, setActiveRestApiCall] = useState<{callSid: string, conferenceId?: string, startTime: Date} | null>(null);
+  const [activeRestApiCall, setActiveRestApiCall] = useState<ActiveRestApiCallState | null>(null);
 
   // 🛡️ Refs that mirror the latest values of state used inside the Twilio Device
   // 'incoming' listener. The listener is registered once when the Device is set up
@@ -39,7 +46,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // changes (cheap useEffects below) so the listener always sees fresh values.
   const phoneNumberRef = useRef<string>('');
   const currentCallRef = useRef<any>(null);
-  const activeRestApiCallRef = useRef<{ callSid: string; conferenceId?: string; startTime: Date } | null>(null);
+  const activeRestApiCallRef = useRef<ActiveRestApiCallState | null>(null);
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   const microphonePermissionGrantedRef = useRef<boolean>(false);
 
@@ -73,6 +80,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     callSid: string;
     duration: number;
     conferenceId?: string;
+    dialCorrelationId?: string;
   } | null>(null);
   
   const deviceRef = useRef<Device | null>(null);
@@ -85,6 +93,13 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     localStorage.getItem('authToken') ||
     localStorage.getItem('omnivox_token') ||
     '';
+
+  const generateDialCorrelationId = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `dc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  };
 
   // 🛡️ Boolean derived from audioDevices used as the Device-init effect's dep.
   // Flips false→true once, the moment audio device enumeration first returns
@@ -348,12 +363,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                 : call.parameters?.CallSid || (call as any).sid || null;
 
               const conferenceId = isOutboundCall ? activeRest?.conferenceId : undefined;
+              const dialCorrelationId = isOutboundCall
+                ? activeRest?.dialCorrelationId
+                : undefined;
 
               console.log('📞 Call details (post-classification):', {
                 direction: isOutboundCall ? 'outbound' : 'inbound',
                 customer: customerNumber,
                 callSid,
                 conferenceId,
+                dialCorrelationId,
                 twilioFrom: callParameters.From,
                 twilioTo: callParameters.To,
               });
@@ -383,6 +402,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                   phoneNumber: safeCustomerNumber,
                   callSid,
                   conferenceId,
+                  ...(dialCorrelationId ? { dialCorrelationId } : {}),
                   callType: isOutboundCall ? 'outbound' : 'inbound',
                   customerInfo: {
                     firstName: isOutboundCall ? 'Customer' : 'Inbound',
@@ -418,6 +438,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                   activeRestNow.callSid,
                   duration,
                   activeRestNow.conferenceId,
+                  activeRestNow.dialCorrelationId,
                 );
 
                 // Clear local call state (agent's call is ended)
@@ -466,6 +487,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
                   activeRestNow.callSid,
                   duration,
                   activeRestNow.conferenceId,
+                  activeRestNow.dialCorrelationId,
                 );
               }
 
@@ -567,6 +589,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     callSid: string | undefined | null,
     duration: number,
     conferenceId?: string | null,
+    dialCorrelationId?: string | null,
   ): boolean => {
     if (!callSid) {
       console.warn('🛡️ showDispositionForCall called without callSid — ignoring');
@@ -584,6 +607,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       callSid,
       duration,
       ...(conferenceId ? { conferenceId } : {}),
+      ...(dialCorrelationId ? { dialCorrelationId } : {}),
     });
     setShowDispositionModal(true);
     return true;
@@ -727,6 +751,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         activeCall.conferenceId ||
         undefined;
 
+      const dialCorrelationIdForSave =
+        pendingCallEnd.dialCorrelationId ||
+        activeCall.dialCorrelationId ||
+        undefined;
+
       const phoneForSave =
         (activeCall.phoneNumber && activeCall.phoneNumber.trim()) ||
         lastOutboundCustomerNumberRef.current.trim() ||
@@ -749,6 +778,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         body: JSON.stringify({
           callSid: pendingCallEnd.callSid,
           conferenceId: conferenceIdForSave, // conf-xxx to merge with preliminary call record
+          ...(dialCorrelationIdForSave ? { dialCorrelationId: dialCorrelationIdForSave } : {}),
           duration: pendingCallEnd.duration,
           campaignId,
           disposition: {
@@ -843,6 +873,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const normalisedNumber = normalisePhoneNumber(phoneNumber);
       console.log('📞 Normalised number:', { original: phoneNumber, normalised: normalisedNumber });
 
+      const dialCorrelationId = generateDialCorrelationId();
+
       // Make REST API call through backend
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
@@ -854,7 +886,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           to: normalisedNumber,
           campaignId: campaignId,
           campaignName: campaignName,
-          agentId: agentId
+          agentId: agentId,
+          dialCorrelationId,
         })
       });
       
@@ -904,6 +937,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         const newActive = {
           callSid: result.callSid,
           conferenceId: result.conferenceId,
+          dialCorrelationId: (result.dialCorrelationId as string | undefined) || dialCorrelationId,
           startTime: new Date(),
         };
         setActiveRestApiCall(newActive);
@@ -997,7 +1031,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               }
 
               await endCallViaBackend(callSid, 'customer-hangup');
-              showDispositionForCall(callSid, duration, activeRestNow.conferenceId);
+              showDispositionForCall(
+                callSid,
+                duration,
+                activeRestNow.conferenceId,
+                activeRestNow.dialCorrelationId,
+              );
 
               setActiveRestApiCall(null);
               activeRestApiCallRef.current = null;
@@ -1050,6 +1089,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
       // Capture callSid from state before setting up handlers (state might be cleared)
       const callSid = activeRestApiCall?.callSid || '';
+      const dialCorrelationForRedux =
+        activeRestApiCallRef.current?.dialCorrelationId ||
+        activeRestApiCall?.dialCorrelationId;
       
       // Make WebRTC call to join conference (outbound Application URL must match backend TwiML)
       let call: any;
@@ -1090,6 +1132,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           phoneNumber: displayPhone,
           callSid: callSid, // Captured before handler
           conferenceId: conferenceId, // CRITICAL: From parameter, not state - ensures it's never null
+          ...(dialCorrelationForRedux ? { dialCorrelationId: dialCorrelationForRedux } : {}),
           callType: 'outbound',
           customerInfo: {
             firstName: 'Customer',
@@ -1152,6 +1195,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           activeRestNow.callSid,
           callDuration,
           activeRestNow.conferenceId,
+          activeRestNow.dialCorrelationId,
         );
 
         setActiveRestApiCall(null);
