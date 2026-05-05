@@ -285,25 +285,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Check if we have a token before making the request
-      const token = localStorage.getItem('omnivox_token') || localStorage.getItem('authToken');
-      
-      console.log('🔍 checkAuth: Token check result:', token ? 'Token found' : 'No token found');
-      
-      // If no token, skip the auth check and set loading to false
-      if (!token) {
-        console.log('🔐 No auth token found, skipping auth check');
-        setUser(null); // Ensure user is null
-        setLoading(false);
-        return;
-      }
+      const token =
+        localStorage.getItem('omnivox_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token');
 
-      // Check if token is expired before making request
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const isExpired = Date.now() >= payload.exp * 1000;
-        
-        if (isExpired) {
-          console.log('🚨 Token is expired, clearing storage');
+      if (token) {
+        // Check if token is expired before making request
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const isExpired = Date.now() >= payload.exp * 1000;
+
+          if (isExpired) {
+            console.log('🚨 Token is expired, clearing storage');
+            localStorage.removeItem('omnivox_token');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('sessionData');
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.log('❌ Invalid token format, clearing storage');
           localStorage.removeItem('omnivox_token');
           localStorage.removeItem('authToken');
           localStorage.removeItem('sessionData');
@@ -311,14 +314,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         }
-      } catch (e) {
-        console.log('❌ Invalid token format, clearing storage');
-        localStorage.removeItem('omnivox_token');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('sessionData');
-        setUser(null);
-        setLoading(false);
-        return;
+      } else {
+        console.log(
+          '🔐 No JWT in localStorage — attempting profile with httpOnly session cookies only',
+        );
       }
 
       console.log('🔍 checkAuth: Making profile request...');
@@ -339,7 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: u.email,
             firstName: u.firstName || '',
             lastName: u.lastName || '',
-            role: u.role,
+            role: String(u.role ?? ''),
             username: u.username,
             voiceClientIdentity: u.voiceClientIdentity,
           });
@@ -561,7 +560,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: u.email,
           firstName: u.firstName || '',
           lastName: u.lastName || '',
-          role: u.role,
+          role: String(u.role ?? ''),
           username: u.username,
           voiceClientIdentity: u.voiceClientIdentity,
         });
