@@ -60,6 +60,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // exactly the "two records for one call" symptom the user reported.
   // showDispositionForCall(callSid) is the only allowed way to open the modal.
   const dispositionShownForCallRef = useRef<string | null>(null);
+  /** After disposition save succeeds — blocks a second modal from late disconnect/status poll. */
+  const dispositionFinalizedForCallRef = useRef<string | null>(null);
   /** E.164 dialed for the current REST outbound — survives if the dial pad is cleared mid-call. */
   const lastOutboundCustomerNumberRef = useRef<string>('');
   const [audioDevices, setAudioDevices] = useState<{input: MediaDeviceInfo[], output: MediaDeviceInfo[]}>({input: [], output: []});
@@ -670,6 +672,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       console.warn('🛡️ showDispositionForCall called without callSid — ignoring');
       return false;
     }
+    if (dispositionFinalizedForCallRef.current === callSid) {
+      console.log(
+        `🛡️ Disposition already saved for ${callSid}; suppressing duplicate modal`,
+      );
+      return false;
+    }
     if (dispositionShownForCallRef.current === callSid) {
       console.log(
         `🛡️ Disposition already shown for ${callSid}; suppressing duplicate trigger`,
@@ -966,6 +974,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // its own disposition modal.
         dispositionShownForCallRef.current = null;
         pendingDispositionCtxRef.current = null;
+        dispositionFinalizedForCallRef.current = effSid;
 
         // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
         setActiveRestApiCall(null);
@@ -1117,6 +1126,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // dismissed but didn't disposition), the new SID is different so the
         // gate would not match, but resetting here makes the intent explicit.
         dispositionShownForCallRef.current = null;
+        dispositionFinalizedForCallRef.current = null;
 
         liveStatusPollCtxRef.current.set(result.callSid, {
           sawInProgress: false,

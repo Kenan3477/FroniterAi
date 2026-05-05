@@ -6,10 +6,9 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '@/contexts/AuthContext';
-import { endCall, clearCall, holdCall } from '@/store/slices/activeCallSlice';
+import { holdCall } from '@/store/slices/activeCallSlice';
 import { RootState } from '@/store';
 import { CallTransferModal } from '@/components/ui/CallTransferModal';
-import { DispositionCard, DispositionData } from '@/components/dialer/DispositionCard';
 import { 
   PhoneIcon, 
   EnvelopeIcon, 
@@ -21,7 +20,6 @@ import {
   ArrowsRightLeftIcon,
   PauseIcon
 } from '@heroicons/react/24/outline';
-import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 
 export interface CustomerInfoCardData {
   id?: string;
@@ -52,7 +50,6 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   const [isEditing, setIsEditing] = useState(!customerData.id); // Auto-edit if new customer
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
-  const [showDispositionModal, setShowDispositionModal] = useState(false);
   const dispatch = useDispatch();
   const activeCallState = useSelector((state: RootState) => state.activeCall);
   
@@ -79,132 +76,16 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           console.warn('⚠️ No active WebRTC call found to terminate');
         }
         
-        // Show disposition modal instead of immediately ending call
-        console.log('📋 Showing disposition modal for call outcome...');
-        setShowDispositionModal(true);
+        // Disposition is handled only by RestApiDialer (WebRTC disconnect / status poll)
+        // to avoid two stacked DispositionCard modals on the Work page.
+        console.log(
+          '📋 End call requested — RestApiDialer will show disposition when the call leg ends',
+        );
         
       } catch (error) {
         console.error('❌ Error terminating WebRTC call:', error);
         alert('❌ Error ending call. Please try again.');
       }
-    }
-  };
-
-  // Handle disposition submission
-  const handleDispositionSubmit = async (dispositionData: DispositionData) => {
-    try {
-      console.log('📋 Submitting call disposition:', dispositionData);
-      
-      // Get call information from Redux state  
-      const callSid = activeCallState?.callSid;
-      const conferenceId = activeCallState?.conferenceId; // CRITICAL: Needed to find preliminary record
-      const callStartTime = activeCallState?.callStartTime;
-      
-      // Calculate call duration
-      const callDuration = callStartTime 
-        ? Math.floor((new Date().getTime() - new Date(callStartTime).getTime()) / 1000)
-        : customerData.callDuration || 0;
-      
-      console.log('📞 Ending call with backend API:', { callSid, conferenceId, duration: callDuration });
-      
-      // End the call through backend API if we have a callSid
-      if (callSid) {
-        const response = await fetch('/api/dialer/end', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getClientAuthBearer()}`
-          },
-          body: JSON.stringify({ 
-            callSid: callSid,
-            duration: callDuration,
-            status: 'completed',
-            disposition: dispositionData.outcome
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('✅ Call ended successfully via backend API');
-        } else {
-          console.error('❌ Backend call end failed:', result.error);
-        }
-      }
-      
-      const clientBearer = getClientAuthBearer();
-      // Save call data with disposition
-      const saveResponse = await fetch('/api/calls/save-call-data', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(clientBearer ? { Authorization: `Bearer ${clientBearer}` } : {}),
-        },
-        body: JSON.stringify({
-          callSid: callSid, // Twilio SID for recording
-          conferenceId: conferenceId, // CRITICAL: Conference ID to find preliminary record and prevent duplicates
-          dialCorrelationId: activeCallState?.dialCorrelationId || undefined,
-          phoneNumber: customerData.phoneNumber,
-          customerInfo: customerData,
-          disposition: {
-            id: dispositionData.id,
-            name: dispositionData.outcome,
-            outcome: dispositionData.outcome,
-          },
-          dispositionId: dispositionData.id,
-          notes: dispositionData.notes,
-          followUpRequired: dispositionData.followUpRequired,
-          followUpDate: dispositionData.followUpDate,
-          duration: callDuration,
-          callDuration: callDuration,
-          agentId: String(agentId), // Convert to string for database compatibility
-          campaignId: 'manual-dial',
-          ...(clientBearer ? { _clientBearer: clientBearer } : {}),
-        })
-      });
-
-      const saveText = await saveResponse.text();
-      let saveResult: any = {};
-      try {
-        saveResult = saveText ? JSON.parse(saveText) : {};
-      } catch {
-        saveResult = {
-          success: false,
-          error: saveText?.slice(0, 300) || `HTTP ${saveResponse.status}`,
-        };
-      }
-      
-      if (saveResult.success) {
-        console.log('✅ Call data and disposition saved successfully');
-        
-        // Update Redux state
-        dispatch(endCall());
-        
-        // Close disposition modal
-        setShowDispositionModal(false);
-        
-        // Refresh work page data
-        if (onCallCompleted) {
-          console.log('🔄 Triggering data refresh after call completion...');
-          onCallCompleted();
-        }
-        
-        // Optionally clear call state after a delay
-        setTimeout(() => {
-          dispatch(clearCall());
-        }, 1000);
-        
-      } else {
-        console.error('❌ Failed to save call data:', saveResult.error);
-        alert(
-          `Failed to save call disposition: ${saveResult.error || saveResult.message || 'Unknown error'}`,
-        );
-        return;
-      }
-      
-    } catch (error) {
-      console.error('❌ Error handling call disposition:', error);
-      alert('Error saving call disposition. Please try again.');
     }
   };
 
@@ -587,20 +468,6 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         callId={activeCallState?.callSid || customerData.id || ''}
         isTransferring={isTransferring}
       />
-      
-      {/* Disposition Modal */}
-      {showDispositionModal && (
-        <DispositionCard
-          isOpen={showDispositionModal}
-          onClose={() => setShowDispositionModal(false)}
-          onSave={handleDispositionSubmit}
-          customerInfo={{
-            name: `${customerData.firstName} ${customerData.lastName}`.trim() || 'Unknown',
-            phoneNumber: customerData.phoneNumber
-          }}
-          callDuration={customerData.callDuration}
-        />
-      )}
     </div>
   );
 };
