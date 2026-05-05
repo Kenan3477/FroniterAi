@@ -107,6 +107,26 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     return `dc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
   };
 
+  /** Acquire mic before the agent <Client> leg rings so accept() is not blocked on getUserMedia. */
+  const ensureMicStreamForAgentLeg = async (): Promise<void> => {
+    if (microphoneStreamRef.current && microphonePermissionGrantedRef.current) {
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: false,
+        sampleRate: 16000,
+        channelCount: 1,
+      },
+    });
+    microphoneStreamRef.current = stream;
+    microphonePermissionGrantedRef.current = true;
+    setMicrophoneStream(stream);
+    setMicrophonePermissionGranted(true);
+  };
+
   // After first enumerateDevices pass (success or fail). Do NOT require output
   // devices — many desktops report zero audiooutput until headphones are plugged in,
   // which previously blocked Twilio Device forever and broke outbound <Dial><Client>.
@@ -1001,6 +1021,15 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // dismissed but didn't disposition), the new SID is different so the
         // gate would not match, but resetting here makes the intent explicit.
         dispositionShownForCallRef.current = null;
+
+        try {
+          await ensureMicStreamForAgentLeg();
+        } catch (micErr) {
+          console.warn(
+            '⚠️ Microphone warm-up after dial failed (will retry on agent leg):',
+            micErr,
+          );
+        }
 
         liveStatusPollCtxRef.current.set(result.callSid, {
           sawInProgress: false,

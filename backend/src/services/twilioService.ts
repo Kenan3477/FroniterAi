@@ -270,6 +270,8 @@ export const generateCustomerToAgentTwiML = (
   // Minimal <Dial><Client> — extra attributes have caused Twilio application errors for callees.
   const dialSettings: Record<string, unknown> = {
     timeout: isLandline ? 90 : 60,
+    // Connect PSTN audio only once the browser Client leg is ready (reduces dead air / one-way delay after answer).
+    answerOnBridge: true,
   };
   if (fromNumber) {
     dialSettings.callerId = fromNumber;
@@ -278,11 +280,6 @@ export const generateCustomerToAgentTwiML = (
   console.log(
     '🎙️ Customer→Agent <Dial><Client>: minimal bridge (recording on parent REST call)',
   );
-
-  if (isLandline) {
-    console.log('🏠 Landline: brief pause before dial');
-    twiml.pause({ length: 1 });
-  }
 
   const dial = twiml.dial(dialSettings as any);
   dial.client(clientIdentity.trim() || 'agent-browser');
