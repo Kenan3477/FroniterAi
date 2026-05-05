@@ -4,7 +4,7 @@
  * Twilio provides SIP infrastructure
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { 
   PhoneIcon, 
@@ -18,6 +18,7 @@ import { twilioSipClient, TwilioCall } from '../../services/webrtc/TwilioSipClie
 import { DialPadModal } from './DialPadModal';
 import { DispositionCard, DispositionData } from './DispositionCard';
 import { startCall, answerCall, updateCallDuration, endCall as endCallAction, clearCall } from '@/store/slices/activeCallSlice';
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 
 interface TwilioDialerProps {
   agentId: string;
@@ -49,6 +50,8 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
   onCallEnd
 }) => {
   const dispatch = useDispatch();
+  /** SIP call that just ended — `activeCall` is cleared before disposition save */
+  const lastEndedCallRef = useRef<TwilioCall | null>(null);
   
   // Connection state
   const [isConnected, setIsConnected] = useState(false);
@@ -128,6 +131,7 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
     };
 
     const handleCallEnded = (call: TwilioCall) => {
+      lastEndedCallRef.current = call;
       setActiveCall(null);
       setIsDialing(false);
       
@@ -164,7 +168,7 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
       twilioSipClient.off('callEnded', handleCallEnded);
       twilioSipClient.off('callFailed', handleCallFailed);
     };
-  }, [onCallStart, onCallEnd, customerInfo]);
+  }, [onCallStart, onCallEnd, customerInfo, dialedNumber, dispatch]);
 
   // Connect to Twilio SIP
   const connectToTwilio = useCallback(async () => {
@@ -258,20 +262,49 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
   // Handle disposition save
   const handleSaveDisposition = async (disposition: DispositionData) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
+      const callSid =
+        activeCall?.id || lastEndedCallRef.current?.id || undefined;
+      if (!callSid) {
+        alert('Cannot save disposition: missing call id. Try again after ending a call.');
+        return;
+      }
+
+      const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getClientAuthBearer()}`,
+        },
         body: JSON.stringify({
+          callSid,
           phoneNumber: dialedNumber,
           customerInfo: customerInfo,
-          disposition: disposition,
+          disposition: {
+            id: disposition.id,
+            name: disposition.outcome,
+            outcome: disposition.outcome,
+          },
+          dispositionId: disposition.id,
+          notes: disposition.notes,
+          followUpRequired: disposition.followUpRequired,
+          followUpDate: disposition.followUpDate,
           callDuration: callDuration,
+          duration: callDuration,
           agentId: agentId,
-          campaignId: 'manual-dial'
-        })
+          campaignId: 'manual-dial',
+        }),
       });
 
-      if (response.ok) {
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { success: false, error: text?.slice(0, 200) };
+      }
+
+      if (response.ok && data.success) {
+        lastEndedCallRef.current = null;
         setIsDispositionCardOpen(false);
         
         // Clear Redux state
@@ -282,8 +315,10 @@ export const TwilioDialer: React.FC<TwilioDialerProps> = ({
         setCustomerInfo(null);
         setCallDuration(0);
       } else {
-        console.error('❌ Failed to save call data');
-        alert('Failed to save call data');
+        console.error('❌ Failed to save call data', data);
+        alert(
+          `Failed to save call data: ${data.error || data.message || response.status}`,
+        );
       }
     } catch (error) {
       console.error('❌ Error saving call data:', error);

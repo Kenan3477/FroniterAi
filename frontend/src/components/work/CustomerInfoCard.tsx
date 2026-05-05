@@ -21,6 +21,7 @@ import {
   ArrowsRightLeftIcon,
   PauseIcon
 } from '@heroicons/react/24/outline';
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 
 export interface CustomerInfoCardData {
   id?: string;
@@ -112,7 +113,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${getClientAuthBearer()}`
           },
           body: JSON.stringify({ 
             callSid: callSid,
@@ -132,25 +133,44 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
       }
       
       // Save call data with disposition
-      const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
+      const saveResponse = await fetch('/api/calls/save-call-data', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${getClientAuthBearer()}`
         },
         body: JSON.stringify({
           callSid: callSid, // Twilio SID for recording
           conferenceId: conferenceId, // CRITICAL: Conference ID to find preliminary record and prevent duplicates
+          dialCorrelationId: activeCallState?.dialCorrelationId || undefined,
           phoneNumber: customerData.phoneNumber,
           customerInfo: customerData,
-          disposition: dispositionData,
+          disposition: {
+            id: dispositionData.id,
+            name: dispositionData.outcome,
+            outcome: dispositionData.outcome,
+          },
+          dispositionId: dispositionData.id,
+          notes: dispositionData.notes,
+          followUpRequired: dispositionData.followUpRequired,
+          followUpDate: dispositionData.followUpDate,
+          duration: callDuration,
           callDuration: callDuration,
           agentId: String(agentId), // Convert to string for database compatibility
           campaignId: 'manual-dial'
         })
       });
 
-      const saveResult = await saveResponse.json();
+      const saveText = await saveResponse.text();
+      let saveResult: any = {};
+      try {
+        saveResult = saveText ? JSON.parse(saveText) : {};
+      } catch {
+        saveResult = {
+          success: false,
+          error: saveText?.slice(0, 300) || `HTTP ${saveResponse.status}`,
+        };
+      }
       
       if (saveResult.success) {
         console.log('✅ Call data and disposition saved successfully');
@@ -174,7 +194,9 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         
       } else {
         console.error('❌ Failed to save call data:', saveResult.error);
-        alert('Failed to save call disposition. Please try again.');
+        alert(
+          `Failed to save call disposition: ${saveResult.error || saveResult.message || 'Unknown error'}`,
+        );
         return;
       }
       

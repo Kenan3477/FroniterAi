@@ -1,205 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-
 /**
- * Save Call Data API
- * POST /api/calls/save-call-data
- * Saves customer info and call disposition after call ends
- * Public endpoint for Twilio webhooks
+ * Proxies disposition / call-wrap-up to the Railway backend `POST /api/calls/save-call-data`.
+ *
+ * The previous implementation wrote to a local Next.js Prisma DB and never updated
+ * production CallRecords — dispositions appeared to fail and refresh showed odd state.
  */
-export async function POST(request: NextRequest) {
-  // Allow CORS and bypass authentication for Twilio webhooks
-  const headers = new Headers({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'X-Vercel-Protection-Bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET || 'dev-bypass'
-  });
 
+import { NextRequest, NextResponse } from 'next/server';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
+
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://froniterai-production.up.railway.app';
+
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      phoneNumber,
-      customerInfo,
-      disposition,
-      callDuration,
-      agentId,
-      campaignId
-    } = body;
-
-    console.log('💾 Saving call data for:', phoneNumber);
-    console.log('💾 Request body:', JSON.stringify(body, null, 2));
-
-    // Validate required fields with safe defaults
-    const safePhoneNumber = phoneNumber || 'unknown';
-    const safeAgentId = agentId || 'agent-browser';
-    const safeCampaignId = campaignId || 'manual-dial';
-    const safeDuration = parseInt(callDuration) || 0;
-
-    try {
-      // Find or create contact with better error handling
-      let contact = null;
-      
-      if (safePhoneNumber && safePhoneNumber !== 'unknown') {
-        contact = await (db as any).contact.findFirst({
-          where: {
-            OR: [
-              { phone: safePhoneNumber },
-              { phone: safePhoneNumber.replace(/\s+/g, '') },
-              { mobile: safePhoneNumber },
-              { mobile: safePhoneNumber.replace(/\s+/g, '') }
-            ]
-          }
-        });
-      }
-
-      if (!contact && customerInfo) {
-        // Create new contact with safe field handling
-        try {
-          contact = await (db as any).contact.create({
-            data: {
-              contactId: `CONT-${Date.now()}`,
-              listId: 'manual-dial-list', // Required field
-              firstName: customerInfo.firstName || 'Unknown',  // Required field
-              lastName: customerInfo.lastName || 'Contact',    // Required field
-              phone: safePhoneNumber,
-              email: customerInfo.email || null,
-              company: null,
-              notes: customerInfo.notes || null,
-              status: 'active',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }
-          });
-          console.log('✅ New contact created:', contact.contactId);
-        } catch (contactError) {
-          console.warn('⚠️ Contact creation failed, continuing without contact:', contactError);
-        }
-      } else if (contact && customerInfo) {
-        // Update existing contact with safe field handling
-        try {
-          contact = await (db as any).contact.update({
-            where: { contactId: contact.contactId },
-            data: {
-              firstName: customerInfo.firstName || contact.firstName,
-              lastName: customerInfo.lastName || contact.lastName,
-              email: customerInfo.email || contact.email,
-              notes: customerInfo.notes || contact.notes,
-              updatedAt: new Date()
-            }
-          });
-          console.log('✅ Contact updated:', contact.contactId);
-        } catch (updateError) {
-          console.warn('⚠️ Contact update failed, continuing:', updateError);
-        }
-      }
-
-      // Create interaction record with correct schema fields
-      // For now, let's try to create a minimal interaction without foreign key constraints
-      try {
-        // First try to find if the agent exists
-        const existingAgent = await (db as any).agent.findFirst({
-          where: { agentId: safeAgentId }
-        });
-        
-        // Try to find if campaign exists  
-        const existingCampaign = await (db as any).campaign.findFirst({
-          where: { campaignId: safeCampaignId }
-        });
-        
-        console.log('🔍 Agent exists:', !!existingAgent, 'Campaign exists:', !!existingCampaign);
-        
-        // Use existing agent ID or create a default one
-        const validAgentId = existingAgent?.agentId || 'system-agent';
-        const validCampaignId = existingCampaign?.campaignId || 'manual-dial';
-        const validContactId = contact?.contactId || 'UNKNOWN';
-        
-        const interaction = await (db as any).interaction.create({
-          data: {
-            agentId: validAgentId,
-            contactId: validContactId,
-            campaignId: validCampaignId,
-            channel: 'voice',
-            outcome: disposition?.outcome || 'unknown',
-            startedAt: new Date(Date.now() - (safeDuration * 1000)),
-            endedAt: new Date(),
-            durationSeconds: safeDuration,
-            result: disposition?.notes || null,
-            isDmc: false
-          }
-        });
-
-        console.log('✅ Interaction saved:', interaction.id);
-
-        return NextResponse.json({
-          success: true,
-          contact,
-          interaction
-        }, { headers });
-      } catch (interactionError) {
-        console.error('❌ Interaction creation failed:', interactionError);
-        console.error('❌ Error details:', {
-          name: (interactionError as any)?.name,
-          message: (interactionError as any)?.message,
-          code: (interactionError as any)?.code,
-          stack: (interactionError as any)?.stack
-        });
-        
-        // Still return success if contact was saved
-        return NextResponse.json({
-          success: true,
-          contact,
-          interaction: null,
-          warning: 'Call data saved but interaction record failed',
-          error: (interactionError as any)?.message || 'Unknown interaction error'
-        });
-      }
-      
-    } catch (dbError) {
-      console.error('❌ Database error:', dbError);
-      console.error('❌ Database error details:', {
-        name: (dbError as any)?.name,
-        message: (dbError as any)?.message,
-        code: (dbError as any)?.code,
-        stack: (dbError as any)?.stack
-      });
-      
-      // Return more specific error information
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Database operation failed',
-          details: (dbError as any)?.message || 'Unknown database error'
-        },
-        { status: 500, headers }
-      );
+    const bearer =
+      getBearerFromNextRequest(request) ||
+      (typeof body?._clientBearer === 'string' ? body._clientBearer.trim() : undefined);
+    if (body && typeof body === 'object' && '_clientBearer' in body) {
+      delete (body as { _clientBearer?: string })._clientBearer;
     }
-    
-  } catch (error) {
-    console.error('❌ Save call data error:', error);
-    
-    // Return detailed error for debugging
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+
+    const response = await fetch(`${BACKEND_URL.replace(/\/+$/, '')}/api/calls/save-call-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
-      { status: 500, headers }
+      body: JSON.stringify(body),
+    });
+
+    const rawText = await response.text();
+    let payload: unknown;
+    try {
+      payload = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      payload = {
+        success: false,
+        error: 'Backend returned non-JSON response',
+        details: rawText?.slice(0, 2000),
+      };
+    }
+
+    return NextResponse.json(payload as object, { status: response.status });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('❌ save-call-data proxy error:', message);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to reach call backend',
+        details: message,
+      },
+      { status: 502 },
     );
   }
-}
-
-/**
- * Handle CORS preflight requests
- */
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
 }

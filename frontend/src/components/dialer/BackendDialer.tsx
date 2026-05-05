@@ -16,6 +16,7 @@ import { DialPadModal } from './DialPadModal';
 import { DispositionCard, DispositionData } from './DispositionCard';
 import { startCall, answerCall, updateCallDuration, endCall as endCallAction, clearCall } from '@/store/slices/activeCallSlice';
 import * as dialerApi from '@/services/dialerApi';
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 
 interface BackendDialerProps {
   agentId: string;
@@ -211,7 +212,7 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${getClientAuthBearer()}`
         },
         body: JSON.stringify({
           callId: activeCallSid, // Use callSid as callId for now
@@ -232,22 +233,31 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         
         // Also save customer info if provided
         if (customerInfo) {
-          await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
+          await fetch('/api/calls/save-call-data', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+              'Authorization': `Bearer ${getClientAuthBearer()}`
             },
             body: JSON.stringify({
-              callSid: activeCallSid, // Add required recording evidence
+              callSid: activeCallSid,
               phoneNumber: customerInfo.phoneNumber || customerInfo.phone || dialedNumber,
               customerInfo: {
                 ...customerInfo,
                 notes: disposition.notes
               },
-              disposition: disposition.outcome,
+              disposition: {
+                id: disposition.id,
+                name: disposition.outcome,
+                outcome: disposition.outcome,
+              },
+              dispositionId: disposition.id,
+              notes: disposition.notes,
+              followUpRequired: disposition.followUpRequired,
+              followUpDate: disposition.followUpDate,
               callDuration: callDuration,
-              agentId: String(agentId), // Convert to string for database compatibility
+              duration: callDuration,
+              agentId: String(agentId),
               campaignId: customerInfo.campaignId || 'default'
             })
           });

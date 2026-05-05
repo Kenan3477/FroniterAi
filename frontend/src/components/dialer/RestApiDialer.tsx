@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RootState } from '@/store';
 import { startCall, answerCall, endCall, clearCall } from '@/store/slices/activeCallSlice';
 import { DispositionCard, DispositionData } from './DispositionCard';
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 
 type ActiveRestApiCallState = {
   callSid: string;
@@ -803,12 +804,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const customerPhone =
         (activeCall.customerInfo?.phone && activeCall.customerInfo.phone.trim()) || phoneForSave;
 
-      // Save disposition to backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
+      // Save disposition via Next.js proxy (same-origin auth + Railway Prisma CallRecord)
+      const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authBearer()}`
+          'Authorization': `Bearer ${getClientAuthBearer() || authBearer()}`,
         },
         body: JSON.stringify({
           callSid: pendingCallEnd.callSid,
@@ -835,7 +836,18 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         })
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: any = {};
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = {
+          success: false,
+          error:
+            responseText?.slice(0, 300) ||
+            `Save disposition returned non-JSON (HTTP ${response.status})`,
+        };
+      }
 
       if (result.success) {
         console.log('✅ Call disposition saved successfully');
@@ -875,7 +887,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         });
       } else {
         console.error('❌ Failed to save disposition:', result.error);
-        alert('Failed to save call disposition. Please try again.');
+        alert(
+          `Failed to save call disposition: ${result.error || result.message || 'Unknown error'}`,
+        );
       }
     } catch (error) {
       console.error('❌ Error saving disposition:', error);

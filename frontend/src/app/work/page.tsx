@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '@/contexts/AuthContext';
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
 import { normalizeAppRole } from '@/lib/authRole';
 import { MainLayout } from '@/components/layout';
 import WorkSidebar from '@/components/work/WorkSidebar';
@@ -485,22 +486,32 @@ export default function WorkPage() {
       }
 
       // Save customer info to backend via API call
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://froniterai-production.up.railway.app'}/api/calls/save-call-data`, {
+      const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': isClient ? `Bearer ${localStorage.getItem('authToken') || ''}` : ''
+          'Authorization': `Bearer ${getClientAuthBearer()}`
         },
         body: JSON.stringify({
           phoneNumber: activeCall.phoneNumber,
           customerInfo: activeCall.customerInfo,
           callDuration: activeCall.callDuration,
+          duration: activeCall.callDuration,
           agentId: agentId, // Use authenticated user's agent ID
           campaignId: currentCampaign?.campaignId || 'Manual Dialing'
         })
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: any = {};
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = {
+          success: false,
+          error: responseText?.slice(0, 200) || `HTTP ${response.status}`,
+        };
+      }
       
       if (result.success) {
         console.log('✅ Customer information saved successfully');
