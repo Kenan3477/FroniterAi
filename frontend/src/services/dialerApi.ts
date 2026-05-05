@@ -1,7 +1,6 @@
-// Dialer API service
-// ⚠️ PLACEHOLDER: This is a placeholder implementation for the dialer service
-// 🚨 NOT IMPLEMENTED: Critical telephony features are stubbed
-// 🔧 REQUIRED: Implement actual Railway backend telephony integration
+// Dialer API service — used by BackendDialer / DialPadModal.
+// Outbound initiation must go through the Next.js proxy (`/api/calls/call-rest-api`),
+// not straight to `${NEXT_PUBLIC_BACKEND_URL}/api/calls/call-rest-api` (that path does not exist on Express).
 
 export interface InitiateCallParams {
   to: string;
@@ -42,11 +41,25 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
     // Step 1: Check DNC (Do Not Call) list first
     console.log('🔍 Checking DNC status for number:', params.to);
     
-    const dncCheckResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/dnc/check`, {
+    const bearer =
+      (typeof window !== 'undefined' &&
+        (localStorage.getItem('authToken') ||
+          localStorage.getItem('omnivox_token') ||
+          '')) ||
+      '';
+
+    const dncBase =
+      (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_BACKEND_URL) ||
+      '';
+    const dncUrl = dncBase
+      ? `${dncBase.replace(/\/+$/, '')}/api/admin/dnc/check`
+      : '/api/admin/dnc/check';
+
+    const dncCheckResponse = await fetch(dncUrl, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
       body: JSON.stringify({ phoneNumber: params.to })
     });
@@ -76,24 +89,41 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
     
     console.log('✅ DNC check passed, proceeding with call initiation');
     
-    // Step 2: Make actual API call to backend for call initiation
-    console.log('📞 Initiating call via backend REST API');
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/calls/call-rest-api`, {
+    // Step 2: Next.js API route proxies to Railway `/api/calls/rest-api` with correct auth/cookies.
+    console.log('📞 Initiating call via /api/calls/call-rest-api proxy');
+
+    const dialCorrelationId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `dc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+    const response = await fetch('/api/calls/call-rest-api', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
       body: JSON.stringify({ 
         to: params.to,
         from: params.from,
         agentId: params.agentId,
-        customerInfo: params.customerInfo
+        customerInfo: params.customerInfo,
+        dialCorrelationId,
       })
     });
     
-    const result = await response.json();
+    const responseText = await response.text();
+    let result: any = {};
+    try {
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      result = {
+        success: false,
+        error:
+          responseText?.slice(0, 300) ||
+          `Call service returned non-JSON (HTTP ${response.status})`,
+      };
+    }
     
     if (result.success) {
       console.log('✅ Call initiated successfully via backend API');

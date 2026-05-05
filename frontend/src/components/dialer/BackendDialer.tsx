@@ -102,7 +102,11 @@ export const BackendDialer: React.FC<BackendDialerProps> = ({
         agentId,
         customerInfo: custInfo,
       });
-      
+
+      if (!callData.success) {
+        const msg = callData.error || 'Call initiation failed';
+        throw new Error(msg);
+      }
       setActiveCallSid(callData.callSid || null);
       setCallStatus('initiated');
       setCallStartTime(new Date());

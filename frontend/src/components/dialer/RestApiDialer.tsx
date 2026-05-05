@@ -202,11 +202,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         return;
       }
 
-      if (!audioDevicesEnumerated) {
-        console.log('⏳ Waiting for audio device enumeration to finish...');
-        return;
-      }
-
       try {
         const voiceId = user.voiceClientIdentity || user.id.toString();
         console.log('🔄 Initializing WebRTC device for incoming calls (profile identity:', voiceId, ')...');
@@ -589,8 +584,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       }
     };
     // Re-register when profile exposes voiceClientIdentity (fixes inbound ring + token mismatch).
+    // Do not wait for audioDevicesEnumerated — that path calls getUserMedia and blocks the dial
+    // pad behind "Connecting to Twilio..." until the user grants mic (bad UX for REST dial).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioDevicesEnumerated, user?.id, user?.voiceClientIdentity]);
+  }, [user?.id, user?.voiceClientIdentity]);
 
   // Apply speaker selection to the live Device without re-registering it.
   useEffect(() => {
