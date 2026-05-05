@@ -73,6 +73,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const liveStatusPollCtxRef = useRef<Map<string, { sawInProgress: boolean; pollCount: number }>>(
     new Map(),
   );
+  /**
+   * When we replace a stale outbound agent WebRTC leg, `disconnect()` on the old leg
+   * can fire after `activeRestApiCallRef` already points at the *new* dial. The old
+   * leg's handler would then see the new parent CallSid and tear down the new call
+   * (customer hears immediate hangup). Store the old leg's CallSid so the next
+   * matching `disconnect` is ignored; also guard on ParentCallSid mismatch below.
+   */
+  const ignoringAgentLegDisconnectSidRef = useRef<string | null>(null);
   
   // Get authenticated user for agent ID
   const { user } = useAuth();
@@ -318,8 +326,14 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
               console.log(
                 '🔄 Replacing stale WebRTC leg before accepting new outbound agent leg',
               );
+              const oldCall = currentCallRef.current;
+              const oldLegSid =
+                (oldCall?.parameters as any)?.CallSid || (oldCall as any)?.sid;
+              if (typeof oldLegSid === 'string' && oldLegSid.startsWith('CA')) {
+                ignoringAgentLegDisconnectSidRef.current = oldLegSid;
+              }
               try {
-                currentCallRef.current.disconnect();
+                oldCall.disconnect();
               } catch {
                 /* ignore */
               }
@@ -454,8 +468,47 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             call.on('disconnect', async () => {
               console.log('📱 Call disconnected - customer or network hangup detected');
 
-              // Always read the freshest activeRestApiCall via the ref.
+              const thisLegSid =
+                (call.parameters as any)?.CallSid || (call as any)?.sid;
+              const parentSid = (call.parameters as any)?.ParentCallSid as
+                | string
+                | undefined;
               const activeRestNow = activeRestApiCallRef.current;
+
+              if (
+                typeof thisLegSid === 'string' &&
+                ignoringAgentLegDisconnectSidRef.current === thisLegSid
+              ) {
+                ignoringAgentLegDisconnectSidRef.current = null;
+                console.log(
+                  '🛡️ Ignoring disconnect from deliberately replaced outbound agent leg',
+                );
+                return;
+              }
+
+              if (
+                activeRestNow?.callSid &&
+                parentSid &&
+                parentSid !== activeRestNow.callSid
+              ) {
+                console.log(
+                  '🛡️ Ignoring disconnect — WebRTC leg parent ≠ active customer CallSid (stale leg)',
+                );
+                return;
+              }
+
+              if (
+                activeRestNow?.callSid &&
+                currentCallRef.current &&
+                call !== currentCallRef.current
+              ) {
+                console.log(
+                  '🛡️ Ignoring disconnect — event is not for the active WebRTC call',
+                );
+                return;
+              }
+
+              // Always read the freshest activeRestApiCall via the ref.
               const startTime = activeRestNow?.startTime || new Date();
               const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
 
@@ -493,6 +546,43 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
             call.on('reject', () => {
               console.log('📱 Call rejected by customer');
+
+              const thisLegSid =
+                (call.parameters as any)?.CallSid || (call as any)?.sid;
+              const parentSid = (call.parameters as any)?.ParentCallSid as
+                | string
+                | undefined;
+              const activeRestNow = activeRestApiCallRef.current;
+
+              if (
+                typeof thisLegSid === 'string' &&
+                ignoringAgentLegDisconnectSidRef.current === thisLegSid
+              ) {
+                ignoringAgentLegDisconnectSidRef.current = null;
+                console.log(
+                  '🛡️ Ignoring reject from deliberately replaced outbound agent leg',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                parentSid &&
+                parentSid !== activeRestNow.callSid
+              ) {
+                console.log(
+                  '🛡️ Ignoring reject — WebRTC leg parent ≠ active customer CallSid',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                currentCallRef.current &&
+                call !== currentCallRef.current
+              ) {
+                console.log('🛡️ Ignoring reject — not the active WebRTC call');
+                return;
+              }
+
               setCurrentCall(null);
               currentCallRef.current = null;
               setActiveRestApiCall(null);
@@ -504,7 +594,41 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             call.on('cancel', async () => {
               console.log('📱 Call cancelled - customer or agent cancelled before answer');
 
+              const thisLegSid =
+                (call.parameters as any)?.CallSid || (call as any)?.sid;
+              const parentSid = (call.parameters as any)?.ParentCallSid as
+                | string
+                | undefined;
               const activeRestNow = activeRestApiCallRef.current;
+
+              if (
+                typeof thisLegSid === 'string' &&
+                ignoringAgentLegDisconnectSidRef.current === thisLegSid
+              ) {
+                ignoringAgentLegDisconnectSidRef.current = null;
+                console.log(
+                  '🛡️ Ignoring cancel from deliberately replaced outbound agent leg',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                parentSid &&
+                parentSid !== activeRestNow.callSid
+              ) {
+                console.log(
+                  '🛡️ Ignoring cancel — WebRTC leg parent ≠ active customer CallSid',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                currentCallRef.current &&
+                call !== currentCallRef.current
+              ) {
+                console.log('🛡️ Ignoring cancel — not the active WebRTC call');
+                return;
+              }
               const startTime = activeRestNow?.startTime || new Date();
               const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
 
@@ -536,7 +660,42 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             call.on('error', async (error: any) => {
               console.error('❌ Call error:', error);
 
+              const thisLegSid =
+                (call.parameters as any)?.CallSid || (call as any)?.sid;
+              const parentSid = (call.parameters as any)?.ParentCallSid as
+                | string
+                | undefined;
               const activeRestNow = activeRestApiCallRef.current;
+
+              if (
+                typeof thisLegSid === 'string' &&
+                ignoringAgentLegDisconnectSidRef.current === thisLegSid
+              ) {
+                ignoringAgentLegDisconnectSidRef.current = null;
+                console.log(
+                  '🛡️ Ignoring error from deliberately replaced outbound agent leg',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                parentSid &&
+                parentSid !== activeRestNow.callSid
+              ) {
+                console.log(
+                  '🛡️ Ignoring error — WebRTC leg parent ≠ active customer CallSid',
+                );
+                return;
+              }
+              if (
+                activeRestNow?.callSid &&
+                currentCallRef.current &&
+                call !== currentCallRef.current
+              ) {
+                console.log('🛡️ Ignoring error — not the active WebRTC call');
+                return;
+              }
+
               if (activeRestNow?.callSid) {
                 await endCallViaBackend(activeRestNow.callSid, 'call-error');
               }
@@ -996,6 +1155,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // milliseconds after this state update is enqueued) reads the new
         // value rather than the previous-call/null value still in state.
         activeRestApiCallRef.current = newActive;
+        ignoringAgentLegDisconnectSidRef.current = null;
         // 🛡️ Reset the disposition-dedup gate for the new call's SID. If
         // the previous call's gate was somehow still set (e.g. agent
         // dismissed but didn't disposition), the new SID is different so the
@@ -1066,14 +1226,21 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           if (TERMINAL_STATES.includes(data.status)) {
             // Twilio sometimes briefly reports "completed" on the parent leg while
             // child/agent legs are still connecting — disconnecting here drops the call
-            // right when the customer answers. Ignore early completed until in-progress or a few polls.
+            // right when the customer answers. Ignore early completed until in-progress,
+            // several polls, or the dial is old enough (agent leg can take >6s to answer).
+            const activeForPoll = activeRestApiCallRef.current;
+            const sameDial = activeForPoll?.callSid === callSid;
+            const ageMs = sameDial
+              ? Date.now() - activeForPoll.startTime.getTime()
+              : 0;
             if (
               data.status === 'completed' &&
               !ctx.sawInProgress &&
-              ctx.pollCount < 4
+              sameDial &&
+              (ctx.pollCount < 8 || ageMs < 12_000)
             ) {
               console.warn(
-                `📡 Ignoring early parent completed (poll ${ctx.pollCount}) — waiting for in-progress or stable terminal`,
+                `📡 Ignoring early parent completed (poll ${ctx.pollCount}, age ${Math.round(ageMs / 1000)}s) — waiting for in-progress or stable terminal`,
               );
               return;
             }
