@@ -65,15 +65,17 @@ async function checkForActiveCallByUserId(userId: number): Promise<{ callId: str
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // Look back 2 hours for safety
     
     console.log('🔍 ACTIVE CALL CHECK: Searching for active calls for userId:', userId);
-    console.log('   Looking for: endTime=NULL (active) AND notes contains [USER:${userId}|');
-    
+    const agentIdentity = await resolveTwilioVoiceIdentityForUserId(String(userId));
+    console.log('   Looking for: endTime=NULL AND (notes [USER:...] OR agentId=', agentIdentity, ')');
+
     const activeCall = await prisma.callRecord.findFirst({
       where: {
-        notes: {
-          contains: `[USER:${userId}|`
-        },
-        endTime: null, // 🚨 CRITICAL FIX: Check for NULL endTime instead of outcome
-        createdAt: { gte: twoHoursAgo }
+        endTime: null,
+        createdAt: { gte: twoHoursAgo },
+        OR: [
+          { notes: { contains: `[USER:${userId}|` } },
+          { agentId: agentIdentity },
+        ],
       },
       select: {
         callId: true,
@@ -1472,11 +1474,18 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     console.log(`✅ Created temporary contact: ${tempContactId}`);
     
+    const voiceClientIdentity = await resolveTwilioVoiceIdentityForUserId(String(authenticatedUser.userId));
+    const agentRowForFk = await prisma.agent.findUnique({
+      where: { agentId: voiceClientIdentity },
+      select: { agentId: true },
+    });
+    const preliminaryAgentId = agentRowForFk?.agentId ?? null;
+
     // Now create call record with valid contactId
     const preliminaryCallRecord = await prisma.callRecord.create({
       data: {
         callId: conferenceId,
-        agentId: null, // Set to null to avoid Agent foreign key constraint
+        agentId: preliminaryAgentId,
         contactId: tempContactId, // Valid contact ID that exists in database
         campaignId: campaignId || 'DAC',
         phoneNumber: formattedTo,

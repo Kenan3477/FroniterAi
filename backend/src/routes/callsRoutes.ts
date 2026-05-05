@@ -3,6 +3,7 @@
  */
 import express from 'express';
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 import { authenticate, requireRole } from '../middleware/auth';
@@ -11,6 +12,23 @@ import { buildLiveMonitorConferenceTwiml } from '../utils/liveMonitorTwiml';
 import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
 
 const router = express.Router();
+
+/** User id from Bearer JWT when body omits agentId (disposition save). */
+function extractUserIdFromBearer(req: Request): number | null {
+  const h = req.headers.authorization;
+  if (!h?.startsWith('Bearer ')) return null;
+  const token = h.slice(7).trim();
+  const secret = process.env.JWT_SECRET;
+  if (!token || !secret) return null;
+  try {
+    const p = jwt.verify(token, secret) as { userId?: unknown; sub?: unknown };
+    const raw = p.userId ?? p.sub;
+    const n = parseInt(String(raw), 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
 
 // POST /api/calls/force-end - Force end a stuck call (ADMIN ONLY)
 router.post('/force-end', authenticate, requireRole('ADMIN', 'SUPERVISOR'), async (req: Request, res: Response) => {
@@ -497,6 +515,14 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
     safeAgentId = await resolveAgentIdForSave(safeAgentId);
 
+    if (safeAgentId === 'system-agent') {
+      const uidFromBearer = extractUserIdFromBearer(req);
+      if (uidFromBearer != null) {
+        safeAgentId = await resolveAgentIdForSave(String(uidFromBearer));
+        console.log('🔄 save-call-data: agentId inferred from JWT →', safeAgentId);
+      }
+    }
+
     // Try to find or create contact with better phone number matching
     let contact = null;
     if (safePhoneNumber !== 'Unknown') {
@@ -751,52 +777,77 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       console.log('   Is Twilio SID (CA...):', callSid?.startsWith('CA'));
       
       let existingRecordByTwilioSid = null;
-      
-      // 🚨 PRIORITY 1: Search by conferenceId if provided (most reliable - always set from start)
+
+      const bearerUserId = extractUserIdFromBearer(req);
+      const agentScopeParts: any[] = [];
+      if (safeAgentId && safeAgentId !== 'system-agent') {
+        agentScopeParts.push({ agentId: safeAgentId });
+      }
+      if (bearerUserId != null) {
+        agentScopeParts.push({ notes: { contains: `[USER:${bearerUserId}|` } });
+      }
+      const agentScope =
+        agentScopeParts.length === 0
+          ? {}
+          : agentScopeParts.length === 1
+            ? agentScopeParts[0]
+            : { OR: agentScopeParts };
+
+      // PRIORITY 1: conferenceId (globally unique per dial attempt)
       if (conferenceId) {
         existingRecordByTwilioSid = await prisma.callRecord.findFirst({
           where: {
             OR: [
-              { callId: conferenceId },                  // Direct match on conf-xxx
-              { recording: conferenceId },               // Placeholder value before Twilio SID
-              { notes: { contains: conferenceId } },     // Fallback: notes contains conf ID
-            ]
+              { callId: conferenceId },
+              { recording: conferenceId },
+              { notes: { contains: conferenceId } },
+            ],
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         });
-        
         if (existingRecordByTwilioSid) {
           console.log(`✅ Found record by conferenceId: ${existingRecordByTwilioSid.callId}`);
-        } else {
-          console.log(`⚠️  No record found with conferenceId: ${conferenceId}`);
         }
       }
-      
-      // 🚨 PRIORITY 2: Search by Twilio SID if conferenceId search failed
-      if (!existingRecordByTwilioSid && callSid && callSid.startsWith('CA')) {
-        // 🚨 CRITICAL FIX: Search by MULTIPLE criteria to handle race conditions
-        // Search order:
-        // 1. recording field (preferred - set immediately after call creation)
-        // 2. notes field (fallback - contains Twilio SID)
-        // 3. callId field (direct match - for webhook-created records)
-        existingRecordByTwilioSid = await prisma.callRecord.findFirst({
-          where: {
-            OR: [
-              { recording: callSid },                    // Primary: Recording field
-              { notes: { contains: callSid } },          // Fallback: Notes contains SID
-              { callId: callSid }                        // Direct: callId is the SID
-            ]
-          },
-          orderBy: { createdAt: 'desc' }
-        });
 
-        console.log('   Search result:', existingRecordByTwilioSid ? `FOUND ${existingRecordByTwilioSid.callId}` : 'NOT FOUND');
-        if (existingRecordByTwilioSid) {
-          console.log(`🔗 Found existing conf record ${existingRecordByTwilioSid.callId} via Twilio SID ${callSid}`);
-          console.log(`   Existing record details: outcome=${existingRecordByTwilioSid.outcome}, recording=${existingRecordByTwilioSid.recording}`);
-        } else {
-          console.warn(`⚠️  SAVE-CALL-DATA: No record found with recording/notes/callId=${callSid}`);
-        }
+      // Prefer same-agent row when conferenceId matches multiple (defensive)
+      if (existingRecordByTwilioSid && conferenceId && agentScopeParts.length > 0) {
+        const scoped = await prisma.callRecord.findFirst({
+          where: {
+            AND: [
+              {
+                OR: [
+                  { callId: conferenceId },
+                  { recording: conferenceId },
+                  { notes: { contains: conferenceId } },
+                ],
+              },
+              agentScope,
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (scoped) existingRecordByTwilioSid = scoped;
+      }
+
+      // PRIORITY 2: Twilio CA SID — must match this agent (prevents attaching another agent's customer leg)
+      if (!existingRecordByTwilioSid && callSid && callSid.startsWith('CA')) {
+        const sidWhere = {
+          OR: [
+            { recording: callSid },
+            { notes: { contains: callSid } },
+            { callId: callSid },
+          ],
+        };
+        existingRecordByTwilioSid = await prisma.callRecord.findFirst({
+          where:
+            agentScopeParts.length > 0 ? { AND: [sidWhere, agentScope] } : sidWhere,
+          orderBy: { createdAt: 'desc' },
+        });
+        console.log(
+          '   Search by Twilio SID (+ agent scope):',
+          existingRecordByTwilioSid ? `FOUND ${existingRecordByTwilioSid.callId}` : 'NOT FOUND',
+        );
       }
 
       // 🚨 PRIORITY 3: Anti-duplicate fallback.
