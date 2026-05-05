@@ -20,6 +20,13 @@ interface RestApiDialerProps {
   campaignName?: string; // NEW: Allow passing campaign name
 }
 
+type ActiveRestApiCallState = {
+  callSid: string;
+  conferenceId?: string;
+  dialCorrelationId?: string;
+  startTime: Date;
+};
+
 export const RestApiDialer: React.FC<RestApiDialerProps> = ({ 
   onCallInitiated, 
   onCallCompleted,
@@ -891,7 +898,18 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         })
       });
       
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: any = {};
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = {
+          success: false,
+          error:
+            responseText?.slice(0, 200) ||
+            `Call service returned non-JSON (HTTP ${response.status})`,
+        };
+      }
       
       // Check if agent already has an active call (409 Conflict)
       if (response.status === 409) {
