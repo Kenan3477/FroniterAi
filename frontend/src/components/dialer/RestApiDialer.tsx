@@ -20,18 +20,11 @@ interface RestApiDialerProps {
   campaignName?: string; // NEW: Allow passing campaign name
 }
 
-type ActiveRestApiCallState = {
-  callSid: string;
-  conferenceId?: string;
-  dialCorrelationId?: string;
-  startTime: Date;
-};
-
-export const RestApiDialer: React.FC<RestApiDialerProps> = ({ 
-  onCallInitiated, 
+export const RestApiDialer: React.FC<RestApiDialerProps> = ({
+  onCallInitiated,
   onCallCompleted,
   campaignId = 'DAC', // Default to DAC campaign
-  campaignName = 'Dial a Contact Campaign'
+  campaignName = 'Dial a Contact Campaign',
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -76,6 +69,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // Real-time call status polled from Twilio via backend
   const [callStatus, setCallStatus] = useState<'idle' | 'initiating' | 'queued' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'canceled' | 'failed'>('idle');
   const callStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  /** Per customer-leg CallSid: avoid tearing down the agent WebRTC leg on early bogus "completed" from Twilio while still ringing. */
+  const liveStatusPollCtxRef = useRef<Map<string, { sawInProgress: boolean; pollCount: number }>>(
+    new Map(),
+  );
   
   // Get authenticated user for agent ID
   const { user } = useAuth();
@@ -233,7 +230,9 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // Initialize Twilio Device for incoming calls with better configuration  
         const twilioDevice = new Device(data.token, {
           logLevel: 'info', // Reduce debug spam
-          allowIncomingWhileBusy: false, // Prevent multiple simultaneous calls
+          // REST outbound uses one Twilio parent call + a separate <Dial><Client> agent leg.
+          // If false, a stale WebRTC leg blocks the new agent leg and Twilio drops the call when the customer answers.
+          allowIncomingWhileBusy: true,
           enableImprovedSignalingErrorPrecision: true
         });
 
@@ -308,6 +307,26 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             dialedNumberInState: dialedNumber || null,
             twilioParams: call.parameters || {},
           });
+
+          // Outbound agent leg: replace any stale WebRTC connection (same browser identity)
+          // so the new <Dial><Client> from Twilio is accepted instead of rejected.
+          if (isOutboundCall && activeRest?.callSid && currentCallRef.current) {
+            const parentSid = (call.parameters as any)?.ParentCallSid as string | undefined;
+            const matchesThisOutbound =
+              !parentSid || parentSid === activeRest.callSid;
+            if (matchesThisOutbound) {
+              console.log(
+                '🔄 Replacing stale WebRTC leg before accepting new outbound agent leg',
+              );
+              try {
+                currentCallRef.current.disconnect();
+              } catch {
+                /* ignore */
+              }
+              setCurrentCall(null);
+              currentCallRef.current = null;
+            }
+          }
 
           // If we already have an active call, reject this new one.
           if (currentCallRef.current) {
@@ -983,6 +1002,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // gate would not match, but resetting here makes the intent explicit.
         dispositionShownForCallRef.current = null;
 
+        liveStatusPollCtxRef.current.set(result.callSid, {
+          sawInProgress: false,
+          pollCount: 0,
+        });
+
         // Start polling Twilio call status so the UI updates in real-time
         // The Twilio Device incoming handler will handle the WebRTC audio automatically —
         // NO separate joinAgentToConference call needed (that was causing double-connection).
@@ -1029,8 +1053,33 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           console.log(`📡 Call status: ${data.status}`);
           setCallStatus(data.status as any);
 
+          const ctx = liveStatusPollCtxRef.current.get(callSid) || {
+            sawInProgress: false,
+            pollCount: 0,
+          };
+          ctx.pollCount += 1;
+          if (data.status === 'in-progress') {
+            ctx.sawInProgress = true;
+          }
+          liveStatusPollCtxRef.current.set(callSid, ctx);
+
           if (TERMINAL_STATES.includes(data.status)) {
+            // Twilio sometimes briefly reports "completed" on the parent leg while
+            // child/agent legs are still connecting — disconnecting here drops the call
+            // right when the customer answers. Ignore early completed until in-progress or a few polls.
+            if (
+              data.status === 'completed' &&
+              !ctx.sawInProgress &&
+              ctx.pollCount < 4
+            ) {
+              console.warn(
+                `📡 Ignoring early parent completed (poll ${ctx.pollCount}) — waiting for in-progress or stable terminal`,
+              );
+              return;
+            }
+
             stopCallStatusPolling();
+            liveStatusPollCtxRef.current.delete(callSid);
 
             // 🛡️ The Twilio Device 'disconnect' event SHOULD fire when the
             // customer hangs up, but it doesn't always — particularly when
