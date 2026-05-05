@@ -10,8 +10,14 @@ import { authenticate, requireRole } from '../middleware/auth';
 import { getTwilioWebhookBaseUrl } from '../config/voiceMedia';
 import { buildLiveMonitorConferenceTwiml } from '../utils/liveMonitorTwiml';
 import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
+import * as dialerController from '../controllers/dialerController';
 
 const router = express.Router();
+
+// Twilio call-progress callbacks (no JWT) — must be before any `authenticate` routes.
+// `makeRestApiCall` sets statusCallback to /api/calls/status; Twilio POSTs form data only.
+router.get('/status', dialerController.handleStatusCallback);
+router.post('/status', dialerController.handleStatusCallback);
 
 /** User id from Bearer JWT when body omits agentId (disposition save). */
 function extractUserIdFromBearer(req: Request): number | null {

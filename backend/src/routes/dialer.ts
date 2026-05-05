@@ -58,23 +58,20 @@ router.post('/twiml-agent', dialerController.generateAgentTwiML);
 router.get('/twiml-customer', dialerController.generateCustomerTwiML);
 router.post('/twiml-customer', dialerController.generateCustomerTwiML);
 
+// Twilio webhooks — MUST be before `/:callSid` or GET /status is handled as callSid "status" → 401 NO_TOKEN
+router.get('/status', dialerController.handleStatusCallback);
+router.post('/status', dialerController.handleStatusCallback);
+router.get('/recording-callback', dialerController.handleRecordingCallback);
+router.post('/recording-callback', dialerController.handleRecordingCallback);
+router.get('/recording-status', dialerController.handleRecordingCallback);
+router.post('/recording-status', dialerController.handleRecordingCallback);
+
 // Get call details (with wildcard parameter - must come AFTER specific routes)
 router.get('/:callSid/live-status', authenticate, dialerController.getLiveCallStatus);
 router.get('/:callSid', authenticate, dialerController.getCallDetails);
 
 // Send DTMF tones
 router.post('/dtmf', authenticate, dialerController.sendDTMF);
-
-// Status callback endpoint (called by Twilio) - no auth needed for webhooks
-router.get('/status', dialerController.handleStatusCallback);
-router.post('/status', dialerController.handleStatusCallback);
-
-// Recording callback endpoint (called by Twilio) - no auth needed for webhooks
-// CRITICAL: Must match the URL in dialerController.ts recordingStatusCallback parameter
-router.get('/recording-callback', dialerController.handleRecordingCallback);
-router.post('/recording-callback', dialerController.handleRecordingCallback);
-router.get('/recording-status', dialerController.handleRecordingCallback); // Legacy alias
-router.post('/recording-status', dialerController.handleRecordingCallback); // Legacy alias
 
 // Get call recordings
 router.get('/:callSid/recordings', authenticate, dialerController.getRecordings);
