@@ -171,7 +171,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing greeting audio:', inboundNumber.greetingAudioUrl);
       twiml.play(inboundNumber.greetingAudioUrl);
     } else if (options?.enableGreeting !== false) {
-      console.error('❌ No greeting audio configured - TTS is disabled');
+      console.warn('⚠️ Inbound greeting skipped: no greetingAudioUrl configured');
     }
 
     // Route to agent queue
@@ -194,7 +194,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing no answer audio:', inboundNumber.noAnswerAudioUrl);
       twiml.play(inboundNumber.noAnswerAudioUrl);
     } else {
-      console.error('❌ No busy/no-answer audio configured - TTS is disabled, hanging up silently');
+      console.warn('⚠️ No busy/no-answer audio URL; ending call');
       twiml.hangup();
     }
     
@@ -251,7 +251,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing transfer audio:', inboundNumber.transferAudioUrl);
       twiml.play(inboundNumber.transferAudioUrl);
     } else {
-      console.error('❌ No transfer audio configured - TTS is disabled');
+      console.warn('⚠️ Transfer audio skipped: no transferAudioUrl configured');
     }
 
     twiml.dial({
@@ -264,7 +264,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing transfer failed audio:', inboundNumber.transferFailedAudioUrl);
       twiml.play(inboundNumber.transferFailedAudioUrl);
     } else {
-      console.error('❌ No transfer failed audio configured - TTS is disabled, hanging up silently');
+      console.warn('⚠️ No transfer-failed audio URL; ending call');
       twiml.hangup();
     }
 
@@ -291,7 +291,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing hold prompt audio:', inboundNumber.holdAudioUrl);
       twiml.play(inboundNumber.holdAudioUrl);
     } else {
-      console.error('❌ No hold audio configured - TTS is disabled, skipping prompt');
+      console.warn('⚠️ Hold prompt skipped: no holdAudioUrl configured');
     }
 
     // Play hold music only when a URL is configured (no Twilio-hosted default)
@@ -328,8 +328,8 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing voicemail prompt audio:', inboundNumber.voicemailAudioUrl);
       twiml.play(inboundNumber.voicemailAudioUrl);
     } else {
-      console.error('❌ No voicemail prompt audio configured - TTS is disabled');
-      console.error('❌ Cannot take voicemail without audio file, hanging up');
+      console.warn('⚠️ Voicemail skipped: no voicemailAudioUrl configured');
+      console.warn('⚠️ Cannot take voicemail without prompt audio; hanging up');
       twiml.hangup();
       return twiml.toString();
     }
@@ -348,7 +348,7 @@ export class EnhancedTwiMLService {
       console.log('🎵 Playing voicemail thank you audio:', inboundNumber.voicemailThankyouAudioUrl);
       twiml.play(inboundNumber.voicemailThankyouAudioUrl);
     } else {
-      console.error('❌ No voicemail thank you audio configured - TTS is disabled, hanging up silently');
+      console.warn('⚠️ Voicemail thank-you audio skipped: no voicemailThankyouAudioUrl configured');
     }
 
     twiml.hangup();

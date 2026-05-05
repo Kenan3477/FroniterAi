@@ -741,7 +741,7 @@ export class FlowExecutionEngine extends EventEmitter {
   // =============================================================================
 
   /**
-   * Execute media nodes (audio playback, text-to-speech)
+   * Execute media nodes (audio playback)
    */
   private async executeMediaNode(
     node: FlowNode, 
@@ -753,10 +753,7 @@ export class FlowExecutionEngine extends EventEmitter {
     switch (node.type) {
       case 'audio_playback':
         return this.executeAudioPlayback(config, context);
-      
-      case 'text_to_speech':
-        return this.executeTextToSpeech(config, context);
-      
+
       default:
         return { success: true, output: { mediaType: node.type, executed: true } };
     }
@@ -864,18 +861,6 @@ export class FlowExecutionEngine extends EventEmitter {
         error: `Audio playback failed: ${error}`
       };
     }
-  }
-
-  /**
-   * Execute text-to-speech — disabled: Twilio &lt;Say&gt; TTS is not used (cost control).
-   */
-  private async executeTextToSpeech(_config: any, _context: FlowExecutionContext) {
-    console.warn('🚫 textToSpeech node skipped: Twilio TTS is disabled for cost control');
-    return {
-      success: false,
-      error:
-        'Text-to-speech is disabled. Use a Play Audio node with a hosted audio URL instead of Twilio TTS.'
-    };
   }
 
   /**

@@ -1,19 +1,15 @@
 /**
  * Audio Service - Centralized Management for Pre-recorded Audio Prompts
  * 
- * Replaces Twilio TTS with pre-recorded MP3 files to reduce costs and improve performance.
- * 
- * Benefits:
- * - Cost reduction: $0 vs $0.04/minute for TTS
- * - Faster playback: No TTS synthesis delay (~500ms)
+ * Replaces ad-hoc speech with pre-recorded MP3 files for consistent prompts.
  * - Consistent quality: Professional voice every time
  * - Easy updates: Just replace MP3 file
  * 
  * Usage:
  *   twiml.play(AudioService.INBOUND_GREETING);
  * 
- * With fallback:
- *   AudioService.playWithFallback(twiml, 'inbound-greeting.mp3', 'Thank you for calling...');
+ * With legacy helper (same as playAudio):
+ *   AudioService.playWithFallback(twiml, 'inbound-greeting.mp3', 'Inbound greeting');
  */
 
 import twilio from 'twilio';
@@ -144,12 +140,7 @@ export class AudioService {
   // ==========================================
 
   /**
-   * Play audio file with silent fallback if file fails
-   * NO TTS ALLOWED - If audio fails, call continues silently
-   * 
-   * @param twiml - Twilio VoiceResponse object
-   * @param audioFilename - Filename (e.g., 'inbound-greeting.mp3')
-   * @param fallbackText - Description for logging (NOT used for TTS)
+   * Play audio file; if the URL fails at runtime, Twilio continues without audio.
    * 
    * @example
    * AudioService.playAudio(
@@ -166,39 +157,31 @@ export class AudioService {
     const audioUrl = this.getUrl(audioFilename);
     console.log(`🎵 Playing ${description}:`, audioUrl);
     twiml.play(audioUrl);
-    
-    // If audio file fails to load, Twilio will automatically continue without playing anything
-    // NO TTS FALLBACK - This is intentional to avoid unexpected charges
   }
 
   /**
-   * @deprecated Use playAudio() instead - TTS fallback removed
-   * This method is kept for backward compatibility but no longer supports TTS
+   * @deprecated Use playAudio() instead
    */
   static playWithFallback(
     twiml: twilio.twiml.VoiceResponse,
     audioFilename: string,
-    fallbackText: string,
-    voice?: any
+    _fallbackText: string,
+    _voice?: unknown
   ): void {
-    console.warn('⚠️ playWithFallback() is deprecated - TTS fallback has been removed');
-    this.playAudio(twiml, audioFilename, fallbackText);
+    this.playAudio(twiml, audioFilename, String(_fallbackText || 'Audio file'));
   }
 
   /**
-   * @deprecated TTS support removed - use playAudio() instead
-   * This method now ALWAYS plays audio, ignoring the useAudio parameter
+   * @deprecated Use playAudio() instead
    */
   static playOrSay(
     twiml: twilio.twiml.VoiceResponse,
     audioFilename: string,
-    ttsText: string,
-    useAudio: boolean = true,
-    voice?: any
+    _ttsText: string,
+    _useAudio: boolean = true,
+    _voice?: unknown
   ): void {
-    console.warn('⚠️ playOrSay() is deprecated - TTS support has been removed');
-    console.warn('⚠️ Always using audio file, ignoring useAudio parameter');
-    this.playAudio(twiml, audioFilename, ttsText);
+    this.playAudio(twiml, audioFilename, String(_ttsText || 'Audio file'));
   }
 
   /**

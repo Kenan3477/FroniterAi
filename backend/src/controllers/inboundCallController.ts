@@ -379,8 +379,6 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     if (!inboundNumber) {
       console.error(`❌ Inbound number not found for To=${To} (normalized=${normalizeInboundTo(To)})`);
       console.error('❌ CRITICAL: Inbound number must be configured in database before receiving calls');
-      console.error('❌ TTS is disabled. Hanging up silently.');
-      // Send hangup TwiML (no TTS error message)
       const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Hangup/>
@@ -535,9 +533,7 @@ export const handleInboundWebhook = async (req: Request, res: Response) => {
     
   } catch (error: any) {
     console.error('❌ Error handling inbound call webhook:', error);
-    console.error('❌ TTS is disabled. Hanging up silently on error.');
-    
-    // Send hangup TwiML (no TTS error message)
+
     const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Hangup/>
@@ -1300,7 +1296,7 @@ async function logFlowExecution(
 }
 
 /**
- * Get fallback TwiML when flow execution fails — never use TTS or Twilio <Say>.
+ * Get fallback TwiML when flow execution fails.
  * Always route caller to the shared Voice client with Omnivox greeting audio.
  */
 async function getFallbackTwiML(

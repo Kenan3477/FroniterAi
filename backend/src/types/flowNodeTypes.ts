@@ -218,7 +218,7 @@ export const TextToSpeechNode: FlowNodeType = {
   outputs: [
     { id: 'completed', name: 'Speech Complete', type: 'success' },
     { id: 'interrupted', name: 'Interrupted', type: 'default' },
-    { id: 'error', name: 'TTS Error', type: 'failure' }
+    { id: 'error', name: 'Playback Error', type: 'failure' }
   ],
   configSchema: {
     type: 'object',
@@ -233,7 +233,7 @@ export const TextToSpeechNode: FlowNodeType = {
         title: 'Voice',
         enum: ['alice', 'bob', 'charlie', 'diana'],
         default: 'alice',
-        description: 'TTS voice to use'
+        description: 'Voice preset'
       },
       speed: {
         type: 'number',

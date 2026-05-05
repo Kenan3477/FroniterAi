@@ -757,12 +757,6 @@ export const validateFlow = async (req: Request, res: Response) => {
           }
           break;
         case 'textToSpeech':
-          errors.push({
-            code: 'TTS_DISABLED',
-            message: `Text-to-Speech node "${node.label}" is not allowed — Twilio TTS is disabled. Replace with Play Audio using a file URL.`,
-            severity: 'ERROR',
-            nodeId: node.id
-          });
           break;
         case 'ivr':
           if (!config.options || !Array.isArray(config.options) || config.options.length === 0) {
