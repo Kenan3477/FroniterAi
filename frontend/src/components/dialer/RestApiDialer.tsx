@@ -262,9 +262,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           setIsDeviceReady(true);
         });
 
-        twilioDevice.on('error', (error) => {
+        // Do not set isDeviceReady false on generic Device errors. Twilio can
+        // emit non-fatal warnings; clearing readiness left joinAgentToConference
+        // polling until timeout even after register() succeeded.
+        twilioDevice.on('error', (error: any) => {
           console.error('❌ WebRTC Device error:', error);
-          setIsDeviceReady(false);
         });
 
         twilioDevice.on('incoming', async (call) => {
@@ -538,6 +540,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         await twilioDevice.register();
         setDevice(twilioDevice);
         deviceRef.current = twilioDevice;
+        // Voice JS SDK 2.x may not emit legacy `ready` after register(); the
+        // Promise from register() is the authoritative success signal.
+        setIsDeviceReady(true);
+        deviceReadyRef.current = true;
+        console.log('✅ WebRTC Device registered (ready for connect / incoming)');
         
       } catch (error) {
         console.error('❌ Failed to initialize WebRTC Device:', error);
@@ -556,6 +563,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         deviceRef.current = null;
         setDevice(null);
         setIsDeviceReady(false);
+        deviceReadyRef.current = false;
       }
       if (microphoneStreamRef.current) {
         microphoneStreamRef.current.getTracks().forEach((track) => track.stop());
