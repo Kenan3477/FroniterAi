@@ -1291,7 +1291,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       });
     }
 
-    // ⚡ OPTIMIZATION 1: Check for active calls using userId in notes (since agentId is null)
+    // ⚡ OPTIMIZATION 1: Check for active calls for this user (notes or agentId on preliminary row)
     const userId = authenticatedUser.userId;
     
     if (!userId) {
