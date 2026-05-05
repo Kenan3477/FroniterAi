@@ -1,13 +1,13 @@
 import rateLimit from 'express-rate-limit';
 import { ipWhitelistManager } from './ipWhitelist';
 import { getClientIP } from '../utils/ipUtils';
-import { hasTwilioSignatureHeader } from '../utils/trustedTwilioRequest';
+import { isTwilioVoiceHttpTraffic } from '../utils/trustedTwilioRequest';
 
 // Skip function for whitelisted IPs
 const skipWhitelistedIPs = async (req: any) => {
   const clientIP = getClientIP(req); // Use proper IP detection with proxy headers
 
-  if (hasTwilioSignatureHeader(req)) {
+  if (isTwilioVoiceHttpTraffic(req)) {
     return true;
   }
 

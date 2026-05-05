@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
 import { ipWhitelistManager } from './ipWhitelist';
-import { hasTwilioSignatureHeader } from '../utils/trustedTwilioRequest';
+import { isTwilioVoiceHttpTraffic } from '../utils/trustedTwilioRequest';
 
 interface SecurityEvent {
   type: string;
@@ -35,7 +35,7 @@ class SecurityMonitor {
     // Twilio Voice / webhooks: skip heuristic URL/body pattern checks (they can
     // false-positive on TwiML URLs and form bodies). Twilio-signed routes should
     // validate X-Twilio-Signature; other call paths use JWT.
-    if (hasTwilioSignatureHeader(req)) {
+    if (isTwilioVoiceHttpTraffic(req)) {
       return next();
     }
 
@@ -43,7 +43,10 @@ class SecurityMonitor {
     // every path in dev; still skip suspicious-pattern scan for voice plumbing.
     if (
       req.path.startsWith('/api/calls-twiml') ||
-      req.path.startsWith('/api/webhooks')
+      req.path.startsWith('/api/webhooks') ||
+      req.path.startsWith('/api/dialer/twiml') ||
+      req.path.startsWith('/api/dialer/webhook') ||
+      req.path.startsWith('/api/auto-dial/')
     ) {
       return next();
     }

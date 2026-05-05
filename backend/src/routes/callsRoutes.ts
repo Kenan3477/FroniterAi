@@ -1085,6 +1085,11 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
   }
 });
 
+// Recording status webhook — Twilio may retry with GET in edge cases; acknowledge without body.
+router.get('/recording-callback', (_req: Request, res: Response) => {
+  res.status(200).type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+});
+
 // POST /api/calls/recording-callback - Twilio recording status webhook
 router.post('/recording-callback', async (req: Request, res: Response) => {
   const emptyTwiml = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';

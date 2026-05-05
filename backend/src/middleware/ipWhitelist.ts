@@ -7,7 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
 import { getClientIP, normalizeClientIpForWhitelist } from '../utils/ipUtils';
-import { hasTwilioSignatureHeader } from '../utils/trustedTwilioRequest';
+import { hasTwilioSignatureHeader, isTwilioVoiceHttpTraffic } from '../utils/trustedTwilioRequest';
 
 export interface WhitelistedIP {
   id: string;
@@ -322,12 +322,13 @@ export const checkIPWhitelist = async (req: Request, res: Response, next: NextFu
     const clientIP = getClientIP(req);
 
     // Twilio webhooks / Voice callbacks arrive from Twilio IPs (e.g. AWS), not
-    // office agent IPs. Do not treat them as "not whitelisted" for rate limit
-    // bypass — signature validation on each route is the real control.
-    if (hasTwilioSignatureHeader(req)) {
+    // office agent IPs. TwiML URL fetches are often GET **without** signature;
+    // still bypass office-IP semantics so rate limits do not return 429 → Twilio 11200.
+    if (isTwilioVoiceHttpTraffic(req)) {
       (req as any).ipWhitelisted = true;
       if (process.env.OMNIVOX_VERBOSE_IP_DEBUG === 'true') {
-        console.log(`✅ Twilio-signed request — IP whitelist bypass: ${clientIP} ${req.method} ${req.path}`);
+        const why = hasTwilioSignatureHeader(req) ? 'signed' : 'twilio-traffic';
+        console.log(`✅ Twilio voice traffic (${why}) — IP whitelist bypass: ${clientIP} ${req.method} ${req.path}`);
       }
       return next();
     }
