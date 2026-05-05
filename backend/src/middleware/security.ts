@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
 import { ipWhitelistManager } from './ipWhitelist';
+import { hasTwilioSignatureHeader } from '../utils/trustedTwilioRequest';
 
 interface SecurityEvent {
   type: string;
@@ -30,6 +31,22 @@ class SecurityMonitor {
   // Middleware to detect suspicious requests
   detectSuspiciousActivity = async (req: Request, res: Response, next: NextFunction) => {
     const ip = this.getClientIP(req);
+
+    // Twilio Voice / webhooks: skip heuristic URL/body pattern checks (they can
+    // false-positive on TwiML URLs and form bodies). Twilio-signed routes should
+    // validate X-Twilio-Signature; other call paths use JWT.
+    if (hasTwilioSignatureHeader(req)) {
+      return next();
+    }
+
+    // TwiML and recording callbacks are often hit by Twilio without signature on
+    // every path in dev; still skip suspicious-pattern scan for voice plumbing.
+    if (
+      req.path.startsWith('/api/calls-twiml') ||
+      req.path.startsWith('/api/webhooks')
+    ) {
+      return next();
+    }
     
     // Skip security checks for whitelisted IPs
     const isWhitelisted = await ipWhitelistManager.isWhitelisted(ip);

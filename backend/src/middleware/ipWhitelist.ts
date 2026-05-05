@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/index';
 import { getClientIP, normalizeClientIpForWhitelist } from '../utils/ipUtils';
+import { hasTwilioSignatureHeader } from '../utils/trustedTwilioRequest';
 
 export interface WhitelistedIP {
   id: string;
@@ -307,27 +308,40 @@ export const ipWhitelistManager = IPWhitelistManager.getInstance();
  */
 export const checkIPWhitelist = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // DEBUG: Log all IP-related headers
-    console.log('🔍 IP DETECTION DEBUG:', {
-      'CF-Connecting-IP': req.get('CF-Connecting-IP'),
-      'X-Forwarded-For': req.get('X-Forwarded-For'),
-      'X-Real-IP': req.get('X-Real-IP'),
-      'req.ip': req.ip,
-      'connection.remoteAddress': req.connection?.remoteAddress,
-      'socket.remoteAddress': req.socket?.remoteAddress
-    });
-    
+    if (process.env.OMNIVOX_VERBOSE_IP_DEBUG === 'true') {
+      console.log('🔍 IP DETECTION DEBUG:', {
+        'CF-Connecting-IP': req.get('CF-Connecting-IP'),
+        'X-Forwarded-For': req.get('X-Forwarded-For'),
+        'X-Real-IP': req.get('X-Real-IP'),
+        'req.ip': req.ip,
+        'connection.remoteAddress': req.connection?.remoteAddress,
+        'socket.remoteAddress': req.socket?.remoteAddress,
+      });
+    }
+
     const clientIP = getClientIP(req);
-    console.log(`🎯 Detected client IP: ${clientIP}`);
-    
+
+    // Twilio webhooks / Voice callbacks arrive from Twilio IPs (e.g. AWS), not
+    // office agent IPs. Do not treat them as "not whitelisted" for rate limit
+    // bypass — signature validation on each route is the real control.
+    if (hasTwilioSignatureHeader(req)) {
+      (req as any).ipWhitelisted = true;
+      if (process.env.OMNIVOX_VERBOSE_IP_DEBUG === 'true') {
+        console.log(`✅ Twilio-signed request — IP whitelist bypass: ${clientIP} ${req.method} ${req.path}`);
+      }
+      return next();
+    }
+
     const isWhitelisted = await ipWhitelistManager.isWhitelisted(clientIP);
     
     // Set flag on request object for other middleware to check
     (req as any).ipWhitelisted = isWhitelisted;
     
     if (isWhitelisted) {
-      console.log(`✅ IP is whitelisted: ${clientIP}`);
-    } else {
+      if (process.env.OMNIVOX_VERBOSE_IP_DEBUG === 'true') {
+        console.log(`✅ IP is whitelisted: ${clientIP}`);
+      }
+    } else if (process.env.OMNIVOX_VERBOSE_IP_DEBUG === 'true') {
       console.log(`❌ IP NOT WHITELISTED: ${clientIP}`);
       console.log(`📋 Current whitelisted IPs:`, Array.from((ipWhitelistManager as any).cache.keys()));
     }
