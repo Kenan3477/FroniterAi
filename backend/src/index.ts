@@ -277,7 +277,8 @@ class App {
     this.app.use('/api/call-records', callRecordsRoutes); // Production call records service
     this.app.use('/api/call-deduplication', callDeduplicationRoutes); // NEW: Call record deduplication management
     this.app.use('/api/recordings', recordingsRoutes); // NEW: Twilio recording streaming service
-    this.app.use('/api', workingTranscriptRoutes); // Transcript + batch transcription (authenticated)
+    // NOTE: Do NOT mount `workingTranscriptRoutes` at `/api` before `/api/calls` — it uses
+    // router.use(authenticate) and would block Twilio TwiML fetches (11200).
     // this.app.use('/api/admin/transcripts', transcriptManagementRoutes); // Transcription system management API
     // this.app.use('/api/admin/api', apiManagementRoutes); // Admin API management - temporarily disabled
     this.app.use('/api/integrations', integrationRoutes); // NEW: Apps & Integrations management
@@ -359,6 +360,8 @@ class App {
     // NEW: Twilio Dialer API routes - THIS IS THE ONE WE NEED FOR TOKENS
     this.app.use('/api/calls', dialerRoutes); // Twilio-based dialer system (includes /token endpoint)
     this.app.use('/api/calls', inboundCallRoutes); // PRODUCTION: Inbound call handling webhooks and management
+    this.app.use('/api', workingTranscriptRoutes); // Transcript routes (authenticated) — after /api/calls so Twilio is not JWT-gated
+
     this.app.use('/api/dial-queue', dialQueueRoutes); // Dial queue system for auto-dialer
     this.app.use('/api/events', eventTestRoutes); // Real-time event system testing
 
