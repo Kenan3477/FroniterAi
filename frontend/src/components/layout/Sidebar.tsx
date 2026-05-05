@@ -65,20 +65,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     navigationItems.map((item) => item.name),
   );
   return (
-    <div className={`theme-bg-primary theme-border border-r flex flex-col transition-all duration-300 backdrop-blur-xl ${
-      collapsed ? 'w-16' : 'w-64'
-    }`}>
+    <div
+      className={`theme-bg-primary theme-border border-r flex h-full min-h-0 flex-col transition-all duration-300 backdrop-blur-xl ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+    >
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 theme-border border-b backdrop-blur-md">
+      <div className="flex shrink-0 items-center h-16 px-4 theme-border border-b backdrop-blur-md">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-sm">O</span>
           </div>
           {!collapsed && (
             <div className="flex items-center space-x-1">
-              <span className="text-lg font-bold text-slate-900 dark:text-white theme-text-primary">
-                OMNI
-              </span>
+              <span className="text-lg font-bold theme-text-primary">OMNI</span>
               
               {/* Voice Wave V replacement - smaller for sidebar, flipped upside down */}
               <div className="flex items-start justify-center h-5 space-x-0.5 mx-1">
@@ -99,15 +99,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                      style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
               </div>
               
-              <span className="text-lg font-bold text-slate-900 dark:text-white theme-text-primary">
-                OX AI
-              </span>
+              <span className="text-lg font-bold theme-text-primary">OX AI</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Navigation — explicit Tailwind contrast so links never disappear (white-on-white) */}
+      {/* Navigation — theme CSS vars (data-theme), not Tailwind dark: which does not match */}
       <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-4 space-y-1">
         {navigationItems.map((item) => {
           const isActive = pathname === item.href;
@@ -118,21 +116,24 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               title={collapsed ? item.name : undefined}
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
                 isActive
-                  ? 'bg-slate-200 text-slate-900 border-r-2 border-blue-600 dark:bg-neutral-800 dark:text-white dark:border-cyan-400'
-                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-white'
+                  ? 'theme-text-primary border-r-2 bg-[var(--theme-primary-hover)]'
+                  : 'theme-text-secondary hover:bg-[var(--theme-primary-hover)] hover:[color:var(--theme-text)]'
               }`}
+              style={
+                isActive
+                  ? { borderRightColor: 'var(--theme-accent)' }
+                  : undefined
+              }
             >
               <item.icon
                 className={`${
                   isActive
-                    ? 'text-blue-600 dark:text-cyan-300'
-                    : 'text-slate-500 group-hover:text-slate-800 dark:text-neutral-400 dark:group-hover:text-white'
-                } mr-3 flex-shrink-0 h-6 w-6`}
+                    ? 'text-[color:var(--theme-accent)]'
+                    : 'opacity-80 group-hover:opacity-100'
+                } mr-3 flex-shrink-0 h-6 w-6 theme-text-secondary group-hover:[color:var(--theme-text)]`}
                 aria-hidden="true"
               />
-              {!collapsed && (
-                <span className="text-slate-900 dark:text-white">{item.name}</span>
-              )}
+              {!collapsed && <span className="theme-text-primary">{item.name}</span>}
             </Link>
           );
         })}
