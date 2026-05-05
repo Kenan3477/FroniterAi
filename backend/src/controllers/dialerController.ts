@@ -1207,6 +1207,10 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
  */
 export const handleRecordingCallback = async (req: Request, res: Response) => {
   try {
+    if (req.method === 'GET') {
+      return res.status(200).type('text/plain').send('OK');
+    }
+
     const {
       CallSid,
       RecordingSid,
@@ -1256,7 +1260,7 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
     res.status(200).send('OK');
   } catch (error) {
     console.error('❌ Error handling recording callback:', error);
-    res.status(500).send('Error');
+    res.status(200).type('text/plain').send('OK');
   }
 };
 
