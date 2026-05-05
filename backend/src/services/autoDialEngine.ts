@@ -570,6 +570,35 @@ export class AutoDialEngine {
         };
       }
 
+      const backendBase = (process.env.BACKEND_URL || '').trim();
+      const recordingCb = backendBase ? `${backendBase}/api/calls/recording-callback` : '';
+      const recordingCbHttps = (() => {
+        try {
+          return recordingCb ? new URL(recordingCb).protocol === 'https:' : false;
+        } catch {
+          return false;
+        }
+      })();
+      const amdWebhook = backendBase ? `${backendBase}/api/auto-dial/amd-webhook` : '';
+      const amdWebhookHttps = (() => {
+        try {
+          return amdWebhook ? new URL(amdWebhook).protocol === 'https:' : false;
+        } catch {
+          return false;
+        }
+      })();
+
+      if (!recordingCbHttps && recordingCb) {
+        console.warn(
+          '⚠️ Auto-dial: omitting recordingStatusCallback (Twilio requires https BACKEND_URL)',
+        );
+      }
+      if (!amdWebhookHttps && amdWebhook) {
+        console.warn(
+          '⚠️ Auto-dial: omitting asyncAmd (requires https asyncAmdStatusCallback URL)',
+        );
+      }
+
       // Create call with AMD enabled for auto-dial
       const call = await twilioClient.calls.create({
         to: customerPhone,
@@ -578,15 +607,23 @@ export class AutoDialEngine {
           clientIdentity: agentId,
           contactId,
           campaignId,
+          To: customerPhone,
         }).toString()}`,
-        // Enable AMD for intelligent call handling
-        machineDetection: 'Enable',
-        machineDetectionTimeout: 8000, // 8 seconds for AMD analysis
-        machineDetectionSpeechThreshold: 2400, // 2.4 seconds of speech
-        machineDetectionSpeechEndThreshold: 1200, // 1.2 seconds of silence after speech
-        machineDetectionSilenceTimeout: 5000, // 5 seconds of silence timeout
-        asyncAmd: 'true',
-        asyncAmdStatusCallback: `${process.env.BACKEND_URL}/api/auto-dial/amd-webhook`,
+        // Enable AMD for intelligent call handling (only with valid https callback)
+        ...(amdWebhookHttps
+          ? {
+              machineDetection: 'Enable',
+              machineDetectionTimeout: 8,
+              machineDetectionSpeechThreshold: 2400,
+              machineDetectionSpeechEndThreshold: 1200,
+              machineDetectionSilenceTimeout: 5000,
+              asyncAmd: 'true',
+              asyncAmdStatusCallback: amdWebhook,
+            }
+          : {
+              machineDetection: 'Enable',
+              machineDetectionTimeout: 8,
+            }),
         // Additional call parameters
         timeout: 30, // Ring timeout in seconds
         // 🎙️ MANDATORY: Call recording parameters (NEVER disable or remove these)
@@ -596,13 +633,16 @@ export class AutoDialEngine {
         record: true,
         recordingChannels: 'dual', // Dual-channel recording (agent + customer separate tracks)
         recordingTrack: 'both',
-        recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/recording-callback`,
-        recordingStatusCallbackMethod: 'POST',
-        recordingStatusCallbackEvent: ['completed'],
-        trim: 'trim-silence', // Remove silence from start/end
+        ...(recordingCbHttps
+          ? {
+              recordingStatusCallback: recordingCb,
+              recordingStatusCallbackMethod: 'POST',
+              recordingStatusCallbackEvent: ['completed'],
+            }
+          : {}),
         // Status callbacks
         statusCallback: `${process.env.BACKEND_URL}/api/auto-dial/call-status-webhook`,
-        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       });
 
       if (call && call.sid) {

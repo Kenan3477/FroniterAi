@@ -1396,9 +1396,13 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     console.log(`🔍 Number type detection: ${formattedTo} is ${isLandline ? 'LANDLINE 🏠' : 'MOBILE 📱'}`);
 
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
+    // Include `To` on the TwiML URL so landline/mobile tuning works when Twilio requests via GET;
+    // POST body also has `To` but query keeps behavior consistent.
+    const twimlQuery = new URLSearchParams({
       clientIdentity: await resolveTwilioVoiceIdentityForUserId(String(userId)),
-    }).toString()}`;
+      To: formattedTo,
+    });
+    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${twimlQuery.toString()}`;
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
     // All calls MUST be recorded for compliance and quality assurance.
@@ -1415,21 +1419,28 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     //   - The actual "from-answer" semantics is the default for outbound REST
     //     calls (recording is created when the call is answered).
     const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
+    const recordingCallbackHttps = (() => {
+      try {
+        return new URL(RECORDING_CALLBACK).protocol === 'https:';
+      } catch {
+        return false;
+      }
+    })();
 
-    if (!RECORDING_CALLBACK || !process.env.BACKEND_URL) {
-      console.warn('⚠️  WARNING: BACKEND_URL not configured - recording callbacks may fail');
-      console.warn('⚠️  Set BACKEND_URL in Railway environment variables to: https://[your-backend].up.railway.app');
-      // 🚨 TEMPORARY: Allow calls but warn about missing recording callback
-      // TODO: Re-enable this check once BACKEND_URL is configured in Railway
-      // throw new Error('🚨 CRITICAL: Cannot make calls - recording callback URL not configured');
+    if (!recordingCallbackHttps) {
+      console.warn(
+        '⚠️ Recording status callback omitted: Twilio requires an https URL; set BACKEND_URL to https://…',
+      );
     }
 
     console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded dual-channel');
-    if (RECORDING_CALLBACK) {
+    if (recordingCallbackHttps) {
       console.log('📞 Recording callback URL:', RECORDING_CALLBACK);
     }
 
-    // Enhanced call parameters for landline compatibility AND RECORDING
+    // Recording + callbacks: keep parameters conservative — invalid combinations
+    // (e.g. landline AMD + asyncAmd without status URL, or http recording callbacks)
+    // cause Twilio to play "application error" to the callee after answer.
     const callParams: any = {
       to: formattedTo,
       from: fromNumber,
@@ -1443,17 +1454,13 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       record: true,
       recordingChannels: 'dual' as const, // Dual-channel: agent on one track, customer on the other
       recordingTrack: 'both' as const,
-      recordingStatusCallback: RECORDING_CALLBACK,
-      recordingStatusCallbackMethod: 'POST' as const,
-      recordingStatusCallbackEvent: ['completed'],
-      trim: 'trim-silence' as const, // Remove silence from start/end of recording
-      // Landline-specific optimizations
-      ...(isLandline && {
-        timeout: 90, // Extended timeout for landlines (90s vs default 60s)
-        machineDetection: 'Enable' as const, // Better answering machine detection for landlines
-        machineDetectionTimeout: 10, // Wait up to 10s to detect answering machines
-        asyncAmd: 'true' // Use asynchronous machine detection to avoid blocking
-      })
+      ...(recordingCallbackHttps
+        ? {
+            recordingStatusCallback: RECORDING_CALLBACK,
+            recordingStatusCallbackMethod: 'POST' as const,
+            recordingStatusCallbackEvent: ['completed'],
+          }
+        : {}),
     };
 
     // 🔒 FINAL VALIDATION: Verify recording is enabled before making call
@@ -1462,11 +1469,13 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     }
 
     if (isLandline) {
-      console.log('🏠 Applying landline optimizations: extended timeout (90s), machine detection, async AMD');
+      console.log(
+        '🏠 Landline detected — using default ring/answer flow (AMD disabled; it caused callee-side application errors without async AMD callback URL)',
+      );
     }
-    
+
     console.log(
-      '✅ RECORDING VALIDATED: record=true, recordingChannels=dual, recordingTrack=both, callback=/api/calls/recording-callback'
+      `✅ RECORDING VALIDATED: record=true, recordingChannels=dual, recordingTrack=both${recordingCallbackHttps ? ', callback=/api/calls/recording-callback' : ', no recording callback (BACKEND_URL not https)'}`
     );
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
