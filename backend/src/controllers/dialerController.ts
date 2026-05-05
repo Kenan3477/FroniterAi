@@ -466,25 +466,33 @@ const dtmfSchema = z.object({
  */
 export const generateToken = async (req: Request, res: Response) => {
   try {
-    console.log('🔗 Token request received:', req.body);
-    const { agentId } = req.body;
+    const authenticatedUser = (req as any).user;
+    const bodyAgent = typeof req.body?.agentId === 'string' ? req.body.agentId.trim() : '';
+    const defaultShared = 'agent-browser';
+    // Must match <Dial><Client> in twiml-customer-to-agent (resolveTwilioVoiceIdentityForUserId).
+    // Sending literal agent-browser while TwiML dials agent-509 breaks the callee leg (application error).
+    const identity =
+      !bodyAgent || bodyAgent === defaultShared
+        ? await resolveTwilioVoiceIdentityForUserId(authenticatedUser?.userId)
+        : bodyAgent;
 
-    if (!agentId) {
-      console.error('❌ Missing agentId in request:', req.body);
+    if (!identity?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'Agent ID is required',
+        error: 'Could not resolve Voice client identity',
       });
     }
 
-    console.log('📱 Generating token for agent:', agentId);
-    const token = twilioService.generateAccessToken(agentId);
+    const resolved = identity.trim();
+    console.log('📱 Generating Voice token for client identity:', resolved);
+    const token = twilioService.generateAccessToken(resolved);
 
     res.json({
       success: true,
       data: {
         token,
-        identity: agentId,
+        identity: resolved,
+        agentId: resolved,
       },
     });
   } catch (error: any) {

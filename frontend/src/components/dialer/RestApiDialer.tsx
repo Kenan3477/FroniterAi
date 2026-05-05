@@ -208,16 +208,16 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
       try {
         const voiceId = user.voiceClientIdentity || user.id.toString();
-        console.log('🔄 Initializing WebRTC device for incoming calls (identity:', voiceId, ')...');
+        console.log('🔄 Initializing WebRTC device for incoming calls (profile identity:', voiceId, ')...');
         
-        // Get access token from backend
+        // Get access token from backend — omit agentId so server resolves the same identity as TwiML <Dial><Client>
         const tokenResponse = await fetch('/api/calls/token', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authBearer()}`
           },
-          body: JSON.stringify({ agentId: 'agent-browser' })
+          body: JSON.stringify({}),
         });
         
         if (!tokenResponse.ok) {

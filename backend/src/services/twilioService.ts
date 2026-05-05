@@ -266,20 +266,17 @@ export const generateCustomerToAgentTwiML = (
 
   const fromNumber = process.env.TWILIO_PHONE_NUMBER?.trim();
 
-  // Outbound customer leg is already recorded at the REST API level (calls.create
-  // with record + dual channels). Do NOT set record/trim/recordingStatusCallback
-  // on this <Dial><Client> — Twilio often rejects that combination and the callee
-  // hears "We're sorry, an application error has occurred."
+  // Outbound customer leg is already recorded at the REST API level (calls.create).
+  // Minimal <Dial><Client> — extra attributes have caused Twilio application errors for callees.
   const dialSettings: Record<string, unknown> = {
     timeout: isLandline ? 90 : 60,
-    answerOnBridge: true,
   };
   if (fromNumber) {
     dialSettings.callerId = fromNumber;
   }
 
   console.log(
-    '🎙️ Customer→Agent <Dial><Client>: bridge-only (recording handled by parent REST call)',
+    '🎙️ Customer→Agent <Dial><Client>: minimal bridge (recording on parent REST call)',
   );
 
   if (isLandline) {
