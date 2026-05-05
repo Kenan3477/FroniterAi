@@ -19,6 +19,19 @@ const router = express.Router();
 router.get('/status', dialerController.handleStatusCallback);
 router.post('/status', dialerController.handleStatusCallback);
 
+// Twilio TwiML + recording — `callsRoutes` is mounted at `/api/calls` before `dialerRoutes`.
+// Register the same unauthenticated handlers here so Twilio always hits a real route (avoids 11200).
+router.get('/twiml', dialerController.generateTwiML);
+router.post('/twiml', dialerController.generateTwiML);
+router.get('/twiml-agent-dial', dialerController.generateAgentDialTwiML);
+router.post('/twiml-agent-dial', dialerController.generateAgentDialTwiML);
+router.get('/twiml-customer-to-agent', dialerController.generateCustomerToAgentTwiML);
+router.post('/twiml-customer-to-agent', dialerController.generateCustomerToAgentTwiML);
+router.get('/twiml-agent', dialerController.generateAgentTwiML);
+router.post('/twiml-agent', dialerController.generateAgentTwiML);
+router.get('/twiml-customer', dialerController.generateCustomerTwiML);
+router.post('/twiml-customer', dialerController.generateCustomerTwiML);
+
 /** User id from Bearer JWT when body omits agentId (disposition save). */
 function extractUserIdFromBearer(req: Request): number | null {
   const h = req.headers.authorization;
@@ -149,11 +162,16 @@ router.post('/token', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/calls/twiml-outbound - TwiML for outbound calls from queue
-router.post('/twiml-outbound', async (req: Request, res: Response) => {
+// GET/POST /api/calls/twiml-outbound - TwiML for outbound calls from queue (Twilio may use GET)
+const handleTwimlOutbound = async (req: Request, res: Response) => {
   try {
-    const { queueId, campaignId } = req.query;
-    const { CallStatus, CallSid, From, To } = req.body;
+    const p = { ...(req.query as Record<string, unknown>), ...(req.body as Record<string, unknown>) };
+    const queueId = p.queueId;
+    const campaignId = p.campaignId;
+    const CallStatus = p.CallStatus != null ? String(p.CallStatus) : undefined;
+    const CallSid = p.CallSid != null ? String(p.CallSid) : undefined;
+    const From = p.From != null ? String(p.From) : undefined;
+    const To = p.To != null ? String(p.To) : undefined;
 
     console.log('🔊 TwiML outbound webhook:', { CallStatus, CallSid, From, To, queueId, campaignId });
 
@@ -221,55 +239,13 @@ router.post('/twiml-outbound', async (req: Request, res: Response) => {
       `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
     );
   }
-});
+};
 
-// POST /api/calls/twiml-agent - TwiML for agent leg of conference call
-router.post('/twiml-agent', async (req: Request, res: Response) => {
-  try {
-    const { conference } = req.query;
+router.get('/twiml-outbound', handleTwimlOutbound);
+router.post('/twiml-outbound', handleTwimlOutbound);
 
-    // 🚫 NO TTS — straight into the conference.
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Conference waitUrl="" startConferenceOnEnter="true" endConferenceOnExit="true">
-    ${conference}
-  </Conference>
-</Response>`;
-
-    res.set('Content-Type', 'text/xml');
-    res.send(twiml);
-  } catch (error) {
-    console.error('Error in TwiML agent:', error);
-    res.status(500).set('Content-Type', 'text/xml').send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
-    );
-  }
-});
-
-// POST /api/calls/twiml-customer - TwiML for customer leg of conference call
-router.post('/twiml-customer', async (req: Request, res: Response) => {
-  try {
-    const { conference } = req.query;
-
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Conference waitUrl="" startConferenceOnEnter="false" endConferenceOnExit="false">
-    ${conference}
-  </Conference>
-</Response>`;
-
-    res.set('Content-Type', 'text/xml');
-    res.send(twiml);
-  } catch (error) {
-    console.error('Error in TwiML customer:', error);
-    res.status(500).set('Content-Type', 'text/xml').send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
-    );
-  }
-});
-
-// POST /api/calls/twiml-live-monitor - TwiML for supervisor listen-in (muted conference join)
-router.post('/twiml-live-monitor', async (req: Request, res: Response) => {
+// GET/POST /api/calls/twiml-live-monitor - TwiML for supervisor listen-in (muted conference join)
+const handleTwimlLiveMonitor = async (req: Request, res: Response) => {
   try {
     const raw = (req.query.conference as string) || '';
     const conference = decodeURIComponent(raw).trim();
@@ -288,7 +264,10 @@ router.post('/twiml-live-monitor', async (req: Request, res: Response) => {
       `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Hangup/></Response>`,
     );
   }
-});
+};
+
+router.get('/twiml-live-monitor', handleTwimlLiveMonitor);
+router.post('/twiml-live-monitor', handleTwimlLiveMonitor);
 
 // POST /api/calls/webhook/status - Handle call status updates from Twilio
 router.post('/webhook/status', async (req: Request, res: Response) => {
