@@ -137,6 +137,17 @@ export let ipWhitelist: IPWhitelistEntry[] = [
     lastActivity: new Date(),
     isActive: true,
     activityCount: 0
+  },
+  {
+    id: 'location-2026-05-05',
+    ipAddress: '154.146.239.233',
+    name: 'Location-2026-05-05',
+    description: 'IP whitelisted on 2026-05-05',
+    addedBy: 'ken@simpleemails.co.uk',
+    addedAt: new Date(),
+    lastActivity: new Date(),
+    isActive: true,
+    activityCount: 0
   }
 ];
 
