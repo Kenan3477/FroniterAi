@@ -105,8 +105,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
       </div>
 
-      {/* Navigation — theme CSS vars (data-theme), not Tailwind dark: which does not match */}
-      <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-4 space-y-1">
+      {/* Navigation — .app-sidebar-* in globals.css (high specificity) so links never vanish */}
+      <nav
+        className="app-sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-4 space-y-1"
+        aria-label="Main navigation"
+      >
         {navigationItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -114,26 +117,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={item.name}
               href={item.href}
               title={collapsed ? item.name : undefined}
-              className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
-                isActive
-                  ? 'theme-text-primary border-r-2 bg-[var(--theme-primary-hover)]'
-                  : 'theme-text-secondary hover:bg-[var(--theme-primary-hover)] hover:[color:var(--theme-text)]'
+              className={`app-sidebar-nav-link group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
+                isActive ? 'app-sidebar-nav-link--active' : ''
               }`}
-              style={
-                isActive
-                  ? { borderRightColor: 'var(--theme-accent)' }
-                  : undefined
-              }
             >
               <item.icon
-                className={`${
-                  isActive
-                    ? 'text-[color:var(--theme-accent)]'
-                    : 'opacity-80 group-hover:opacity-100'
-                } mr-3 flex-shrink-0 h-6 w-6 theme-text-secondary group-hover:[color:var(--theme-text)]`}
+                className={`app-sidebar-nav-icon mr-3 h-6 w-6 shrink-0 ${
+                  isActive ? 'app-sidebar-nav-icon--active' : ''
+                }`}
                 aria-hidden="true"
               />
-              {!collapsed && <span className="theme-text-primary">{item.name}</span>}
+              {!collapsed && (
+                <span className="app-sidebar-nav-label">{item.name}</span>
+              )}
             </Link>
           );
         })}

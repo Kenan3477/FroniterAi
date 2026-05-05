@@ -402,6 +402,73 @@
     border-color: #00d4ff;
     box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
   }
+
+  /*
+   * Main app rail (Dashboard / Work / …) — dedicated classes so nav never
+   * disappears under Tailwind preflight, MUI, or theme variable edge cases.
+   */
+  .app-sidebar-nav {
+    min-height: 12rem;
+  }
+
+  .app-sidebar-nav-link {
+    display: flex !important;
+    align-items: center;
+    text-decoration: none !important;
+    color: var(--theme-text) !important;
+    border: 1px solid transparent;
+  }
+
+  .app-sidebar-nav-link:hover {
+    background-color: var(--theme-primary-hover) !important;
+    color: var(--theme-text) !important;
+  }
+
+  .app-sidebar-nav-link--active {
+    background-color: var(--theme-primary-hover) !important;
+    color: var(--theme-text) !important;
+    border-right: 3px solid var(--theme-accent) !important;
+  }
+
+  .app-sidebar-nav-label {
+    color: inherit !important;
+  }
+
+  .app-sidebar-nav-icon {
+    color: var(--theme-text-secondary) !important;
+  }
+
+  .app-sidebar-nav-link:hover .app-sidebar-nav-icon,
+  .app-sidebar-nav-link--active .app-sidebar-nav-icon {
+    color: var(--theme-accent) !important;
+  }
+
+  .app-sidebar-nav-icon--active {
+    color: var(--theme-accent) !important;
+  }
+
+  /* Dark / neon: force readable contrast on black rails */
+  [data-theme='dark'] .app-sidebar-nav-link,
+  [data-theme='neon'] .app-sidebar-nav-link {
+    color: #f4f4f5 !important;
+  }
+
+  [data-theme='dark'] .app-sidebar-nav-link:hover,
+  [data-theme='neon'] .app-sidebar-nav-link:hover {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme='dark'] .app-sidebar-nav-icon,
+  [data-theme='neon'] .app-sidebar-nav-icon {
+    color: #a3a3a3 !important;
+  }
+
+  [data-theme='dark'] .app-sidebar-nav-link--active,
+  [data-theme='neon'] .app-sidebar-nav-link--active {
+    background-color: #171717 !important;
+    color: #ffffff !important;
+  }
   
   /* VS Code Dark High Contrast Text & Layout Enhancements */
   [data-theme="dark"] .theme-text-primary {
