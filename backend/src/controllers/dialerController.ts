@@ -1025,27 +1025,35 @@ export const generateCustomerTwiML = async (req: Request, res: Response) => {
 };
 
 /**
- * POST /api/calls/status
- * Handle Twilio status callbacks for call state tracking
+ * GET/POST /api/calls/status
+ * Handle Twilio status callbacks for call state tracking.
+ * Twilio sends POST with form body; some probes use GET with query params.
+ * Always respond 200 on success or benign failure — non-2xx causes Twilio 15003/11200.
  */
 export const handleStatusCallback = async (req: Request, res: Response) => {
+  const ack = () => res.status(200).type('text/plain').send('OK');
+
   try {
-    const {
-      CallSid,
-      CallStatus,
-      CallDuration,
-      From,
-      To,
-      Direction,
-      ConferenceSid
-    } = req.body;
+    const p = { ...(req.query as Record<string, unknown>), ...(req.body as Record<string, unknown>) };
+    const CallSid = p.CallSid != null ? String(p.CallSid) : '';
+    const CallStatus = p.CallStatus != null ? String(p.CallStatus) : '';
+    const CallDuration = p.CallDuration ?? p.Duration;
+    const From = p.From != null ? String(p.From) : undefined;
+    const To = p.To != null ? String(p.To) : undefined;
+    const Direction = p.Direction != null ? String(p.Direction) : undefined;
+    const ConferenceSid = p.ConferenceSid != null ? String(p.ConferenceSid) : undefined;
+
+    if (!CallSid) {
+      console.warn('📞 Twilio status callback with no CallSid — acknowledging (GET probe or empty body)');
+      return ack();
+    }
 
     console.log(`📞 Call status update: ${CallSid} - ${CallStatus}`, {
       From,
       To,
       Direction,
       Duration: CallDuration,
-      Conference: ConferenceSid
+      Conference: ConferenceSid,
     });
 
     // 🚨 CRITICAL: Handle ALL terminal call states to prevent stuck calls
@@ -1175,7 +1183,7 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
 
               console.log(`✅ Updated existing record instead of creating duplicate`);
             }
-            return res.status(200).send('<Response></Response>');
+            return ack();
           }
 
           // Do not auto-create campaigns or orphan call rows (prevents "Webhook Created Calls" and duplicates).
@@ -1188,16 +1196,16 @@ export const handleStatusCallback = async (req: Request, res: Response) => {
       }
     } else {
       // Non-terminal state (queued, ringing, in-progress, etc.)
-      console.log(`⏳ Call ${CallSid} in progress state: ${CallStatus}`);
+      console.log(`⏳ Call ${CallSid} in progress state: ${CallStatus || '(empty)'}`);
     }
 
     // ✅ All call state handling is done above in terminal states block
     // Legacy duplicate code removed to prevent duplicate recording processing
 
-    res.status(200).send('OK');
+    return ack();
   } catch (error) {
     console.error('❌ Error handling status callback:', error);
-    res.status(500).send('Error');
+    return ack();
   }
 };
 
