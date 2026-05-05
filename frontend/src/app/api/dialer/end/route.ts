@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBearerFromNextRequest } from '@/lib/serverAuthBearer';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://froniterai-production.up.railway.app';
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://froniterai-production.up.railway.app';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    const response = await fetch(`${BACKEND_URL}/api/calls/end`, {
+    const bearer =
+      getBearerFromNextRequest(request) ||
+      (typeof body?._clientBearer === 'string' ? body._clientBearer.trim() : undefined);
+    if (body && typeof body === 'object' && '_clientBearer' in body) {
+      delete (body as { _clientBearer?: string })._clientBearer;
+    }
+
+    const response = await fetch(`${BACKEND_URL.replace(/\/+$/, '')}/api/dialer/end`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Forward authorization header if present
-        ...(request.headers.get('authorization') && {
-          authorization: request.headers.get('authorization')!
-        })
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
       body: JSON.stringify(body),
     });

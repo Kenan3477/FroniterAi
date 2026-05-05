@@ -86,6 +86,15 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     duration: number;
     conferenceId?: string;
     dialCorrelationId?: string;
+    /** When the modal opens after activeRestApiCall was cleared (e.g. status poll), preserve match keys */
+    startTime?: Date;
+  } | null>(null);
+  /** Snapshot for disposition save — survives clearing activeRestApiCallRef before submit */
+  const pendingDispositionCtxRef = useRef<{
+    callSid: string;
+    conferenceId?: string;
+    dialCorrelationId?: string;
+    startTime: Date;
   } | null>(null);
   
   const deviceRef = useRef<Device | null>(null);
@@ -639,11 +648,27 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     }
     console.log(`📋 Showing disposition modal for ${callSid} (dedup gate)`);
     dispositionShownForCallRef.current = callSid;
+    const snap = activeRestApiCallRef.current;
+    const effCallSid = callSid || snap?.callSid || '';
+    const effConference = conferenceId ?? snap?.conferenceId;
+    const effDial = dialCorrelationId ?? snap?.dialCorrelationId;
+    const effStart = snap?.startTime || new Date();
+    pendingDispositionCtxRef.current = {
+      callSid: effCallSid,
+      ...(effConference ? { conferenceId: effConference } : {}),
+      ...(effDial ? { dialCorrelationId: effDial } : {}),
+      startTime: effStart,
+    };
+    const durationSec =
+      duration > 0
+        ? duration
+        : Math.max(0, Math.floor((Date.now() - effStart.getTime()) / 1000));
     setPendingCallEnd({
-      callSid,
-      duration,
-      ...(conferenceId ? { conferenceId } : {}),
-      ...(dialCorrelationId ? { dialCorrelationId } : {}),
+      callSid: effCallSid,
+      duration: durationSec,
+      ...(effConference ? { conferenceId: effConference } : {}),
+      ...(effDial ? { dialCorrelationId: effDial } : {}),
+      startTime: effStart,
     });
     setShowDispositionModal(true);
     return true;
@@ -740,11 +765,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       // CRITICAL: End the call in backend FIRST, regardless of disposition
       // This ensures the call is marked as ended immediately when customer hangs up
       // The disposition modal is shown AFTER the call is ended to collect additional details
-      const response = await fetch('/api/calls/end', {  // ✅ FIXED: Correct endpoint
+      const endBearer = getClientAuthBearer() || authBearer();
+      const response = await fetch('/api/dialer/end', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authBearer()}`
+          ...(endBearer ? { Authorization: `Bearer ${endBearer}` } : {}),
         },
         body: JSON.stringify({ 
           callSid: callSid,
@@ -752,7 +778,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           status: 'completed',
           disposition: autoDisposition || 'completed',
           endedBy: autoDisposition === 'customer-hangup' ? 'customer' : 
-                   autoDisposition === 'customer-cancel' ? 'customer' : 'agent'
+                   autoDisposition === 'customer-cancel' ? 'customer' : 'agent',
+          ...(endBearer ? { _clientBearer: endBearer } : {}),
         })
       });
       
@@ -774,23 +801,34 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
   // Handle disposition modal submission
   const handleDispositionSubmit = async (dispositionData: DispositionData) => {
-    if (!pendingCallEnd) return;
-    
+    const pending = pendingCallEnd;
+    const snap = pendingDispositionCtxRef.current;
+    if (!pending && !snap?.callSid) return;
+
     try {
       console.log('💾 Submitting disposition data:', dispositionData);
       console.log('🔍 DEBUG: activeRestApiCall state:', activeRestApiCall);
-      console.log('🔍 DEBUG: conferenceId:', pendingCallEnd.conferenceId || activeCall.conferenceId);
-      console.log('🔍 DEBUG: callSid:', pendingCallEnd.callSid);
-      
+      const effSid = pending?.callSid || snap?.callSid || '';
       const conferenceIdForSave =
-        pendingCallEnd.conferenceId ||
+        pending?.conferenceId ||
+        snap?.conferenceId ||
         activeCall.conferenceId ||
         undefined;
 
       const dialCorrelationIdForSave =
-        pendingCallEnd.dialCorrelationId ||
+        pending?.dialCorrelationId ||
+        snap?.dialCorrelationId ||
         activeCall.dialCorrelationId ||
         undefined;
+
+      const durationForSave =
+        pending?.duration ??
+        (snap?.startTime
+          ? Math.max(0, Math.floor((Date.now() - snap.startTime.getTime()) / 1000))
+          : 0);
+
+      console.log('🔍 DEBUG: conferenceId:', conferenceIdForSave);
+      console.log('🔍 DEBUG: callSid:', effSid);
 
       const phoneForSave =
         (activeCall.phoneNumber && activeCall.phoneNumber.trim()) ||
@@ -804,18 +842,21 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const customerPhone =
         (activeCall.customerInfo?.phone && activeCall.customerInfo.phone.trim()) || phoneForSave;
 
+      const clientBearer = getClientAuthBearer() || authBearer();
+
       // Save disposition via Next.js proxy (same-origin auth + Railway Prisma CallRecord)
       const response = await fetch('/api/calls/save-call-data', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getClientAuthBearer() || authBearer()}`,
+          ...(clientBearer ? { Authorization: `Bearer ${clientBearer}` } : {}),
         },
         body: JSON.stringify({
-          callSid: pendingCallEnd.callSid,
+          callSid: effSid,
           conferenceId: conferenceIdForSave, // conf-xxx to merge with preliminary call record
           ...(dialCorrelationIdForSave ? { dialCorrelationId: dialCorrelationIdForSave } : {}),
-          duration: pendingCallEnd.duration,
+          duration: durationForSave,
+          callDuration: durationForSave,
           campaignId,
           disposition: {
             id: dispositionData.id,
@@ -832,7 +873,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             lastName: customerLast || 'Contact',
             phone: customerPhone,
           },
-          agentId: String(agentId) // Convert to string for database compatibility
+          agentId: String(agentId), // Convert to string for database compatibility
+          ...(clientBearer ? { _clientBearer: clientBearer } : {}),
         })
       });
 
@@ -860,6 +902,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         // Reset the dedup gate so the next call (with a new SID) can show
         // its own disposition modal.
         dispositionShownForCallRef.current = null;
+        pendingDispositionCtxRef.current = null;
 
         // 🔥 FORCE CLEAR call state (in case disconnect handler didn't run)
         setActiveRestApiCall(null);
@@ -925,11 +968,12 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       const dialCorrelationId = generateDialCorrelationId();
 
       // Make REST API call through backend
+      const dialBearer = getClientAuthBearer() || authBearer();
       const response = await fetch('/api/calls/call-rest-api', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authBearer()}`
+          ...(dialBearer ? { Authorization: `Bearer ${dialBearer}` } : {}),
         },
         body: JSON.stringify({ 
           to: normalisedNumber,
@@ -937,6 +981,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           campaignName: campaignName,
           agentId: agentId,
           dialCorrelationId,
+          ...(dialBearer ? { _clientBearer: dialBearer } : {}),
         })
       });
       
@@ -1055,8 +1100,11 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
 
     const poll = async () => {
       try {
+        const pollBearer = getClientAuthBearer() || authBearer();
         const res = await fetch(`/api/calls/${callSid}/live-status`, {
-          headers: { 'Authorization': `Bearer ${authBearer()}` }
+          headers: {
+            ...(pollBearer ? { Authorization: `Bearer ${pollBearer}` } : {}),
+          },
         });
         const data = await res.json();
 
@@ -1078,13 +1126,19 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
             // Twilio sometimes briefly reports "completed" on the parent leg while
             // child/agent legs are still connecting — disconnecting here drops the call
             // right when the customer answers. Ignore early completed until in-progress or a few polls.
+            const activeForPoll = activeRestApiCallRef.current;
+            const sameDial = activeForPoll?.callSid === callSid;
+            const ageMs = sameDial
+              ? Date.now() - activeForPoll.startTime.getTime()
+              : 0;
             if (
               data.status === 'completed' &&
               !ctx.sawInProgress &&
-              ctx.pollCount < 4
+              sameDial &&
+              (ctx.pollCount < 8 || ageMs < 12_000)
             ) {
               console.warn(
-                `📡 Ignoring early parent completed (poll ${ctx.pollCount}) — waiting for in-progress or stable terminal`,
+                `📡 Ignoring early parent completed (poll ${ctx.pollCount}, age ${Math.round(ageMs / 1000)}s) — waiting for in-progress or stable terminal`,
               );
               return;
             }
@@ -1150,118 +1204,6 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     if (callStatusIntervalRef.current) {
       clearInterval(callStatusIntervalRef.current);
       callStatusIntervalRef.current = null;
-    }
-  };
-
-  // New function to join agent to conference via WebRTC
-  const joinAgentToConference = async (conferenceId: string) => {
-    try {
-      console.log('👤 Joining agent to conference:', conferenceId);
-
-      // Wait for Twilio Device (ref is truth during outbound; state can lag React)
-      const deadline = Date.now() + 25_000;
-      let live: Device | null = null;
-      while (Date.now() < deadline) {
-        live = deviceRef.current;
-        if (live && deviceReadyRef.current) break;
-        await new Promise((r) => setTimeout(r, 250));
-      }
-      if (!live || !deviceReadyRef.current) {
-        throw new Error(
-          'WebRTC device not ready — allow microphone access, wait for the dialer to show "ready", or refresh the page.',
-        );
-      }
-
-      // Ensure we have microphone permission
-      if (!microphonePermissionGranted || !microphoneStream) {
-        console.log('🎤 Requesting microphone for conference call...');
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            sampleRate: 48000
-          }
-        });
-        setMicrophoneStream(stream);
-        setMicrophonePermissionGranted(true);
-      }
-
-      // Capture callSid from state before setting up handlers (state might be cleared)
-      const callSid = activeRestApiCall?.callSid || '';
-      const dialCorrelationForRedux =
-        activeRestApiCallRef.current?.dialCorrelationId ||
-        activeRestApiCall?.dialCorrelationId;
-      
-      // Make WebRTC call to join conference (outbound Application URL must match backend TwiML)
-      let call: any;
-      try {
-        call = await live.connect({
-          params: {
-            conference: conferenceId,
-            agentId: agentId,
-          },
-        });
-      } catch (connectErr: any) {
-        const code = connectErr?.code ?? connectErr?.twilioError?.code;
-        const msg =
-          connectErr?.message ||
-          connectErr?.twilioError?.message ||
-          String(connectErr);
-        throw new Error(
-          msg +
-            (code != null ? ` (Twilio ${code})` : '') +
-            '. Check TWILIO_TWIML_APP_SID points to this backend and microphone permission is granted.',
-        );
-      }
-
-      console.log('✅ Agent joined conference successfully');
-      setCurrentCall(call);
-
-      // Set up call event handlers
-      call.on('accept', () => {
-        console.log('✅ Agent conference call accepted - two way audio active');
-        
-        // Update Redux state with conferenceId for duplicate prevention
-        // IMPORTANT: Use conferenceId from function parameter (closure), not state which might be null
-        const displayPhone =
-          phoneNumberRef.current.trim() ||
-          lastOutboundCustomerNumberRef.current.trim() ||
-          phoneNumber;
-        dispatch(startCall({
-          phoneNumber: displayPhone,
-          callSid: callSid, // Captured before handler
-          conferenceId: conferenceId, // CRITICAL: From parameter, not state - ensures it's never null
-          ...(dialCorrelationForRedux ? { dialCorrelationId: dialCorrelationForRedux } : {}),
-          callType: 'outbound',
-          customerInfo: {
-            firstName: 'Customer',
-            lastName: '',
-            phone: displayPhone,
-            id: `customer-${Date.now()}`
-          }
-        }));
-        
-        dispatch(answerCall());
-        console.log('📱 Redux state updated - agent joined conference');
-      });
-      
-      call.on('disconnect', () => {
-        console.log('📱 Agent disconnected from conference');
-        setCurrentCall(null);
-        currentCallRef.current = null;
-        setActiveRestApiCall(null);
-        activeRestApiCallRef.current = null;
-        lastOutboundCustomerNumberRef.current = '';
-        dispatch(endCall());
-      });
-      
-    } catch (error: any) {
-      console.error('❌ Error joining conference:', error);
-      const detail =
-        error?.message ||
-        (typeof error === 'string' ? error : JSON.stringify(error));
-      alert(`Failed to join conference call: ${detail || 'Unknown error'}`);
     }
   };
 
@@ -1363,6 +1305,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
           dispatch(clearCall());
           setShowDispositionModal(false);
           setPendingCallEnd(null);
+          pendingDispositionCtxRef.current = null;
           setActiveRestApiCall(null);
           activeRestApiCallRef.current = null;
           // Allow the next call's disposition modal to show.

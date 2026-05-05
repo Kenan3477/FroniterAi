@@ -132,12 +132,13 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
         }
       }
       
+      const clientBearer = getClientAuthBearer();
       // Save call data with disposition
       const saveResponse = await fetch('/api/calls/save-call-data', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getClientAuthBearer()}`
+          ...(clientBearer ? { Authorization: `Bearer ${clientBearer}` } : {}),
         },
         body: JSON.stringify({
           callSid: callSid, // Twilio SID for recording
@@ -157,7 +158,8 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           duration: callDuration,
           callDuration: callDuration,
           agentId: String(agentId), // Convert to string for database compatibility
-          campaignId: 'manual-dial'
+          campaignId: 'manual-dial',
+          ...(clientBearer ? { _clientBearer: clientBearer } : {}),
         })
       });
 

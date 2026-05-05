@@ -2,6 +2,8 @@
 // Outbound initiation must go through the Next.js proxy (`/api/calls/call-rest-api`),
 // not straight to `${NEXT_PUBLIC_BACKEND_URL}/api/calls/call-rest-api` (that path does not exist on Express).
 
+import { getClientAuthBearer } from '@/lib/clientAuthBearer';
+
 export interface InitiateCallParams {
   to: string;
   from?: string;
@@ -41,12 +43,7 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
     // Step 1: Check DNC (Do Not Call) list first
     console.log('🔍 Checking DNC status for number:', params.to);
     
-    const bearer =
-      (typeof window !== 'undefined' &&
-        (localStorage.getItem('authToken') ||
-          localStorage.getItem('omnivox_token') ||
-          '')) ||
-      '';
+    const bearer = getClientAuthBearer();
 
     const dncBase =
       (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_BACKEND_URL) ||
@@ -109,6 +106,7 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
         agentId: params.agentId,
         customerInfo: params.customerInfo,
         dialCorrelationId,
+        ...(bearer ? { _clientBearer: bearer } : {}),
       })
     });
     
@@ -152,20 +150,22 @@ export async function initiateCall(params: InitiateCallParams): Promise<CallResp
 export async function endCall(params: EndCallParams): Promise<CallResponse> {
   try {
     console.log('📞 Ending call via backend API:', params);
+    const bearer = getClientAuthBearer();
     
     // Make real API call to backend
     const response = await fetch('/api/dialer/end', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
       body: JSON.stringify({ 
         callSid: params.callSid,
         duration: params.duration,
         status: params.status || 'completed',
         disposition: params.disposition,
-        customerInfo: params.customerInfo
+        customerInfo: params.customerInfo,
+        ...(bearer ? { _clientBearer: bearer } : {}),
       })
     });
     

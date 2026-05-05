@@ -562,6 +562,34 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
           });
           if (!contact) {
+            // P2002 = unique constraint (e.g. duplicate contactId from concurrent saves) — retry once with a new id
+            const isUnique =
+              contactError?.code === 'P2002' ||
+              /Unique constraint/i.test(String(contactError?.message || ''));
+            if (isUnique) {
+              const retryId = `contact-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+              try {
+                contact = await prisma.contact.create({
+                  data: {
+                    contactId: retryId,
+                    listId: 'manual-contacts',
+                    firstName: customerInfo.firstName || 'Unknown',
+                    lastName: customerInfo.lastName || 'Contact',
+                    phone: safePhoneNumber,
+                    email: customerInfo.email || null,
+                    status: 'contacted',
+                  },
+                });
+                console.log('✅ Contact created on retry:', contact.contactId);
+              } catch (retryErr: any) {
+                console.warn('⚠️ Contact retry failed:', retryErr?.message);
+                contact = await prisma.contact.findFirst({
+                  where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
+                });
+              }
+            }
+          }
+          if (!contact) {
             throw new Error('Unable to create or find contact');
           }
         }
@@ -606,6 +634,30 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
           contact = await prisma.contact.findFirst({
             where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
           });
+          if (!contact) {
+            const isUnique =
+              contactError?.code === 'P2002' ||
+              /Unique constraint/i.test(String(contactError?.message || ''));
+            if (isUnique) {
+              const retryId = `contact-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+              try {
+                contact = await prisma.contact.create({
+                  data: {
+                    contactId: retryId,
+                    listId: 'manual-contacts',
+                    firstName: 'Unknown',
+                    lastName: 'Contact',
+                    phone: safePhoneNumber,
+                    status: 'contacted',
+                  },
+                });
+              } catch {
+                contact = await prisma.contact.findFirst({
+                  where: { OR: phoneVariants.map((variant) => ({ phone: variant })) },
+                });
+              }
+            }
+          }
           if (!contact) {
             throw new Error('Unable to create or find minimal contact');
           }
