@@ -375,12 +375,21 @@ function DashboardContent() {
     );
   }
 
-  // Redirect if not authenticated (should be handled by middleware, but adding safety)
+  // Not authenticated after check — show message inside layout (avoid blank flash / flicker)
   if (!isAuthenticated || !user) {
-    if (typeof window !== 'undefined') {
-      window.location.replace('/login');
-    }
-    return null;
+    return (
+      <MainLayout>
+        <div className="max-w-lg mx-auto mt-16 theme-card rounded-lg p-8 text-center">
+          <h2 className="text-xl font-semibold theme-text-primary mb-2">Session expired</h2>
+          <p className="theme-text-secondary mb-6">
+            Please sign in again to continue. If this keeps happening, check that your session cookies are allowed for this site.
+          </p>
+          <a href="/login" className="btn-primary inline-block px-6 py-2 rounded-lg">
+            Go to login
+          </a>
+        </div>
+      </MainLayout>
+    );
   }
 
   // Handle answering an inbound call

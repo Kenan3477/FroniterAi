@@ -333,7 +333,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
         if (data.success) {
           console.log('✅ checkAuth: Profile retrieved successfully:', data.user.email);
-          setUser(data.user);
+          const u = data.user;
+          setUser({
+            id: String(u.id),
+            email: u.email,
+            firstName: u.firstName || '',
+            lastName: u.lastName || '',
+            role: u.role,
+            username: u.username,
+            voiceClientIdentity: u.voiceClientIdentity,
+          });
           
           // Restore agent status from localStorage only on client-side
           if (isClient) {
@@ -546,7 +555,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.success) {
         console.log('✅ AuthContext: Login successful, setting user:', data.user);
-        setUser(data.user);
+        const u = data.user;
+        setUser({
+          id: String(u.id),
+          email: u.email,
+          firstName: u.firstName || '',
+          lastName: u.lastName || '',
+          role: u.role,
+          username: u.username,
+          voiceClientIdentity: u.voiceClientIdentity,
+        });
         
         // Store comprehensive session data for tracking
         if (isClient) {
