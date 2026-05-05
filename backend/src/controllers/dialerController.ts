@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import twilioService, { twilioClient } from '../services/twilioService';
 import { prisma } from '../lib/prisma';
-import { getBackendBaseUrl } from '../config/voiceMedia';
+import { getBackendBaseUrl, getTwilioWebhookBaseUrl, isHttpsTwilioBase } from '../config/voiceMedia';
 import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
 
 // twilioClient from twilioService (null-safe when credentials missing)
@@ -684,7 +684,7 @@ export const holdCall = async (req: Request, res: Response) => {
       });
     }
 
-    const base = getBackendBaseUrl();
+    const base = getTwilioWebhookBaseUrl() || getBackendBaseUrl();
     const holdAudio =
       process.env.HOLD_MUSIC_AUDIO_URL?.trim() ||
       (base ? `${base}/audio/call-on-hold.mp3` : undefined);
@@ -1372,11 +1372,12 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
-    if (!process.env.BACKEND_URL) {
+    const publicVoiceBase = getTwilioWebhookBaseUrl();
+    if (!publicVoiceBase || !isHttpsTwilioBase(publicVoiceBase)) {
       return res.status(503).json({
         success: false,
         error:
-          'BACKEND_URL is not configured on the server. Twilio cannot fetch call instructions — set BACKEND_URL to your public API base URL (e.g. https://your-backend.example.com).',
+          'No public https base URL for Twilio. Set TWILIO_PUBLIC_URL or BACKEND_URL to your public API (https://…), e.g. https://your-service.up.railway.app — internal http BACKEND_URL alone will break outbound calls.',
       });
     }
 
@@ -1402,7 +1403,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       clientIdentity: await resolveTwilioVoiceIdentityForUserId(String(userId)),
       To: formattedTo,
     });
-    const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${twimlQuery.toString()}`;
+    const twimlUrl = `${publicVoiceBase}/api/calls/twiml-customer-to-agent?${twimlQuery.toString()}`;
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
     // All calls MUST be recorded for compliance and quality assurance.
@@ -1418,35 +1419,19 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     //   - recordingTrack: 'both'
     //   - The actual "from-answer" semantics is the default for outbound REST
     //     calls (recording is created when the call is answered).
-    const RECORDING_CALLBACK = `${process.env.BACKEND_URL}/api/calls/recording-callback`;
-    const recordingCallbackHttps = (() => {
-      try {
-        return new URL(RECORDING_CALLBACK).protocol === 'https:';
-      } catch {
-        return false;
-      }
-    })();
-
-    if (!recordingCallbackHttps) {
-      console.warn(
-        '⚠️ Recording status callback omitted: Twilio requires an https URL; set BACKEND_URL to https://…',
-      );
-    }
+    const RECORDING_CALLBACK = `${publicVoiceBase}/api/calls/recording-callback`;
 
     console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded dual-channel');
-    if (recordingCallbackHttps) {
-      console.log('📞 Recording callback URL:', RECORDING_CALLBACK);
-    }
+    console.log('📞 Twilio public base URL:', publicVoiceBase);
+    console.log('📞 Recording callback URL:', RECORDING_CALLBACK);
 
-    // Recording + callbacks: keep parameters conservative — invalid combinations
-    // (e.g. landline AMD + asyncAmd without status URL, or http recording callbacks)
-    // cause Twilio to play "application error" to the callee after answer.
+    // Recording + callbacks: public https base is required above — Twilio fetches TwiML and posts webhooks here.
     const callParams: any = {
       to: formattedTo,
       from: fromNumber,
       url: twimlUrl,
       method: 'POST' as const,
-      statusCallback: `${process.env.BACKEND_URL}/api/calls/status`,
+      statusCallback: `${publicVoiceBase}/api/calls/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST' as const,
       // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
@@ -1454,13 +1439,9 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       record: true,
       recordingChannels: 'dual' as const, // Dual-channel: agent on one track, customer on the other
       recordingTrack: 'both' as const,
-      ...(recordingCallbackHttps
-        ? {
-            recordingStatusCallback: RECORDING_CALLBACK,
-            recordingStatusCallbackMethod: 'POST' as const,
-            recordingStatusCallbackEvent: ['completed'],
-          }
-        : {}),
+      recordingStatusCallback: RECORDING_CALLBACK,
+      recordingStatusCallbackMethod: 'POST' as const,
+      recordingStatusCallbackEvent: ['completed'],
     };
 
     // 🔒 FINAL VALIDATION: Verify recording is enabled before making call
@@ -1475,7 +1456,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     }
 
     console.log(
-      `✅ RECORDING VALIDATED: record=true, recordingChannels=dual, recordingTrack=both${recordingCallbackHttps ? ', callback=/api/calls/recording-callback' : ', no recording callback (BACKEND_URL not https)'}`
+      '✅ RECORDING VALIDATED: record=true, recordingChannels=dual, recordingTrack=both, callback=/api/calls/recording-callback',
     );
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
@@ -1553,7 +1534,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     console.log('📞 Call Parameters:', JSON.stringify(callParams, null, 2));
     console.log('📞 Twilio Account SID:', process.env.TWILIO_ACCOUNT_SID ? `${process.env.TWILIO_ACCOUNT_SID.substring(0, 10)}...` : 'MISSING');
     console.log('📞 Twilio Auth Token:', process.env.TWILIO_AUTH_TOKEN ? 'SET' : 'MISSING');
-    console.log('📞 Backend URL:', process.env.BACKEND_URL || 'MISSING');
+    console.log('📞 Twilio public base URL:', publicVoiceBase);
     console.log('📞 === CREATING TWILIO CALL NOW ===');
 
     let callResult;

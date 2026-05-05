@@ -13,9 +13,52 @@ export function getBackendBaseUrl(): string | undefined {
   return u ? trimTrailingSlash(u) : undefined;
 }
 
+/**
+ * Base URL Twilio must fetch (TwiML + webhooks). Prefer a dedicated public https URL.
+ * Many deployments set BACKEND_URL to an internal http host; Twilio then cannot load TwiML.
+ * Set TWILIO_PUBLIC_URL (or PUBLIC_BACKEND_URL) to the public Railway https URL.
+ */
+export function getTwilioWebhookBaseUrl(): string | undefined {
+  const candidates = [
+    process.env.TWILIO_PUBLIC_URL,
+    process.env.PUBLIC_BACKEND_URL,
+    process.env.PUBLIC_URL,
+    process.env.BACKEND_URL,
+  ]
+    .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    .map((s) => trimTrailingSlash(s.trim()));
+
+  const seen = new Set<string>();
+  for (const raw of candidates) {
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol === 'https:') {
+        return trimTrailingSlash(`${parsed.origin}`);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Last resort: whatever BACKEND_URL is (may be http — caller may still fail Twilio validation)
+  return getBackendBaseUrl();
+}
+
+/** True if Twilio can use this base for https callbacks and TwiML fetch. */
+export function isHttpsTwilioBase(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Absolute URL for Twilio callbacks (Play, webhooks) — Twilio requires https and cannot use relative paths */
 export function resolveAbsoluteBackendUrl(path: string): string | undefined {
-  const base = getBackendBaseUrl();
+  const base = getTwilioWebhookBaseUrl();
   if (!base) return undefined;
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${base}${p}`;
@@ -37,7 +80,7 @@ export function toTwilioPlayableUrl(url: string | null | undefined): string | un
   if (!u) return undefined;
   if (/^https?:\/\//i.test(u)) return u;
   if (u.startsWith('/')) {
-    const base = getBackendBaseUrl();
+    const base = getTwilioWebhookBaseUrl();
     if (!base) return undefined;
     return `${base}${u}`;
   }

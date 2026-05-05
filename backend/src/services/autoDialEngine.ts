@@ -14,6 +14,7 @@ import {
 import { autoDialSentimentMonitor } from './autoDialSentimentMonitor';
 
 import { prisma } from '../lib/prisma';
+import { getTwilioWebhookBaseUrl, isHttpsTwilioBase } from '../config/voiceMedia';
 // Auto-dial state management with predictive enhancements
 const autoDialStates = new Map<string, AutoDialState>();
 
@@ -570,60 +571,36 @@ export class AutoDialEngine {
         };
       }
 
-      const backendBase = (process.env.BACKEND_URL || '').trim();
-      const recordingCb = backendBase ? `${backendBase}/api/calls/recording-callback` : '';
-      const recordingCbHttps = (() => {
-        try {
-          return recordingCb ? new URL(recordingCb).protocol === 'https:' : false;
-        } catch {
-          return false;
-        }
-      })();
-      const amdWebhook = backendBase ? `${backendBase}/api/auto-dial/amd-webhook` : '';
-      const amdWebhookHttps = (() => {
-        try {
-          return amdWebhook ? new URL(amdWebhook).protocol === 'https:' : false;
-        } catch {
-          return false;
-        }
-      })();
+      const publicBase = getTwilioWebhookBaseUrl()?.trim();
+      if (!publicBase || !isHttpsTwilioBase(publicBase)) {
+        return {
+          success: false,
+          error:
+            'No public https base URL for Twilio (set TWILIO_PUBLIC_URL or https BACKEND_URL)',
+        };
+      }
 
-      if (!recordingCbHttps && recordingCb) {
-        console.warn(
-          '⚠️ Auto-dial: omitting recordingStatusCallback (Twilio requires https BACKEND_URL)',
-        );
-      }
-      if (!amdWebhookHttps && amdWebhook) {
-        console.warn(
-          '⚠️ Auto-dial: omitting asyncAmd (requires https asyncAmdStatusCallback URL)',
-        );
-      }
+      const recordingCb = `${publicBase}/api/calls/recording-callback`;
+      const amdWebhook = `${publicBase}/api/auto-dial/amd-webhook`;
 
       // Create call with AMD enabled for auto-dial
       const call = await twilioClient.calls.create({
         to: customerPhone,
         from: cliNumber,
-        url: `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
+        url: `${publicBase}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
           clientIdentity: agentId,
           contactId,
           campaignId,
           To: customerPhone,
         }).toString()}`,
-        // Enable AMD for intelligent call handling (only with valid https callback)
-        ...(amdWebhookHttps
-          ? {
-              machineDetection: 'Enable',
-              machineDetectionTimeout: 8,
-              machineDetectionSpeechThreshold: 2400,
-              machineDetectionSpeechEndThreshold: 1200,
-              machineDetectionSilenceTimeout: 5000,
-              asyncAmd: 'true',
-              asyncAmdStatusCallback: amdWebhook,
-            }
-          : {
-              machineDetection: 'Enable',
-              machineDetectionTimeout: 8,
-            }),
+        // Enable AMD for intelligent call handling
+        machineDetection: 'Enable',
+        machineDetectionTimeout: 8,
+        machineDetectionSpeechThreshold: 2400,
+        machineDetectionSpeechEndThreshold: 1200,
+        machineDetectionSilenceTimeout: 5000,
+        asyncAmd: 'true',
+        asyncAmdStatusCallback: amdWebhook,
         // Additional call parameters
         timeout: 30, // Ring timeout in seconds
         // 🎙️ MANDATORY: Call recording parameters (NEVER disable or remove these)
@@ -633,15 +610,11 @@ export class AutoDialEngine {
         record: true,
         recordingChannels: 'dual', // Dual-channel recording (agent + customer separate tracks)
         recordingTrack: 'both',
-        ...(recordingCbHttps
-          ? {
-              recordingStatusCallback: recordingCb,
-              recordingStatusCallbackMethod: 'POST',
-              recordingStatusCallbackEvent: ['completed'],
-            }
-          : {}),
+        recordingStatusCallback: recordingCb,
+        recordingStatusCallbackMethod: 'POST',
+        recordingStatusCallbackEvent: ['completed'],
         // Status callbacks
-        statusCallback: `${process.env.BACKEND_URL}/api/auto-dial/call-status-webhook`,
+        statusCallback: `${publicBase}/api/auto-dial/call-status-webhook`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       });
 

@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { createRestApiCall, generateAccessToken } from '../services/twilioService';
 import { authenticate, requireRole } from '../middleware/auth';
-import { getBackendBaseUrl } from '../config/voiceMedia';
+import { getTwilioWebhookBaseUrl } from '../config/voiceMedia';
 import { buildLiveMonitorConferenceTwiml } from '../utils/liveMonitorTwiml';
 import { resolveTwilioVoiceIdentityForUserId } from '../utils/twilioVoiceClientIdentity';
 
@@ -1087,6 +1087,9 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
 
 // POST /api/calls/recording-callback - Twilio recording status webhook
 router.post('/recording-callback', async (req: Request, res: Response) => {
+  const emptyTwiml = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+  const ok = () => res.status(200).type('text/xml').send(emptyTwiml);
+
   console.log('📼 RECORDING CALLBACK - Twilio webhook received');
   try {
     const {
@@ -1107,7 +1110,7 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
 
     if (!CallSid || !RecordingSid) {
       console.error('❌ Missing CallSid or RecordingSid');
-      return res.status(400).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      return ok();
     }
 
     // Twilio often omits RecordingUrl on status callbacks; RecordingSid is enough to fetch media.
@@ -1117,7 +1120,7 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
 
     if (RecordingStatus !== 'completed') {
       console.log(`⏸️ Recording ${RecordingSid} status: ${RecordingStatus} - skipping`);
-      return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      return ok();
     }
 
     console.log('🎯 Processing completed recording...');
@@ -1157,7 +1160,7 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
 
       if (!callRecord) {
         console.log(`❌ No call record found for CallSid: ${CallSid}`);
-        return res.status(404).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+        return ok();
       }
 
       console.log(`✅ Found call record: ${callRecord.id} (${callRecord.callId})`);
@@ -1211,7 +1214,7 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
 
       try {
         const { onNewCallRecording } = require('../services/transcriptionWorker');
-        const base = getBackendBaseUrl() || '';
+        const base = getTwilioWebhookBaseUrl() || '';
         const rec = await prisma.recording.findFirst({
           where: { callRecordId: callRecord.id },
           select: { id: true },
@@ -1220,21 +1223,21 @@ router.post('/recording-callback', async (req: Request, res: Response) => {
           await onNewCallRecording(callRecord.id, `${base}/api/recordings/${rec.id}/stream`);
           console.log('📝 Transcription queued for recording');
         } else if (!base) {
-          console.warn('⚠️ BACKEND_URL unset — skipping transcription URL');
+          console.warn('⚠️ No public https base URL — skipping transcription URL');
         }
       } catch (transcriptionError: any) {
         console.warn('⚠️ Failed to queue transcription:', transcriptionError?.message);
       }
     } catch (dbError) {
       console.error('❌ Database error processing recording:', dbError);
-      return res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      return ok();
     }
 
     console.log('✅ Recording callback processed successfully');
-    return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    return ok();
   } catch (error) {
     console.error('❌ Error in recording callback:', error);
-    return res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    return ok();
   }
 });
 

@@ -17,12 +17,12 @@ import { prisma } from '../database';
 import { callEvents, systemEvents } from '../utils/eventHelpers';
 import { redisClient } from '../config/redis';
 import { callStateMachine, CallState, CallOutcome as CallStateMachineOutcome } from './callStateMachine';
+import { getTwilioWebhookBaseUrl, isHttpsTwilioBase } from '../config/voiceMedia';
 
 // Twilio configuration with production validation
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-const BACKEND_URL = process.env.BACKEND_URL || 'https://omnivox-production.up.railway.app';
 
 if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
   throw new Error('TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be configured for production dialer');
@@ -133,30 +133,47 @@ class ProductionTwilioDialerService {
       // Generate unique call ID for tracking
       const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
+      const publicBase =
+        getTwilioWebhookBaseUrl()?.replace(/\/+$/, '') ||
+        (process.env.BACKEND_URL || '').trim().replace(/\/+$/, '') ||
+        'https://omnivox-production.up.railway.app';
+
+      if (!isHttpsTwilioBase(publicBase)) {
+        throw new Error(
+          'Production dialer requires a public https URL (set TWILIO_PUBLIC_URL or https BACKEND_URL)',
+        );
+      }
+
+      const base = publicBase;
+
       // Create Twilio call with production parameters
       const twilioCall = await twilioClient.calls.create({
         to: request.phoneNumber,
         from: callerId,
         // Pass call metadata in the TwiML URL
-        url: `${BACKEND_URL}/api/dialer/twiml/outbound?callId=${callId}&contactId=${request.contactId}&campaignId=${request.campaignId}&priority=${request.priority}&retryCount=${request.retryCount || 0}`,
+        url: `${base}/api/dialer/twiml/outbound?callId=${callId}&contactId=${request.contactId}&campaignId=${request.campaignId}&priority=${request.priority}&retryCount=${request.retryCount || 0}`,
         method: 'POST',
         
         // Production telephony settings
-        statusCallback: `${BACKEND_URL}/api/dialer/webhook/call-status?callId=${callId}`,
+        statusCallback: `${base}/api/dialer/webhook/call-status?callId=${callId}`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
         statusCallbackMethod: 'POST',
         
         // Answering Machine Detection
-        machineDetection: this.dialerConfig.amdEnabled ? 'Enable' as const : undefined,
+        machineDetection: this.dialerConfig.amdEnabled ? ('Enable' as const) : undefined,
         machineDetectionTimeout: 30, // AMD timeout in seconds
-        asyncAmd: this.dialerConfig.amdEnabled ? 'true' as const : undefined, // Async AMD for better performance
-        asyncAmdStatusCallback: `${BACKEND_URL}/api/dialer/webhook/amd-status`,
-        asyncAmdStatusCallbackMethod: 'POST' as const,
+        ...(this.dialerConfig.amdEnabled
+          ? {
+              asyncAmd: 'true' as const,
+              asyncAmdStatusCallback: `${base}/api/dialer/webhook/amd-status`,
+              asyncAmdStatusCallbackMethod: 'POST' as const,
+            }
+          : {}),
         
         // Call recording for quality and compliance
         record: true,
         recordingChannels: 'dual' as const,
-        recordingStatusCallback: `${BACKEND_URL}/api/dialer/webhook/recording-status`,
+        recordingStatusCallback: `${base}/api/dialer/webhook/recording-status`,
         recordingStatusCallbackMethod: 'POST' as const,
         
         // Call timeout and retry handling
