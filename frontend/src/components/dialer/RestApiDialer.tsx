@@ -91,6 +91,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   } | null>(null);
   
   const deviceRef = useRef<Device | null>(null);
+  /** Mirrors isDeviceReady for code that polls deviceRef (incoming handler / conference join). */
+  const deviceReadyRef = useRef(false);
 
   // Get active call state from Redux
   const activeCall = useSelector((state: RootState) => state.activeCall);
@@ -108,10 +110,10 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     return `dc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
   };
 
-  // 🛡️ Boolean derived from audioDevices used as the Device-init effect's dep.
-  // Flips false→true once, the moment audio device enumeration first returns
-  // any output devices, then stays true for the rest of the component's life.
-  const audioDevicesReady = audioDevices.output.length > 0;
+  // After first enumerateDevices pass (success or fail). Do NOT require output
+  // devices — many desktops report zero audiooutput until headphones are plugged in,
+  // which previously blocked Twilio Device forever and broke outbound <Dial><Client>.
+  const [audioDevicesEnumerated, setAudioDevicesEnumerated] = useState(false);
 
   // 🛡️ Keep refs in sync with the state values that the Twilio Device 'incoming'
   // listener reads. The listener is registered once but fires on every call, so
@@ -131,6 +133,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   // Debug logging for device ready state
   useEffect(() => {
     console.log('🔍 Device ready state changed:', isDeviceReady);
+    deviceReadyRef.current = isDeviceReady;
   }, [isDeviceReady]);
 
   // Enumerate audio devices on component mount
@@ -165,6 +168,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         console.log('🎵 Available audio devices:', { input: audioInput.length, output: audioOutput.length });
       } catch (error) {
         console.warn('⚠️ Could not enumerate audio devices:', error);
+      } finally {
+        setAudioDevicesEnumerated(true);
       }
     };
     
@@ -200,9 +205,8 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
         return;
       }
 
-      // Wait for audio devices to be enumerated
-      if (audioDevices.output.length === 0) {
-        console.log('⏳ Waiting for audio devices to be enumerated...');
+      if (!audioDevicesEnumerated) {
+        console.log('⏳ Waiting for audio device enumeration to finish...');
         return;
       }
 
@@ -559,7 +563,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
     };
     // Re-register when profile exposes voiceClientIdentity (fixes inbound ring + token mismatch).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioDevicesReady, user?.id, user?.voiceClientIdentity]);
+  }, [audioDevicesEnumerated, user?.id, user?.voiceClientIdentity]);
 
   // Apply speaker selection to the live Device without re-registering it.
   useEffect(() => {
@@ -1085,9 +1089,19 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
   const joinAgentToConference = async (conferenceId: string) => {
     try {
       console.log('👤 Joining agent to conference:', conferenceId);
-      
-      if (!device || !isDeviceReady) {
-        throw new Error('WebRTC device not ready');
+
+      // Wait for Twilio Device (ref is truth during outbound; state can lag React)
+      const deadline = Date.now() + 25_000;
+      let live: Device | null = null;
+      while (Date.now() < deadline) {
+        live = deviceRef.current;
+        if (live && deviceReadyRef.current) break;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      if (!live || !deviceReadyRef.current) {
+        throw new Error(
+          'WebRTC device not ready — allow microphone access, wait for the dialer to show "ready", or refresh the page.',
+        );
       }
 
       // Ensure we have microphone permission
@@ -1114,7 +1128,7 @@ export const RestApiDialer: React.FC<RestApiDialerProps> = ({
       // Make WebRTC call to join conference (outbound Application URL must match backend TwiML)
       let call: any;
       try {
-        call = await device.connect({
+        call = await live.connect({
           params: {
             conference: conferenceId,
             agentId: agentId,
