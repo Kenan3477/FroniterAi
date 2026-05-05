@@ -5,7 +5,7 @@
 
 import twilio from 'twilio';
 import https from 'https';
-import { getBackendBaseUrl, resolveConferenceWaitUrl } from '../config/voiceMedia';
+import { resolveConferenceWaitUrl } from '../config/voiceMedia';
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -260,60 +260,36 @@ export const generateCustomerToAgentTwiML = (
   clientIdentity: string = 'agent-browser',
 ): string => {
   const twiml = new twilio.twiml.VoiceResponse();
-  
-  // Detect if this is a landline call for optimized settings
+
   const isLandline = detectLandlineNumber(phoneNumber);
-  
   console.log(`🔍 TwiML Generation: ${phoneNumber} detected as ${isLandline ? 'LANDLINE' : 'MOBILE'}`);
-  
-  const backendBase = getBackendBaseUrl();
-  const recordingCallback =
-    backendBase && /^https:\/\//i.test(backendBase)
-      ? `${backendBase}/api/calls/recording-callback`
-      : undefined;
-  if (!recordingCallback) {
-    console.warn(
-      '⚠️ generateCustomerToAgentTwiML: BACKEND_URL missing or not https — omitting recordingStatusCallback (invalid URL makes Twilio play application error)',
-    );
-  }
 
   const fromNumber = process.env.TWILIO_PHONE_NUMBER?.trim();
 
-  // 🎙️ Dual-channel recording on <Dial>. Twilio rejects the whole document if
-  // recordingStatusCallback is present but not a valid absolute https URL.
+  // Outbound customer leg is already recorded at the REST API level (calls.create
+  // with record + dual channels). Do NOT set record/trim/recordingStatusCallback
+  // on this <Dial><Client> — Twilio often rejects that combination and the callee
+  // hears "We're sorry, an application error has occurred."
   const dialSettings: Record<string, unknown> = {
     timeout: isLandline ? 90 : 60,
-    record: 'record-from-answer-dual',
-    trim: 'trim-silence',
     answerOnBridge: true,
-    // ISO 3166-1 alpha-2 (uppercase) — "gb" triggers error 13220 / invalid TwiML
-    ringTone: isLandline ? 'GB' : 'US',
   };
   if (fromNumber) {
     dialSettings.callerId = fromNumber;
   }
-  if (recordingCallback) {
-    dialSettings.recordingStatusCallback = recordingCallback;
-    dialSettings.recordingStatusCallbackMethod = 'POST';
-    dialSettings.recordingStatusCallbackEvent = ['completed'];
-  }
 
   console.log(
-    '🎙️ Customer→Agent <Dial>: record-from-answer-dual',
-    recordingCallback ? `callback=${recordingCallback}` : '(no recording callback — set BACKEND_URL=https://…)',
+    '🎙️ Customer→Agent <Dial><Client>: bridge-only (recording handled by parent REST call)',
   );
-  
-  // Add landline-specific optimizations
+
   if (isLandline) {
-    console.log('🏠 Applying landline optimizations: extended timeout, UK ringtone, bridge timing');
-    // For landlines, add a brief pause before connection to allow carrier routing
+    console.log('🏠 Landline: brief pause before dial');
     twiml.pause({ length: 1 });
   }
-  
-  // Connect customer directly to the WebRTC agent browser client (identity must match Voice token)
+
   const dial = twiml.dial(dialSettings as any);
   dial.client(clientIdentity.trim() || 'agent-browser');
-  
+
   return twiml.toString();
 };
 
