@@ -5,6 +5,8 @@ export interface ActiveCallState {
   phoneNumber: string | null;
   callSid: string | null;
   conferenceId: string | null; // CRITICAL: Conference ID for finding preliminary call records
+  /** Stable id for this dial attempt (matches backend preliminary row [DIAL:...]) */
+  dialCorrelationId: string | null;
   callType: 'inbound' | 'outbound' | null;
   customerInfo: {
     id?: string;
@@ -27,6 +29,7 @@ const initialState: ActiveCallState = {
   phoneNumber: null,
   callSid: null,
   conferenceId: null,
+  dialCorrelationId: null,
   callType: null,
   customerInfo: null,
   callStartTime: null,
@@ -44,6 +47,7 @@ const activeCallSlice = createSlice({
       customerInfo: any; 
       callSid?: string;
       conferenceId?: string;
+      dialCorrelationId?: string;
       callType?: 'inbound' | 'outbound';
     }>) => {
       state.isActive = true;
@@ -51,6 +55,7 @@ const activeCallSlice = createSlice({
       state.customerInfo = action.payload.customerInfo;
       state.callSid = action.payload.callSid || null;
       state.conferenceId = action.payload.conferenceId || null;
+      state.dialCorrelationId = action.payload.dialCorrelationId || null;
       state.callType = action.payload.callType || 'outbound';
       state.callStartTime = new Date();
       state.callDuration = 0;

@@ -3,6 +3,7 @@
  */
 
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import twilioService, { twilioClient } from '../services/twilioService';
 import { prisma } from '../lib/prisma';
@@ -1258,9 +1259,26 @@ export const handleRecordingCallback = async (req: Request, res: Response) => {
  */
 export const makeRestApiCall = async (req: Request, res: Response) => {
   try {
-    const { to, contactId: existingContactId, contactName, existingContact, campaignId, campaignName, agentId: requestAgentId } = req.body;
-    
-    console.log('� FAST DIAL: Making REST API call - original number:', { to, existingContactId, contactName, existingContact, campaignId, campaignName });
+    const {
+      to,
+      contactId: existingContactId,
+      contactName,
+      existingContact,
+      campaignId,
+      campaignName,
+      agentId: requestAgentId,
+      dialCorrelationId: clientDialCorrelationId,
+    } = req.body;
+
+    console.log('⚡ FAST DIAL: Making REST API call - original number:', {
+      to,
+      existingContactId,
+      contactName,
+      existingContact,
+      campaignId,
+      campaignName,
+    });
+
 
     if (!to) {
       return res.status(400).json({
@@ -1310,7 +1328,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     const forceCall = req.body.force === true; // Allow admins to force new calls
     
     console.log('🔍 Checking for active calls before initiating new call...');
-    const activeCall = await checkForActiveCallByUserId(userId);
+    const activeCall = await checkForActiveCallByUserId(parseInt(String(userId), 10));
     
     if (activeCall && !forceCall) {
       const callDuration = Math.floor((Date.now() - new Date(activeCall.startTime).getTime()) / 1000);
@@ -1347,9 +1365,22 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
 
+    if (!process.env.BACKEND_URL) {
+      return res.status(503).json({
+        success: false,
+        error:
+          'BACKEND_URL is not configured on the server. Twilio cannot fetch call instructions — set BACKEND_URL to your public API base URL (e.g. https://your-backend.example.com).',
+      });
+    }
+
     // ⚡ OPTIMIZATION 2: Generate conference ID and initiate call IMMEDIATELY
     const conferenceId = `conf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🚀 FAST DIAL: Creating conference call:', conferenceId);
+    const dialCorrelationId =
+      typeof clientDialCorrelationId === 'string' &&
+      /^[a-zA-Z0-9_-]{8,128}$/.test(clientDialCorrelationId.trim())
+        ? clientDialCorrelationId.trim()
+        : randomUUID();
+    console.log('🚀 FAST DIAL: Creating conference call:', conferenceId, 'dialCorrelationId:', dialCorrelationId);
 
     console.log(`📞 FAST DIAL: Initiating call to ${formattedTo} from ${fromNumber} - bypassing DB setup for speed`);
 
@@ -1359,7 +1390,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
 
     // ⚡ CRITICAL: Start the Twilio call FIRST, then handle DB operations in parallel
     const twimlUrl = `${process.env.BACKEND_URL}/api/calls/twiml-customer-to-agent?${new URLSearchParams({
-      clientIdentity: await resolveTwilioVoiceIdentityForUserId(userId),
+      clientIdentity: await resolveTwilioVoiceIdentityForUserId(String(userId)),
     }).toString()}`;
     
     // 🎙️ MANDATORY RECORDING VALIDATION - DO NOT BYPASS
@@ -1496,7 +1527,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         duration: null,
         outcome: 'in-progress',
         recording: conferenceId, // 🚨 CRITICAL FIX: Set conferenceId as placeholder so frontend can find this record
-        notes: `[USER:${authenticatedUser.userId}|${authenticatedUser.username}] [CONF:${conferenceId}] Call initiated - awaiting Twilio SID`
+        notes: `[USER:${authenticatedUser.userId}|${authenticatedUser.username}] [CONF:${conferenceId}] [DIAL:${dialCorrelationId}] Call initiated - awaiting Twilio SID`
       }
     });
     
@@ -1520,6 +1551,27 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
         moreInfo: twilioError.moreInfo,
         details: twilioError.details
       });
+      // Close preliminary row so active-call guard does not block the next dial (was endTime=null forever).
+      try {
+        const prev = preliminaryCallRecord.notes?.trim() || '';
+        const failLine = `[TWILIO-REJECT] code=${twilioError?.code ?? 'n/a'} ${(twilioError?.message || 'unknown').toString().slice(0, 500)}`;
+        await prisma.callRecord.update({
+          where: { callId: conferenceId },
+          data: {
+            endTime: new Date(),
+            outcome: 'failed',
+            duration: 0,
+            notes: prev ? `${prev}\n${failLine}` : failLine,
+          },
+        });
+      } catch (cleanupErr: any) {
+        console.warn('⚠️ Could not mark failed preliminary call:', cleanupErr?.message);
+      }
+      try {
+        await prisma.contact.deleteMany({ where: { contactId: tempContactId } });
+      } catch {
+        // temp contact may be referenced elsewhere; ignore
+      }
       throw twilioError; // Re-throw to be caught by outer catch
     }
 
@@ -1536,13 +1588,18 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     
     console.log('🎙️ RECORDING CONFIRMATION: Call created with SID', callResult.sid, '- recording will be tracked');
 
-    // 🚨 CRITICAL: Update with Twilio SID IMMEDIATELY so webhooks can find this record
+    // 🚨 CRITICAL: Update with Twilio SID IMMEDIATELY so webhooks can find this record.
+    // Preserve [DIAL:...] / [CONF:...] / [USER:...] for save-call-data correlation.
+    const prevNotesForSid = preliminaryCallRecord.notes?.trim() || '';
+    const sidNotes = `[SYSTEM] Twilio SID: ${callResult.sid}. RECORDING ENABLED (dual-channel). Waiting for call completion.`;
+    const mergedSidNotes = prevNotesForSid ? `${prevNotesForSid}\n${sidNotes}` : sidNotes;
+
     await prisma.callRecord.update({
       where: { callId: conferenceId },
-      data: { 
+      data: {
         recording: callResult.sid,
-        notes: `[SYSTEM] Twilio SID: ${callResult.sid}. RECORDING ENABLED (dual-channel). Waiting for call completion.`
-      }
+        notes: mergedSidNotes,
+      },
     });
     
     console.log(`✅ Call record updated with Twilio SID: ${callResult.sid}`);
@@ -1553,6 +1610,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       success: true,
       callSid: callResult.sid,
       conferenceId: conferenceId,
+      dialCorrelationId,
       status: callResult.status,
       message: '⚡ Fast dial initiated - database operations running in background'
     });
