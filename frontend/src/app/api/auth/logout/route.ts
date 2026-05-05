@@ -87,6 +87,25 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
 
+    const clearHttpOnly = (name: string) => {
+      response.cookies.set(name, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/',
+      });
+      response.cookies.set(name, '', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/',
+      });
+    };
+    clearHttpOnly('session_token');
+    clearHttpOnly('omnivox_token');
+
     // Additional clearing with different attributes
     response.cookies.set('auth-token', '', {
       httpOnly: true,

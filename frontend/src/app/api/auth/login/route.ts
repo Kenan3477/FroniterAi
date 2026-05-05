@@ -66,11 +66,19 @@ export async function POST(request: NextRequest) {
       });
       
       // Also set auth-token for backward compatibility
-      response.cookies.set('auth-token', realToken, {
+    response.cookies.set('auth-token', realToken, {
         httpOnly: true,
         secure: false,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60
+      });
+
+      response.cookies.set('omnivox_token', realToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60,
+        path: '/',
       });
 
       return response;
@@ -150,6 +158,14 @@ export async function POST(request: NextRequest) {
       secure: isProduction,
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 // 24 hours
+    });
+
+    response.cookies.set('omnivox_token', backendData.data.token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60,
+      path: '/',
     });
 
     // Also store sessionId in a cookie for logout tracking

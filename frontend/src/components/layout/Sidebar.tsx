@@ -76,7 +76,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
           {!collapsed && (
             <div className="flex items-center space-x-1">
-              <span className="text-lg font-bold theme-text-primary">OMNI</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-white theme-text-primary">
+                OMNI
+              </span>
               
               {/* Voice Wave V replacement - smaller for sidebar, flipped upside down */}
               <div className="flex items-start justify-center h-5 space-x-0.5 mx-1">
@@ -97,14 +99,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                      style={{ height: '35%', animationDelay: '0.6s', animationDuration: '1.8s' }}></div>
               </div>
               
-              <span className="text-lg font-bold theme-text-primary">OX AI</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-white theme-text-primary">
+                OX AI
+              </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1">
+      {/* Navigation — explicit Tailwind contrast so links never disappear (white-on-white) */}
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-4 space-y-1">
         {navigationItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -112,19 +116,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={item.name}
               href={item.href}
               title={collapsed ? item.name : undefined}
-              className={`sidebar-item group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
-                isActive ? 'active border-r-2' : ''
-              } ${isActive ? 'border-[var(--theme-accent)]' : ''}`}
+              className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
+                isActive
+                  ? 'bg-slate-200 text-slate-900 border-r-2 border-blue-600 dark:bg-neutral-800 dark:text-white dark:border-cyan-400'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-white'
+              }`}
             >
               <item.icon
                 className={`${
                   isActive
-                    ? 'text-[inherit]'
-                    : 'text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)]'
+                    ? 'text-blue-600 dark:text-cyan-300'
+                    : 'text-slate-500 group-hover:text-slate-800 dark:text-neutral-400 dark:group-hover:text-white'
                 } mr-3 flex-shrink-0 h-6 w-6`}
                 aria-hidden="true"
               />
-              {!collapsed && <span className="theme-text-primary">{item.name}</span>}
+              {!collapsed && (
+                <span className="text-slate-900 dark:text-white">{item.name}</span>
+              )}
             </Link>
           );
         })}
