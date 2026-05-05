@@ -324,6 +324,7 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       campaignId,
       callSid,
       conferenceId,  // 🚨 NEW: Conference ID for finding preliminary record
+      dialCorrelationId: dialCorrelationIdBody,
       recordingUrl
     } = req.body;
 
@@ -331,6 +332,11 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
     console.log('💾 Backend: Request body keys:', Object.keys(req.body));
     console.log('💾 Backend: Disposition data:', JSON.stringify(disposition, null, 2));
     console.log('💾 Backend: Direct dispositionId:', req.body.dispositionId);
+    const dialCorrelationId =
+      typeof dialCorrelationIdBody === 'string' && dialCorrelationIdBody.trim().length > 0
+        ? dialCorrelationIdBody.trim()
+        : undefined;
+    console.log('💾 dialCorrelationId:', dialCorrelationId || '(none)');
 
     // Map disposition names to proper outcome values for successful call tracking
     function mapDispositionToOutcome(disposition: any): string {
@@ -793,41 +799,45 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
             ? agentScopeParts[0]
             : { OR: agentScopeParts };
 
-      // PRIORITY 1: conferenceId (globally unique per dial attempt)
-      if (conferenceId) {
+      // PRIORITY 0: dialCorrelationId — stable per dial attempt, survives conferenceId/callSid mismatches
+      if (!existingRecordByTwilioSid && dialCorrelationId) {
+        const dialTag = `[DIAL:${dialCorrelationId}]`;
         existingRecordByTwilioSid = await prisma.callRecord.findFirst({
           where: {
-            OR: [
-              { callId: conferenceId },
-              { recording: conferenceId },
-              { notes: { contains: conferenceId } },
-            ],
+            notes: { contains: dialTag },
+            ...(agentScopeParts.length > 0 ? agentScope : {}),
           },
           orderBy: { createdAt: 'desc' },
         });
         if (existingRecordByTwilioSid) {
-          console.log(`✅ Found record by conferenceId: ${existingRecordByTwilioSid.callId}`);
+          console.log(`✅ Found record by dialCorrelationId: ${existingRecordByTwilioSid.callId}`);
         }
       }
 
-      // Prefer same-agent row when conferenceId matches multiple (defensive)
-      if (existingRecordByTwilioSid && conferenceId && agentScopeParts.length > 0) {
-        const scoped = await prisma.callRecord.findFirst({
-          where: {
-            AND: [
-              {
-                OR: [
-                  { callId: conferenceId },
-                  { recording: conferenceId },
-                  { notes: { contains: conferenceId } },
-                ],
-              },
-              agentScope,
-            ],
-          },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (scoped) existingRecordByTwilioSid = scoped;
+      // PRIORITY 1: conferenceId — always prefer agent-scoped match (two agents can share a campaign/number)
+      if (conferenceId) {
+        const confWhere = {
+          OR: [
+            { callId: conferenceId },
+            { recording: conferenceId },
+            { notes: { contains: conferenceId } },
+          ],
+        };
+        if (agentScopeParts.length > 0) {
+          existingRecordByTwilioSid = await prisma.callRecord.findFirst({
+            where: { AND: [confWhere, agentScope] },
+            orderBy: { createdAt: 'desc' },
+          });
+        }
+        if (!existingRecordByTwilioSid) {
+          existingRecordByTwilioSid = await prisma.callRecord.findFirst({
+            where: confWhere,
+            orderBy: { createdAt: 'desc' },
+          });
+        }
+        if (existingRecordByTwilioSid) {
+          console.log(`✅ Found record by conferenceId: ${existingRecordByTwilioSid.callId}`);
+        }
       }
 
       // PRIORITY 2: Twilio CA SID — must match this agent (prevents attaching another agent's customer leg)
@@ -864,12 +874,26 @@ router.post('/save-call-data', async (req: Request, res: Response) => {
       // call from the last 5 minutes and update it instead.
       if (!existingRecordByTwilioSid && safeAgentId && safeAgentId !== 'system-agent') {
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const phoneVariantsForRecent =
+          safePhoneNumber && safePhoneNumber !== 'Unknown' ? normalizePhoneNumber(safePhoneNumber) : [];
         const recentOpenCall = await prisma.callRecord.findFirst({
           where: {
             agentId: safeAgentId,
             callType: 'outbound',
             endTime: null,
             createdAt: { gte: fiveMinutesAgo },
+            ...(dialCorrelationId
+              ? { notes: { contains: `[DIAL:${dialCorrelationId}]` } }
+              : phoneVariantsForRecent.length > 0
+                ? {
+                    AND: [
+                      ...(safeCampaignId && safeCampaignId !== 'manual-dial' && safeCampaignId !== 'Manual Dialing'
+                        ? [{ campaignId: safeCampaignId }]
+                        : []),
+                      { OR: phoneVariantsForRecent.map((v: string) => ({ phoneNumber: v })) },
+                    ],
+                  }
+                : {}),
           },
           orderBy: { createdAt: 'desc' },
         });
