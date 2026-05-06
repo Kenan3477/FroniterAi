@@ -174,7 +174,7 @@ router.post('/twiml/outbound', async (req, res) => {
     twiml.pause({ length: 1 });
     const dial = twiml.dial({
       timeout: 30, // 30 second timeout for agent pickup
-      record: 'record-from-answer-dual',
+      record: 'record-from-answer',
       answerOnBridge: true, // Only answer when agent picks up
       callerId: From,
     });

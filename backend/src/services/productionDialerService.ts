@@ -170,9 +170,10 @@ class ProductionTwilioDialerService {
             }
           : {}),
         
-        // Call recording for quality and compliance
+        // Call recording for quality and compliance (mono = single mixed track, lower Twilio cost than dual)
         record: true,
-        recordingChannels: 'dual' as const,
+        recordingChannels: 'mono' as const,
+        recordingTrack: 'both' as const,
         recordingStatusCallback: `${base}/api/dialer/webhook/recording-status`,
         recordingStatusCallbackMethod: 'POST' as const,
         

@@ -603,7 +603,7 @@ async function routeToAvailableAgents(
 
   const dialOpts: any = {
     timeout: 30, // 30 second timeout for agent to answer
-    record: 'record-from-answer-dual',
+    record: 'record-from-answer',
     // Caller hears ringing until agent answers; true bridges early and often sounds like static/noise
     answerOnBridge: false,
   };

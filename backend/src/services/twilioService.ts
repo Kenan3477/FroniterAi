@@ -368,7 +368,7 @@ export const generateCustomerTwiML = (conference: string): string => {
   // Connect customer to conference with recording (no TTS greeting)
   const dial = twiml.dial({
     timeout: 60,
-    record: 'record-from-answer-dual' // Record both sides from when call is answered
+    record: 'record-from-answer',
   });
   
   const waitUrl = resolveConferenceWaitUrl();

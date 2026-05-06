@@ -225,7 +225,7 @@ const handleTwimlOutbound = async (req: Request, res: Response) => {
     // Generate TwiML response to dial the customer
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial timeout="30" record="record-from-ringing-dual">
+  <Dial timeout="30" record="record-from-ringing">
     <Number>${To}</Number>
   </Dial>
 </Response>`;

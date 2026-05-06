@@ -111,7 +111,8 @@ class SIPCallControlService {
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
         statusCallbackMethod: 'POST',
         record: true,
-        recordingChannels: 'dual',
+        recordingChannels: 'mono',
+        recordingTrack: 'both',
         recordingStatusCallback: `${process.env.BACKEND_URL}/api/calls/webhook/recording?callId=${callId}`,
       });
 

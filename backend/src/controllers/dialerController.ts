@@ -1425,15 +1425,16 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // valid as TwiML <Dial> attributes. Sending the string here triggers
     // Twilio error 20001: "Record must be either 'true' or 'false'", which
     // surfaces in the frontend as "Backend call request failed".
-    // To get dual-channel recording starting at answer at the REST API level:
+    // Single-channel (mono) recording: lower Twilio cost than dual; both legs
+    // are mixed into one track (recordingTrack: 'both').
     //   - record: true
-    //   - recordingChannels: 'dual'
+    //   - recordingChannels: 'mono'
     //   - recordingTrack: 'both'
     //   - The actual "from-answer" semantics is the default for outbound REST
     //     calls (recording is created when the call is answered).
     const RECORDING_CALLBACK = `${publicVoiceBase}/api/calls/recording-callback`;
 
-    console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded dual-channel');
+    console.log('🎙️ MANDATORY RECORDING ENFORCED: All calls will be recorded (single-channel / mono)');
     console.log('📞 Twilio public base URL:', publicVoiceBase);
     console.log('📞 Recording callback URL:', RECORDING_CALLBACK);
 
@@ -1449,7 +1450,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
       // 🎙️ MANDATORY: RECORDING PARAMETERS - DO NOT REMOVE OR DISABLE
       // Twilio REST API requires boolean record + separate channel/track flags.
       record: true,
-      recordingChannels: 'dual' as const, // Dual-channel: agent on one track, customer on the other
+      recordingChannels: 'mono' as const,
       recordingTrack: 'both' as const,
       recordingStatusCallback: RECORDING_CALLBACK,
       recordingStatusCallbackMethod: 'POST' as const,
@@ -1457,8 +1458,8 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     };
 
     // 🔒 FINAL VALIDATION: Verify recording is enabled before making call
-    if (callParams.record !== true || callParams.recordingChannels !== 'dual') {
-      throw new Error('🚨 SECURITY VIOLATION: Attempted to make call without mandatory dual-channel recording enabled');
+    if (callParams.record !== true || callParams.recordingChannels !== 'mono') {
+      throw new Error('🚨 SECURITY VIOLATION: Attempted to make call without mandatory call recording enabled');
     }
 
     if (isLandline) {
@@ -1468,7 +1469,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     }
 
     console.log(
-      '✅ RECORDING VALIDATED: record=true, recordingChannels=dual, recordingTrack=both, callback=/api/calls/recording-callback',
+      '✅ RECORDING VALIDATED: record=true, recordingChannels=mono, recordingTrack=both, callback=/api/calls/recording-callback',
     );
 
     // 🚨 CRITICAL FIX: Create call record BEFORE Twilio call to prevent duplicates
@@ -1600,7 +1601,7 @@ export const makeRestApiCall = async (req: Request, res: Response) => {
     // 🚨 CRITICAL: Update with Twilio SID IMMEDIATELY so webhooks can find this record.
     // Preserve [DIAL:...] / [CONF:...] / [USER:...] in notes — save-call-data matches on dialCorrelationId.
     const prevNotesForSid = preliminaryCallRecord.notes?.trim() || '';
-    const sidNotes = `[SYSTEM] Twilio SID: ${callResult.sid}. RECORDING ENABLED (dual-channel). Waiting for call completion.`;
+    const sidNotes = `[SYSTEM] Twilio SID: ${callResult.sid}. RECORDING ENABLED (mono). Waiting for call completion.`;
     const mergedSidNotes = prevNotesForSid ? `${prevNotesForSid}\n${sidNotes}` : sidNotes;
 
     await prisma.callRecord.update({
